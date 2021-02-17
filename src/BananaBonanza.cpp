@@ -3,6 +3,7 @@
 // Headers
 ////////////////////////////////////////////////////////////
 #include "Effect.hpp"
+#include "Globals.hpp"
 #include <SFML/Graphics.hpp>
 #include <SFML/Audio.hpp>
 #include <cassert>
@@ -12,8 +13,6 @@
 #include <iostream>
 #include <unordered_map>
 #include <random>
-
-#define PI 3.14159265358979323846264338327950288
 
 std::random_device randDevice;
 std::mt19937 mersenne(randDevice());
@@ -246,17 +245,34 @@ public:
 class Player
 {
 public:
+    enum Direction {
+        Idle      = 0,
+        West      = 1,
+        East      = 2,
+        South     = 3,
+        North     = 4,
+        NorthEast = 5,
+        NorthWest = 6,
+        SouthWest = 7,
+        SouthEast = 8
+    };
+
     Player(const std::string &name, ShadedSprite &sprite)
-        : name(name), shadedSprite(&sprite) {}
+        : name(name), shadedSprite(&sprite)
+    {
+        updateDirection(0.0f, 0.0f);
+    }
 
     void move(const sf::Vector2f &offset)
     {
         shadedSprite->sprite.move(offset);
+        updateDirection(offset.x, offset.y);
     }
 
     void move(float offsetX, float offsetY)
     {
         shadedSprite->sprite.move(offsetX, offsetY);
+        updateDirection(offsetX, offsetY);
     }
 
     void draw(sf::RenderTarget& target) const
@@ -267,6 +283,41 @@ public:
 //private:
     const std::string &name;
     ShadedSprite *shadedSprite;
+    Direction direction;
+
+private:
+    void updateDirection(float offsetX, float offsetY)
+    {
+        // NOTE: Branching could be removed by putting the sprites in a more logical order.. doesn't matter if this
+        // only applies to players since there would be so few.
+        if (offsetX > 0.0f) {
+            if (offsetY > 0.0f) {
+                direction = SouthEast;
+            } else if (offsetY < 0.0f) {
+                direction = NorthEast;
+            } else {
+                direction = East;
+            }
+        } else if (offsetX < 0.0f) {
+            if (offsetY > 0.0f) {
+                direction = SouthWest;
+            } else if (offsetY < 0.0f) {
+                direction = NorthWest;
+            } else {
+                direction = West;
+            }
+        } else {
+            if (offsetY > 0.0f) {
+                direction = South;
+            } else if (offsetY < 0.0f) {
+                direction = North;
+            } else {
+                direction = Idle;
+            }
+        }
+        // TODO: Load rect info from config file or something?
+        shadedSprite->sprite.setTextureRect(sf::IntRect(54 * direction, 0, 54, 93));
+    }
 };
 
 class BananaParticles : public Effect
@@ -360,7 +411,12 @@ int main()
         return EXIT_FAILURE;
     }
 
-    Game game(1600, 900, "Banana Bonanza", true);
+    bool vertexBufferCheck = sf::VertexBuffer::isAvailable();
+    if (!vertexBufferCheck) {
+        return EXIT_FAILURE;
+    }
+
+    Game game(1600, 900, "Banana Bonanza", false);
     if (!game.Init()) {
         return EXIT_FAILURE;
     }
@@ -399,6 +455,11 @@ int main()
     backgroundMusic.setVolume(2);
     backgroundMusic.play();
 
+    sf::Music whistleMusic;
+    whistleMusic.openFromFile("resources/whistle.ogg");
+    whistleMusic.setLoop(true);
+    whistleMusic.setVolume(50);
+
     sf::SoundBuffer bananaSoundBuffer;
     bananaSoundBuffer.loadFromFile("resources/banana.ogg");
     const size_t bananaSoundsCount = 5;
@@ -417,7 +478,7 @@ int main()
 
     ShadedSprite playerSprite(playerTexture, textureColorShader);
     Player player("Charlie", playerSprite);
-    const float playerSpeed = 15.0f;
+    const float playerSpeed = 5.0f;
     sf::Vector2f playerVelocity;
 
     sf::View camera = sf::View(window.getDefaultView());
@@ -445,6 +506,7 @@ int main()
 
     // Start the game loop
     sf::Clock clock;
+    sf::Clock idleClock;
     bool quit = false;
     while (!quit) {
 
@@ -530,6 +592,9 @@ int main()
         playerMoveAccum.y += sf::Keyboard::isKeyPressed(sf::Keyboard::S); // Down
         playerVelocity = Vector2f::Normalize(playerMoveAccum) * playerSpeed;
         player.move(playerVelocity);
+        //if (!Vector2f::IsZero(playerVelocity)) {
+        //    player.move(playerVelocity);
+        //}
 
         // Constrain player to level bounds
         sf::FloatRect playerRect = player.shadedSprite->sprite.getGlobalBounds();
@@ -548,6 +613,19 @@ int main()
             } else {
                 // NOTE: If player entirely outside of level, move to 0,0. Moving to closest edge might be better?
                 player.shadedSprite->sprite.setPosition(0.0f, 0.0f);
+            }
+        }
+
+        bool playerIdle = player.direction == Player::Direction::Idle;
+        sf::SoundSource::Status whistleStatus = whistleMusic.getStatus();
+        if (!playerIdle) {
+            if (whistleStatus != sf::SoundSource::Status::Stopped) {
+                whistleMusic.stop();
+            }
+            idleClock.restart();
+        } else if (idleClock.getElapsedTime().asSeconds() > 10.0f) {
+            if (whistleStatus != sf::SoundSource::Status::Playing) {
+                whistleMusic.play();
             }
         }
 

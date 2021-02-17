@@ -12,9 +12,12 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\BananaBonanza.cpp" />
+    <ClCompile Include="src\SpriteBatch.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Effect.hpp" />
+    <ClInclude Include="src\Globals.hpp" />
+    <ClInclude Include="src\SpriteBatch.hpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
