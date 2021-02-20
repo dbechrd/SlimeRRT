@@ -15,7 +15,7 @@ public:
         return name;
     }
 
-    void load(const sf::FloatRect &levelRect)
+    void load(const sf::IntRect &levelRect)
     {
         isLoaded = onLoad(levelRect);
     }
@@ -38,7 +38,7 @@ protected:
     Effect(const std::string& name) : name(name), isLoaded(false) {}
 
 private:
-    virtual bool onLoad(const sf::FloatRect &levelRect) = 0;
+    virtual bool onLoad(const sf::IntRect &levelRect) = 0;
     virtual void onUpdate(float time, const sf::Vector2f &viewSize) = 0;
     virtual void onDraw(sf::RenderTarget& target, sf::RenderStates states) const = 0;
 

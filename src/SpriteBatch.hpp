@@ -28,13 +28,13 @@ public:
 		display(false);
 		this->state = states;
 	}
-	void setRenderTarget(sf::RenderTarget &rt)
+	void setRenderTarget(sf::RenderTarget &render_target)
 	{
-		this->rt = &rt;
+		this->render_target = &render_target;
 	}
 
 private:
-	sf::RenderTarget *rt;
+	sf::RenderTarget *render_target;
 	sf::RenderStates state;
 	std::vector<sf::Vertex> vertices;
 };

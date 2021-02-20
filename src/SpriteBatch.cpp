@@ -1,6 +1,7 @@
 #include "SpriteBatch.hpp"
 #include "Globals.hpp"
 #include <cmath>
+#include <cassert>
 
 const int LookupSize = 512;
 
@@ -37,9 +38,12 @@ void SpriteBatch::draw(const sf::Sprite &sprite)
 
 void SpriteBatch::display(bool reset, bool flush)
 {
+	assert(render_target);
 	const size_t count = vertices.size();
-	rt->draw(&vertices[0], count, sf::PrimitiveType::Quads, state);
-	if (flush) vertices.clear();
+	if (count) {
+		render_target->draw(&vertices[0], count, sf::PrimitiveType::Quads, state);
+		if (flush) vertices.clear();
+	}
 	if (reset) state = sf::RenderStates::Default;
 }
 

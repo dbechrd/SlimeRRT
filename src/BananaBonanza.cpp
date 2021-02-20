@@ -1,8 +1,9 @@
-
+﻿
 ////////////////////////////////////////////////////////////
 // Headers
 ////////////////////////////////////////////////////////////
 #include "Effect.hpp"
+#include "SpriteBatch.hpp"
 #include "Globals.hpp"
 #include <SFML/Graphics.hpp>
 #include <SFML/Audio.hpp>
@@ -13,6 +14,100 @@
 #include <iostream>
 #include <unordered_map>
 #include <random>
+
+template<class T>
+class Bomb
+{
+public:
+    void Explode(T data)
+    {
+        onExplode(data);
+    }
+
+private:
+    virtual void onExplode(T data) = 0;
+};
+
+class Nuke : public Bomb<int>
+{
+    public:
+
+    private:
+        void onExplode(int data) {
+            std::cout << "BOOM!\n" << std::endl;
+        }
+};
+
+template<typename DataType, typename LoaderType>
+class Catalog : private LoaderType
+{
+public:
+    Catalog() {}
+
+    bool Load(std::string path, int flags = 0)
+    {
+        size_t index;
+        auto it = index_by_path.find(path);
+        if (it != index_by_path.end()) {
+            index = it->second;
+        } else {
+            index = data.size();
+            data.push_back(DataType());
+            index_by_path[path] = index;
+        }
+        return LoaderType::onLoad(data[index], path, flags);
+    }
+
+    bool Find(std::string path, DataType *&result)
+    {
+        auto it = index_by_path.find(path);
+        if (it != index_by_path.end()) {
+            size_t index = it->second;
+            assert(index < data.size());
+            result = &data[index];
+            return true;
+        }
+        if (data.size()) {
+            std::cerr << "WARN: Catalog.Find() did not find a match" << std::endl;
+            result = &data.front();
+        } else {
+            std::cerr << "WARN: Catalog.Find() with no fallback available" << std::endl;
+        }
+        return false;
+    }
+
+    DataType *operator[](std::string path)
+    {
+        DataType* result = nullptr;
+        Find(path, result);
+        return result;
+    }
+
+private:
+    std::vector<DataType> data;
+    std::unordered_map<std::string, size_t> index_by_path;
+};
+
+class TextureLoader
+{
+public:
+    enum Flags {
+        Repeat, ///< Enable texture repeating
+    };
+
+protected:
+    bool onLoad(sf::Texture &texture, std::string path, int flags)
+    {
+        if (!texture.loadFromFile(path)) {
+            std::cerr << "Failed to load texture [path: '" << path << "']" << std::endl;
+            return false;
+        }
+        texture.setRepeated(flags & Repeat);
+        return true;
+    }
+};
+
+typedef Catalog<sf::Texture, TextureLoader> TextureCatalog;
 
 std::random_device randDevice;
 std::mt19937 mersenne(randDevice());
@@ -54,7 +149,8 @@ namespace Vector2f {
     }
 };
 
-class Game {
+class Game
+{
 public:
     Game(unsigned int width, unsigned int height, const std::string &title, bool fullscreen = false)
         : windowWidth(width), windowHeight(height), title(title), fullscreen(fullscreen) {}
@@ -203,7 +299,7 @@ public:
     ShadedSprite(const sf::Texture &texture, const sf::IntRect &rect, const sf::Shader &shader)
         : sprite(texture, rect), shader(&shader) {}
 
-    void draw(sf::RenderTarget& target) const
+    void draw(sf::RenderTarget& target)
     {
         sf::RenderStates states = sf::RenderStates::Default;
         states.shader = shader;
@@ -316,7 +412,7 @@ private:
             }
         }
         // TODO: Load rect info from config file or something?
-        shadedSprite->sprite.setTextureRect(sf::IntRect(54 * direction, 0, 54, 93));
+        shadedSprite->sprite.setTextureRect(sf::IntRect(54 * direction, 0, 54, 94));
     }
 };
 
@@ -326,7 +422,7 @@ public:
 
     BananaParticles() : Effect("banana_particles"), pointCloud(sf::Points, 10000) {}
 
-    bool onLoad(const sf::FloatRect &levelRect)
+    bool onLoad(const sf::IntRect &levelRect)
     {
         // Check if geometry shaders are supported
         if (!sf::Shader::isGeometryAvailable()) {
@@ -347,12 +443,16 @@ public:
         assert((float)textureSize.x < levelRect.width);
         assert((float)textureSize.x < levelRect.height);
 
-        sf::Vector2f halfTextureSize = sf::Vector2f(textureSize) / 2.0f;
+        // Only support evenly sized textures to prevent rounding/truncation problems
+        assert(textureSize.x % 2 == 0);
+        assert(textureSize.y % 2 == 0);
+
+        sf::Vector2u halfTextureSize(textureSize.x / 2, textureSize.y / 2);
 
         // Move the points in the point cloud to random positions in the level
         std::uniform_real_distribution<> randomX(halfTextureSize.x, levelRect.width  - halfTextureSize.x);
         std::uniform_real_distribution<> randomY(halfTextureSize.y, levelRect.height - halfTextureSize.y);
-        for (std::size_t i = 0; i < 10000; i++) {
+        for (std::size_t i = 0; i < 1000; i++) {
             pointCloud[i].position.x = (float)randomX(mersenne);
             pointCloud[i].position.y = (float)randomY(mersenne);
         }
@@ -406,6 +506,9 @@ private:
 ////////////////////////////////////////////////////////////
 int main()
 {
+    Nuke nuke;
+    nuke.Explode(4);
+
     bool shaderCheck = sf::Shader::isAvailable();
     if (!shaderCheck) {
         return EXIT_FAILURE;
@@ -423,21 +526,31 @@ int main()
     sf::RenderWindow &window = game.Window();
 
     // Load textures
-    sf::Texture textBackgroundTexture;
-    if (!textBackgroundTexture.loadFromFile("resources/text-background.png")) {
-        return EXIT_FAILURE;
-    }
+    std::string missingTextureN        = "resources/missing.png";
+    std::string textBackgroundTextureN = "resources/text-background.png";
+    std::string grassTextureN          = "resources/grass2.jpg";
+    std::string playerTextureN         = "resources/charlie.png";
+    std::string tilesTextureN          = "resources/tiles.png";
 
-    sf::Texture grassTexture;
-    if (!grassTexture.loadFromFile("resources/grass2.jpg")) {
-        return EXIT_FAILURE;
-    }
-    grassTexture.setRepeated(true);
+    TextureCatalog textureCatalog;
+    textureCatalog.Load("resources/missing.png");
+    textureCatalog.Load("resources/text-background.png");
+    textureCatalog.Load("resources/grass2.jpg", TextureLoader::Repeat);
+    textureCatalog.Load("resources/charlie.png");
+    textureCatalog.Load("resources/tiles.png");
 
-    sf::Texture playerTexture;
-    if (!playerTexture.loadFromFile("resources/charlie.png")) {
-        return EXIT_FAILURE;
-    }
+    sf::Texture *textBackgroundTexture = textureCatalog[textBackgroundTextureN];
+    sf::Texture *grassTexture          = textureCatalog[grassTextureN         ];
+    sf::Texture *playerTexture         = textureCatalog[playerTextureN        ];
+    sf::Texture *tilesTexture          = textureCatalog[tilesTextureN         ];
+
+    assert(textBackgroundTexture);
+    assert(grassTexture         );
+    assert(playerTexture        );
+    assert(tilesTexture         );
+
+    // TODO: How can we enforce this at initialization time? Probably need read texture paths/attributes from a file?
+    grassTexture->setRepeated(true);
 
     // Load shaders
     sf::Shader textureColorShader;
@@ -452,13 +565,33 @@ int main()
     sf::Music backgroundMusic;
     backgroundMusic.openFromStream(backgroundMusicStream);
     backgroundMusic.setLoop(true);
-    backgroundMusic.setVolume(2);
+    backgroundMusic.setVolume(4);
     backgroundMusic.play();
 
     sf::Music whistleMusic;
     whistleMusic.openFromFile("resources/whistle.ogg");
     whistleMusic.setLoop(true);
-    whistleMusic.setVolume(50);
+    whistleMusic.setVolume(80);
+
+    const size_t nomsSoundBuffersCount = 3;
+    sf::SoundBuffer nomsSoundBuffers[nomsSoundBuffersCount];
+    if (!nomsSoundBuffers[0].loadFromFile("resources/omnomnom1.ogg")) {
+        assert(!"Failed to load file");
+        return EXIT_FAILURE;
+    }
+    if (!nomsSoundBuffers[1].loadFromFile("resources/omnomnom2.ogg")) {
+        assert(!"Failed to load file");
+        return EXIT_FAILURE;
+    }
+    if (!nomsSoundBuffers[2].loadFromFile("resources/omnomnom3.ogg")) {
+        assert(!"Failed to load file");
+            return EXIT_FAILURE;
+    }
+    std::uniform_real_distribution<> randomNoms(0, nomsSoundBuffersCount);
+
+    const size_t nomsSoundsCount = 5;
+    sf::Sound nomsSounds[nomsSoundsCount];
+    size_t nomsSoundIdx = 0;
 
     sf::SoundBuffer bananaSoundBuffer;
     bananaSoundBuffer.loadFromFile("resources/banana.ogg");
@@ -474,31 +607,47 @@ int main()
     sf::IntRect levelRect(0, 0, 4096, 4096);
     sf::FloatRect levelRectf(levelRect);
 
-    ShadedSprite grassSprite(grassTexture, levelRect, textureColorShader);
+    ShadedSprite grassSprite(*grassTexture, levelRect, textureColorShader);
 
-    ShadedSprite playerSprite(playerTexture, textureColorShader);
+    ShadedSprite playerSprite(*playerTexture, textureColorShader);
     Player player("Charlie", playerSprite);
     const float playerSpeed = 5.0f;
     sf::Vector2f playerVelocity;
+    player.shadedSprite->sprite.setPosition(800.0f, 800.0f);
 
-    sf::View camera = sf::View(window.getDefaultView());
+    size_t score = 0;
+
     const float keyboardCameraSpeed = 20.0f;
     const float mouseCameraSpeed = 30.0f;
     sf::Vector2f cameraVelocity;
+    const float cameraSmoothingFactor = 0.05f;
+    sf::View camera = sf::View(window.getDefaultView());
 
-    sf::Sprite textBackground(textBackgroundTexture);
+    sf::Sprite textBackground(*textBackgroundTexture);
     textBackground.setColor(sf::Color(255, 255, 255, 255));
 
     sf::Color navyColor(80, 80, 80, 255);
-    ShadedText testText(0.0f, 0.0f, "Owl is the best!", game.Font(), textureColorShader, navyColor, 20U);
+    ShadedText testText(0.0f, 0.0f, "Ayples and Banaynays!", game.Font(), textureColorShader, navyColor, 20U);
     testText.text.setPosition(10, textBackground.getPosition().y + 10);
     testText.text.setOutlineThickness(0.0f);
 
     std::vector<Effect *> effects;
-    effects.push_back(new BananaParticles());
+    effects.push_back(new BananaParticles);
+
+    SpriteBatch appleSpriteBatch(32);
+    appleSpriteBatch.setRenderTarget(window);
+    std::vector<sf::Sprite> appleSprites;
+    appleSprites.resize(500);
+    std::uniform_real_distribution<> randomX(16, levelRect.width  - 16);
+    std::uniform_real_distribution<> randomY(16, levelRect.height - 16);
+    for (auto &appleSprite : appleSprites) {
+        appleSprite.setPosition((float)randomX(mersenne), (float)randomY(mersenne));
+        appleSprite.setTexture(*tilesTexture);
+        appleSprite.setTextureRect(sf::IntRect(0, 0, 32, 32));
+    }
 
     for (auto effect : effects) {
-        effect->load(levelRectf);
+        effect->load(levelRect);
     }
 
     char buf[128] = { 0 };
@@ -564,12 +713,14 @@ int main()
                     }
                     break;
                 }
+#if _DEBUG
                 case sf::Event::MouseWheelScrolled: {
                     if (!game.IsCameraBounded()) {
                         camera.zoom(1.0f - event.mouseWheelScroll.delta * 0.1f);
                     }
                     break;
                 }
+#endif
                 case sf::Event::MouseButtonPressed: {
                     switch (event.mouseButton.button) {
                         case sf::Mouse::Button::Middle: {
@@ -595,6 +746,10 @@ int main()
         //if (!Vector2f::IsZero(playerVelocity)) {
         //    player.move(playerVelocity);
         //}
+
+        sf::Vector2f pos = player.shadedSprite->sprite.getPosition();
+        sf::Vector2f evenPosDelta(-(pos.x - floorf(pos.x)), -(pos.y - floorf(pos.y)));
+        player.shadedSprite->sprite.setPosition(pos + evenPosDelta);
 
         // Constrain player to level bounds
         sf::FloatRect playerRect = player.shadedSprite->sprite.getGlobalBounds();
@@ -649,7 +804,7 @@ int main()
                 playerRect.top + playerRect.height / 2.0f
             );
             sf::Vector2f cameraCenter = camera.getCenter();
-            camera.setCenter(cameraCenter + (cameraTarget - cameraCenter) * 0.1f);
+            camera.setCenter(cameraCenter + (cameraTarget - cameraCenter) * cameraSmoothingFactor);
         } else {
             sf::Vector2f cameraMoveAccum;
             cameraMoveAccum.x -= sf::Keyboard::isKeyPressed(sf::Keyboard::Left);
@@ -680,6 +835,8 @@ int main()
             camera.move(cameraVelocity);
         }
 
+        camera.setCenter(floorf(camera.getCenter().x), floorf(camera.getCenter().y));
+
         // Constrain camera to level bounds
         sf::FloatRect cameraRect(camera.getCenter() - (cameraSize / 2.0f), cameraSize);
         sf::FloatRect cameraIntersect;
@@ -703,16 +860,21 @@ int main()
         // Other stuff update
         //================================================================================
 
-        // TODO: Check for player collision with BananaParticles
-        //for (auto bananaIter = bananas.begin(); bananaIter != bananas.end();) {
-        //    if (player.shadedSprite->sprite.getGlobalBounds().intersects(bananaIter->sprite.getGlobalBounds())) {
-        //        bananaIter = bananas.erase(bananaIter);
-        //        bananaSounds[bananaSoundIdx].play();
-        //        bananaSoundIdx = (bananaSoundIdx + 1) % bananaSoundsCount;
-        //    } else {
-        //        ++bananaIter;
-        //    }
-        //}
+        // TODO: Check for player collision with apples
+        for (auto appleIter = appleSprites.begin(); appleIter != appleSprites.end();) {
+            if (player.shadedSprite->sprite.getGlobalBounds().intersects(appleIter->getGlobalBounds())) {
+                appleIter = appleSprites.erase(appleIter);
+                size_t randomNomIdx = (size_t)randomNoms(mersenne);
+                assert(randomNomIdx >= 0);
+                assert(randomNomIdx < nomsSoundsCount);
+                nomsSounds[nomsSoundIdx].setBuffer(nomsSoundBuffers[randomNomIdx]);
+                nomsSounds[nomsSoundIdx].play();
+                nomsSoundIdx = (nomsSoundIdx + 1) % nomsSoundsCount;
+                score++;
+            } else {
+                ++appleIter;
+            }
+        }
 
         for (auto effect : effects) {
             effect->update(clock.getElapsedTime().asSeconds(), viewSize);
@@ -720,8 +882,8 @@ int main()
 
         // TODO: Only when window changes size
         // Update textbox position
-        textBackground.setPosition(0, (float)viewSize.y - textBackgroundTexture.getSize().y);
-        textBackground.setScale(sf::Vector2f((float)viewSize.x / textBackgroundTexture.getSize().x, 1.0f));
+        textBackground.setPosition(0, (float)viewSize.y - textBackgroundTexture->getSize().y);
+        textBackground.setScale(sf::Vector2f((float)viewSize.x / textBackgroundTexture->getSize().x, 1.0f));
         testText.text.setPosition(10, textBackground.getPosition().y + 10);
 
         // Clear the window
@@ -736,6 +898,10 @@ int main()
         for (auto effect : effects) {
             effect->draw(window, sf::RenderStates::Default);
         }
+        for (auto appleSprite : appleSprites) {
+            appleSpriteBatch.draw(appleSprite);
+        }
+        appleSpriteBatch.display();
         playerSprite.draw(window);
 
         //================================================================================
@@ -757,6 +923,13 @@ int main()
         //memset(buf, 0, sizeof(buf));
         //text_y += font_h;
 
+        len = snprintf(buf, sizeof(buf), "Apples OmNomNom'd: %zu", score);
+        ShadedText scoreText(text_x, text_y, std::string(buf, len), game.Font(), textureColorShader, sf::Color::White, font_h);
+        scoreText.draw(window);
+        memset(buf, 0, sizeof(buf));
+        text_y += font_h;
+
+#if _DEBUG
         len = snprintf(buf, sizeof(buf), "Player (%.f x %.f) @ %.02f, %.02f", playerRect.width, playerRect.height, playerRect.left, playerRect.top);
         ShadedText playerRectText(text_x, text_y, std::string(buf, len), game.Font(), textureColorShader, sf::Color::White, font_h);
         playerRectText.draw(window);
@@ -786,9 +959,14 @@ int main()
         cameraDeltaText.draw(window);
         memset(buf, 0, sizeof(buf));
         text_y += font_h;
+#endif
 
         // Finally, display the rendered frame on screen
         window.display();
+    }
+
+    for (auto effect : effects) {
+        delete effect;
     }
 
     window.close();
