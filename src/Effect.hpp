@@ -1,5 +1,4 @@
-#ifndef EFFECT_HPP
-#define EFFECT_HPP
+#pragma once
 
 #include <SFML/Graphics.hpp>
 #include <cassert>
@@ -46,5 +45,3 @@ private:
     std::string name;
     bool isLoaded;
 };
-
-#endif // EFFECT_HPP

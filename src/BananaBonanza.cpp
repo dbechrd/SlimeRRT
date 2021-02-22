@@ -1,9 +1,7 @@
-﻿
-////////////////////////////////////////////////////////////
-// Headers
-////////////////////////////////////////////////////////////
-#include "Effect.hpp"
+﻿#include "Effect.hpp"
 #include "SpriteBatch.hpp"
+#include "TextureCatalog.hpp"
+#include "Vector2f.hpp"
 #include "Globals.hpp"
 #include <SFML/Graphics.hpp>
 #include <SFML/Audio.hpp>
@@ -15,139 +13,8 @@
 #include <unordered_map>
 #include <random>
 
-template<class T>
-class Bomb
-{
-public:
-    void Explode(T data)
-    {
-        onExplode(data);
-    }
-
-private:
-    virtual void onExplode(T data) = 0;
-};
-
-class Nuke : public Bomb<int>
-{
-    public:
-
-    private:
-        void onExplode(int data) {
-            std::cout << "BOOM!\n" << std::endl;
-        }
-};
-
-template<typename DataType, typename LoaderType>
-class Catalog : private LoaderType
-{
-public:
-    Catalog() {}
-
-    bool Load(std::string path, int flags = 0)
-    {
-        size_t index;
-        auto it = index_by_path.find(path);
-        if (it != index_by_path.end()) {
-            index = it->second;
-        } else {
-            index = data.size();
-            data.push_back(DataType());
-            index_by_path[path] = index;
-        }
-        return LoaderType::onLoad(data[index], path, flags);
-    }
-
-    bool Find(std::string path, DataType *&result)
-    {
-        auto it = index_by_path.find(path);
-        if (it != index_by_path.end()) {
-            size_t index = it->second;
-            assert(index < data.size());
-            result = &data[index];
-            return true;
-        }
-        if (data.size()) {
-            std::cerr << "WARN: Catalog.Find() did not find a match" << std::endl;
-            result = &data.front();
-        } else {
-            std::cerr << "WARN: Catalog.Find() with no fallback available" << std::endl;
-        }
-        return false;
-    }
-
-    DataType *operator[](std::string path)
-    {
-        DataType* result = nullptr;
-        Find(path, result);
-        return result;
-    }
-
-private:
-    std::vector<DataType> data;
-    std::unordered_map<std::string, size_t> index_by_path;
-};
-
-class TextureLoader
-{
-public:
-    enum Flags {
-        Repeat, ///< Enable texture repeating
-    };
-
-protected:
-    bool onLoad(sf::Texture &texture, std::string path, int flags)
-    {
-        if (!texture.loadFromFile(path)) {
-            std::cerr << "Failed to load texture [path: '" << path << "']" << std::endl;
-            return false;
-        }
-        texture.setRepeated(flags & Repeat);
-        return true;
-    }
-};
-
-typedef Catalog<sf::Texture, TextureLoader> TextureCatalog;
-
 std::random_device randDevice;
 std::mt19937 mersenne(randDevice());
-
-namespace Vector2f {
-    const sf::Vector2f Zero(0.0f, 0.0f);
-
-    float LengthSq(const sf::Vector2f &vector)
-    {
-        float lengthSq = vector.x * vector.x + vector.y * vector.y;
-        return lengthSq;
-    }
-
-    float Length(const sf::Vector2f &vector)
-    {
-        float length = std::sqrtf(LengthSq(vector));
-        return length;
-    }
-
-    bool IsZero(const sf::Vector2f &vector)
-    {
-        return vector.x == 0.0f && vector.y == 0.0f;
-    }
-
-    sf::Vector2f Normalize(const sf::Vector2f &vector)
-    {
-        if (IsZero(vector)) {
-            return vector;
-        }
-
-        float length = Length(vector);
-        return sf::Vector2f(vector.x / length, vector.y / length);
-    }
-
-    float Dot(const sf::Vector2f &left, const sf::Vector2f &right)
-    {
-        float dot = left.x * right.x + left.y * right.y;
-        return dot;
-    }
-};
 
 class Game
 {
@@ -506,9 +373,6 @@ private:
 ////////////////////////////////////////////////////////////
 int main()
 {
-    Nuke nuke;
-    nuke.Explode(4);
-
     bool shaderCheck = sf::Shader::isAvailable();
     if (!shaderCheck) {
         return EXIT_FAILURE;
@@ -526,31 +390,19 @@ int main()
     sf::RenderWindow &window = game.Window();
 
     // Load textures
-    std::string missingTextureN        = "resources/missing.png";
-    std::string textBackgroundTextureN = "resources/text-background.png";
-    std::string grassTextureN          = "resources/grass2.jpg";
-    std::string playerTextureN         = "resources/charlie.png";
-    std::string tilesTextureN          = "resources/tiles.png";
-
     TextureCatalog textureCatalog;
-    textureCatalog.Load("resources/missing.png");
-    textureCatalog.Load("resources/text-background.png");
-    textureCatalog.Load("resources/grass2.jpg", TextureLoader::Repeat);
-    textureCatalog.Load("resources/charlie.png");
-    textureCatalog.Load("resources/tiles.png");
+    textureCatalog.LoadDefaultBank();
 
-    sf::Texture *textBackgroundTexture = textureCatalog[textBackgroundTextureN];
-    sf::Texture *grassTexture          = textureCatalog[grassTextureN         ];
-    sf::Texture *playerTexture         = textureCatalog[playerTextureN        ];
-    sf::Texture *tilesTexture          = textureCatalog[tilesTextureN         ];
-
+    // TODO: Pass identifiers around, not texture pointers. Could be std::string path, or enum (e.g. SFX_FOOTSTEP), or
+    // some other UID.
+    sf::Texture *textBackgroundTexture = textureCatalog[TextureCatalog::textBackgroundTextureN];
+    sf::Texture *grassTexture          = textureCatalog[TextureCatalog::grassTextureN         ];
+    sf::Texture *playerTexture         = textureCatalog[TextureCatalog::playerTextureN        ];
+    sf::Texture *itemsTexture          = textureCatalog[TextureCatalog::itemsTextureN         ];
     assert(textBackgroundTexture);
     assert(grassTexture         );
     assert(playerTexture        );
-    assert(tilesTexture         );
-
-    // TODO: How can we enforce this at initialization time? Probably need read texture paths/attributes from a file?
-    grassTexture->setRepeated(true);
+    assert(itemsTexture         );
 
     // Load shaders
     sf::Shader textureColorShader;
@@ -642,7 +494,7 @@ int main()
     std::uniform_real_distribution<> randomY(16, levelRect.height - 16);
     for (auto &appleSprite : appleSprites) {
         appleSprite.setPosition((float)randomX(mersenne), (float)randomY(mersenne));
-        appleSprite.setTexture(*tilesTexture);
+        appleSprite.setTexture(*itemsTexture);
         appleSprite.setTextureRect(sf::IntRect(0, 0, 32, 32));
     }
 

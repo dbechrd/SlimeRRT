@@ -13,11 +13,16 @@
   <ItemGroup>
     <ClCompile Include="src\BananaBonanza.cpp" />
     <ClCompile Include="src\SpriteBatch.cpp" />
+    <ClCompile Include="src\TextureCatalog.cpp" />
+    <ClCompile Include="src\Vector2f.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\Catalog.hpp" />
     <ClInclude Include="src\Effect.hpp" />
     <ClInclude Include="src\Globals.hpp" />
     <ClInclude Include="src\SpriteBatch.hpp" />
+    <ClInclude Include="src\TextureCatalog.hpp" />
+    <ClInclude Include="src\Vector2f.hpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

@@ -1,5 +1,4 @@
-#ifndef SPRITEBATCH_HPP
-#define SPRITEBATCH_HPP
+#pragma once
 
 #include <SFML\Graphics.hpp>
 
@@ -38,5 +37,3 @@ private:
 	sf::RenderStates state;
 	std::vector<sf::Vertex> vertices;
 };
-
-#endif // SPRITEBATCH_HPP

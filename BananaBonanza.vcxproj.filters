@@ -15,6 +15,12 @@
     <ClCompile Include="src\SpriteBatch.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\TextureCatalog.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Vector2f.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Effect.hpp">
@@ -24,6 +30,15 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\Globals.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Catalog.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\TextureCatalog.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Vector2f.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
