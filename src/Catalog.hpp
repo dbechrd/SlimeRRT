@@ -25,29 +25,32 @@ public:
         return onLoad(entries[index], path, flags);
     }
 
-    bool Find(std::string path, T *&result)
+    bool Exists(std::string path)
+    {
+        return index_by_path.count(path) > 0;
+    }
+
+    T &Find(std::string path)
     {
         auto it = index_by_path.find(path);
         if (it != index_by_path.end()) {
             size_t index = it->second;
             assert(index < entries.size());
-            result = &entries[index];
-            return true;
+            return entries[index];
+        } else {
+            std::cerr << "WARN: Catalog.Find(\"" << path << "\") did not find a match. Attempting fallback..." << std::endl;
+            return onMissing(path);
         }
-        std::cerr << "WARN: Catalog.Find() did not find a match" << std::endl;
-        assert(!"Catalog.Find() did not find a match");
-        return false;
     }
 
-    T *operator[](std::string path)
+    T &operator[](std::string path)
     {
-        T* result = nullptr;
-        Find(path, result);
-        return result;
+        return Find(path);
     }
 
 private:
     virtual bool onLoad(T &entry, std::string path, int flags) = 0;
+    virtual T &onMissing(std::string path) = 0;
 
     std::vector<T> entries;
     std::unordered_map<std::string, size_t> index_by_path;

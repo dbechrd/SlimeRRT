@@ -11,7 +11,11 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\BananaBonanza.cpp" />
+    <ClCompile Include="src\Game.cpp" />
+    <ClCompile Include="src\Globals.cpp" />
+    <ClCompile Include="src\Main.cpp" />
+    <ClCompile Include="src\SoundBufferCatalog.cpp" />
+    <ClCompile Include="src\SoundSystem.cpp" />
     <ClCompile Include="src\SpriteBatch.cpp" />
     <ClCompile Include="src\TextureCatalog.cpp" />
     <ClCompile Include="src\Vector2f.cpp" />
@@ -19,7 +23,10 @@
   <ItemGroup>
     <ClInclude Include="src\Catalog.hpp" />
     <ClInclude Include="src\Effect.hpp" />
+    <ClInclude Include="src\Game.hpp" />
     <ClInclude Include="src\Globals.hpp" />
+    <ClInclude Include="src\SoundBufferCatalog.hpp" />
+    <ClInclude Include="src\SoundSystem.hpp" />
     <ClInclude Include="src\SpriteBatch.hpp" />
     <ClInclude Include="src\TextureCatalog.hpp" />
     <ClInclude Include="src\Vector2f.hpp" />

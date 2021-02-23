@@ -3,19 +3,21 @@
 #include <iostream>
 #include <cassert>
 
-const std::string TextureCatalog::textBackgroundTextureN = "resources/text-background.png";
-const std::string TextureCatalog::grassTextureN          = "resources/grass2.jpg";
-const std::string TextureCatalog::playerTextureN         = "resources/charlie.png";
-const std::string TextureCatalog::itemsTextureN          = "resources/items.png";
+namespace TexID {
+    const std::string TextBackground = "resources/text-background.png";
+    const std::string Grass          = "resources/grass2.jpg";
+    const std::string Player         = "resources/charlie.png";
+    const std::string Items          = "resources/items.png";
+}
 
 // TODO: Load bank from a file? Segment by level/area?
 void TextureCatalog::LoadDefaultBank()
 {
     // Load textures
-    Load(textBackgroundTextureN);
-    Load(grassTextureN         , TextureCatalog::Repeat);
-    Load(playerTextureN        );
-    Load(itemsTextureN         );
+    Load(TexID::TextBackground);
+    Load(TexID::Grass         , TextureCatalog::Repeat);
+    Load(TexID::Player        );
+    Load(TexID::Items         );
 }
 
 bool TextureCatalog::onLoad(sf::Texture &texture, std::string path, int flags)
@@ -23,21 +25,30 @@ bool TextureCatalog::onLoad(sf::Texture &texture, std::string path, int flags)
     texture.setRepeated(flags & Repeat);
     if (!texture.loadFromFile(path)) {
         std::cerr << "Failed to load texture [path: '" << path << "'], falling back on hard-coded MISSING.PNG" << std::endl;
-        if (!texture.loadFromMemory(MISSING_PNG, ARRAY_COUNT(MISSING_PNG))) {
-            std::cerr << "Failed to load MISSING.PNG from memory.. we're doomed. What is life?" << std::endl;
-            assert(!"Failed to load MISSING.PNG from memory.. how?");
-            exit(EXIT_FAILURE);
-        }
+        LoadMissingPng(texture);
         return false;
     }
     return true;
 }
 
-// TODO: PlaySound (id)
-// https://stackoverflow.com/a/27860198/770230
-// NOTE: May want to have priority queue? Or multiple vectors based on priority with an eviction strategy
+sf::Texture &TextureCatalog::onMissing(std::string path)
+{
+    assert(!"TextureCatalog::onMissing: Indexing based on invalid id");
+    static sf::Texture missingPng;
+    LoadMissingPng(missingPng);
+    return missingPng;
+}
 
-// Generated with `xxd -i filename.png`
+void TextureCatalog::LoadMissingPng(sf::Texture &texture)
+{
+    if (!texture.loadFromMemory(MISSING_PNG, ARRAY_COUNT(MISSING_PNG))) {
+        std::cerr << "Failed to load MISSING.PNG from memory.. we're doomed. What is life?" << std::endl;
+        assert(!"Failed to load MISSING.PNG from memory.. how?");
+        exit(EXIT_FAILURE);
+    }
+}
+
+// NOTE: Generated with `xxd -i <filename>`
 const unsigned char TextureCatalog::MISSING_PNG[153] = {
     0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d,
     0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x20, 0x00, 0x00, 0x00, 0x20,
