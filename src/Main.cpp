@@ -66,20 +66,18 @@ public:
     const sf::Shader *shader;
 };
 
-struct RRTVertex
-{
-    int tileType;
-    sf::Vector2f position;
-};
-
-struct RRT
-{
-    std::vector<RRTVertex> vertices;
-};
-
 struct Tile
 {
-    int tileType;
+    enum Type {
+        Grass,
+        Water,
+        Forest,
+        Wood,
+        Concrete,
+        Count
+    };
+
+    Type tileType;
     sf::Sprite sprite;
 };
 
@@ -96,29 +94,56 @@ public:
         size_t rrtSamples = 512;
         RRTBuild(middle, rrtSamples, w * tile_w / 4.0f);
 
-        std::uniform_int_distribution<> randomType(0, tileTypeCount - 1);
-        sf::Vector2u texSize = texture.getSize();
-        int texTilesPerRow = (int)texSize.x / tile_w;
-
         for (int y = 0; y < h; y++) {
             for (int x = 0; x < w; x++) {
-                Tile &tile = At(x, y);
                 //tile.tileType = randomType(g_mersenne);
                 //tile.tileType = (y * w + x) % tileTypeCount; // Debug: Use every tile sequentially
                 sf::Vector2f pos((float)x * tile_w, (float)y * tile_h);
                 sf::Vector2f center = pos + sf::Vector2f(tile_w / 2.0f, tile_h / 2.0f);
                 size_t nearestIdx = RRTNearestIdx(center);
-                tile.tileType = rrt[nearestIdx].tileType;
 
+                Tile &tile = At(x, y);
                 tile.sprite.setPosition(pos);
                 tile.sprite.setTexture(texture);
-                auto texRect = sf::IntRect(
-                    (int)tile.tileType % texTilesPerRow * tile_w,
-                    (int)tile.tileType / texTilesPerRow * tile_h,
-                    tile_w,
-                    tile_h
-                );
-                tile.sprite.setTextureRect(texRect);
+                SetTileType(x, y, rrt[nearestIdx].tileType);
+            }
+        }
+
+        // Pass 2: Surround water with sand for @rusteel
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                Tile::Type tileType = GetTileType(x, y);
+                if (tileType == Tile::Water) {
+#if 1
+                    static const int beachWidth = 2;
+                    for (int beachX = x-beachWidth; beachX <= x+beachWidth; beachX++) {
+                        for (int beachY = y-beachWidth; beachY <= y+beachWidth; beachY++) {
+                            if (beachX == 0 && beachY == 0) continue;  // this is the water tile
+                            Tile *tile = AtTry(beachX, beachY);
+                            if (tile && tile->tileType != Tile::Water && tile->tileType != Tile::Concrete) {
+                                SetTileType(beachX, beachY, Tile::Concrete);
+                            }
+                        }
+                    }
+#else
+                    Tile *up    = AtTry(x, y - 1);
+                    Tile *down  = AtTry(x, y + 1);
+                    Tile *left  = AtTry(x - 1, y);
+                    Tile *right = AtTry(x + 1, y);
+                    if (up && up->tileType != Tile::Water) {
+                        SetTileType(x, y - 1, Tile::Concrete);
+                    }
+                    if (down && down->tileType != Tile::Water) {
+                        SetTileType(x, y + 1, Tile::Concrete);
+                    }
+                    if (left && left->tileType != Tile::Water) {
+                        SetTileType(x - 1, y, Tile::Concrete);
+                    }
+                    if (right && right->tileType != Tile::Water) {
+                        SetTileType(x + 1, y, Tile::Concrete);
+                    }
+#endif
+                }
             }
         }
     }
@@ -132,7 +157,38 @@ public:
     {
         size_t idx = (size_t)y * w + x;
         assert(idx < (size_t)w * h);
-        return map[y * w + x];
+        return map[idx];
+    }
+
+    Tile *AtTry(int x, int y)
+    {
+        Tile *tile = nullptr;
+        if (x >= 0 && y >= 0 && x < w && y < w) {
+            size_t idx = (size_t)y * w + x;
+            assert(idx < (size_t)w * h);
+            tile = &map[idx];
+        }
+        return tile;
+    }
+
+    Tile::Type GetTileType(int x, int y)
+    {
+        return At(x, y).tileType;
+    }
+
+    void SetTileType(int x, int y, Tile::Type tileType)
+    {
+        Tile &tile = At(x, y);
+        tile.tileType = tileType;
+        sf::Vector2u texSize = texture.getSize();
+        int texTilesPerRow = (int)texSize.x / tile_w;
+        auto texRect = sf::IntRect(
+            (int)tile.tileType % texTilesPerRow * tile_w,
+            (int)tile.tileType / texTilesPerRow * tile_h,
+            tile_w,
+            tile_h
+        );
+        tile.sprite.setTextureRect(texRect);
     }
 
     void Draw(sf::RenderTarget &target) const
@@ -171,11 +227,22 @@ private:
     int tileTypeCount;
     Tile *map;
 
+    struct RRTVertex
+    {
+        Tile::Type tileType;
+        sf::Vector2f position;
+    };
+
+    struct RRT
+    {
+        std::vector<RRTVertex> vertices;
+    };
+
     std::vector<RRTVertex> rrt;
 
     void RRTBuild(sf::Vector2f qinit, size_t numVertices, float maxGrowthDist)
     {
-        std::uniform_int_distribution<> randomType(0, tileTypeCount - 1);
+        std::uniform_int_distribution<> randomType(0, tileTypeCount - 2);
         // TODO: Maybe this can just be w and h (in tiles instead of pixels)? Try it later..
         std::uniform_real_distribution<> randomX(0.0f, w * tile_w);
         std::uniform_real_distribution<> randomY(0.0f, h * tile_h);
@@ -184,7 +251,7 @@ private:
 
         RRTVertex rootVertex;
         rootVertex.position = qinit;
-        rootVertex.tileType = randomType(g_mersenne);
+        rootVertex.tileType = (Tile::Type)randomType(g_mersenne);
         rrt.push_back(rootVertex);
 
         sf::Vector2f qrand;
@@ -203,7 +270,7 @@ private:
 #endif
             qnew += qnear;
             RRTVertex newVertex;
-            newVertex.tileType = (i < numVertices / 8) ? randomType(g_mersenne) : rrt[nearestIdx].tileType;
+            newVertex.tileType = (i < numVertices / 8) ? (Tile::Type)randomType(g_mersenne) : rrt[nearestIdx].tileType;
             newVertex.position = qnew;
             rrt.push_back(newVertex);
             //G.add_edge(qnear, qnew)
