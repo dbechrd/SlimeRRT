@@ -4,20 +4,24 @@
 #include <cassert>
 
 namespace TexID {
-    const std::string TextBackground = "resources/text-background.png";
     const std::string Grass          = "resources/grass2.jpg";
-    const std::string Player         = "resources/charlie.png";
     const std::string Items          = "resources/items.png";
+    const std::string Player         = "resources/charlie.png";
+    const std::string TextBackground = "resources/text-background.png";
+    const std::string Tiles32        = "resources/tiles32.png";
+    const std::string Tiles64        = "resources/tiles64.png";
 }
 
 // TODO: Load bank from a file? Segment by level/area?
 void TextureCatalog::LoadDefaultBank()
 {
     // Load textures
-    Load(TexID::TextBackground);
     Load(TexID::Grass         , TextureCatalog::Repeat);
-    Load(TexID::Player        );
     Load(TexID::Items         );
+    Load(TexID::Player        );
+    Load(TexID::TextBackground);
+    Load(TexID::Tiles32       );
+    Load(TexID::Tiles64       );
 }
 
 bool TextureCatalog::onLoad(sf::Texture &texture, std::string path, int flags)

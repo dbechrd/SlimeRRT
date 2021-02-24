@@ -3,10 +3,12 @@
 #include "SFML/Graphics.hpp"
 
 namespace TexID {
-    extern const std::string TextBackground;
     extern const std::string Grass;
-    extern const std::string Player;
     extern const std::string Items;
+    extern const std::string Player;
+    extern const std::string TextBackground;
+    extern const std::string Tiles32;
+    extern const std::string Tiles64;
 }
 
 class TextureCatalog : public Catalog<sf::Texture>

@@ -66,6 +66,172 @@ public:
     const sf::Shader *shader;
 };
 
+struct RRTVertex
+{
+    int tileType;
+    sf::Vector2f position;
+};
+
+struct RRT
+{
+    std::vector<RRTVertex> vertices;
+};
+
+struct Tile
+{
+    int tileType;
+    sf::Sprite sprite;
+};
+
+class Tilemap
+{
+public:
+    Tilemap(int w, int h, const sf::Texture &texture, int tile_w, int tile_h, int tileTypeCount)
+        : w(w), h(h), texture(texture), tile_w(tile_w), tile_h(tile_h), tileTypeCount(tileTypeCount)
+    {
+        map = new Tile[w*h];
+
+        sf::Vector2f middle(w * tile_w / 2.0f, h * tile_h / 2.0f);
+        // NOTE: The constants are chosen arbitrarily at this point
+        size_t rrtSamples = 512;
+        RRTBuild(middle, rrtSamples, w * tile_w / 4.0f);
+
+        std::uniform_int_distribution<> randomType(0, tileTypeCount - 1);
+        sf::Vector2u texSize = texture.getSize();
+        int texTilesPerRow = (int)texSize.x / tile_w;
+
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                Tile &tile = At(x, y);
+                //tile.tileType = randomType(g_mersenne);
+                //tile.tileType = (y * w + x) % tileTypeCount; // Debug: Use every tile sequentially
+                sf::Vector2f pos((float)x * tile_w, (float)y * tile_h);
+                sf::Vector2f center = pos + sf::Vector2f(tile_w / 2.0f, tile_h / 2.0f);
+                size_t nearestIdx = RRTNearestIdx(center);
+                tile.tileType = rrt[nearestIdx].tileType;
+
+                tile.sprite.setPosition(pos);
+                tile.sprite.setTexture(texture);
+                auto texRect = sf::IntRect(
+                    (int)tile.tileType % texTilesPerRow * tile_w,
+                    (int)tile.tileType / texTilesPerRow * tile_h,
+                    tile_w,
+                    tile_h
+                );
+                tile.sprite.setTextureRect(texRect);
+            }
+        }
+    }
+
+    ~Tilemap()
+    {
+        delete[] map;
+    }
+
+    Tile &At(int x, int y)
+    {
+        size_t idx = (size_t)y * w + x;
+        assert(idx < (size_t)w * h);
+        return map[y * w + x];
+    }
+
+    void Draw(sf::RenderTarget &target) const
+    {
+        sf::RenderStates states = sf::RenderStates::Default;
+        //states.shader = shader;
+        int tileCount = w * h;
+        for (int i = 0; i < tileCount; i++) {
+            target.draw(map[i].sprite, states);
+        }
+    }
+
+    void DrawRRT(sf::RenderTarget &target) const
+    {
+        // TODO: Draw this as a debug overlay using geometry shader to create the circles
+        sf::RenderStates states = sf::RenderStates::Default;
+        size_t vertexCount = rrt.size();
+        for (size_t i = 0; i < vertexCount; i++) {
+            sf::CircleShape circle;
+            circle.setPosition(rrt[i].position);
+            circle.setFillColor(sf::Color::Blue);
+            circle.setRadius(20.0f);
+            target.draw(circle);
+        }
+    }
+
+private:
+    int w;
+    int h;
+
+    // TODO: Refactor out into tileset
+    const sf::Texture &texture;
+    int tile_w;
+    int tile_h;
+
+    int tileTypeCount;
+    Tile *map;
+
+    std::vector<RRTVertex> rrt;
+
+    void RRTBuild(sf::Vector2f qinit, size_t numVertices, float maxGrowthDist)
+    {
+        std::uniform_int_distribution<> randomType(0, tileTypeCount - 1);
+        // TODO: Maybe this can just be w and h (in tiles instead of pixels)? Try it later..
+        std::uniform_real_distribution<> randomX(0.0f, w * tile_w);
+        std::uniform_real_distribution<> randomY(0.0f, h * tile_h);
+
+        float maxGrowthDistSq = maxGrowthDist * maxGrowthDist;
+
+        RRTVertex rootVertex;
+        rootVertex.position = qinit;
+        rootVertex.tileType = randomType(g_mersenne);
+        rrt.push_back(rootVertex);
+
+        sf::Vector2f qrand;
+        for (size_t i = 1; i < numVertices; i++) {
+            qrand.x = (float)randomX(g_mersenne);
+            qrand.y = (float)randomY(g_mersenne);
+            size_t nearestIdx = RRTNearestIdx(qrand);
+            sf::Vector2f qnear = rrt[nearestIdx].position;
+            sf::Vector2f qnew = qrand - qnear;
+#if 1
+            //bool constantIncrement = false;  // always increment by "maxGrowthDist"
+            //bool clampIncrement = true;     // increment at most by maxGrowthDist
+            //if (constantIncrement || (clampIncrement && Vector2f::LengthSq(qnear) > maxGrowthDistSq)) {
+            //    qnew = Vector2f::Normalize(qrand - qnear) * maxGrowthDist;
+            //}
+#endif
+            qnew += qnear;
+            RRTVertex newVertex;
+            newVertex.tileType = (i < numVertices / 8) ? randomType(g_mersenne) : rrt[nearestIdx].tileType;
+            newVertex.position = qnew;
+            rrt.push_back(newVertex);
+            //G.add_edge(qnear, qnew)
+        }
+
+        //for (size_t i = 0; i < rrt.size(); i++) {
+        //    printf("rrt[%zu]: {%f, %f}\n", i, rrt[i].position.x, rrt[i].position.y);
+        //}
+    }
+
+    size_t RRTNearestIdx(sf::Vector2f p)
+    {
+        assert(rrt.size());
+
+        float minDistSq = std::numeric_limits<float>::max();
+        size_t minIdx;
+        size_t vertexCount = rrt.size();
+        for (size_t i = 0; i < vertexCount; i++) {
+            float distSq = Vector2f::DistanceSq(p, rrt[i].position);
+            if (distSq < minDistSq) {
+                minDistSq = distSq;
+                minIdx = i;
+            }
+        }
+        return minIdx;
+    }
+};
+
 class Player
 {
 public:
@@ -85,6 +251,16 @@ public:
         : name(name), shadedSprite(&sprite)
     {
         updateDirection(0.0f, 0.0f);
+    }
+
+    const sf::Vector2f getCenter()
+    {
+        sf::FloatRect playerRect = shadedSprite->sprite.getGlobalBounds();
+        sf::Vector2f center(
+            playerRect.left + playerRect.width / 2.0f,
+            playerRect.top + playerRect.height / 2.0f
+        );
+        return center;
     }
 
     void move(const sf::Vector2f &offset)
@@ -271,18 +447,23 @@ int main()
     whistleMusic.openFromFile("resources/whistle.ogg");
     whistleMusic.setLoop(true);
 
-    // Create sprites
+    sf::Vector2i tileSize(64, 64);
+    sf::Vector2i mapSizeTiles(128, 128);
+    sf::Vector2i mapSizePixels(mapSizeTiles.x * tileSize.x, mapSizeTiles.y * tileSize.y);
     // NOTE: If this is smaller than the resolution of the camera, then bounding breaks miserably
-    sf::IntRect levelRect(0, 0, 4096, 4096);
-    sf::FloatRect levelRectf(levelRect);
+    sf::IntRect mapRect(0, 0, mapSizePixels.x, mapSizePixels.y);
+    sf::FloatRect mapRectf(mapRect);
 
-    ShadedSprite grassSprite(game.Texture(TexID::Grass), levelRect, textureColorShader);
+    Tilemap tilemap(mapSizeTiles.x, mapSizeTiles.y, game.Texture(TexID::Tiles64), tileSize.x, tileSize.y, 5);
+
+    // Create sprites
+    ShadedSprite grassSprite(game.Texture(TexID::Grass), mapRect, textureColorShader);
 
     ShadedSprite playerSprite(game.Texture(TexID::Player), textureColorShader);
     Player player("Charlie", playerSprite);
     const float playerSpeed = 5.0f;
     sf::Vector2f playerVelocity;
-    player.shadedSprite->sprite.setPosition(800.0f, 800.0f);
+    player.shadedSprite->sprite.setPosition(sf::Vector2f(mapSizePixels) * 0.5f);
 
     size_t score = 0;
 
@@ -291,6 +472,7 @@ int main()
     sf::Vector2f cameraVelocity;
     const float cameraSmoothingFactor = 0.05f;
     sf::View camera = sf::View(window.getDefaultView());
+    camera.setCenter(player.getCenter());
 
     sf::Sprite textBackground(game.Texture(TexID::TextBackground));
     textBackground.setColor(sf::Color(255, 255, 255, 255));
@@ -307,8 +489,8 @@ int main()
     appleSpriteBatch.setRenderTarget(window);
     std::vector<sf::Sprite> appleSprites;
     appleSprites.resize(500);
-    std::uniform_real_distribution<> randomX(16, levelRect.width  - 16);
-    std::uniform_real_distribution<> randomY(16, levelRect.height - 16);
+    std::uniform_real_distribution<> randomX(16, mapRect.width  - 16);
+    std::uniform_real_distribution<> randomY(16, mapRect.height - 16);
     for (auto &appleSprite : appleSprites) {
         appleSprite.setPosition((float)randomX(g_mersenne), (float)randomY(g_mersenne));
         appleSprite.setTexture(game.Texture(TexID::Items));
@@ -316,7 +498,7 @@ int main()
     }
 
     for (auto effect : effects) {
-        effect->load(levelRect);
+        effect->load(mapRect);
     }
 
     char buf[128] = { 0 };
@@ -426,7 +608,7 @@ int main()
         sf::Vector2f boundPlayerDelta;
         if (!game.IsPlayerAGhost()) {
             // NOTE: This will break if rect entirely outside of level, rather than intersection with edge
-            if (levelRectf.intersects(playerRect, playerIntersect)) {
+            if (mapRectf.intersects(playerRect, playerIntersect)) {
                 boundPlayerDelta = sf::Vector2f(
                     (playerIntersect.left == 0.0f ? 1.0f : -1.0f) * (playerRect.width - playerIntersect.width),
                     (playerIntersect.top == 0.0f ? 1.0f : -1.0f) * (playerRect.height - playerIntersect.height)
@@ -468,10 +650,7 @@ int main()
         }
 
         if (game.IsCameraFollowing()) {
-            sf::Vector2f cameraTarget(
-                playerRect.left + playerRect.width / 2.0f,
-                playerRect.top + playerRect.height / 2.0f
-            );
+            sf::Vector2f cameraTarget = player.getCenter();
             sf::Vector2f cameraCenter = camera.getCenter();
             camera.setCenter(cameraCenter + (cameraTarget - cameraCenter) * cameraSmoothingFactor);
         } else {
@@ -511,7 +690,7 @@ int main()
         sf::FloatRect cameraIntersect;
         sf::Vector2f boundCameraDelta;
         if (game.IsCameraBounded()) {
-            if (levelRectf.intersects(cameraRect, cameraIntersect)) {
+            if (mapRectf.intersects(cameraRect, cameraIntersect)) {
                 boundCameraDelta = sf::Vector2f(
                     (cameraIntersect.left == 0.0f ? 1.0f : -1.0f) * (cameraRect.width - cameraIntersect.width),
                     (cameraIntersect.top == 0.0f ? 1.0f : -1.0f) * (cameraRect.height - cameraIntersect.height)
@@ -570,13 +749,19 @@ int main()
         window.setView(camera);
 
         grassSprite.draw(window);
+
+        tilemap.Draw(window);
+        //tilemap.DrawRRT(window);
+
+#if 0
         for (auto effect : effects) {
             effect->draw(window, sf::RenderStates::Default);
         }
-        for (auto appleSprite : appleSprites) {
+        for (auto &appleSprite : appleSprites) {
             appleSpriteBatch.draw(appleSprite);
         }
         appleSpriteBatch.display();
+#endif
         playerSprite.draw(window);
 
         //================================================================================
