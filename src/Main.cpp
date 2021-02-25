@@ -84,8 +84,8 @@ struct Tile
 class Tilemap
 {
 public:
-    Tilemap(int w, int h, const sf::Texture &texture, int tile_w, int tile_h, int tileTypeCount)
-        : w(w), h(h), texture(texture), tile_w(tile_w), tile_h(tile_h), tileTypeCount(tileTypeCount)
+    Tilemap(int w, int h, const sf::Texture &texture, sf::Shader &shader, int tile_w, int tile_h, int tileTypeCount)
+        : w(w), h(h), texture(texture), shader(shader), tile_w(tile_w), tile_h(tile_h), tileTypeCount(tileTypeCount)
     {
         map = new Tile[w*h];
 
@@ -191,10 +191,43 @@ public:
         tile.sprite.setTextureRect(texRect);
     }
 
-    void Draw(sf::RenderTarget &target) const
+    void Draw(sf::RenderTarget &target, const sf::Vector2f &viewSize) const
     {
         sf::RenderStates states = sf::RenderStates::Default;
-        //states.shader = shader;
+
+#if 0
+        // Set the render resolution (used for proper scaling)
+        shader.setUniform("resolution", viewSize);
+
+        sf::Vector2f textureSize(texture.getSize());
+        shader.setUniform("size", textureSize);
+
+        float angle = 0.0f; //std::fmodf(time * 90.0f, 360.0f);
+        float angleRad = (float)(angle * PI / 180.0f);
+        shader.setUniform("angle", angleRad);
+
+        sf::priv:glCheck(glUniform1i(0, 0));
+
+        unsigned int shader_id = shader.getNativeHandle();
+        int location = shader.getUniformLocation(name);
+
+        sf::Shader::UniformBinder binder(*this, name);
+        if (binder.location != -1)
+            glCheck(GLEXT_glUniform1f(binder.location, x));
+
+        uniform isampler2D tile_map;    // contains tileType of every tile in the map
+        uniform int tile_perRow;        // number of tiles per row of texture atlas
+        uniform float tile_w_pct;       // tile width in 0-1 range (% of texture size)
+        uniform float tile_h_pct;       // tile width in 0-1 range (% of texture size)
+
+        shader.setUniform("texture", texture);
+
+        // Prepare the render state
+        states.shader = &shader;
+        states.texture = &texture;
+        //states.transform = transform;
+#endif
+
         int tileCount = w * h;
         for (int i = 0; i < tileCount; i++) {
             target.draw(map[i].sprite, states);
@@ -221,6 +254,7 @@ private:
 
     // TODO: Refactor out into tileset
     const sf::Texture &texture;
+    sf::Shader &shader;
     int tile_w;
     int tile_h;
 
@@ -521,7 +555,13 @@ int main()
     sf::IntRect mapRect(0, 0, mapSizePixels.x, mapSizePixels.y);
     sf::FloatRect mapRectf(mapRect);
 
-    Tilemap tilemap(mapSizeTiles.x, mapSizeTiles.y, game.Texture(TexID::Tiles64), tileSize.x, tileSize.y, 5);
+    // Load the shader
+    sf::Shader tileShader;
+    if (!tileShader.loadFromFile("resources/tile.vert", "resources/tile.geom", "resources/tile.frag")) {
+        return false;
+    }
+
+    Tilemap tilemap(mapSizeTiles.x, mapSizeTiles.y, game.Texture(TexID::Tiles64), tileShader, tileSize.x, tileSize.y, 5);
 
     // Create sprites
     ShadedSprite grassSprite(game.Texture(TexID::Grass), mapRect, textureColorShader);
@@ -817,7 +857,7 @@ int main()
 
         grassSprite.draw(window);
 
-        tilemap.Draw(window);
+        tilemap.Draw(window, viewSize);
         //tilemap.DrawRRT(window);
 
 #if 0
