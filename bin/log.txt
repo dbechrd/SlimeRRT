@@ -4,13 +4,21 @@ FILEIO: [resources/fluquor_copyright.ogg] Music file successfully loaded:
     > Sample rate:   44100 Hz
     > Sample size:   16 bits
     > Channels:      2 (Stereo)
+FILEIO: [resources/whoosh1.ogg] File loaded successfully
+WAVE: OGG data loaded successfully (44100 Hz, 16 bit, Stereo)
+WAVE: Unloaded wave data from RAM
 TEXTURE: [ID 3] Texture created successfully (1920x1080 - 1 mipmaps)
+FILEIO: [resources/charlie.png] File loaded successfully
+IMAGE: [resources/charlie.png] Data loaded successfully (486x96)
+TEXTURE: [ID 4] Texture created successfully (486x96 - 1 mipmaps)
 FILEIO: [resources/tiles64.png] File loaded successfully
 IMAGE: [resources/tiles64.png] Data loaded successfully (512x512)
-TEXTURE: [ID 4] Texture created successfully (512x512 - 1 mipmaps)
+TEXTURE: [ID 5] Texture created successfully (512x512 - 1 mipmaps)
 TIMER: Target time per frame: 16.667 milliseconds
+TEXTURE: [ID 5] Unloaded texture data from VRAM (GPU)
 TEXTURE: [ID 4] Unloaded texture data from VRAM (GPU)
 TEXTURE: [ID 3] Unloaded texture data from VRAM (GPU)
+WAVE: Unloaded sound data from RAM
 STREAM: Unloaded audio stream data from RAM
 AUDIO: Device closed successfully
 TEXTURE: [ID 2] Unloaded texture data from VRAM (GPU)

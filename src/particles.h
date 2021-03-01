@@ -1,18 +1,13 @@
 #pragma once
 #include "raylib.h"
 
-typedef enum ParticleEffectType {
-    ParticleEffect_Blood,
-    ParticleEffect_Count
-} ParticleEffectType;
-
-typedef enum ParticleEffectState {
-    ParticleState_Dead,
-    ParticleState_Alive,
-    //ParticleState_Paused,
-} ParticleEffectState;
+typedef enum ParticleState {
+    ParticleState_Dead  = 0,
+    ParticleState_Alive = 1,
+} ParticleState;
 
 typedef struct Particle {
+    ParticleState state;
     double spawnAt;
     double dieAt;
     Vector2 acceleration;
@@ -23,9 +18,18 @@ typedef struct Particle {
     Color color;
 } Particle;
 
+typedef enum ParticleEffectType {
+    ParticleEffectType_Blood,
+    ParticleEffectType_Count
+} ParticleEffectType;
+
+typedef enum ParticleEffectState {
+    ParticleEffectState_Dead  = 0,
+    ParticleEffectState_Alive = 1,
+    //ParticleState_Paused,
+} ParticleEffectState;
+
 typedef struct ParticleEffect {
-    //size_t animChannelCount;
-    //AnimChannel *animChannels;
     ParticleEffectType type;
     ParticleEffectState state;  // dead or alive (and maybe paused in the future?)
     Vector2 origin;             // origin of particle effect

@@ -1,20 +1,17 @@
-﻿#include "raylib.h"
-#include "particles.h"
+﻿#include "particles.h"
+#include "player.h"
+#include "spritesheet.h"
 #include "tileset.h"
 #include "tilemap.h"
+#include "raylib.h"
 #include <assert.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <time.h>
 
 #define MIN(a, b) (((a)<(b))?(a):(b))
 #define MAX(a, b) (((a)>(b))?(a):(b))
 #define CLAMP(x, min, max) (MAX((min), MIN((x), (max))))
-
-struct Sprite
-{
-    Vector2 position;
-};
-typedef struct Sprite Sprite;
 
 static FILE *logFile;
 
@@ -47,30 +44,56 @@ int main(void)
         printf("ERROR: Failed to initialized audio device\n");
     }
     // NOTE: Minimum of 0.001 seems reasonable (0.0001 is still audible on max volume)
-    SetMasterVolume(0.01f);
+    //SetMasterVolume(0.01f);
 
     SetTraceLogCallback(traceLogCallback);
 
-    Music backgroundMusic;
+    Font defaultFont = GetFontDefault();
 
+    Music backgroundMusic;
     backgroundMusic = LoadMusicStream("resources/fluquor_copyright.ogg");
     backgroundMusic.looping = true;
     PlayMusicStream(backgroundMusic);
+    SetMusicVolume(backgroundMusic, 0.01f);
+    UpdateMusicStream(backgroundMusic);
 
-    Font defaultFont = GetFontDefault();
+    Sound whooshSound;
+    whooshSound = LoadSound("resources/whoosh1.ogg");
+    //PlaySound(whooshSound);
 
     Image checkerboardImage = GenImageChecked(monitorWidth, monitorHeight, 32, 32, LIGHTGRAY, GRAY);
     Texture checkboardTexture = LoadTextureFromImage(checkerboardImage);
     UnloadImage(checkerboardImage);
 
-    Image tilesetImage = LoadImage("resources/tiles64.png");
-    assert(tilesetImage.data);
-    //Image tilesetImage = GenImageCellular(512, 512, 64);
-    Texture tilesetTexture = LoadTextureFromImage(tilesetImage);
-    UnloadImage(tilesetImage);
+    Texture charlieTex = LoadTexture("resources/charlie.png");
+    assert(charlieTex.width);
+
+    Spritesheet charlieSpritesheet = { 0 };
+
+    charlieSpritesheet.spriteCount = 1;
+    charlieSpritesheet.sprites = calloc(charlieSpritesheet.spriteCount, sizeof(*charlieSpritesheet.sprites));
+    charlieSpritesheet.texture = &charlieTex;
+
+    Sprite *charlieSprite = &charlieSpritesheet.sprites[0];
+    charlieSprite->spritesheet = &charlieSpritesheet;
+    charlieSprite->frameCount = 9;
+    charlieSprite->frames = calloc(charlieSprite->frameCount, sizeof(*charlieSprite->frames));
+    for (size_t frameIdx = 0; frameIdx < charlieSprite->frameCount; frameIdx++) {
+        SpriteFrame *frame = &charlieSprite->frames[frameIdx];
+        frame->x = 54 * (int)frameIdx;
+        frame->y = 0;
+        frame->width = 54;
+        frame->height = 94;
+    }
+
+    Player charlie = { 0 };
+    player_init(&charlie, "Charlie", charlieSprite);
+
+    Texture tilesetTex = LoadTexture("resources/tiles64.png");
+    assert(tilesetTex.width);
 
     Tileset tileset = { 0 };
-    tileset_init_ex(&tileset, tilesetTexture, 64, 64, Tile_Count);
+    tileset_init_ex(&tileset, &tilesetTex, 64, 64, Tile_Count);
 
     Tilemap tilemap = { 0 };
     tilemap_generate_ex(&tilemap, 128, 128, &tileset);
@@ -91,9 +114,10 @@ int main(void)
     camera.zoom = 1.0f;
 
     int cameraReset = 0;
+    int cameraFollowPlayer = 1;
 
     ParticleEffect bloodParticles = { 0 };
-    particle_effect_generate(&bloodParticles, ParticleEffect_Blood, 40, 1.2);
+    particle_effect_generate(&bloodParticles, ParticleEffectType_Blood, 40, 1.2);
 
     SetTargetFPS(60);
     //---------------------------------------------------------------------------------------
@@ -107,6 +131,28 @@ int main(void)
             cameraReset = 1;
         }
 
+        if (IsKeyPressed(KEY_P) && bloodParticles.state == ParticleEffectState_Dead) {
+            double time = GetTime();
+            Vector2 charlieGut = player_get_attach_point(&charlie, PlayerAttachPoint_Gut);
+            particle_effect_start(&bloodParticles, time, charlieGut);
+        }
+
+        // TODO: This should be on its own thread probably
+        if (IsKeyPressed(KEY_F11)) {
+            time_t t = time(NULL);
+            struct tm tm = *localtime(&t);
+            char screenshotName[64] = { 0 };
+            int len = snprintf(screenshotName, sizeof(screenshotName),
+                "screenshots/%d-%02d-%02d_%02d-%02d-%02d_screenshot.png",
+                tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+            assert(len < sizeof(screenshotName));
+            TakeScreenshot(screenshotName);
+        }
+
+        if (IsKeyPressed(KEY_F)) {
+            cameraFollowPlayer = !cameraFollowPlayer;
+        }
+
         // Camera reset (zoom and rotation)
         if (cameraReset || IsKeyPressed(KEY_R)) {
             camera.target = (Vector2){ roundf(camera.target.x), roundf(camera.target.y) };
@@ -116,23 +162,23 @@ int main(void)
             cameraReset = 0;
         }
 
-        if (bloodParticles.state == ParticleState_Dead && IsKeyPressed(KEY_P)) {
-            double time = GetTime();
-            particle_effect_start(&bloodParticles, time, camera.target);
+        if (cameraFollowPlayer) {
+            const float playerSpeed = 5.0f;
+            Vector2 moveOffset = { 0 };
+            if (IsKeyDown(KEY_A)) moveOffset.x -= playerSpeed;
+            if (IsKeyDown(KEY_D)) moveOffset.x += playerSpeed;
+            if (IsKeyDown(KEY_W)) moveOffset.y -= playerSpeed;
+            if (IsKeyDown(KEY_S)) moveOffset.y += playerSpeed;
+            player_move(&charlie, moveOffset);
+
+            camera.target = player_get_center(&charlie);
+        } else {
+            const int cameraSpeed = 5;
+            if (IsKeyDown(KEY_A)) camera.target.x -= cameraSpeed / camera.zoom;
+            if (IsKeyDown(KEY_D)) camera.target.x += cameraSpeed / camera.zoom;
+            if (IsKeyDown(KEY_W)) camera.target.y -= cameraSpeed / camera.zoom;
+            if (IsKeyDown(KEY_S)) camera.target.y += cameraSpeed / camera.zoom;
         }
-
-        //----------------------------------------------------------------------------------
-        // Update
-        //----------------------------------------------------------------------------------
-        // Player movement
-        const int cameraSpeed = 5;
-        if (IsKeyDown(KEY_A)) camera.target.x -= cameraSpeed / camera.zoom;
-        if (IsKeyDown(KEY_D)) camera.target.x += cameraSpeed / camera.zoom;
-        if (IsKeyDown(KEY_W)) camera.target.y -= cameraSpeed / camera.zoom;
-        if (IsKeyDown(KEY_S)) camera.target.y += cameraSpeed / camera.zoom;
-
-        // Camera target follows player
-        //camera.target = (Vector2){ camera.target.x + 20, camera.target.y + 20 };
 
         // Camera rotation controls
         //if (IsKeyPressed(KEY_Q)) {
@@ -174,23 +220,17 @@ int main(void)
         const float invZoom = 1.0f / camera.zoom;
 #endif
 
-        if (IsKeyPressed(KEY_F11)) {
-            time_t t = time(NULL);
-            struct tm tm = *localtime(&t);
-            char screenshotName[64] = { 0 };
-            int len = snprintf(screenshotName, sizeof(screenshotName),
-                "screenshots/%d-%02d-%02d_%02d-%02d-%02d_screenshot.png",
-                tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
-            assert(len < sizeof(screenshotName));
-            TakeScreenshot(screenshotName);
-        }
-
         UpdateMusicStream(backgroundMusic);
+
+        player_update(&charlie);
 
         {
             double time = GetTime();
+            Vector2 charlieGut = player_get_attach_point(&charlie, PlayerAttachPoint_Gut);
+            bloodParticles.origin = charlieGut;
             particle_effect_update(&bloodParticles, time);
         }
+
 
         //----------------------------------------------------------------------------------
         // Draw
@@ -254,7 +294,7 @@ int main(void)
 #else
                     // Draw repeating texture of top-left mip tile when zoomed out
                     Rectangle source = tilemap.tileset->textureRects[tile->tileType];
-                    DrawTexturePro(tilemap.tileset->texture, source, bounds, (Vector2){ 0.0f, 0.0f }, 0.0f, WHITE);
+                    DrawTexturePro(*tilemap.tileset->texture, source, bounds, (Vector2){ 0.0f, 0.0f }, 0.0f, WHITE);
 #endif
                     tilesDrawn++;
 
@@ -282,6 +322,10 @@ int main(void)
 #else
             DrawRectangleLinesEx(mouseTileRect, 1 * (int)invZoom, RED);
 #endif
+        }
+
+        {
+            player_draw(&charlie);
         }
 
         {
@@ -349,22 +393,29 @@ int main(void)
         DrawFPS(10, 10);
 #endif
 
+        //Player player;
+        //player.
+
         EndDrawing();
         //----------------------------------------------------------------------------------
     }
 
     //--------------------------------------------------------------------------------------
-    // De-Initialization
+    // Clean up
     //--------------------------------------------------------------------------------------
-
+    particle_effect_free(&bloodParticles);
     tilemap_free(&tilemap);
     tileset_free(&tileset);
-    UnloadTexture(tilesetTexture);
+    UnloadTexture(tilesetTex);
+    free(charlieSprite->frames);
+    free(charlieSpritesheet.sprites);
+    UnloadTexture(charlieTex);
     UnloadTexture(checkboardTexture);
+    UnloadSound(whooshSound);
     UnloadMusicStream(backgroundMusic);
+
     CloseAudioDevice();
-    CloseWindow();                // Close window and OpenGL context
-    //--------------------------------------------------------------------------------------
+    CloseWindow();
 
     fclose(logFile);
     return 0;

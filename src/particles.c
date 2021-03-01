@@ -6,8 +6,6 @@
 // NOTE: This defines 1 meter = 64 pixels
 #define METERS(m) ((m) * 64.0f)
 
-ParticleEffect g_particleEffects[ParticleEffect_Count];
-
 // Generate random number in [0.0f, 1.0f] range, with specified resolution (higher = smaller increments in variability)
 static float random_normalized(int resolution)
 {
@@ -27,6 +25,8 @@ static void particle_effect_generate_blood(ParticleEffect *particleEffect)
     Particle *particle = particleEffect->particles;
     void *particles_end = particleEffect->particles + particleEffect->particleCount;
     while (particle != particles_end) {
+        particle->state = ParticleState_Dead;
+
         // Spawn randomly during first 25% of duration
         particle->spawnAt = random_normalized(100) * particleEffect->duration * 0.25f;
 
@@ -62,6 +62,10 @@ static void particle_effect_update_blood(ParticleEffect *particleEffect, double 
     while (particle != particles_end) {
         const float alpha = (float)((animTime - particle->spawnAt) / (particle->dieAt - particle->spawnAt));
         if (alpha >= 0.0f && alpha < 1.0f) {
+            if (particle->state == ParticleState_Dead) {
+                particle->position = particleEffect->origin;
+                particle->state = ParticleState_Alive;
+            }
             particle->velocity.x += particle->acceleration.x * dt;
             particle->velocity.y += particle->acceleration.y * dt;
             particle->position.x += particle->velocity.x * dt;
@@ -74,6 +78,7 @@ static void particle_effect_update_blood(ParticleEffect *particleEffect, double 
             const unsigned char a = (unsigned char)((1.0f - alpha * 0.4f) * 255.0f);
             particle->color = (Color){ r, 0, 0, a };
         } else if(alpha >= 1.0f) {
+            particle->state = ParticleState_Dead;
             deadParticleCount++;
         }
         particle++;
@@ -90,7 +95,7 @@ void particle_effect_generate(ParticleEffect *particleEffect, ParticleEffectType
     assert(!particleEffect->particles);  // double initialization error; use particle_effect_reset() to reuse the buffer
     assert(particleCount);
     assert(type >= 0);
-    assert(type < ParticleEffect_Count);
+    assert(type < ParticleEffectType_Count);
     assert(duration >= 0.0);
 
     Particle *particles = calloc(particleCount, sizeof(*particleEffect->particles));
@@ -99,7 +104,7 @@ void particle_effect_generate(ParticleEffect *particleEffect, ParticleEffectType
         return;
     }
     particleEffect->type = type;
-    particleEffect->state = ParticleState_Dead;
+    particleEffect->state = ParticleEffectState_Dead;
     particleEffect->startedAt = 0;
     particleEffect->duration = duration;
     particleEffect->particleNext = 0;
@@ -107,7 +112,7 @@ void particle_effect_generate(ParticleEffect *particleEffect, ParticleEffectType
     particleEffect->particles = particles;
 
     switch (type) {
-        case ParticleEffect_Blood: {
+        case ParticleEffectType_Blood: {
             particle_effect_generate_blood(particleEffect);
             break;
         } default: {
@@ -122,9 +127,9 @@ void particle_effect_start(ParticleEffect *particleEffect, double time, Vector2 
 {
     assert(particleEffect);
     assert(time);
-    assert(particleEffect->state == ParticleState_Dead);
+    assert(particleEffect->state == ParticleEffectState_Dead);
 
-    particleEffect->state = ParticleState_Alive;
+    particleEffect->state = ParticleEffectState_Alive;
     particleEffect->origin = origin;
     particleEffect->startedAt = time;
     particleEffect->lastUpdatedAt = time;
@@ -141,7 +146,7 @@ void particle_effect_stop(ParticleEffect *particleEffect)
     memset(particleEffect->particles, 0, particleEffect->particleCount * sizeof(*particleEffect->particles));
     particleEffect->startedAt = 0;
     particleEffect->lastUpdatedAt = 0;
-    particleEffect->state = ParticleState_Dead;
+    particleEffect->state = ParticleEffectState_Dead;
 }
 
 void particle_effect_update(ParticleEffect *particleEffect, double time)
@@ -149,12 +154,12 @@ void particle_effect_update(ParticleEffect *particleEffect, double time)
     assert(particleEffect);
     assert(time);
 
-    if (particleEffect->state == ParticleState_Dead) {
+    if (particleEffect->state == ParticleEffectState_Dead) {
         return;
     }
 
     switch (particleEffect->type) {
-        case ParticleEffect_Blood: {
+        case ParticleEffectType_Blood: {
             particle_effect_update_blood(particleEffect, time);
             break;
         } default: {
@@ -171,7 +176,7 @@ void particle_effect_draw(ParticleEffect *particleEffect, double time)
 {
     assert(particleEffect);
 
-    if (particleEffect->state == ParticleState_Dead) {
+    if (particleEffect->state == ParticleEffectState_Dead) {
         return;
     }
 
@@ -181,10 +186,10 @@ void particle_effect_draw(ParticleEffect *particleEffect, double time)
     void *particles_end = particleEffect->particles + particleEffect->particleCount;
     const float radius = 5.0f;
     while (particle != particles_end) {
-        if (age >= particle->spawnAt && age < particle->dieAt) {
+        if (particle->state == ParticleState_Alive) {
             DrawCircle(
-                (int)(particleEffect->origin.x + particle->position.x),
-                (int)(particleEffect->origin.y + particle->position.y),
+                (int)particle->position.x,
+                (int)particle->position.y,
                 radius * particle->scale,
                 particle->color
             );

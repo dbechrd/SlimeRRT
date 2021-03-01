@@ -6,13 +6,14 @@
 void tileset_init(Tileset *tileset)
 {
     assert(tileset);
-    assert(tileset->texture.width);
+    assert(tileset->texture);
+    assert(tileset->texture->width);
     assert(tileset->tileWidth);
     assert(tileset->tileHeight);
     assert(tileset->tileCount);
 
-    assert(tileset->texture.width % (int)tileset->tileWidth == 0);
-    tileset->tilesPerRow = tileset->texture.width / tileset->tileWidth;
+    assert(tileset->texture->width % (int)tileset->tileWidth == 0);
+    tileset->tilesPerRow = tileset->texture->width / tileset->tileWidth;
 
     tileset->textureRects = calloc(tileset->tileCount, sizeof(*tileset->textureRects));
     assert(tileset->textureRects);
@@ -25,10 +26,11 @@ void tileset_init(Tileset *tileset)
     }
 }
 
-void tileset_init_ex(Tileset *tileset, Texture texture, size_t tileWidth, size_t tileHeight, size_t tileCount)
+void tileset_init_ex(Tileset *tileset, Texture *texture, size_t tileWidth, size_t tileHeight, size_t tileCount)
 {
     assert(tileset);
-    assert(texture.width);
+    assert(texture);
+    assert(texture->width);
     assert(tileWidth);
     assert(tileHeight);
     assert(tileCount);
