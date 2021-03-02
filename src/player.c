@@ -10,8 +10,10 @@ void player_init(Player *player, const char *name, struct Sprite *sprite)
     assert(sprite);
 
     player->name = name;
-    player->state = PlayerState_South;
+    player->facing = PlayerFacing_South;
     player->lastMoveTime = GetTime();
+    player->maxHitPoints = 100.0f;
+    player->hitPoints = player->maxHitPoints;
     player->sprite = sprite;
 }
 
@@ -38,10 +40,12 @@ Rectangle player_get_rect(Player *player)
 {
     assert(player->spriteFrameIdx < player->sprite->frameCount);
 
-    const SpriteFrame *frame = player_get_frame(player);
-    Rectangle rect = player_get_frame_rect(player);
-    rect.x += player->position.x;
-    rect.y += player->position.y;
+    Rectangle frameRect = player_get_frame_rect(player);
+    Rectangle rect = { 0 };
+    rect.x = player->position.x;
+    rect.y = player->position.y;
+    rect.width = frameRect.width;
+    rect.height = frameRect.height;
     return rect;
 }
 
@@ -49,8 +53,17 @@ Vector2 player_get_center(Player *player)
 {
     const SpriteFrame *spriteFrame = &player->sprite->frames[player->spriteFrameIdx];
     Vector2 center = { 0 };
-    center.y = player->position.y + spriteFrame->height / 2.0f;
     center.x = player->position.x + spriteFrame->width / 2.0f;
+    center.y = player->position.y + spriteFrame->height / 2.0f;
+    return center;
+}
+
+Vector2 player_get_bottom_center(Player *player)
+{
+    const SpriteFrame *spriteFrame = &player->sprite->frames[player->spriteFrameIdx];
+    Vector2 center = { 0 };
+    center.x = player->position.x + spriteFrame->width / 2.0f;
+    center.y = player->position.y + spriteFrame->height;
     return center;
 }
 
@@ -75,25 +88,25 @@ static void update_direction(Player *player, Vector2 offset)
     // only applies to players since there would be so few.
     if (offset.x > 0.0f) {
         if (offset.y > 0.0f) {
-            player->state = PlayerState_SouthEast;
+            player->facing = PlayerFacing_SouthEast;
         } else if (offset.y < 0.0f) {
-            player->state = PlayerState_NorthEast;
+            player->facing = PlayerFacing_NorthEast;
         } else {
-            player->state = PlayerState_East;
+            player->facing = PlayerFacing_East;
         }
     } else if (offset.x < 0.0f) {
         if (offset.y > 0.0f) {
-            player->state = PlayerState_SouthWest;
+            player->facing = PlayerFacing_SouthWest;
         } else if (offset.y < 0.0f) {
-            player->state = PlayerState_NorthWest;
+            player->facing = PlayerFacing_NorthWest;
         } else {
-            player->state = PlayerState_West;
+            player->facing = PlayerFacing_West;
         }
     } else {
         if (offset.y > 0.0f) {
-            player->state = PlayerState_South;
+            player->facing = PlayerFacing_South;
         } else if (offset.y < 0.0f) {
-            player->state = PlayerState_North;
+            player->facing = PlayerFacing_North;
         }
     }
 }
@@ -108,23 +121,51 @@ void player_move(Player *player, Vector2 offset)
     update_direction(player, offset);
 }
 
+bool player_attack(Player *player)
+{
+    if (player->equippedWeapon && player->action == PlayerAction_None) {
+        player->action = PlayerAction_Attack;
+        player->lastMoveTime = GetTime();
+        player->attackStartedAt = GetTime();
+        player->attackDuration = 0.1;
+        return true;
+    }
+    return false;
+}
+
 void player_update(Player *player)
 {
-    const double timeSinceLastMove = GetTime() - player->lastMoveTime;
+    const double t = GetTime();
+
+    const double timeSinceLastMove = t - player->lastMoveTime;
     if (timeSinceLastMove > 10.0) {
-        player->state = PlayerState_Idle;
+        player->facing = PlayerFacing_Idle;
+    }
+
+    const double timeSinceAttackStarted = t - player->attackStartedAt;
+    if (timeSinceAttackStarted > player->attackDuration) {
+        player->action = PlayerAction_None;
+        player->attackStartedAt = 0;
+        player->attackDuration = 0;
     }
 
     // TODO: Set player->sprite to the correct sprite more intelligently?
-    player->spriteFrameIdx = (size_t)player->state;
+    // TODO: Could use bitmask with & on the various states / flags
+    int frameIdx = player->facing;
+    frameIdx += player->equippedWeapon * PlayerFacing_Count;
+    if (player->equippedWeapon) {
+        frameIdx += player->action * PlayerFacing_Count;
+    }
+
+    player->spriteFrameIdx = (size_t)frameIdx;
 }
 
 void player_draw(Player *player)
 {
 #if 0
     // Funny bug where texture stays still relative to screen, could be fun to abuse later
-    const Rectangle charlieRec = player_get_rect(player);
+    const Rectangle rect = player_get_rect(player);
 #endif
-    const Rectangle charlieRec = player_get_frame_rect(player);
-    DrawTextureRec(*player->sprite->spritesheet->texture, charlieRec, player->position, WHITE);
+    const Rectangle rect = player_get_frame_rect(player);
+    DrawTextureRec(*player->sprite->spritesheet->texture, rect, player->position, WHITE);
 }

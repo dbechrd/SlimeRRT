@@ -14,6 +14,7 @@
     <ClCompile Include="src\main.c" />
     <ClCompile Include="src\player.c" />
     <ClCompile Include="src\particles.c" />
+    <ClCompile Include="src\slime.c" />
     <ClCompile Include="src\spritesheet.c" />
     <ClCompile Include="src\tilemap.c" />
     <ClCompile Include="src\tileset.c" />
@@ -21,6 +22,7 @@
   <ItemGroup>
     <ClInclude Include="src\particles.h" />
     <ClInclude Include="src\player.h" />
+    <ClInclude Include="src\slime.h" />
     <ClInclude Include="src\spritesheet.h" />
     <ClInclude Include="src\tilemap.h" />
     <ClInclude Include="src\tileset.h" />
@@ -78,6 +80,7 @@
       <AdditionalIncludeDirectories>$(ProjectDir)include</AdditionalIncludeDirectories>
       <CompileAs>CompileAsC</CompileAs>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <DisableSpecificWarnings>4098</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>

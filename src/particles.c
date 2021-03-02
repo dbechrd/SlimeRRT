@@ -123,17 +123,20 @@ void particle_effect_generate(ParticleEffect *particleEffect, ParticleEffectType
     }
 }
 
-void particle_effect_start(ParticleEffect *particleEffect, double time, Vector2 origin)
+bool particle_effect_start(ParticleEffect *particleEffect, double time, Vector2 origin)
 {
     assert(particleEffect);
     assert(time);
-    assert(particleEffect->state == ParticleEffectState_Dead);
 
-    particleEffect->state = ParticleEffectState_Alive;
-    particleEffect->origin = origin;
-    particleEffect->startedAt = time;
-    particleEffect->lastUpdatedAt = time;
-    particle_effect_generate_blood(particleEffect);
+    if (particleEffect->state == ParticleEffectState_Dead) {
+        particleEffect->state = ParticleEffectState_Alive;
+        particleEffect->origin = origin;
+        particleEffect->startedAt = time;
+        particleEffect->lastUpdatedAt = time;
+        particle_effect_generate_blood(particleEffect);
+        return true;
+    }
+    return false;
 }
 
 void particle_effect_stop(ParticleEffect *particleEffect)

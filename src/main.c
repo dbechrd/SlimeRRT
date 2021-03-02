@@ -1,5 +1,6 @@
 ﻿#include "particles.h"
 #include "player.h"
+#include "slime.h"
 #include "spritesheet.h"
 #include "tileset.h"
 #include "tilemap.h"
@@ -29,7 +30,7 @@ int main(void)
     //--------------------------------------------------------------------------------------
     logFile = fopen("log.txt", "w");
 
-    InitWindow(800, 450, "raylib [textures] example - procedural images generation");
+    InitWindow(800, 600, "Attack the slimes!");
     SetWindowState(FLAG_WINDOW_RESIZABLE);
 
     int screenWidth = GetScreenWidth();
@@ -59,7 +60,6 @@ int main(void)
 
     Sound whooshSound;
     whooshSound = LoadSound("resources/whoosh1.ogg");
-    //PlaySound(whooshSound);
 
     Image checkerboardImage = GenImageChecked(monitorWidth, monitorHeight, 32, 32, LIGHTGRAY, GRAY);
     Texture checkboardTexture = LoadTextureFromImage(checkerboardImage);
@@ -69,25 +69,50 @@ int main(void)
     assert(charlieTex.width);
 
     Spritesheet charlieSpritesheet = { 0 };
-
     charlieSpritesheet.spriteCount = 1;
     charlieSpritesheet.sprites = calloc(charlieSpritesheet.spriteCount, sizeof(*charlieSpritesheet.sprites));
     charlieSpritesheet.texture = &charlieTex;
 
     Sprite *charlieSprite = &charlieSpritesheet.sprites[0];
     charlieSprite->spritesheet = &charlieSpritesheet;
-    charlieSprite->frameCount = 9;
+    const int charlieFramesInRow = 9;
+    charlieSprite->frameCount = (size_t)charlieFramesInRow * 3;
     charlieSprite->frames = calloc(charlieSprite->frameCount, sizeof(*charlieSprite->frames));
     for (size_t frameIdx = 0; frameIdx < charlieSprite->frameCount; frameIdx++) {
         SpriteFrame *frame = &charlieSprite->frames[frameIdx];
-        frame->x = 54 * (int)frameIdx;
-        frame->y = 0;
+        frame->x = 54 * ((int)frameIdx % charlieFramesInRow);
+        frame->y = 94 * ((int)frameIdx / charlieFramesInRow);
         frame->width = 54;
         frame->height = 94;
     }
 
     Player charlie = { 0 };
     player_init(&charlie, "Charlie", charlieSprite);
+
+    Texture slimeTexture = LoadTexture("resources/peter48.png");
+    assert(slimeTexture.width);
+
+    Spritesheet slimeSpritesheet = { 0 };
+    slimeSpritesheet.spriteCount = 1;
+    slimeSpritesheet.sprites = calloc(slimeSpritesheet.spriteCount, sizeof(*slimeSpritesheet.sprites));
+    slimeSpritesheet.texture = &slimeTexture;
+
+    Sprite *slimeSprite = &slimeSpritesheet.sprites[0];
+    slimeSprite->spritesheet = &slimeSpritesheet;
+    const int slimeFramesInRow = 4;
+    slimeSprite->frameCount = (size_t)slimeFramesInRow * 2;
+    slimeSprite->frames = calloc(slimeSprite->frameCount, sizeof(*slimeSprite->frames));
+    for (size_t frameIdx = 0; frameIdx < slimeSprite->frameCount; frameIdx++) {
+        SpriteFrame *frame = &slimeSprite->frames[frameIdx];
+        frame->x = 48 * ((int)frameIdx % slimeFramesInRow);
+        frame->y = 48 * ((int)frameIdx / slimeFramesInRow);
+        frame->width = 48;
+        frame->height = 48;
+    }
+
+    Slime peter = { 0 };
+    slime_init(&peter, "Peter", slimeSprite);
+    peter.position = (Vector2){ 100.0f, 100.0f };
 
     Texture tilesetTex = LoadTexture("resources/tiles64.png");
     assert(tilesetTex.width);
@@ -131,11 +156,7 @@ int main(void)
             cameraReset = 1;
         }
 
-        if (IsKeyPressed(KEY_P) && bloodParticles.state == ParticleEffectState_Dead) {
-            double time = GetTime();
-            Vector2 charlieGut = player_get_attach_point(&charlie, PlayerAttachPoint_Gut);
-            particle_effect_start(&bloodParticles, time, charlieGut);
-        }
+        UpdateMusicStream(backgroundMusic);
 
         // TODO: This should be on its own thread probably
         if (IsKeyPressed(KEY_F11)) {
@@ -219,10 +240,55 @@ int main(void)
         camera.zoom = CLAMP(roundedZoom, minZoom, maxZoom);
         const float invZoom = 1.0f / camera.zoom;
 #endif
+        if (IsKeyPressed(KEY_ONE)) {
+            charlie.equippedWeapon = PlayerWeapon_None;
+        } else if (IsKeyPressed(KEY_TWO)) {
+            charlie.equippedWeapon = PlayerWeapon_Sword;
+        }
 
-        UpdateMusicStream(backgroundMusic);
+        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+            const float playerAttackReach = 100.0f;
+            const float playerAttackDamage = 2.0f;
+
+            if (player_attack(&charlie)) {
+                Vector2 playerToSlime = v2_sub(peter.position, charlie.position);
+                if (v2_length_sq(playerToSlime) <= playerAttackReach * playerAttackReach) {
+                    peter.hitPoints = MAX(0.0f, peter.hitPoints - playerAttackDamage);
+                    // TODO: Play satisfying hit noise
+                    PlaySound(whooshSound);
+                } else {
+                    PlaySound(whooshSound);
+                }
+            }
+        }
 
         player_update(&charlie);
+
+        {
+            const float slimeMoveSpeed = 3.0f;
+            const float slimeAttackReach = 40.0f;
+            const float slimeAttackDamage = 1.0f;
+
+            Vector2 slimeToPlayer = v2_sub(player_get_bottom_center(&charlie), slime_get_bottom_center(&peter));
+            if (v2_length_sq(slimeToPlayer) > slimeAttackReach * slimeAttackReach) {
+                Vector2 slimeMoveDir = v2_normalize(slimeToPlayer);
+                Vector2 slimeMove = v2_scale(slimeMoveDir, slimeMoveSpeed);
+                slime_move(&peter, slimeMove);
+            }
+
+            slimeToPlayer = v2_sub(player_get_bottom_center(&charlie), slime_get_bottom_center(&peter));
+            if (v2_length_sq(slimeToPlayer) <= slimeAttackReach * slimeAttackReach) {
+                if (slime_attack(&peter)) {
+                    charlie.hitPoints = MAX(0.0f, charlie.hitPoints - slimeAttackDamage);
+                    double time = GetTime();
+                    Vector2 charlieGut = player_get_attach_point(&charlie, PlayerAttachPoint_Gut);
+                    particle_effect_start(&bloodParticles, time, charlieGut);
+                    // TODO: Kill peter if he dies
+                }
+            }
+        }
+
+        slime_update(&peter);
 
         {
             double time = GetTime();
@@ -325,7 +391,27 @@ int main(void)
         }
 
         {
-            player_draw(&charlie);
+            // TODO: Sort by y value of bottom of sprite rect
+            const float slimeBottom = slime_get_bottom_center(&peter).y;
+            const float playerBottom = player_get_bottom_center(&charlie).y;
+            if (slimeBottom < playerBottom) {
+                slime_draw(&peter);
+                player_draw(&charlie);
+            } else {
+                player_draw(&charlie);
+                slime_draw(&peter);
+            }
+        }
+
+        {
+            // Draw hitpoint indicators
+            const Vector2 peterCenter = slime_get_center(&peter);
+            DrawText(TextFormat("HP: %.02f / %.02f", peter.hitPoints, peter.maxHitPoints), (int)peterCenter.x,
+                (int)peterCenter.y, 10, RED);
+
+            const Vector2 charlieCenter = player_get_center(&charlie);
+            DrawText(TextFormat("HP: %.02f / %.02f", charlie.hitPoints, charlie.maxHitPoints), (int)charlieCenter.x,
+                (int)charlieCenter.y, 10, RED);
         }
 
         {
@@ -392,9 +478,6 @@ int main(void)
 #else
         DrawFPS(10, 10);
 #endif
-
-        //Player player;
-        //player.
 
         EndDrawing();
         //----------------------------------------------------------------------------------

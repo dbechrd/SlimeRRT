@@ -1,5 +1,6 @@
 #pragma once
 #include "raylib.h"
+#include <stdbool.h>
 
 typedef enum ParticleState {
     ParticleState_Dead  = 0,
@@ -42,7 +43,7 @@ typedef struct ParticleEffect {
 } ParticleEffect;
 
 void particle_effect_generate   (ParticleEffect *particleEffect, ParticleEffectType type, size_t particleCount, double duration);
-void particle_effect_start      (ParticleEffect *particleEffect, double time, Vector2 origin);
+bool particle_effect_start      (ParticleEffect *particleEffect, double time, Vector2 origin);
 void particle_effect_stop       (ParticleEffect *particleEffect);
 void particle_effect_update     (ParticleEffect *particleEffect, double time);
 void particle_effect_draw       (ParticleEffect *particleEffect, double time);

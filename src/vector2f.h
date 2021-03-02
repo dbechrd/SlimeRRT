@@ -15,6 +15,12 @@ static inline int v2_is_zero(const Vector2 v)
     return v.x == 0.0f && v.y == 0.0f;
 }
 
+static inline int v2_is_tiny(const Vector2 v, float epsilon)
+{
+    int tiny = fabsf(v.x) < epsilon && fabsf(v.y) < epsilon;
+    return tiny;
+}
+
 static inline Vector2 v2_add(const Vector2 a, const Vector2 b)
 {
     Vector2 result = { 0 };
@@ -41,6 +47,14 @@ static inline float v2_length(const Vector2 v)
 {
     const float length = sqrtf(v2_length_sq(v));
     return length;
+}
+
+static inline Vector2 v2_scale(const Vector2 v, float factor)
+{
+    Vector2 result = v;
+    result.x *= factor;
+    result.y *= factor;
+    return result;
 }
 
 static inline Vector2 v2_normalize(const Vector2 v)

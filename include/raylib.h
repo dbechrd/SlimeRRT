@@ -462,7 +462,7 @@ typedef struct VrDeviceInfo {
 // Enumerators Definition
 //----------------------------------------------------------------------------------
 // System/Window config flags
-// NOTE: Every bit registers one state (use it with bit masks)
+// NOTE: Every bit registers one facing (use it with bit masks)
 // By default all flags are set to 0
 typedef enum {
     FLAG_VSYNC_HINT         = 0x00000040,   // Set to try enabling V-Sync on GPU
@@ -900,12 +900,12 @@ RLAPI bool IsWindowMaximized(void);                               // Check if wi
 RLAPI bool IsWindowFocused(void);                                 // Check if window is currently focused (only PLATFORM_DESKTOP)
 RLAPI bool IsWindowResized(void);                                 // Check if window has been resized last frame
 RLAPI bool IsWindowState(unsigned int flag);                      // Check if one specific window flag is enabled
-RLAPI void SetWindowState(unsigned int flags);                    // Set window configuration state using flags
-RLAPI void ClearWindowState(unsigned int flags);                  // Clear window configuration state flags
-RLAPI void ToggleFullscreen(void);                                // Toggle window state: fullscreen/windowed (only PLATFORM_DESKTOP)
-RLAPI void MaximizeWindow(void);                                  // Set window state: maximized, if resizable (only PLATFORM_DESKTOP)
-RLAPI void MinimizeWindow(void);                                  // Set window state: minimized, if resizable (only PLATFORM_DESKTOP)
-RLAPI void RestoreWindow(void);                                   // Set window state: not minimized/maximized (only PLATFORM_DESKTOP)
+RLAPI void SetWindowState(unsigned int flags);                    // Set window configuration facing using flags
+RLAPI void ClearWindowState(unsigned int flags);                  // Clear window configuration facing flags
+RLAPI void ToggleFullscreen(void);                                // Toggle window facing: fullscreen/windowed (only PLATFORM_DESKTOP)
+RLAPI void MaximizeWindow(void);                                  // Set window facing: maximized, if resizable (only PLATFORM_DESKTOP)
+RLAPI void MinimizeWindow(void);                                  // Set window facing: minimized, if resizable (only PLATFORM_DESKTOP)
+RLAPI void RestoreWindow(void);                                   // Set window facing: not minimized/maximized (only PLATFORM_DESKTOP)
 RLAPI void SetWindowIcon(Image image);                            // Set icon for window (only PLATFORM_DESKTOP)
 RLAPI void SetWindowTitle(const char *title);                     // Set title for window (only PLATFORM_DESKTOP)
 RLAPI void SetWindowPosition(int x, int y);                       // Set window position on screen (only PLATFORM_DESKTOP)
