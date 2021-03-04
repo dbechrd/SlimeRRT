@@ -6,7 +6,7 @@
 void slime_init(Slime *slime, const char *name, struct Sprite *sprite)
 {
     assert(slime);
-    assert(name);
+    //assert(name);
     assert(sprite);
 
     slime->name = name;
@@ -16,13 +16,13 @@ void slime_init(Slime *slime, const char *name, struct Sprite *sprite)
     slime->sprite = sprite;
 }
 
-SpriteFrame *slime_get_frame(Slime *slime)
+SpriteFrame *slime_get_frame(const Slime *slime)
 {
     SpriteFrame *frame = &slime->sprite->frames[slime->spriteFrameIdx];
     return frame;
 }
 
-Rectangle slime_get_frame_rect(Slime *slime)
+Rectangle slime_get_frame_rect(const Slime *slime)
 {
     assert(slime->spriteFrameIdx < slime->sprite->frameCount);
 
@@ -35,7 +35,7 @@ Rectangle slime_get_frame_rect(Slime *slime)
     return rect;
 }
 
-Rectangle slime_get_rect(Slime *slime)
+Rectangle slime_get_rect(const Slime *slime)
 {
     assert(slime->spriteFrameIdx < slime->sprite->frameCount);
 
@@ -48,7 +48,7 @@ Rectangle slime_get_rect(Slime *slime)
     return rect;
 }
 
-Vector2 slime_get_center(Slime *slime)
+Vector2 slime_get_center(const Slime *slime)
 {
     const SpriteFrame *spriteFrame = &slime->sprite->frames[slime->spriteFrameIdx];
     Vector2 center = { 0 };
@@ -57,7 +57,7 @@ Vector2 slime_get_center(Slime *slime)
     return center;
 }
 
-Vector2 slime_get_bottom_center(Slime *slime)
+Vector2 slime_get_bottom_center(const Slime *slime)
 {
     const SpriteFrame *spriteFrame = &slime->sprite->frames[slime->spriteFrameIdx];
     Vector2 center = { 0 };

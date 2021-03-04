@@ -8,6 +8,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <time.h>
 
 #define MIN(a, b) (((a)<(b))?(a):(b))
@@ -15,6 +16,57 @@
 #define CLAMP(x, min, max) (MAX((min), MIN((x), (max))))
 
 static FILE *logFile;
+
+Rectangle RectPad(const Rectangle rec, float pad)
+{
+    Rectangle padded = (Rectangle){ rec.x - pad, rec.y - pad, rec.width + pad * 2.0f, rec.height + pad * 2.0f };
+    return padded;
+}
+
+Rectangle RectPadXY(const Rectangle rec, float padX, float padY)
+{
+    Rectangle padded = (Rectangle){ rec.x - padX, rec.y - padY, rec.width + padX * 2.0f, rec.height + padY * 2.0f };
+    return padded;
+}
+
+int SlimeCompareDepth(void const *slimeA, void const *slimeB)
+{
+    float aDepth = slime_get_bottom_center(slimeA).y;
+    float bDepth = slime_get_bottom_center(slimeB).y;
+    if (aDepth < bDepth) {
+        return -1;
+    } else if( aDepth > bDepth) {
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+void DrawHealthBar(int x, int y, float hitPoints, float maxHitPoints)
+{
+    Font font = GetFontDefault();
+    const float hpPercent = hitPoints / maxHitPoints;
+    const char *hpText = TextFormat("HP: %.02f / %.02f", hitPoints, maxHitPoints);
+
+    const int hp_w = MeasureText(hpText, font.baseSize);
+    const int hp_h = font.baseSize;
+    const int hp_x = x - hp_w / 2;
+    //const int hp_y = y - hp_h / 2;
+    const int hp_y = y - font.baseSize;
+
+    const int pad_x = 4;
+    const int pad_y = 2;
+    const int bg_x = hp_x - pad_x;
+    const int bg_y = hp_y - pad_y;
+    const int bg_w = hp_w + pad_x * 2;
+    const int bg_h = hp_h + pad_y * 2;
+
+    // Draw hitpoint indicators
+    DrawRectangle(bg_x, bg_y, bg_w, bg_h, DARKGRAY);
+    DrawRectangle(bg_x, bg_y, (int)(bg_w * hpPercent), bg_h, RED);
+    DrawRectangleLines(bg_x, bg_y, bg_w, bg_h, BLACK);
+    DrawText(hpText, hp_x, hp_y, hp_h, WHITE);
+}
 
 void traceLogCallback(int logType, const char *text, va_list args)
 {
@@ -51,27 +103,29 @@ int main(void)
 
     Font defaultFont = GetFontDefault();
 
-    Music backgroundMusic;
-    backgroundMusic = LoadMusicStream("resources/fluquor_copyright.ogg");
-    backgroundMusic.looping = true;
-    PlayMusicStream(backgroundMusic);
-    SetMusicVolume(backgroundMusic, 0.01f);
-    UpdateMusicStream(backgroundMusic);
+    Music mus_background;
+    mus_background = LoadMusicStream("resources/fluquor_copyright.ogg");
+    mus_background.looping = true;
+    PlayMusicStream(mus_background);
+    SetMusicVolume(mus_background, 0.01f);
+    UpdateMusicStream(mus_background);
 
-    Sound whooshSound;
-    whooshSound = LoadSound("resources/whoosh1.ogg");
+    Sound snd_whoosh = LoadSound("resources/whoosh1.ogg");
+    Sound snd_squish1 = LoadSound("resources/squish1.ogg");
+    Sound snd_squish2 = LoadSound("resources/squish2.ogg");
+    Sound snd_slime_stab1 = LoadSound("resources/slime_stab1.ogg");
 
     Image checkerboardImage = GenImageChecked(monitorWidth, monitorHeight, 32, 32, LIGHTGRAY, GRAY);
     Texture checkboardTexture = LoadTextureFromImage(checkerboardImage);
     UnloadImage(checkerboardImage);
 
-    Texture charlieTex = LoadTexture("resources/charlie.png");
-    assert(charlieTex.width);
+    Texture tex_charlie = LoadTexture("resources/charlie.png");
+    assert(tex_charlie.width);
 
     Spritesheet charlieSpritesheet = { 0 };
     charlieSpritesheet.spriteCount = 1;
     charlieSpritesheet.sprites = calloc(charlieSpritesheet.spriteCount, sizeof(*charlieSpritesheet.sprites));
-    charlieSpritesheet.texture = &charlieTex;
+    charlieSpritesheet.texture = &tex_charlie;
 
     Sprite *charlieSprite = &charlieSpritesheet.sprites[0];
     charlieSprite->spritesheet = &charlieSpritesheet;
@@ -89,13 +143,13 @@ int main(void)
     Player charlie = { 0 };
     player_init(&charlie, "Charlie", charlieSprite);
 
-    Texture slimeTexture = LoadTexture("resources/peter48.png");
-    assert(slimeTexture.width);
+    Texture tex_slime = LoadTexture("resources/peter48.png");
+    assert(tex_slime.width);
 
     Spritesheet slimeSpritesheet = { 0 };
     slimeSpritesheet.spriteCount = 1;
     slimeSpritesheet.sprites = calloc(slimeSpritesheet.spriteCount, sizeof(*slimeSpritesheet.sprites));
-    slimeSpritesheet.texture = &slimeTexture;
+    slimeSpritesheet.texture = &tex_slime;
 
     Sprite *slimeSprite = &slimeSpritesheet.sprites[0];
     slimeSprite->spritesheet = &slimeSpritesheet;
@@ -110,9 +164,15 @@ int main(void)
         frame->height = 48;
     }
 
-    Slime peter = { 0 };
-    slime_init(&peter, "Peter", slimeSprite);
-    peter.position = (Vector2){ 100.0f, 100.0f };
+#define SLIMES_COUNT 10
+    Slime slimes[SLIMES_COUNT] = { 0 };
+    int slimesByDepth[SLIMES_COUNT] = { 0 };
+    for (int i = 0; i < SLIMES_COUNT; i++) {
+        slime_init(&slimes[i], 0, slimeSprite);
+        slimes[i].position.x = (float)GetRandomValue(0, 800);
+        slimes[i].position.y = (float)GetRandomValue(0, 800);
+        slimesByDepth[i] = i;
+    }
 
     Texture tilesetTex = LoadTexture("resources/tiles64.png");
     assert(tilesetTex.width);
@@ -156,7 +216,7 @@ int main(void)
             cameraReset = 1;
         }
 
-        UpdateMusicStream(backgroundMusic);
+        UpdateMusicStream(mus_background);
 
         // TODO: This should be on its own thread probably
         if (IsKeyPressed(KEY_F11)) {
@@ -247,17 +307,26 @@ int main(void)
         }
 
         if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-            const float playerAttackReach = 100.0f;
+            const float playerAttackReach = 50.0f;
             const float playerAttackDamage = 2.0f;
 
             if (player_attack(&charlie)) {
-                Vector2 playerToSlime = v2_sub(peter.position, charlie.position);
-                if (v2_length_sq(playerToSlime) <= playerAttackReach * playerAttackReach) {
-                    peter.hitPoints = MAX(0.0f, peter.hitPoints - playerAttackDamage);
-                    // TODO: Play satisfying hit noise
-                    PlaySound(whooshSound);
+                size_t slimesHit = 0;
+                for (size_t slimeIdx = 0; slimeIdx < SLIMES_COUNT; slimeIdx++) {
+                    if (!slimes[slimeIdx].hitPoints)
+                        continue;
+
+                    Vector2 playerToSlime = v2_sub(slimes[slimeIdx].position, charlie.position);
+                    if (v2_length_sq(playerToSlime) <= playerAttackReach * playerAttackReach) {
+                        slimes[slimeIdx].hitPoints = MAX(0.0f, slimes[slimeIdx].hitPoints - playerAttackDamage);
+                        slimesHit++;
+                    }
+                }
+
+                if (slimesHit) {
+                    PlaySound(snd_slime_stab1);
                 } else {
-                    PlaySound(whooshSound);
+                    PlaySound(snd_whoosh);
                 }
             }
         }
@@ -266,29 +335,57 @@ int main(void)
 
         {
             const float slimeMoveSpeed = 3.0f;
-            const float slimeAttackReach = 40.0f;
+            const float slimeAttackReach = 32.0f;
             const float slimeAttackDamage = 1.0f;
+            const float slimeRadius = 32.0f;
 
-            Vector2 slimeToPlayer = v2_sub(player_get_bottom_center(&charlie), slime_get_bottom_center(&peter));
-            if (v2_length_sq(slimeToPlayer) > slimeAttackReach * slimeAttackReach) {
-                Vector2 slimeMoveDir = v2_normalize(slimeToPlayer);
-                Vector2 slimeMove = v2_scale(slimeMoveDir, slimeMoveSpeed);
-                slime_move(&peter, slimeMove);
-            }
+            static double lastSquish = 0;
+            double timeSinceLastSquish = GetTime() - lastSquish;
 
-            slimeToPlayer = v2_sub(player_get_bottom_center(&charlie), slime_get_bottom_center(&peter));
-            if (v2_length_sq(slimeToPlayer) <= slimeAttackReach * slimeAttackReach) {
-                if (slime_attack(&peter)) {
-                    charlie.hitPoints = MAX(0.0f, charlie.hitPoints - slimeAttackDamage);
-                    double time = GetTime();
-                    Vector2 charlieGut = player_get_attach_point(&charlie, PlayerAttachPoint_Gut);
-                    particle_effect_start(&bloodParticles, time, charlieGut);
-                    // TODO: Kill peter if he dies
+            for (size_t slimeIdx = 0; slimeIdx < SLIMES_COUNT; slimeIdx++) {
+                if (!slimes[slimeIdx].hitPoints)
+                    continue;
+
+                Vector2 slimeToPlayer = v2_sub(player_get_bottom_center(&charlie), slime_get_bottom_center(&slimes[slimeIdx]));
+                if (v2_length_sq(slimeToPlayer) > slimeAttackReach * slimeAttackReach) {
+                    Vector2 slimeMoveDir = v2_normalize(slimeToPlayer);
+                    Vector2 slimeMove = v2_scale(slimeMoveDir, slimeMoveSpeed + (float)GetRandomValue(0, 2));
+                    Vector2 newPos = v2_add(slimes[slimeIdx].position, slimeMove);
+
+                    int willCollide = 0;
+                    for (size_t collideIdx = 0; collideIdx < SLIMES_COUNT; collideIdx++) {
+                        if (collideIdx == slimeIdx)
+                            continue;
+
+                        if (v2_length_sq(v2_sub(newPos, slimes[collideIdx].position)) < slimeRadius * slimeRadius) {
+                            willCollide = 1;
+                            break;
+                        }
+                    }
+
+                    if (!willCollide) {
+                        slime_move(&slimes[slimeIdx], slimeMove);
+                        if (!IsSoundPlaying(snd_squish1) && !IsSoundPlaying(snd_squish2) && timeSinceLastSquish > 1.0) {
+                            //PlaySound(GetRandomValue(0, 1) ? snd_squish1 : snd_squish2);
+                            lastSquish = GetTime();
+                        }
+                    }
                 }
+
+                slimeToPlayer = v2_sub(player_get_bottom_center(&charlie), slime_get_bottom_center(&slimes[slimeIdx]));
+                if (v2_length_sq(slimeToPlayer) <= slimeAttackReach * slimeAttackReach) {
+                    if (slime_attack(&slimes[slimeIdx])) {
+                        charlie.hitPoints = MAX(0.0f, charlie.hitPoints - slimeAttackDamage);
+                        double time = GetTime();
+                        Vector2 charlieGut = player_get_attach_point(&charlie, PlayerAttachPoint_Gut);
+                        particle_effect_start(&bloodParticles, time, charlieGut);
+                        // TODO: Kill peter if he dies
+                    }
+                }
+
+                slime_update(&slimes[slimeIdx]);
             }
         }
-
-        slime_update(&peter);
 
         {
             double time = GetTime();
@@ -391,28 +488,39 @@ int main(void)
         }
 
         {
-            // TODO: Sort by y value of bottom of sprite rect
-            const float slimeBottom = slime_get_bottom_center(&peter).y;
-            const float playerBottom = player_get_bottom_center(&charlie).y;
-            if (slimeBottom < playerBottom) {
-                slime_draw(&peter);
-                player_draw(&charlie);
-            } else {
-                player_draw(&charlie);
-                slime_draw(&peter);
+            // Sort by y value of bottom of sprite rect
+            // TODO(perf): Sort indices instead to prevent copying Slimes around in array?
+            //qsort(slimes, sizeof(slimes)/sizeof(*slimes), sizeof(*slimes), SlimeCompareDepth);
+            for (int i = 1; i < SLIMES_COUNT; i++) {
+                int index = slimesByDepth[i];
+                float depth = slime_get_bottom_center(&slimes[index]).y;
+                int j = i - 1;
+                while (j >= 0 && slime_get_bottom_center(&slimes[slimesByDepth[j]]).y > depth) {
+                    slimesByDepth[j + 1] = slimesByDepth[j];
+                    j--;
+                }
+                slimesByDepth[j + 1] = index;
             }
+
+            for (int i = 0; i < SLIMES_COUNT; i++) {
+                int slimeIdx = slimesByDepth[i];
+                if (!slimes[slimeIdx].hitPoints)
+                    continue;
+
+                slime_draw(&slimes[slimeIdx]);
+            }
+
+            // TODO: Sort player into depth list as well
+            player_draw(&charlie);
         }
 
-        {
-            // Draw hitpoint indicators
-            const Vector2 peterCenter = slime_get_center(&peter);
-            DrawText(TextFormat("HP: %.02f / %.02f", peter.hitPoints, peter.maxHitPoints), (int)peterCenter.x,
-                (int)peterCenter.y, 10, RED);
+        for (size_t slimeIdx = 0; slimeIdx < SLIMES_COUNT; slimeIdx++) {
+            if (!slimes[slimeIdx].hitPoints) continue;
 
-            const Vector2 charlieCenter = player_get_center(&charlie);
-            DrawText(TextFormat("HP: %.02f / %.02f", charlie.hitPoints, charlie.maxHitPoints), (int)charlieCenter.x,
-                (int)charlieCenter.y, 10, RED);
+            DrawHealthBar((int)slime_get_center(&slimes[slimeIdx]).x, (int)slimes[slimeIdx].position.y,
+                slimes[slimeIdx].hitPoints, slimes[slimeIdx].maxHitPoints);
         }
+        DrawHealthBar((int)player_get_center(&charlie).x, (int)charlie.position.y, charlie.hitPoints, charlie.maxHitPoints);
 
         {
             double time = GetTime();
@@ -492,10 +600,14 @@ int main(void)
     UnloadTexture(tilesetTex);
     free(charlieSprite->frames);
     free(charlieSpritesheet.sprites);
-    UnloadTexture(charlieTex);
+    UnloadTexture(tex_slime);
+    UnloadTexture(tex_charlie);
     UnloadTexture(checkboardTexture);
-    UnloadSound(whooshSound);
-    UnloadMusicStream(backgroundMusic);
+    UnloadSound(snd_slime_stab1);
+    UnloadSound(snd_squish2);
+    UnloadSound(snd_squish1);
+    UnloadSound(snd_whoosh);
+    UnloadMusicStream(mus_background);
 
     CloseAudioDevice();
     CloseWindow();

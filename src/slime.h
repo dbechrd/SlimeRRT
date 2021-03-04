@@ -30,11 +30,11 @@ typedef struct Slime {
 } Slime;
 
 void slime_init                 (Slime *slime, const char *name, struct Sprite *sprite);
-SpriteFrame *slime_get_frame    (Slime *slime);
-Rectangle slime_get_frame_rect  (Slime *slime);
-Rectangle slime_get_rect        (Slime *slime);
-Vector2 slime_get_center        (Slime *slime);
-Vector2 slime_get_bottom_center (Slime *slime);
+SpriteFrame *slime_get_frame    (const Slime *slime);
+Rectangle slime_get_frame_rect  (const Slime *slime);
+Rectangle slime_get_rect        (const Slime *slime);
+Vector2 slime_get_center        (const Slime *slime);
+Vector2 slime_get_bottom_center (const Slime *slime);
 void slime_move                 (Slime *slime, Vector2 offset);
 bool slime_attack               (Slime *slime);
 void slime_update               (Slime *slime);
