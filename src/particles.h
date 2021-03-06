@@ -1,5 +1,6 @@
 #pragma once
 #include "raylib.h"
+#include "transform.h"
 #include <stdbool.h>
 
 typedef enum ParticleState {
@@ -9,11 +10,9 @@ typedef enum ParticleState {
 
 typedef struct Particle {
     ParticleState state;
+    Transform2D transform;
     double spawnAt;
     double dieAt;
-    Vector2 acceleration;
-    Vector2 velocity;
-    Vector2 position;
     float rotation;
     float scale;
     Color color;
@@ -21,6 +20,7 @@ typedef struct Particle {
 
 typedef enum ParticleEffectType {
     ParticleEffectType_Blood,
+    ParticleEffectType_Gold,
     ParticleEffectType_Count
 } ParticleEffectType;
 

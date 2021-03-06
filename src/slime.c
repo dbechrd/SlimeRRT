@@ -41,8 +41,8 @@ Rectangle slime_get_rect(const Slime *slime)
 
     Rectangle frameRect = slime_get_frame_rect(slime);
     Rectangle rect = { 0 };
-    rect.x = slime->position.x;
-    rect.y = slime->position.y;
+    rect.x = slime->transform.position.x;
+    rect.y = slime->transform.position.y;
     rect.width = frameRect.width;
     rect.height = frameRect.height;
     return rect;
@@ -52,8 +52,8 @@ Vector2 slime_get_center(const Slime *slime)
 {
     const SpriteFrame *spriteFrame = &slime->sprite->frames[slime->spriteFrameIdx];
     Vector2 center = { 0 };
-    center.x = slime->position.x + spriteFrame->width / 2.0f;
-    center.y = slime->position.y + spriteFrame->height / 2.0f;
+    center.x = slime->transform.position.x + spriteFrame->width / 2.0f;
+    center.y = slime->transform.position.y + spriteFrame->height / 2.0f;
     return center;
 }
 
@@ -61,8 +61,8 @@ Vector2 slime_get_bottom_center(const Slime *slime)
 {
     const SpriteFrame *spriteFrame = &slime->sprite->frames[slime->spriteFrameIdx];
     Vector2 center = { 0 };
-    center.x = slime->position.x + spriteFrame->width / 2.0f;
-    center.y = slime->position.y + spriteFrame->height;
+    center.x = slime->transform.position.x + spriteFrame->width / 2.0f;
+    center.y = slime->transform.position.y + spriteFrame->height;
     return center;
 }
 
@@ -99,7 +99,7 @@ void slime_move(Slime *slime, Vector2 offset)
     assert(slime);
     if (v2_is_zero(offset)) return;
 
-    slime->position = v2_add(slime->position, offset);
+    slime->transform.position = v2_add(slime->transform.position, offset);
     update_direction(slime, offset);
 }
 
@@ -140,5 +140,5 @@ void slime_draw(Slime *slime)
     const Rectangle rect = slime_get_rect(slime);
 #endif
     const Rectangle rect = slime_get_frame_rect(slime);
-    DrawTextureRec(*slime->sprite->spritesheet->texture, rect, slime->position, WHITE);
+    DrawTextureRec(*slime->sprite->spritesheet->texture, rect, slime->transform.position, WHITE);
 }

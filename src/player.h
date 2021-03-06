@@ -1,6 +1,7 @@
 #pragma once
 #include "raylib.h"
 #include "spritesheet.h"
+#include "transform.h"
 #include <stdbool.h>
 
 typedef enum PlayerFacing {
@@ -32,10 +33,10 @@ typedef enum PlayerAttachPoint {
 
 typedef struct Player {
     const char *name;
+    Transform2D transform;
     PlayerFacing facing;
     PlayerWeapon equippedWeapon;
     PlayerAction action;
-    Vector2 position;
     double lastMoveTime;
     double attackStartedAt;
     double attackDuration;

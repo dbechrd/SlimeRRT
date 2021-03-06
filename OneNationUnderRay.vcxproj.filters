@@ -8,6 +8,7 @@
     <ClCompile Include="src\player.c" />
     <ClCompile Include="src\spritesheet.c" />
     <ClCompile Include="src\slime.c" />
+    <ClCompile Include="src\transform.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\tilemap.h" />
@@ -17,5 +18,7 @@
     <ClInclude Include="src\player.h" />
     <ClInclude Include="src\spritesheet.h" />
     <ClInclude Include="src\slime.h" />
+    <ClInclude Include="src\helpers.h" />
+    <ClInclude Include="src\transform.h" />
   </ItemGroup>
 </Project>

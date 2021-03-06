@@ -42,8 +42,8 @@ Rectangle player_get_rect(Player *player)
 
     Rectangle frameRect = player_get_frame_rect(player);
     Rectangle rect = { 0 };
-    rect.x = player->position.x;
-    rect.y = player->position.y;
+    rect.x = player->transform.position.x;
+    rect.y = player->transform.position.y;
     rect.width = frameRect.width;
     rect.height = frameRect.height;
     return rect;
@@ -53,8 +53,8 @@ Vector2 player_get_center(Player *player)
 {
     const SpriteFrame *spriteFrame = &player->sprite->frames[player->spriteFrameIdx];
     Vector2 center = { 0 };
-    center.x = player->position.x + spriteFrame->width / 2.0f;
-    center.y = player->position.y + spriteFrame->height / 2.0f;
+    center.x = player->transform.position.x + spriteFrame->width / 2.0f;
+    center.y = player->transform.position.y + spriteFrame->height / 2.0f;
     return center;
 }
 
@@ -62,8 +62,8 @@ Vector2 player_get_bottom_center(Player *player)
 {
     const SpriteFrame *spriteFrame = &player->sprite->frames[player->spriteFrameIdx];
     Vector2 center = { 0 };
-    center.x = player->position.x + spriteFrame->width / 2.0f;
-    center.y = player->position.y + spriteFrame->height;
+    center.x = player->transform.position.x + spriteFrame->width / 2.0f;
+    center.y = player->transform.position.y + spriteFrame->height;
     return center;
 }
 
@@ -116,7 +116,7 @@ void player_move(Player *player, Vector2 offset)
     assert(player);
     if (v2_is_zero(offset)) return;
 
-    player->position = v2_add(player->position, offset);
+    player->transform.position = v2_add(player->transform.position, offset);
     player->lastMoveTime = GetTime();
     update_direction(player, offset);
 }
@@ -167,5 +167,5 @@ void player_draw(Player *player)
     const Rectangle rect = player_get_rect(player);
 #endif
     const Rectangle rect = player_get_frame_rect(player);
-    DrawTextureRec(*player->sprite->spritesheet->texture, rect, player->position, WHITE);
+    DrawTextureRec(*player->sprite->spritesheet->texture, rect, player->transform.position, WHITE);
 }

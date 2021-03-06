@@ -89,3 +89,11 @@ static inline float v2_distance(const Vector2 a, const Vector2 b)
     const float distance = sqrtf(v2_distance_sq(a, b));
     return distance;
 }
+
+static inline Vector2 v2_round(const Vector2 v)
+{
+    Vector2 result = { 0 };
+    result.x = roundf(v.x);
+    result.y = roundf(v.y);
+    return result;
+}

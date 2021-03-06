@@ -1,6 +1,7 @@
 #pragma once
 #include "raylib.h"
 #include "spritesheet.h"
+#include "transform.h"
 #include <stdbool.h>
 
 typedef enum SlimeFacing {
@@ -18,9 +19,9 @@ typedef enum SlimeAction {
 
 typedef struct Slime {
     const char *name;
+    Transform2D transform;
     SlimeFacing facing;
     SlimeAction action;
-    Vector2 position;
     double attackStartedAt;
     double attackDuration;
     float maxHitPoints;

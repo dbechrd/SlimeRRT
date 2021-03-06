@@ -1,4 +1,5 @@
-﻿#include "particles.h"
+﻿#include "helpers.h"
+#include "particles.h"
 #include "player.h"
 #include "slime.h"
 #include "spritesheet.h"
@@ -10,6 +11,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+
+#define DEMO_VIEW_CULLING 0
 
 #define MIN(a, b) (((a)<(b))?(a):(b))
 #define MAX(a, b) (((a)>(b))?(a):(b))
@@ -101,23 +104,59 @@ int main(void)
 
     SetTraceLogCallback(traceLogCallback);
 
-    Font defaultFont = GetFontDefault();
-
     Music mus_background;
     mus_background = LoadMusicStream("resources/fluquor_copyright.ogg");
     mus_background.looping = true;
     PlayMusicStream(mus_background);
-    SetMusicVolume(mus_background, 0.01f);
+    SetMusicVolume(mus_background, 0.02f);
     UpdateMusicStream(mus_background);
 
-    Sound snd_whoosh = LoadSound("resources/whoosh1.ogg");
-    Sound snd_squish1 = LoadSound("resources/squish1.ogg");
-    Sound snd_squish2 = LoadSound("resources/squish2.ogg");
-    Sound snd_slime_stab1 = LoadSound("resources/slime_stab1.ogg");
+    Music mus_whistle = LoadMusicStream("resources/whistle.ogg");
+    mus_whistle.looping = true;
+
+    Sound snd_whoosh        = LoadSound("resources/whoosh1.ogg");
+    Sound snd_squish1       = LoadSound("resources/squish1.ogg");
+    Sound snd_squish2       = LoadSound("resources/squish2.ogg");
+    Sound snd_slime_stab1   = LoadSound("resources/slime_stab1.ogg");
+    Sound snd_squeak        = LoadSound("resources/squeak1.ogg");
+    Sound snd_footstep      = LoadSound("resources/footstep1.ogg");
+    assert(snd_whoosh       .sampleCount);
+    assert(snd_squish1      .sampleCount);
+    assert(snd_squish2      .sampleCount);
+    assert(snd_slime_stab1  .sampleCount);
+    assert(snd_squeak       .sampleCount);
+    assert(snd_footstep     .sampleCount);
 
     Image checkerboardImage = GenImageChecked(monitorWidth, monitorHeight, 32, 32, LIGHTGRAY, GRAY);
     Texture checkboardTexture = LoadTextureFromImage(checkerboardImage);
     UnloadImage(checkerboardImage);
+
+    Texture tilesetTex = LoadTexture("resources/tiles64.png");
+    assert(tilesetTex.width);
+
+    Tileset tileset = { 0 };
+    tileset_init_ex(&tileset, &tilesetTex, 64, 64, Tile_Count);
+
+    Tilemap tilemap = { 0 };
+    tilemap_generate_ex(&tilemap, 128, 128, &tileset);
+    //tilemap_generate_ex(&tilemap, 512, 512, &tileset);
+
+    Color tileColors[Tile_Count] = {
+        GREEN,
+        SKYBLUE,
+        DARKGREEN,
+        BROWN,
+        GRAY
+    };
+
+    Camera2D camera = { 0 };
+    //camera.target = (Vector2){ (float)tilemap.widthTiles / 2.0f * tilemap.tileset->tileWidth, (float)tilemap.heightTiles / 2.0f * tilemap.tileset->tileHeight };
+    camera.offset = (Vector2){ screenWidth / 2.0f, screenHeight / 2.0f };
+    camera.rotation = 0.0f;
+    camera.zoom = 1.0f;
+
+    int cameraReset = 0;
+    int cameraFollowPlayer = 1;
 
     Texture tex_charlie = LoadTexture("resources/charlie.png");
     assert(tex_charlie.width);
@@ -142,6 +181,8 @@ int main(void)
 
     Player charlie = { 0 };
     player_init(&charlie, "Charlie", charlieSprite);
+    charlie.transform.position = (Vector2){ (float)tilemap.widthTiles / 2.0f * tilemap.tileset->tileWidth, (float)tilemap.heightTiles / 2.0f * tilemap.tileset->tileHeight };
+    charlie.equippedWeapon = PlayerWeapon_Sword;
 
     Texture tex_slime = LoadTexture("resources/peter48.png");
     assert(tex_slime.width);
@@ -164,45 +205,21 @@ int main(void)
         frame->height = 48;
     }
 
-#define SLIMES_COUNT 10
+#define SLIMES_COUNT 100
     Slime slimes[SLIMES_COUNT] = { 0 };
     int slimesByDepth[SLIMES_COUNT] = { 0 };
     for (int i = 0; i < SLIMES_COUNT; i++) {
         slime_init(&slimes[i], 0, slimeSprite);
-        slimes[i].position.x = (float)GetRandomValue(0, 800);
-        slimes[i].position.y = (float)GetRandomValue(0, 800);
+        slimes[i].transform.position.x = (float)GetRandomValue(0, 8192);
+        slimes[i].transform.position.y = (float)GetRandomValue(0, 8192);
         slimesByDepth[i] = i;
     }
 
-    Texture tilesetTex = LoadTexture("resources/tiles64.png");
-    assert(tilesetTex.width);
-
-    Tileset tileset = { 0 };
-    tileset_init_ex(&tileset, &tilesetTex, 64, 64, Tile_Count);
-
-    Tilemap tilemap = { 0 };
-    tilemap_generate_ex(&tilemap, 128, 128, &tileset);
-    //tilemap_generate_ex(&tilemap, 512, 512, &tileset);
-
-    Color tileColors[Tile_Count] = {
-        GREEN,
-        SKYBLUE,
-        DARKGREEN,
-        BROWN,
-        GRAY
-    };
-
-    Camera2D camera = { 0 };
-    camera.target = (Vector2){ (float)tilemap.widthTiles / 2.0f * tilemap.tileset->tileWidth, (float)tilemap.heightTiles / 2.0f * tilemap.tileset->tileHeight };
-    camera.offset = (Vector2){ screenWidth / 2.0f, screenHeight / 2.0f };
-    camera.rotation = 0.0f;
-    camera.zoom = 1.0f;
-
-    int cameraReset = 0;
-    int cameraFollowPlayer = 1;
-
     ParticleEffect bloodParticles = { 0 };
     particle_effect_generate(&bloodParticles, ParticleEffectType_Blood, 40, 1.2);
+
+    ParticleEffect goldParticles = { 0 };
+    particle_effect_generate(&goldParticles, ParticleEffectType_Gold, 6, 1.2);
 
     SetTargetFPS(60);
     //---------------------------------------------------------------------------------------
@@ -217,6 +234,7 @@ int main(void)
         }
 
         UpdateMusicStream(mus_background);
+        UpdateMusicStream(mus_whistle);
 
         // TODO: This should be on its own thread probably
         if (IsKeyPressed(KEY_F11)) {
@@ -244,13 +262,29 @@ int main(void)
         }
 
         if (cameraFollowPlayer) {
-            const float playerSpeed = 5.0f;
-            Vector2 moveOffset = { 0 };
-            if (IsKeyDown(KEY_A)) moveOffset.x -= playerSpeed;
-            if (IsKeyDown(KEY_D)) moveOffset.x += playerSpeed;
-            if (IsKeyDown(KEY_W)) moveOffset.y -= playerSpeed;
-            if (IsKeyDown(KEY_S)) moveOffset.y += playerSpeed;
-            player_move(&charlie, moveOffset);
+            float playerSpeed = 4.0f;
+            Vector2 moveBuffer = { 0 };
+            if (IsKeyDown(KEY_LEFT_SHIFT)) {
+                playerSpeed += 2.0f;
+            }
+            if (IsKeyDown(KEY_A)) moveBuffer.x -= 1.0f;
+            if (IsKeyDown(KEY_D)) moveBuffer.x += 1.0f;
+            if (IsKeyDown(KEY_W)) moveBuffer.y -= 1.0f;
+            if (IsKeyDown(KEY_S)) moveBuffer.y += 1.0f;
+
+            Vector2 moveOffset = v2_round(v2_scale(v2_normalize(moveBuffer), playerSpeed));
+            if (!v2_is_zero(moveOffset)) {
+                player_move(&charlie, moveOffset);
+
+                static double lastFootstep = 0;
+                double timeSinceLastFootstep = GetTime() - lastFootstep;
+                if (timeSinceLastFootstep > 1.0 / (double)playerSpeed) {
+                    const float normalizedRandom = random_normalized_signed(6);
+                    SetSoundPitch(snd_footstep, 1.0f + normalizedRandom * 0.5f);
+                    PlaySound(snd_footstep);
+                    lastFootstep = GetTime();
+                }
+            }
 
             camera.target = player_get_center(&charlie);
         } else {
@@ -316,15 +350,22 @@ int main(void)
                     if (!slimes[slimeIdx].hitPoints)
                         continue;
 
-                    Vector2 playerToSlime = v2_sub(slimes[slimeIdx].position, charlie.position);
+                    Vector2 playerToSlime = v2_sub(slime_get_bottom_center(&slimes[slimeIdx]), player_get_bottom_center(&charlie));
                     if (v2_length_sq(playerToSlime) <= playerAttackReach * playerAttackReach) {
                         slimes[slimeIdx].hitPoints = MAX(0.0f, slimes[slimeIdx].hitPoints - playerAttackDamage);
+                        if (!slimes[slimeIdx].hitPoints) {
+                            PlaySound(snd_squeak);
+                            const double time = GetTime();
+                            Vector2 slimeBC = slime_get_bottom_center(&slimes[slimeIdx]);
+                            particle_effect_start(&goldParticles, time, slimeBC);
+                        }
                         slimesHit++;
                     }
                 }
 
                 if (slimesHit) {
-                    PlaySound(snd_slime_stab1);
+                    //PlaySound(snd_slime_stab1);
+                    PlaySound(GetRandomValue(0, 1) ? snd_squish1 : snd_squish2);
                 } else {
                     PlaySound(snd_whoosh);
                 }
@@ -332,10 +373,16 @@ int main(void)
         }
 
         player_update(&charlie);
+        if (charlie.facing == PlayerFacing_Idle && !IsMusicPlaying(mus_whistle)) {
+            PlayMusicStream(mus_whistle);
+        } else if (charlie.facing != PlayerFacing_Idle && IsMusicPlaying(mus_whistle)) {
+            StopMusicStream(mus_whistle);
+        }
 
         {
             const float slimeMoveSpeed = 3.0f;
             const float slimeAttackReach = 32.0f;
+            const float slimeAttackTrack = 640.0f;
             const float slimeAttackDamage = 1.0f;
             const float slimeRadius = 32.0f;
 
@@ -347,17 +394,23 @@ int main(void)
                     continue;
 
                 Vector2 slimeToPlayer = v2_sub(player_get_bottom_center(&charlie), slime_get_bottom_center(&slimes[slimeIdx]));
-                if (v2_length_sq(slimeToPlayer) > slimeAttackReach * slimeAttackReach) {
+                const float slimeToPlayerDistSq = v2_length_sq(slimeToPlayer);
+                if (slimeToPlayerDistSq > slimeAttackReach * slimeAttackReach &&
+                    slimeToPlayerDistSq <= slimeAttackTrack * slimeAttackTrack)
+                {
                     Vector2 slimeMoveDir = v2_normalize(slimeToPlayer);
                     Vector2 slimeMove = v2_scale(slimeMoveDir, slimeMoveSpeed + (float)GetRandomValue(0, 2));
-                    Vector2 newPos = v2_add(slimes[slimeIdx].position, slimeMove);
+                    Vector2 newPos = v2_add(slimes[slimeIdx].transform.position, slimeMove);
 
                     int willCollide = 0;
                     for (size_t collideIdx = 0; collideIdx < SLIMES_COUNT; collideIdx++) {
                         if (collideIdx == slimeIdx)
                             continue;
 
-                        if (v2_length_sq(v2_sub(newPos, slimes[collideIdx].position)) < slimeRadius * slimeRadius) {
+                        if (!slimes[collideIdx].hitPoints)
+                            continue;
+
+                        if (v2_length_sq(v2_sub(newPos, slimes[collideIdx].transform.position)) < slimeRadius * slimeRadius) {
                             willCollide = 1;
                             break;
                         }
@@ -376,9 +429,9 @@ int main(void)
                 if (v2_length_sq(slimeToPlayer) <= slimeAttackReach * slimeAttackReach) {
                     if (slime_attack(&slimes[slimeIdx])) {
                         charlie.hitPoints = MAX(0.0f, charlie.hitPoints - slimeAttackDamage);
-                        double time = GetTime();
-                        Vector2 charlieGut = player_get_attach_point(&charlie, PlayerAttachPoint_Gut);
-                        particle_effect_start(&bloodParticles, time, charlieGut);
+                        const double time = GetTime();
+                        Vector2 playerGut = player_get_attach_point(&charlie, PlayerAttachPoint_Gut);
+                        particle_effect_start(&bloodParticles, time, playerGut);
                         // TODO: Kill peter if he dies
                     }
                 }
@@ -388,10 +441,10 @@ int main(void)
         }
 
         {
-            double time = GetTime();
-            Vector2 charlieGut = player_get_attach_point(&charlie, PlayerAttachPoint_Gut);
-            bloodParticles.origin = charlieGut;
+            const double time = GetTime();
+            bloodParticles.origin = player_get_attach_point(&charlie, PlayerAttachPoint_Gut);
             particle_effect_update(&bloodParticles, time);
+            particle_effect_update(&goldParticles, time);
         }
 
 
@@ -409,8 +462,8 @@ int main(void)
         cameraRect.width  = camera.offset.x * 2.0f * invZoom;
         cameraRect.height = camera.offset.y * 2.0f * invZoom;
 
-#if 0
-        const float cameraRectPad = 50.0f * invZoom;
+#if DEMO_VIEW_CULLING
+        const float cameraRectPad = 100.0f * invZoom;
         cameraRect.x += cameraRectPad;
         cameraRect.y += cameraRectPad;
         cameraRect.width  -= cameraRectPad * 2.0f;
@@ -517,15 +570,20 @@ int main(void)
         for (size_t slimeIdx = 0; slimeIdx < SLIMES_COUNT; slimeIdx++) {
             if (!slimes[slimeIdx].hitPoints) continue;
 
-            DrawHealthBar((int)slime_get_center(&slimes[slimeIdx]).x, (int)slimes[slimeIdx].position.y,
+            DrawHealthBar((int)slime_get_center(&slimes[slimeIdx]).x, (int)slimes[slimeIdx].transform.position.y,
                 slimes[slimeIdx].hitPoints, slimes[slimeIdx].maxHitPoints);
         }
-        DrawHealthBar((int)player_get_center(&charlie).x, (int)charlie.position.y, charlie.hitPoints, charlie.maxHitPoints);
+        DrawHealthBar((int)player_get_center(&charlie).x, (int)charlie.transform.position.y, charlie.hitPoints, charlie.maxHitPoints);
 
         {
-            double time = GetTime();
+            const double time = GetTime();
             particle_effect_draw(&bloodParticles, time);
+            particle_effect_draw(&goldParticles, time);
         }
+
+#if DEMO_VIEW_CULLING
+        DrawRectangleRec(cameraRect, Fade(PINK, 0.5f));
+#endif
 
         EndMode2D();
 
@@ -559,32 +617,57 @@ int main(void)
             lineOffset += fontHeight;
         }
 
-        const char *cameraZoomText = TextFormat("camera.zoom: %.03f (inv: %.03f)", camera.zoom, invZoom);
-        DrawText(cameraZoomText, 10, 30, 10, BLACK);
+        int yOffset = 10;
 
-        const char *mipText = TextFormat("zoopMipLevel: %zu", zoomMipLevel);
-        DrawText(mipText, 10, 40, 10, BLACK);
+        {
+            Vector2 pos = { 10.0f, (float)yOffset };
+            const int pad = 4;
 
-        const char *tilesDrawnText = TextFormat("tilesDrawn: %zu", tilesDrawn);
-        DrawText(tilesDrawnText, 10, 50, 10, BLACK);
+            const char *text = TextFormat("%2i fps (%.02f ms)", GetFPS(), GetFrameTime() * 1000.0f);
+            int textWidth = 100; //MeasureText(text, 10);
 
-#if 1
-        Vector2 pos = { 10.0f, 10.0f };
-        const int fpsPad = 4;
+            Rectangle fpsRect = (Rectangle){ pos.x - pad, pos.y - pad, (float)textWidth + pad*2, 10.0f + pad*2 };
+            DrawRectangleRec(fpsRect, Fade(DARKGRAY, 0.8f));
+            DrawRectangleLinesEx(fpsRect, 1, Fade(BLACK, 0.8f));
+            //DrawRectangleRec();
+            DrawText(text, (int)pos.x, yOffset, 10, WHITE);
+            yOffset += 10 + pad*2 - 1;
+        }
 
-        int fontSize = MAX(10, defaultFont.baseSize);
-        const int spacing = fontSize / defaultFont.baseSize;
+        {
+            int slimesKilled = 0;
+            for (size_t slimeIdx = 0; slimeIdx < SLIMES_COUNT; slimeIdx++) {
+                slimesKilled += slimes[slimeIdx].hitPoints == 0.0f;
+            }
 
-        const char *fpsText = TextFormat("%.02f ms (%2i fps)", GetFrameTime() * 1000.0f, GetFPS());
-        Vector2 fpsSize = MeasureTextEx(defaultFont, fpsText, (float)fontSize, (float)spacing);
+            Vector2 pos = { 10.0f, (float)yOffset };
+            const int pad = 4;
 
-        Rectangle fpsRect = (Rectangle){ pos.x - fpsPad, pos.y - fpsPad, fpsSize.x + fpsPad*2, fpsSize.y + fpsPad*2 };
-        DrawRectangleRec(fpsRect, Fade(RAYWHITE, 0.8f));
-        DrawRectangleLinesEx(fpsRect, 1, Fade(BLACK, 0.8f));
-        //DrawRectangleRec();
-        DrawTextEx(defaultFont, fpsText, pos, (float)fontSize, (float)spacing, DARKGRAY);
-#else
-        DrawFPS(10, 10);
+            const char *text = TextFormat("Slimes slain: %d", slimesKilled);
+            int textWidth = 100; //MeasureText(text, 10);
+
+            Rectangle fpsRect = (Rectangle){ pos.x - pad, pos.y - pad, (float)textWidth + pad*2, 10.0f + pad*2 };
+            DrawRectangleRec(fpsRect, Fade(DARKGRAY, 0.8f));
+            DrawRectangleLinesEx(fpsRect, 1, Fade(BLACK, 0.8f));
+            //DrawRectangleRec();
+            DrawText(text, (int)pos.x, yOffset, 10, RED);
+            yOffset += 10 + pad*2;
+        }
+
+#if _DEBUG
+        {
+            const char *cameraZoomText = TextFormat("camera.zoom: %.03f (inv: %.03f)", camera.zoom, invZoom);
+            DrawText(cameraZoomText, 10, yOffset, 10, BLACK);
+            yOffset += 10;
+
+            const char *mipText = TextFormat("zoopMipLevel: %zu", zoomMipLevel);
+            DrawText(mipText, 10, yOffset, 10, BLACK);
+            yOffset += 10;
+
+            const char *tilesDrawnText = TextFormat("tilesDrawn: %zu", tilesDrawn);
+            DrawText(tilesDrawnText, 10, yOffset, 10, BLACK);
+            yOffset += 10;
+        }
 #endif
 
         EndDrawing();
@@ -594,6 +677,7 @@ int main(void)
     //--------------------------------------------------------------------------------------
     // Clean up
     //--------------------------------------------------------------------------------------
+    particle_effect_free(&goldParticles);
     particle_effect_free(&bloodParticles);
     tilemap_free(&tilemap);
     tileset_free(&tileset);
@@ -603,10 +687,12 @@ int main(void)
     UnloadTexture(tex_slime);
     UnloadTexture(tex_charlie);
     UnloadTexture(checkboardTexture);
+    UnloadSound(snd_squeak);
     UnloadSound(snd_slime_stab1);
     UnloadSound(snd_squish2);
     UnloadSound(snd_squish1);
     UnloadSound(snd_whoosh);
+    UnloadMusicStream(mus_whistle);
     UnloadMusicStream(mus_background);
 
     CloseAudioDevice();

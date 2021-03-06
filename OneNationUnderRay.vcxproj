@@ -18,14 +18,17 @@
     <ClCompile Include="src\spritesheet.c" />
     <ClCompile Include="src\tilemap.c" />
     <ClCompile Include="src\tileset.c" />
+    <ClCompile Include="src\transform.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\helpers.h" />
     <ClInclude Include="src\particles.h" />
     <ClInclude Include="src\player.h" />
     <ClInclude Include="src\slime.h" />
     <ClInclude Include="src\spritesheet.h" />
     <ClInclude Include="src\tilemap.h" />
     <ClInclude Include="src\tileset.h" />
+    <ClInclude Include="src\transform.h" />
     <ClInclude Include="src\vector2f.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
