@@ -53,7 +53,7 @@ Rectangle player_get_rect           (Player *player);
 Vector2 player_get_center           (Player *player);
 Vector2 player_get_bottom_center    (Player *player);
 Vector2 player_get_attach_point     (Player *player, PlayerAttachPoint attachPoint);
-void player_move                    (Player *player, Vector2 offset);
+bool player_move                    (Player *player, Vector2 offset);
 bool player_attack                  (Player *player);
 void player_update                  (Player *player);
 void player_draw                    (Player *player);

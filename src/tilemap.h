@@ -1,6 +1,7 @@
 #pragma once
 #include "tileset.h"
 #include "vector2f.h"
+#include <stdbool.h>
 
 typedef enum TileType {
     Tile_Grass,
@@ -28,6 +29,8 @@ typedef struct Tile {
     Vector2 position;
 } Tile;
 
+bool tile_is_walkable(Tile *tile);   // Return true if player can walk on the tile (false if tile is null)
+
 typedef struct Tilemap {
     size_t widthTiles;   // width of map in tiles
     size_t heightTiles;  // height of map in tiles
@@ -37,8 +40,10 @@ typedef struct Tilemap {
     RRT rrt;             // "Rapidly-exploring Random Tree" data struture (used for procedural generation)
 } Tilemap;
 
-void tilemap_generate   (Tilemap *map);
-void tilemap_generate_ex(Tilemap *map, size_t width, size_t height, Tileset *tileset);
-void tilemap_free       (Tilemap *map);
-Tile *tilemap_at        (Tilemap *map, int x, int y);
-Tile *tilemap_at_try    (Tilemap *map, int x, int y);
+void tilemap_generate       (Tilemap *map);
+void tilemap_generate_ex    (Tilemap *map, size_t width, size_t height, Tileset *tileset);
+void tilemap_free           (Tilemap *map);
+Tile *tilemap_at            (Tilemap *map, int tileX, int tileY);  // Return tile at grid position x,y, assert on failure
+Tile *tilemap_at_try        (Tilemap *map, int tileX, int tileY);  // Return tile at grid position x,y, if it exists
+Tile *tilemap_at_world      (Tilemap *map, int x, int y);          // Return tile at pixel position in world space, assert on failure
+Tile *tilemap_at_world_try  (Tilemap *map, int x, int y);          // Return tile at pixel position in world space, if it exists

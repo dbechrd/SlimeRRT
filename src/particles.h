@@ -4,8 +4,9 @@
 #include <stdbool.h>
 
 typedef enum ParticleState {
-    ParticleState_Dead  = 0,
-    ParticleState_Alive = 1,
+    ParticleState_Dead,
+    ParticleState_Alive,
+    ParticleState_Count
 } ParticleState;
 
 typedef struct Particle {
@@ -25,10 +26,19 @@ typedef enum ParticleEffectType {
 } ParticleEffectType;
 
 typedef enum ParticleEffectState {
-    ParticleEffectState_Dead  = 0,
-    ParticleEffectState_Alive = 1,
-    //ParticleState_Paused,
+    ParticleEffectState_Dead,
+    ParticleEffectState_Alive,
+    ParticleEffectState_Count
 } ParticleEffectState;
+
+typedef enum ParticleEffectEventType {
+    ParticleEffectEvent_Starting,
+    ParticleEffectEvent_Stopping,
+    ParticleEffectEvent_Dying,
+    ParticleEffectEvent_Count
+} ParticleEffectEventType;
+
+typedef void (*ParticeEffectEventCallback)(struct ParticleEffect *particleEffect);
 
 typedef struct ParticleEffect {
     ParticleEffectType type;
@@ -40,6 +50,7 @@ typedef struct ParticleEffect {
     size_t particleNext;        // next free particle (for effects that add new ones over time)
     size_t particleCount;       // number of particles in "particles"
     Particle *particles;        // particle data
+    ParticeEffectEventCallback callbacks[ParticleEffectEvent_Count];
 } ParticleEffect;
 
 void particle_effect_generate   (ParticleEffect *particleEffect, ParticleEffectType type, size_t particleCount, double duration);

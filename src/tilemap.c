@@ -7,6 +7,11 @@
 static void rrt_build(Tilemap *map, Vector2 qinit, size_t numVertices, float maxGrowthDist);
 static size_t rrt_nearest_idx(Tilemap *map, Vector2 p);
 
+bool tile_is_walkable(Tile *tile)
+{
+    return tile && tile->tileType != Tile_Water;
+}
+
 void tilemap_generate(Tilemap *map)
 {
     assert(map);
@@ -33,7 +38,7 @@ void tilemap_generate(Tilemap *map)
     for (int y = 0; y < map->heightTiles; y++) {
         for (int x = 0; x < map->widthTiles; x++) {
             //tile.tileType = randomType(g_mersenne);
-            //tile.tileType = (y * w + x) % tileTypeCount; // Debug: Use every tile sequentially
+            //tile.tileType = (tileY * w + tileX) % tileTypeCount; // Debug: Use every tile sequentially
             const Vector2 position = v2_init((float)x * tileWidth, (float)y * tileHeight);
             const Vector2 center = v2_add(position, tileCenterOffset);
             const size_t nearestIdx = rrt_nearest_idx(map, center);
@@ -63,21 +68,21 @@ void tilemap_generate(Tilemap *map)
                     }
                 }
 #else
-                Tile *up    = AtTry(x, y - 1);
-                Tile *down  = AtTry(x, y + 1);
-                Tile *left  = AtTry(x - 1, y);
-                Tile *right = AtTry(x + 1, y);
+                Tile *up    = AtTry(tileX, tileY - 1);
+                Tile *down  = AtTry(tileX, tileY + 1);
+                Tile *left  = AtTry(tileX - 1, tileY);
+                Tile *right = AtTry(tileX + 1, tileY);
                 if (up && up->tileType != Tile_Water) {
-                    SetTileType(x, y - 1, Tile_Concrete);
+                    SetTileType(tileX, tileY - 1, Tile_Concrete);
                 }
                 if (down && down->tileType != Tile_Water) {
-                    SetTileType(x, y + 1, Tile_Concrete);
+                    SetTileType(tileX, tileY + 1, Tile_Concrete);
                 }
                 if (left && left->tileType != Tile_Water) {
-                    SetTileType(x - 1, y, Tile_Concrete);
+                    SetTileType(tileX - 1, tileY, Tile_Concrete);
                 }
                 if (right && right->tileType != Tile_Water) {
-                    SetTileType(x + 1, y, Tile_Concrete);
+                    SetTileType(tileX + 1, tileY, Tile_Concrete);
                 }
 #endif
             }
@@ -103,22 +108,36 @@ void tilemap_free(Tilemap *map)
     free(map->tiles);
 }
 
-Tile *tilemap_at(Tilemap *map, int x, int y)
+Tile *tilemap_at(Tilemap *map, int tileX, int tileY)
 {
-    size_t idx = (size_t)y * map->widthTiles + x;
+    size_t idx = (size_t)tileY * map->widthTiles + tileX;
     assert(idx < (size_t)map->widthTiles * map->heightTiles);
     return &map->tiles[idx];
 }
 
-Tile *tilemap_at_try(Tilemap *map, int x, int y)
+Tile *tilemap_at_try(Tilemap *map, int tileX, int tileY)
 {
     Tile *tile = NULL;
-    if (x >= 0 && y >= 0 && x < map->widthTiles && y < map->widthTiles) {
-        size_t idx = (size_t)y * map->widthTiles + x;
+    if (tileX >= 0 && tileY >= 0 && tileX < map->widthTiles && tileY < map->widthTiles) {
+        size_t idx = (size_t)tileY * map->widthTiles + tileX;
         assert(idx < (size_t)map->widthTiles * map->heightTiles);
         tile = &map->tiles[idx];
     }
     return tile;
+}
+
+Tile *tilemap_at_world(Tilemap *map, int x, int y)
+{
+    int tileX = x / (int)map->tileset->tileWidth;
+    int tileY = y / (int)map->tileset->tileHeight;
+    return tilemap_at(map, tileX, tileY);
+}
+
+Tile *tilemap_at_world_try(Tilemap *map, int x, int y)
+{
+    int tileX = x / (int)map->tileset->tileWidth;
+    int tileY = y / (int)map->tileset->tileHeight;
+    return tilemap_at_try(map, tileX, tileY);
 }
 
 static void rrt_build(Tilemap *map, Vector2 qinit, size_t numVertices, float maxGrowthDist)
@@ -146,8 +165,8 @@ static void rrt_build(Tilemap *map, Vector2 qinit, size_t numVertices, float max
         qrand.y = (float)GetRandomValue(0, (int)(map->heightTiles * map->tileset->tileHeight));
 #else
         // TODO: Try tile coords instead of pixels
-        qrand.x = (float)GetRandomValue(0, map->widthTiles);
-        qrand.y = (float)GetRandomValue(0, map->heightTiles);
+        qrand.tileX = (float)GetRandomValue(0, map->widthTiles);
+        qrand.tileY = (float)GetRandomValue(0, map->heightTiles);
 #endif
         size_t nearestIdx = rrt_nearest_idx(map, qrand);
         Vector2 qnear = map->rrt.vertices[nearestIdx].position;
@@ -171,7 +190,7 @@ static void rrt_build(Tilemap *map, Vector2 qinit, size_t numVertices, float max
     }
 
     //for (size_t i = 0; i < rrt.size(); i++) {
-    //    printf("rrt[%zu]: {%f, %f}\n", i, rrt[i].position.x, rrt[i].position.y);
+    //    printf("rrt[%zu]: {%f, %f}\n", i, rrt[i].position.tileX, rrt[i].position.tileY);
     //}
 }
 
@@ -194,19 +213,19 @@ static size_t rrt_nearest_idx(Tilemap *map, Vector2 p)
 ////////////////////////////////////////////////////////////////////////////////
 
 #if 0
-void SetTileType(Tilemap *map, int x, int y, TileType tileType)
+void SetTileType(Tilemap *map, int tileX, int tileY, TileType tileType)
 {
-    Tile *tile = tilemap_at(map, x, y);
+    Tile *tile = tilemap_at(map, tileX, tileY);
     tile->textureRect
-    source.x = (float)(tilemap.tiles[i].tileType % tilesPerRow * tilemap.tileset->tileWidth);
-    source.y = (float)(tilemap.tiles[i].tileType / tilesPerRow * tilemap.tileset->tileHeight);
+    source.tileX = (float)(tilemap.tiles[i].tileType % tilesPerRow * tilemap.tileset->tileWidth);
+    source.tileY = (float)(tilemap.tiles[i].tileType / tilesPerRow * tilemap.tileset->tileHeight);
     source.width  = (float)tilemap.tileset->tileWidth;
     source.height = (float)tilemap.tileset->tileHeight;
 
-    Tile *tile = tilemap_at(map, x, y);
+    Tile *tile = tilemap_at(map, tileX, tileY);
     tile.tileType = tileType;
     sf::Vector2u texSize = texture.getSize();
-    int texTilesPerRow = (int)texSize.x / tileWidth;
+    int texTilesPerRow = (int)texSize.tileX / tileWidth;
     auto texRect = sf::IntRect(
         (int)tile.tileType % texTilesPerRow * tileWidth,
         (int)tile.tileType / texTilesPerRow * tileHeight,

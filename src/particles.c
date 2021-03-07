@@ -41,6 +41,17 @@ static void blood_update(Particle *particle, float alpha)
     particle->color = (Color){ r, 0, 0, a };
 }
 
+static void blood_draw(Particle *particle)
+{
+    const float radius = 5.0f;
+    DrawCircle(
+        (int)particle->transform.position.x,
+        (int)particle->transform.position.y,
+        radius * particle->scale,
+        particle->color
+    );
+}
+
 static void gold_generate(Particle *particle, float duration)
 {
     // Spawn randomly during first 25% of duration
@@ -50,7 +61,7 @@ static void gold_generate(Particle *particle, float duration)
     particle->dieAt = duration - random_normalized(100) * duration * 0.15f;
     assert(particle->dieAt > particle->spawnAt);
 
-    particle->transform.acceleration = (Vector2){ 0.0f, METERS(10.0f) };  // gravity
+    particle->transform.acceleration = (Vector2){ 0.0f, METERS(20.0f) };  // gravity
 #if 1
     float randX = random_normalized_signed(100) * METERS(1.0f);
     particle->transform.velocity = (Vector2){ randX, METERS(-4.0f) };
@@ -67,6 +78,17 @@ static void gold_generate(Particle *particle, float duration)
 static void gold_update(Particle *particle, float time)
 {
     // UNUSED for now
+}
+
+static void gold_draw(Particle *particle)
+{
+    const float radius = 12.0f;
+    DrawCircle(
+        (int)particle->transform.position.x,
+        (int)particle->transform.position.y,
+        radius * particle->scale,
+        particle->color
+    );
 }
 
 static void effect_generate(ParticleEffect *particleEffect)
@@ -133,7 +155,7 @@ bool particle_effect_start(ParticleEffect *particleEffect, double time, Vector2 
     return false;
 }
 
-void particle_effect_stop(ParticleEffect *particleEffect)
+static void particle_effect_reset(ParticleEffect *particleEffect)
 {
     assert(particleEffect);
     assert(particleEffect->particles);
@@ -144,6 +166,21 @@ void particle_effect_stop(ParticleEffect *particleEffect)
     particleEffect->startedAt = 0;
     particleEffect->lastUpdatedAt = 0;
     particleEffect->state = ParticleEffectState_Dead;
+}
+
+void particle_effect_stop(ParticleEffect *particleEffect)
+{
+    assert(particleEffect);
+
+    if (particleEffect->state == ParticleEffectState_Dead) {
+        return;
+    }
+
+    if (particleEffect->callbacks[ParticleEffectEvent_Stopping]) {
+        particleEffect->callbacks[ParticleEffectEvent_Stopping](particleEffect);
+    }
+
+    particle_effect_reset(particleEffect);
 }
 
 void particle_effect_update(ParticleEffect *particleEffect, double time)
@@ -191,7 +228,10 @@ void particle_effect_update(ParticleEffect *particleEffect, double time)
     }
 
     if (deadParticleCount == particleEffect->particleCount) {
-        particle_effect_stop(particleEffect);
+        if (particleEffect->callbacks[ParticleEffectEvent_Dying]) {
+            particleEffect->callbacks[ParticleEffectEvent_Dying](particleEffect);
+        }
+        particle_effect_reset(particleEffect);
     }
 
     particleEffect->lastUpdatedAt = time;
@@ -209,15 +249,20 @@ void particle_effect_draw(ParticleEffect *particleEffect, double time)
 
     Particle *particle = particleEffect->particles;
     void *particles_end = particleEffect->particles + particleEffect->particleCount;
-    const float radius = 5.0f;
     while (particle != particles_end) {
         if (particle->state == ParticleState_Alive) {
-            DrawCircle(
-                (int)particle->transform.position.x,
-                (int)particle->transform.position.y,
-                radius * particle->scale,
-                particle->color
-            );
+            switch (particleEffect->type) {
+                case ParticleEffectType_Blood: {
+                    blood_draw(particle);
+                    break;
+                } case ParticleEffectType_Gold: {
+                    gold_draw(particle);
+                    break;
+                } default: {
+                    TraceLog(LOG_FATAL, "Unknown particle effect type\n");
+                    return;
+                }
+            }
         }
         particle++;
     }

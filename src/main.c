@@ -20,6 +20,13 @@
 
 static FILE *logFile;
 
+void traceLogCallback(int logType, const char *text, va_list args)
+{
+    vfprintf(logFile, text, args);
+    fputs("\n", logFile);
+    fflush(logFile);
+}
+
 Rectangle RectPad(const Rectangle rec, float pad)
 {
     Rectangle padded = (Rectangle){ rec.x - pad, rec.y - pad, rec.width + pad * 2.0f, rec.height + pad * 2.0f };
@@ -71,11 +78,14 @@ void DrawHealthBar(int x, int y, float hitPoints, float maxHitPoints)
     DrawText(hpText, hp_x, hp_y, hp_h, WHITE);
 }
 
-void traceLogCallback(int logType, const char *text, va_list args)
+// TODO: Remove global variable, look up sound by event type.. e.g. PlaySound(sounds[AudioEvent_GoldDropped])
+static Sound snd_gold;
+void GoldParticlesDying(ParticleEffect *particleEffect)
 {
-    vfprintf(logFile, text, args);
-    fputs("\n", logFile);
-    fflush(logFile);
+    assert(particleEffect->type == ParticleEffectType_Gold);
+    assert(snd_gold.sampleCount);
+
+    PlaySound(snd_gold);
 }
 
 int main(void)
@@ -120,12 +130,14 @@ int main(void)
     Sound snd_slime_stab1   = LoadSound("resources/slime_stab1.ogg");
     Sound snd_squeak        = LoadSound("resources/squeak1.ogg");
     Sound snd_footstep      = LoadSound("resources/footstep1.ogg");
+    snd_gold          = LoadSound("resources/gold1.ogg");
     assert(snd_whoosh       .sampleCount);
     assert(snd_squish1      .sampleCount);
     assert(snd_squish2      .sampleCount);
     assert(snd_slime_stab1  .sampleCount);
     assert(snd_squeak       .sampleCount);
     assert(snd_footstep     .sampleCount);
+    assert(snd_gold         .sampleCount);
 
     Image checkerboardImage = GenImageChecked(monitorWidth, monitorHeight, 32, 32, LIGHTGRAY, GRAY);
     Texture checkboardTexture = LoadTextureFromImage(checkerboardImage);
@@ -219,7 +231,11 @@ int main(void)
     particle_effect_generate(&bloodParticles, ParticleEffectType_Blood, 40, 1.2);
 
     ParticleEffect goldParticles = { 0 };
-    particle_effect_generate(&goldParticles, ParticleEffectType_Gold, 6, 1.2);
+    particle_effect_generate(&goldParticles, ParticleEffectType_Gold, 12, 0.5);
+    goldParticles.callbacks[ParticleEffectEvent_Dying] = GoldParticlesDying;
+
+    int slimesKilled = 0;
+    int coinsCollected = 0;
 
     SetTargetFPS(60);
     //---------------------------------------------------------------------------------------
@@ -274,15 +290,59 @@ int main(void)
 
             Vector2 moveOffset = v2_round(v2_scale(v2_normalize(moveBuffer), playerSpeed));
             if (!v2_is_zero(moveOffset)) {
-                player_move(&charlie, moveOffset);
+                Vector2 curPos = player_get_bottom_center(&charlie);
+                Tile *curTile = tilemap_at_world_try(&tilemap, (int)curPos.x, (int)curPos.y);
+                int curWalkable = tile_is_walkable(curTile);
 
-                static double lastFootstep = 0;
-                double timeSinceLastFootstep = GetTime() - lastFootstep;
-                if (timeSinceLastFootstep > 1.0 / (double)playerSpeed) {
-                    const float normalizedRandom = random_normalized_signed(6);
-                    SetSoundPitch(snd_footstep, 1.0f + normalizedRandom * 0.5f);
-                    PlaySound(snd_footstep);
-                    lastFootstep = GetTime();
+                Vector2 newPos = v2_add(curPos, moveOffset);
+                Tile *newTile = tilemap_at_world_try(&tilemap, (int)newPos.x, (int)newPos.y);
+
+                // NOTE: This extra logic allows the player to slide when attempting to move diagonally against a wall
+                // NOTE: If current tile isn't walkable, allow player to walk off it. This may not be the best solution
+                // if the player can accidentally end up on unwalkable tiles through gameplay, but currently the only
+                // way to end up on an unwalkable tile is to spawn there.
+                // TODO: We should fix spawning to ensure player spawns on walkable tile (can probably just manually
+                // generate something interesting in the center of the world that overwrites procgen, like Don't
+                // Starve's fancy arrival portal.
+                if (curWalkable) {
+                    if (!tile_is_walkable(newTile)) {
+                        // XY unwalkable, try only X offset
+                        newPos = curPos;
+                        newPos.x += moveOffset.x;
+                        newTile = tilemap_at_world_try(&tilemap, (int)newPos.x, (int)newPos.y);
+                        if (tile_is_walkable(newTile)) {
+                            // X offset is walkable
+                            moveOffset.y = 0.0f;
+                        } else {
+                            // X unwalkable, try only Y offset
+                            newPos = curPos;
+                            newPos.y += moveOffset.y;
+                            newTile = tilemap_at_world_try(&tilemap, (int)newPos.x, (int)newPos.y);
+                            if (tile_is_walkable(newTile)) {
+                                // Y offset is walkable
+                                moveOffset.x = 0.0f;
+                            } else {
+                                // XY, and both slide directions are all unwalkable
+                                moveOffset.x = 0.0f;
+                                moveOffset.y = 0.0f;
+
+                                // TODO: Play wall bonk sound (or splash for water? heh)
+                                // TODO: Maybe bounce the player against the wall? This code doesn't do that nicely..
+                                //player_move(&charlie, v2_scale(v2_negate(moveOffset), 10.0f));
+                            }
+                        }
+                    }
+                }
+
+                if (player_move(&charlie, moveOffset)) {
+                    static double lastFootstep = 0;
+                    double timeSinceLastFootstep = GetTime() - lastFootstep;
+                    if (timeSinceLastFootstep > 1.0 / (double)playerSpeed) {
+                        const float normalizedRandom = random_normalized_signed(6);
+                        SetSoundPitch(snd_footstep, 1.0f + normalizedRandom * 0.5f);
+                        PlaySound(snd_footstep);
+                        lastFootstep = GetTime();
+                    }
                 }
             }
 
@@ -358,6 +418,10 @@ int main(void)
                             const double time = GetTime();
                             Vector2 slimeBC = slime_get_bottom_center(&slimes[slimeIdx]);
                             particle_effect_start(&goldParticles, time, slimeBC);
+                            slimesKilled++;
+                            coinsCollected += GetRandomValue(1, 4);
+                        } else {
+                            PlaySound(GetRandomValue(0, 1) ? snd_squish1 : snd_squish2);
                         }
                         slimesHit++;
                     }
@@ -365,7 +429,7 @@ int main(void)
 
                 if (slimesHit) {
                     //PlaySound(snd_slime_stab1);
-                    PlaySound(GetRandomValue(0, 1) ? snd_squish1 : snd_squish2);
+                    //PlaySound(GetRandomValue(0, 1) ? snd_squish1 : snd_squish2);
                 } else {
                     PlaySound(snd_whoosh);
                 }
@@ -629,17 +693,11 @@ int main(void)
             Rectangle fpsRect = (Rectangle){ pos.x - pad, pos.y - pad, (float)textWidth + pad*2, 10.0f + pad*2 };
             DrawRectangleRec(fpsRect, Fade(DARKGRAY, 0.8f));
             DrawRectangleLinesEx(fpsRect, 1, Fade(BLACK, 0.8f));
-            //DrawRectangleRec();
             DrawText(text, (int)pos.x, yOffset, 10, WHITE);
             yOffset += 10 + pad*2 - 1;
         }
 
         {
-            int slimesKilled = 0;
-            for (size_t slimeIdx = 0; slimeIdx < SLIMES_COUNT; slimeIdx++) {
-                slimesKilled += slimes[slimeIdx].hitPoints == 0.0f;
-            }
-
             Vector2 pos = { 10.0f, (float)yOffset };
             const int pad = 4;
 
@@ -649,8 +707,21 @@ int main(void)
             Rectangle fpsRect = (Rectangle){ pos.x - pad, pos.y - pad, (float)textWidth + pad*2, 10.0f + pad*2 };
             DrawRectangleRec(fpsRect, Fade(DARKGRAY, 0.8f));
             DrawRectangleLinesEx(fpsRect, 1, Fade(BLACK, 0.8f));
-            //DrawRectangleRec();
             DrawText(text, (int)pos.x, yOffset, 10, RED);
+            yOffset += 10 + pad*2;
+        }
+
+        {
+            Vector2 pos = { 10.0f, (float)yOffset };
+            const int pad = 4;
+
+            const char *text = TextFormat("Coins: %d", coinsCollected);
+            int textWidth = 100; //MeasureText(text, 10);
+
+            Rectangle fpsRect = (Rectangle){ pos.x - pad, pos.y - pad, (float)textWidth + pad*2, 10.0f + pad*2 };
+            DrawRectangleRec(fpsRect, Fade(DARKGRAY, 0.8f));
+            DrawRectangleLinesEx(fpsRect, 1, Fade(BLACK, 0.8f));
+            DrawText(text, (int)pos.x, yOffset, 10, YELLOW);
             yOffset += 10 + pad*2;
         }
 
@@ -687,6 +758,8 @@ int main(void)
     UnloadTexture(tex_slime);
     UnloadTexture(tex_charlie);
     UnloadTexture(checkboardTexture);
+    UnloadSound(snd_gold);
+    UnloadSound(snd_footstep);
     UnloadSound(snd_squeak);
     UnloadSound(snd_slime_stab1);
     UnloadSound(snd_squish2);

@@ -111,14 +111,16 @@ static void update_direction(Player *player, Vector2 offset)
     }
 }
 
-void player_move(Player *player, Vector2 offset)
+bool player_move(Player *player, Vector2 offset)
 {
     assert(player);
-    if (v2_is_zero(offset)) return;
+    if (v2_is_zero(offset))
+        return false;
 
     player->transform.position = v2_add(player->transform.position, offset);
     player->lastMoveTime = GetTime();
     update_direction(player, offset);
+    return true;
 }
 
 bool player_attack(Player *player)

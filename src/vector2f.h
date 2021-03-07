@@ -21,6 +21,14 @@ static inline int v2_is_tiny(const Vector2 v, float epsilon)
     return tiny;
 }
 
+static inline Vector2 v2_negate(const Vector2 v)
+{
+    Vector2 result = { 0 };
+    result.x = -v.x;
+    result.y = -v.y;
+    return result;
+}
+
 static inline Vector2 v2_add(const Vector2 a, const Vector2 b)
 {
     Vector2 result = { 0 };
