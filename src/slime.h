@@ -20,6 +20,7 @@ typedef enum SlimeAction {
 typedef struct Slime {
     const char *name;
     Transform2D transform;
+    float scale;
     SlimeFacing facing;
     SlimeAction action;
     double attackStartedAt;
@@ -37,6 +38,7 @@ Rectangle slime_get_rect        (const Slime *slime);
 Vector2 slime_get_center        (const Slime *slime);
 Vector2 slime_get_bottom_center (const Slime *slime);
 void slime_move                 (Slime *slime, Vector2 offset);
+void slime_combine              (Slime *slimeA, Slime *slimeB);
 bool slime_attack               (Slime *slime);
 void slime_update               (Slime *slime);
 void slime_draw                 (Slime *slime);

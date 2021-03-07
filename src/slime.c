@@ -10,6 +10,7 @@ void slime_init(Slime *slime, const char *name, struct Sprite *sprite)
     assert(sprite);
 
     slime->name = name;
+    slime->scale = 1.0f;
     slime->facing = SlimeFacing_South;
     slime->maxHitPoints = 10.0f;
     slime->hitPoints = slime->maxHitPoints;
@@ -43,8 +44,8 @@ Rectangle slime_get_rect(const Slime *slime)
     Rectangle rect = { 0 };
     rect.x = slime->transform.position.x;
     rect.y = slime->transform.position.y;
-    rect.width = frameRect.width;
-    rect.height = frameRect.height;
+    rect.width = frameRect.width * slime->scale;
+    rect.height = frameRect.height * slime->scale;
     return rect;
 }
 
@@ -52,8 +53,8 @@ Vector2 slime_get_center(const Slime *slime)
 {
     const SpriteFrame *spriteFrame = &slime->sprite->frames[slime->spriteFrameIdx];
     Vector2 center = { 0 };
-    center.x = slime->transform.position.x + spriteFrame->width / 2.0f;
-    center.y = slime->transform.position.y + spriteFrame->height / 2.0f;
+    center.x = slime->transform.position.x + (spriteFrame->width * slime->scale / 2.0f);
+    center.y = slime->transform.position.y + (spriteFrame->height * slime->scale / 2.0f);
     return center;
 }
 
@@ -61,8 +62,8 @@ Vector2 slime_get_bottom_center(const Slime *slime)
 {
     const SpriteFrame *spriteFrame = &slime->sprite->frames[slime->spriteFrameIdx];
     Vector2 center = { 0 };
-    center.x = slime->transform.position.x + spriteFrame->width / 2.0f;
-    center.y = slime->transform.position.y + spriteFrame->height;
+    center.x = slime->transform.position.x + (spriteFrame->width * slime->scale / 2.0f);
+    center.y = slime->transform.position.y + (spriteFrame->height * slime->scale);
     return center;
 }
 
@@ -103,6 +104,19 @@ void slime_move(Slime *slime, Vector2 offset)
     update_direction(slime, offset);
 }
 
+void slime_combine(Slime *slimeA, Slime *slimeB)
+{
+    // Combine slime B's attributes into Slime A
+    slimeA->hitPoints       += 0.5f * slimeB->hitPoints;
+    slimeA->maxHitPoints    += 0.5f * slimeB->maxHitPoints;
+    slimeA->scale           += 0.5f * slimeB->scale;
+    Vector2 halfAToB = v2_scale(v2_sub(slimeB->transform.position, slimeA->transform.position), 0.5f);
+    slimeA->transform.position = v2_add(slimeA->transform.position, halfAToB);
+
+    // Kill slime B
+    slimeB->hitPoints = 0.0f;
+}
+
 bool slime_attack(Slime *slime)
 {
     if (slime->action == SlimeAction_None) {
@@ -140,5 +154,28 @@ void slime_draw(Slime *slime)
     const Rectangle rect = slime_get_rect(slime);
 #endif
     const Rectangle rect = slime_get_frame_rect(slime);
-    DrawTextureRec(*slime->sprite->spritesheet->texture, rect, slime->transform.position, WHITE);
+    //DrawTextureRec(*slime->sprite->spritesheet->texture, rect, slime->transform.position, WHITE);
+
+    float width = rect.width * slime->scale;
+    float height = rect.height * slime->scale;
+
+    Rectangle dest = { 0 };
+    dest.x = slime->transform.position.x;
+    dest.y = slime->transform.position.y;
+    dest.width = width;
+    dest.height = height;
+
+#if _DEBUG
+    // DEBUG: Draw collision rectangle
+    DrawRectangleRec(dest, Fade(RED, 0.2f));
+#endif
+
+    // Draw textured sprite
+    DrawTextureTiled(*slime->sprite->spritesheet->texture, rect, dest, (Vector2){ 0.0f, 0.0f }, 0.0f, slime->scale, Fade(WHITE, 0.7f));
+
+#if _DEBUG
+    // DEBUG: Draw bottom center
+    Vector2 slimeBC = slime_get_bottom_center(slime);
+    DrawCircle((int)slimeBC.x, (int)slimeBC.y, 4.0f, RED);
+#endif
 }

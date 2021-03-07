@@ -39,9 +39,12 @@ FILEIO: [resources/charlie.png] File loaded successfully
 IMAGE: [resources/charlie.png] Data loaded successfully (486x282)
 TEXTURE: [ID 5] Texture created successfully (486x282 - 1 mipmaps)
 FILEIO: [resources/peter48.png] File loaded successfully
-IMAGE: [resources/peter48.png] Data loaded successfully (192x96)
-TEXTURE: [ID 6] Texture created successfully (192x96 - 1 mipmaps)
+IMAGE: [resources/peter48.png] Data loaded successfully (192x64)
+TEXTURE: [ID 6] Texture created successfully (192x64 - 1 mipmaps)
 TIMER: Target time per frame: 16.667 milliseconds
+SYSTEM: Start animated GIF recording: screenrec001.gif
+FILEIO: [./screenrec001.gif] File saved successfully
+SYSTEM: Finish animated GIF recording
 TEXTURE: [ID 4] Unloaded texture data from VRAM (GPU)
 TEXTURE: [ID 6] Unloaded texture data from VRAM (GPU)
 TEXTURE: [ID 5] Unloaded texture data from VRAM (GPU)

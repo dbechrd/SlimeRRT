@@ -13,6 +13,7 @@
 #include <time.h>
 
 #define DEMO_VIEW_CULLING 0
+#define DEMO_AI_TRACKING 0
 
 #define MIN(a, b) (((a)<(b))?(a):(b))
 #define MAX(a, b) (((a)>(b))?(a):(b))
@@ -85,6 +86,7 @@ void GoldParticlesDying(ParticleEffect *particleEffect)
     assert(particleEffect->type == ParticleEffectType_Gold);
     assert(snd_gold.sampleCount);
 
+    SetSoundPitch(snd_gold, 1.0f + random_normalized_signed(6) * 0.1f);
     PlaySound(snd_gold);
 }
 
@@ -212,9 +214,9 @@ int main(void)
     for (size_t frameIdx = 0; frameIdx < slimeSprite->frameCount; frameIdx++) {
         SpriteFrame *frame = &slimeSprite->frames[frameIdx];
         frame->x = 48 * ((int)frameIdx % slimeFramesInRow);
-        frame->y = 48 * ((int)frameIdx / slimeFramesInRow);
+        frame->y = 32 * ((int)frameIdx / slimeFramesInRow);
         frame->width = 48;
-        frame->height = 48;
+        frame->height = 32;
     }
 
 #define SLIMES_COUNT 100
@@ -338,8 +340,7 @@ int main(void)
                     static double lastFootstep = 0;
                     double timeSinceLastFootstep = GetTime() - lastFootstep;
                     if (timeSinceLastFootstep > 1.0 / (double)playerSpeed) {
-                        const float normalizedRandom = random_normalized_signed(6);
-                        SetSoundPitch(snd_footstep, 1.0f + normalizedRandom * 0.5f);
+                        SetSoundPitch(snd_footstep, 1.0f + random_normalized_signed(6) * 0.5f);
                         PlaySound(snd_footstep);
                         lastFootstep = GetTime();
                     }
@@ -400,7 +401,7 @@ int main(void)
             charlie.equippedWeapon = PlayerWeapon_Sword;
         }
 
-        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+        if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
             const float playerAttackReach = 50.0f;
             const float playerAttackDamage = 2.0f;
 
@@ -414,14 +415,17 @@ int main(void)
                     if (v2_length_sq(playerToSlime) <= playerAttackReach * playerAttackReach) {
                         slimes[slimeIdx].hitPoints = MAX(0.0f, slimes[slimeIdx].hitPoints - playerAttackDamage);
                         if (!slimes[slimeIdx].hitPoints) {
+                            SetSoundPitch(snd_squeak, 1.0f + random_normalized_signed(6) * 0.05f);
                             PlaySound(snd_squeak);
                             const double time = GetTime();
                             Vector2 slimeBC = slime_get_bottom_center(&slimes[slimeIdx]);
                             particle_effect_start(&goldParticles, time, slimeBC);
                             slimesKilled++;
-                            coinsCollected += GetRandomValue(1, 4);
+                            coinsCollected += GetRandomValue(1, 4) * (int)slimes[slimeIdx].scale;
                         } else {
-                            PlaySound(GetRandomValue(0, 1) ? snd_squish1 : snd_squish2);
+                            Sound *squish = GetRandomValue(0, 1) ? &snd_squish1 : &snd_squish2;
+                            SetSoundPitch(*squish, 1.0f + random_normalized_signed(6) * 0.2f);
+                            PlaySound(*squish);
                         }
                         slimesHit++;
                     }
@@ -431,6 +435,7 @@ int main(void)
                     //PlaySound(snd_slime_stab1);
                     //PlaySound(GetRandomValue(0, 1) ? snd_squish1 : snd_squish2);
                 } else {
+                    SetSoundPitch(snd_whoosh, 1.0f + random_normalized_signed(12) * 0.1f);
                     PlaySound(snd_whoosh);
                 }
             }
@@ -459,8 +464,8 @@ int main(void)
 
                 Vector2 slimeToPlayer = v2_sub(player_get_bottom_center(&charlie), slime_get_bottom_center(&slimes[slimeIdx]));
                 const float slimeToPlayerDistSq = v2_length_sq(slimeToPlayer);
-                if (slimeToPlayerDistSq > slimeAttackReach * slimeAttackReach &&
-                    slimeToPlayerDistSq <= slimeAttackTrack * slimeAttackTrack)
+                if (slimeToPlayerDistSq > SQUARED(slimeAttackReach) &&
+                    slimeToPlayerDistSq <= SQUARED(slimeAttackTrack))
                 {
                     Vector2 slimeMoveDir = v2_normalize(slimeToPlayer);
                     Vector2 slimeMove = v2_scale(slimeMoveDir, slimeMoveSpeed + (float)GetRandomValue(0, 2));
@@ -474,7 +479,10 @@ int main(void)
                         if (!slimes[collideIdx].hitPoints)
                             continue;
 
-                        if (v2_length_sq(v2_sub(newPos, slimes[collideIdx].transform.position)) < slimeRadius * slimeRadius) {
+                        if (v2_length_sq(v2_sub(newPos, slimes[collideIdx].transform.position)) <
+                            SQUARED(slimeRadius * slimes[slimeIdx].scale))
+                        {
+                            slime_combine(&slimes[slimeIdx], &slimes[collideIdx]);
                             willCollide = 1;
                             break;
                         }
@@ -490,9 +498,9 @@ int main(void)
                 }
 
                 slimeToPlayer = v2_sub(player_get_bottom_center(&charlie), slime_get_bottom_center(&slimes[slimeIdx]));
-                if (v2_length_sq(slimeToPlayer) <= slimeAttackReach * slimeAttackReach) {
+                if (v2_length_sq(slimeToPlayer) <= SQUARED(slimeAttackReach)) {
                     if (slime_attack(&slimes[slimeIdx])) {
-                        charlie.hitPoints = MAX(0.0f, charlie.hitPoints - slimeAttackDamage);
+                        charlie.hitPoints = MAX(0.0f, charlie.hitPoints - (slimeAttackDamage * slimes[slimeIdx].scale));
                         const double time = GetTime();
                         Vector2 playerGut = player_get_attach_point(&charlie, PlayerAttachPoint_Gut);
                         particle_effect_start(&bloodParticles, time, playerGut);
@@ -619,16 +627,26 @@ int main(void)
                 slimesByDepth[j + 1] = index;
             }
 
+            float charlieY = player_get_bottom_center(&charlie).y;
+            bool charlieDrawn = false;
+
             for (int i = 0; i < SLIMES_COUNT; i++) {
                 int slimeIdx = slimesByDepth[i];
                 if (!slimes[slimeIdx].hitPoints)
                     continue;
 
+                // HACK: Draw charlie in sorted order
+                if (!charlieDrawn && charlieY < slime_get_bottom_center(&slimes[slimeIdx]).y) {
+                    player_draw(&charlie);
+                    charlieDrawn = true;
+                }
+
                 slime_draw(&slimes[slimeIdx]);
             }
 
-            // TODO: Sort player into depth list as well
-            player_draw(&charlie);
+            if (!charlieDrawn) {
+                player_draw(&charlie);
+            }
         }
 
         for (size_t slimeIdx = 0; slimeIdx < SLIMES_COUNT; slimeIdx++) {
@@ -647,6 +665,13 @@ int main(void)
 
 #if DEMO_VIEW_CULLING
         DrawRectangleRec(cameraRect, Fade(PINK, 0.5f));
+#endif
+
+#if DEMO_AI_TRACKING
+        {
+            Vector2 charlieCenter = player_get_bottom_center(&charlie);
+            DrawCircle((int)charlieCenter.x, (int)charlieCenter.y, 640.0f, Fade(ORANGE, 0.5f));
+        }
 #endif
 
         EndMode2D();

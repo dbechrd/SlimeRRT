@@ -1,6 +1,8 @@
 #pragma once
 #include "raylib.h"
 
+#define SQUARED(x) ((x)*(x))
+
 // Generate random number in [0.0f, 1.0f] range, with specified resolution (higher = smaller increments in variability)
 static inline float random_normalized(int resolution)
 {

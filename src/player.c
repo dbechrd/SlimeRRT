@@ -140,7 +140,7 @@ void player_update(Player *player)
     const double t = GetTime();
 
     const double timeSinceLastMove = t - player->lastMoveTime;
-    if (timeSinceLastMove > 10.0) {
+    if (timeSinceLastMove > 60.0) {
         player->facing = PlayerFacing_Idle;
     }
 
