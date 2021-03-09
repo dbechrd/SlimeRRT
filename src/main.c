@@ -15,10 +15,6 @@
 #define DEMO_VIEW_CULLING 0
 #define DEMO_AI_TRACKING 0
 
-#define MIN(a, b) (((a)<(b))?(a):(b))
-#define MAX(a, b) (((a)>(b))?(a):(b))
-#define CLAMP(x, min, max) (MAX((min), MIN((x), (max))))
-
 static FILE *logFile;
 
 void traceLogCallback(int logType, const char *text, va_list args)
@@ -40,17 +36,9 @@ Rectangle RectPadXY(const Rectangle rec, float padX, float padY)
     return padded;
 }
 
-int SlimeCompareDepth(void const *slimeA, void const *slimeB)
+void DrawShadow(int x, int y, float radius, float yOffset)
 {
-    float aDepth = slime_get_bottom_center(slimeA).y;
-    float bDepth = slime_get_bottom_center(slimeB).y;
-    if (aDepth < bDepth) {
-        return -1;
-    } else if( aDepth > bDepth) {
-        return 1;
-    } else {
-        return 0;
-    }
+    DrawEllipse(x, y + (int)yOffset, radius, radius / 2.0f, Fade(BLACK, 0.5f));
 }
 
 void DrawHealthBar(int x, int y, float hitPoints, float maxHitPoints)
@@ -195,7 +183,11 @@ int main(void)
 
     Player charlie = { 0 };
     player_init(&charlie, "Charlie", charlieSprite);
-    charlie.transform.position = (Vector2){ (float)tilemap.widthTiles / 2.0f * tilemap.tileset->tileWidth, (float)tilemap.heightTiles / 2.0f * tilemap.tileset->tileHeight };
+    charlie.body.position = (Vector3){
+        (float)tilemap.widthTiles / 2.0f * tilemap.tileset->tileWidth,
+        (float)tilemap.heightTiles / 2.0f * tilemap.tileset->tileHeight,
+        0.0f
+    };
     charlie.equippedWeapon = PlayerWeapon_Sword;
 
     Texture tex_slime = LoadTexture("resources/peter48.png");
@@ -224,16 +216,17 @@ int main(void)
     int slimesByDepth[SLIMES_COUNT] = { 0 };
     for (int i = 0; i < SLIMES_COUNT; i++) {
         slime_init(&slimes[i], 0, slimeSprite);
-        slimes[i].transform.position.x = (float)GetRandomValue(0, 8192);
-        slimes[i].transform.position.y = (float)GetRandomValue(0, 8192);
+        slimes[i].body.position.x = (float)GetRandomValue(0, 8192);
+        slimes[i].body.position.y = (float)GetRandomValue(0, 8192);
         slimesByDepth[i] = i;
     }
 
     ParticleEffect bloodParticles = { 0 };
     particle_effect_generate(&bloodParticles, ParticleEffectType_Blood, 40, 1.2);
 
+    const size_t maxGoldParticles = 64;
     ParticleEffect goldParticles = { 0 };
-    particle_effect_generate(&goldParticles, ParticleEffectType_Gold, 12, 0.5);
+    particle_effect_generate(&goldParticles, ParticleEffectType_Gold, maxGoldParticles, 1.2);
     goldParticles.callbacks[ParticleEffectEvent_Dying] = GoldParticlesDying;
 
     int slimesKilled = 0;
@@ -292,7 +285,7 @@ int main(void)
 
             Vector2 moveOffset = v2_round(v2_scale(v2_normalize(moveBuffer), playerSpeed));
             if (!v2_is_zero(moveOffset)) {
-                Vector2 curPos = player_get_bottom_center(&charlie);
+                Vector2 curPos = player_get_ground_position(&charlie);
                 Tile *curTile = tilemap_at_world_try(&tilemap, (int)curPos.x, (int)curPos.y);
                 int curWalkable = tile_is_walkable(curTile);
 
@@ -347,7 +340,7 @@ int main(void)
                 }
             }
 
-            camera.target = player_get_center(&charlie);
+            camera.target = player_get_ground_position(&charlie);
         } else {
             const int cameraSpeed = 5;
             if (IsKeyDown(KEY_A)) camera.target.x -= cameraSpeed / camera.zoom;
@@ -411,17 +404,19 @@ int main(void)
                     if (!slimes[slimeIdx].hitPoints)
                         continue;
 
-                    Vector2 playerToSlime = v2_sub(slime_get_bottom_center(&slimes[slimeIdx]), player_get_bottom_center(&charlie));
-                    if (v2_length_sq(playerToSlime) <= playerAttackReach * playerAttackReach) {
+                    Vector3 playerToSlime = v3_sub(slimes[slimeIdx].body.position, charlie.body.position);
+                    if (v3_length_sq(playerToSlime) <= playerAttackReach * playerAttackReach) {
                         slimes[slimeIdx].hitPoints = MAX(0.0f, slimes[slimeIdx].hitPoints - playerAttackDamage);
                         if (!slimes[slimeIdx].hitPoints) {
                             SetSoundPitch(snd_squeak, 1.0f + random_normalized_signed(6) * 0.05f);
                             PlaySound(snd_squeak);
                             const double time = GetTime();
-                            Vector2 slimeBC = slime_get_bottom_center(&slimes[slimeIdx]);
+                            Vector3 slimeBC = slime_get_center(&slimes[slimeIdx]);
+                            int coins = GetRandomValue(1, 4) * (int)slimes[slimeIdx].scale;
+                            coinsCollected += coins;
+                            goldParticles.particleCount = MIN((size_t)coins, maxGoldParticles);
                             particle_effect_start(&goldParticles, time, slimeBC);
                             slimesKilled++;
-                            coinsCollected += GetRandomValue(1, 4) * (int)slimes[slimeIdx].scale;
                         } else {
                             Sound *squish = GetRandomValue(0, 1) ? &snd_squish1 : &snd_squish2;
                             SetSoundPitch(*squish, 1.0f + random_normalized_signed(6) * 0.2f);
@@ -462,14 +457,15 @@ int main(void)
                 if (!slimes[slimeIdx].hitPoints)
                     continue;
 
-                Vector2 slimeToPlayer = v2_sub(player_get_bottom_center(&charlie), slime_get_bottom_center(&slimes[slimeIdx]));
+                Vector2 slimeToPlayer = v2_sub(player_get_ground_position(&charlie), slime_get_ground_position(&slimes[slimeIdx]));
                 const float slimeToPlayerDistSq = v2_length_sq(slimeToPlayer);
                 if (slimeToPlayerDistSq > SQUARED(slimeAttackReach) &&
                     slimeToPlayerDistSq <= SQUARED(slimeAttackTrack))
                 {
                     Vector2 slimeMoveDir = v2_normalize(slimeToPlayer);
                     Vector2 slimeMove = v2_scale(slimeMoveDir, slimeMoveSpeed + (float)GetRandomValue(0, 2));
-                    Vector2 newPos = v2_add(slimes[slimeIdx].transform.position, slimeMove);
+                    Vector2 slimePos = slime_get_ground_position(&slimes[slimeIdx]);
+                    Vector2 slimePosNew = v2_add(slimePos, slimeMove);
 
                     int willCollide = 0;
                     for (size_t collideIdx = 0; collideIdx < SLIMES_COUNT; collideIdx++) {
@@ -479,9 +475,10 @@ int main(void)
                         if (!slimes[collideIdx].hitPoints)
                             continue;
 
-                        if (v2_length_sq(v2_sub(newPos, slimes[collideIdx].transform.position)) <
-                            SQUARED(slimeRadius * slimes[slimeIdx].scale))
-                        {
+                        Vector2 otherSlimePos = slime_get_ground_position(&slimes[collideIdx]);
+                        const float zDist = fabsf(slimes[slimeIdx].body.position.z - slimes[collideIdx].body.position.z);
+                        const float radiusScaled = slimeRadius * slimes[slimeIdx].scale;
+                        if (v2_length_sq(v2_sub(slimePosNew, otherSlimePos)) < SQUARED(radiusScaled) && zDist < radiusScaled) {
                             slime_combine(&slimes[slimeIdx], &slimes[collideIdx]);
                             willCollide = 1;
                             break;
@@ -497,12 +494,12 @@ int main(void)
                     }
                 }
 
-                slimeToPlayer = v2_sub(player_get_bottom_center(&charlie), slime_get_bottom_center(&slimes[slimeIdx]));
+                slimeToPlayer = v2_sub(player_get_ground_position(&charlie), slime_get_ground_position(&slimes[slimeIdx]));
                 if (v2_length_sq(slimeToPlayer) <= SQUARED(slimeAttackReach)) {
                     if (slime_attack(&slimes[slimeIdx])) {
                         charlie.hitPoints = MAX(0.0f, charlie.hitPoints - (slimeAttackDamage * slimes[slimeIdx].scale));
                         const double time = GetTime();
-                        Vector2 playerGut = player_get_attach_point(&charlie, PlayerAttachPoint_Gut);
+                        Vector3 playerGut = player_get_attach_point(&charlie, PlayerAttachPoint_Gut);
                         particle_effect_start(&bloodParticles, time, playerGut);
                         // TODO: Kill peter if he dies
                     }
@@ -618,25 +615,51 @@ int main(void)
             //qsort(slimes, sizeof(slimes)/sizeof(*slimes), sizeof(*slimes), SlimeCompareDepth);
             for (int i = 1; i < SLIMES_COUNT; i++) {
                 int index = slimesByDepth[i];
-                float depth = slime_get_bottom_center(&slimes[index]).y;
+                Vector2 groundPosA = slime_get_ground_position(&slimes[index]);
                 int j = i - 1;
-                while (j >= 0 && slime_get_bottom_center(&slimes[slimesByDepth[j]]).y > depth) {
+                Vector2 groundPosB = slime_get_ground_position(&slimes[slimesByDepth[j]]);
+                while (groundPosB.y > groundPosA.y) {
                     slimesByDepth[j + 1] = slimesByDepth[j];
                     j--;
+                    if (j < 0) break;
+                    groundPosB = slime_get_ground_position(&slimes[slimesByDepth[j]]);
                 }
                 slimesByDepth[j + 1] = index;
             }
 
-            float charlieY = player_get_bottom_center(&charlie).y;
-            bool charlieDrawn = false;
+            const Vector2 playerGroundPos = player_get_ground_position(&charlie);
 
+            // TODO: Shadow size based on height from ground
+            // https://yal.cc/top-down-bouncing-loot-effects/
+
+            //const float shadowScale = 1.0f + slimes[slimeIdx].transform.position.z / 20.0f;
+
+            // Draw shadows
             for (int i = 0; i < SLIMES_COUNT; i++) {
                 int slimeIdx = slimesByDepth[i];
                 if (!slimes[slimeIdx].hitPoints)
                     continue;
 
+                const Vector2 slimeBC = slime_get_ground_position(&slimes[slimeIdx]);
+                DrawShadow((int)slimeBC.x, (int)slimeBC.y, 16.0f * slimes[slimeIdx].scale, -8.0f * slimes[slimeIdx].scale);
+            }
+
+            // Player shadow
+            DrawShadow((int)playerGroundPos.x, (int)playerGroundPos.y, 16.0f, -6.0f);
+
+            // Draw entities
+            bool charlieDrawn = false;
+
+            for (int i = 0; i < SLIMES_COUNT; i++) {
+                int slimeIdx = slimesByDepth[i];
+                if (!slimes[slimeIdx].hitPoints) {
+                    continue;
+                }
+
+                const Vector2 slimeGroundPos = slime_get_ground_position(&slimes[slimeIdx]);
+
                 // HACK: Draw charlie in sorted order
-                if (!charlieDrawn && charlieY < slime_get_bottom_center(&slimes[slimeIdx]).y) {
+                if (!charlieDrawn && playerGroundPos.y < slimeGroundPos.y) {
                     player_draw(&charlie);
                     charlieDrawn = true;
                 }
@@ -650,12 +673,21 @@ int main(void)
         }
 
         for (size_t slimeIdx = 0; slimeIdx < SLIMES_COUNT; slimeIdx++) {
-            if (!slimes[slimeIdx].hitPoints) continue;
+            if (!slimes[slimeIdx].hitPoints) {
+                continue;
+            }
 
-            DrawHealthBar((int)slime_get_center(&slimes[slimeIdx]).x, (int)slimes[slimeIdx].transform.position.y,
-                slimes[slimeIdx].hitPoints, slimes[slimeIdx].maxHitPoints);
+            // TODO: slime_get_top_center (after unify player/slime code)
+            Rectangle slimeRect = slime_get_rect(&slimes[slimeIdx]);
+            const int x = (int)(slimeRect.x + slimeRect.width / 2.0f);
+            const int y = (int)slimeRect.y;
+            DrawHealthBar(x, y, slimes[slimeIdx].hitPoints, slimes[slimeIdx].maxHitPoints);
         }
-        DrawHealthBar((int)player_get_center(&charlie).x, (int)charlie.transform.position.y, charlie.hitPoints, charlie.maxHitPoints);
+        // TODO: player_get_top_center (after unify player/slime code)
+        Rectangle playerRect = player_get_rect(&charlie);
+        const int x = (int)(playerRect.x + playerRect.width / 2.0f);
+        const int y = (int)playerRect.y;
+        DrawHealthBar(x, y, charlie.hitPoints, charlie.maxHitPoints);
 
         {
             const double time = GetTime();

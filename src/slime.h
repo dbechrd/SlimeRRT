@@ -1,7 +1,7 @@
 #pragma once
 #include "raylib.h"
 #include "spritesheet.h"
-#include "transform.h"
+#include "body.h"
 #include <stdbool.h>
 
 typedef enum SlimeFacing {
@@ -19,7 +19,7 @@ typedef enum SlimeAction {
 
 typedef struct Slime {
     const char *name;
-    Transform2D transform;
+    Body3D body;
     float scale;
     SlimeFacing facing;
     SlimeAction action;
@@ -31,14 +31,14 @@ typedef struct Slime {
     size_t spriteFrameIdx;
 } Slime;
 
-void slime_init                 (Slime *slime, const char *name, struct Sprite *sprite);
-SpriteFrame *slime_get_frame    (const Slime *slime);
-Rectangle slime_get_frame_rect  (const Slime *slime);
-Rectangle slime_get_rect        (const Slime *slime);
-Vector2 slime_get_center        (const Slime *slime);
-Vector2 slime_get_bottom_center (const Slime *slime);
-void slime_move                 (Slime *slime, Vector2 offset);
-void slime_combine              (Slime *slimeA, Slime *slimeB);
-bool slime_attack               (Slime *slime);
-void slime_update               (Slime *slime);
-void slime_draw                 (Slime *slime);
+void slime_init                     (Slime *slime, const char *name, struct Sprite *sprite);
+SpriteFrame *slime_get_frame        (const Slime *slime);
+Rectangle slime_get_frame_rect      (const Slime *slime);
+Rectangle slime_get_rect            (const Slime *slime);
+Vector3 slime_get_center            (const Slime *slime);
+Vector2 slime_get_ground_position   (const Slime *slime);
+void slime_move                     (Slime *slime, Vector2 offset);
+void slime_combine                  (Slime *slimeA, Slime *slimeB);
+bool slime_attack                   (Slime *slime);
+void slime_update                   (Slime *slime);
+void slime_draw                     (Slime *slime);

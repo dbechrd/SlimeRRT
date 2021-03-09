@@ -1,6 +1,6 @@
 #pragma once
 #include "tileset.h"
-#include "vector2f.h"
+#include "math.h"
 #include <stdbool.h>
 
 typedef enum TileType {

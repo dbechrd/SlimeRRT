@@ -8,17 +8,17 @@
     <ClCompile Include="src\player.c" />
     <ClCompile Include="src\spritesheet.c" />
     <ClCompile Include="src\slime.c" />
-    <ClCompile Include="src\transform.c" />
+    <ClCompile Include="src\body.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\tilemap.h" />
-    <ClInclude Include="src\vector2f.h" />
+    <ClInclude Include="src\math.h" />
     <ClInclude Include="src\tileset.h" />
     <ClInclude Include="src\particles.h" />
     <ClInclude Include="src\player.h" />
     <ClInclude Include="src\spritesheet.h" />
     <ClInclude Include="src\slime.h" />
     <ClInclude Include="src\helpers.h" />
-    <ClInclude Include="src\transform.h" />
+    <ClInclude Include="src\body.h" />
   </ItemGroup>
 </Project>

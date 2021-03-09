@@ -1,6 +1,6 @@
 #include "player.h"
 #include "spritesheet.h"
-#include "vector2f.h"
+#include "math.h"
 #include <assert.h>
 
 void player_init(Player *player, const char *name, struct Sprite *sprite)
@@ -17,13 +17,13 @@ void player_init(Player *player, const char *name, struct Sprite *sprite)
     player->sprite = sprite;
 }
 
-SpriteFrame *player_get_frame(Player *player)
+SpriteFrame *player_get_frame(const Player *player)
 {
     SpriteFrame *frame = &player->sprite->frames[player->spriteFrameIdx];
     return frame;
 }
 
-Rectangle player_get_frame_rect(Player *player)
+Rectangle player_get_frame_rect(const Player *player)
 {
     assert(player->spriteFrameIdx < player->sprite->frameCount);
 
@@ -36,43 +36,43 @@ Rectangle player_get_frame_rect(Player *player)
     return rect;
 }
 
-Rectangle player_get_rect(Player *player)
+Rectangle player_get_rect(const Player *player)
 {
     assert(player->spriteFrameIdx < player->sprite->frameCount);
 
     Rectangle frameRect = player_get_frame_rect(player);
     Rectangle rect = { 0 };
-    rect.x = player->transform.position.x;
-    rect.y = player->transform.position.y;
+    rect.x = player->body.position.x - frameRect.width / 2.0f;
+    rect.y = player->body.position.y - frameRect.height - player->body.position.z;
     rect.width = frameRect.width;
     rect.height = frameRect.height;
     return rect;
 }
 
-Vector2 player_get_center(Player *player)
+Vector3 player_get_center(const Player *player)
 {
     const SpriteFrame *spriteFrame = &player->sprite->frames[player->spriteFrameIdx];
-    Vector2 center = { 0 };
-    center.x = player->transform.position.x + spriteFrame->width / 2.0f;
-    center.y = player->transform.position.y + spriteFrame->height / 2.0f;
+    Vector3 center = { 0 };
+    center.x = player->body.position.x;
+    center.y = player->body.position.y;
+    center.z = player->body.position.z + spriteFrame->height / 2.0f;
     return center;
 }
 
-Vector2 player_get_bottom_center(Player *player)
+Vector2 player_get_ground_position(const Player *player)
 {
-    const SpriteFrame *spriteFrame = &player->sprite->frames[player->spriteFrameIdx];
-    Vector2 center = { 0 };
-    center.x = player->transform.position.x + spriteFrame->width / 2.0f;
-    center.y = player->transform.position.y + spriteFrame->height;
-    return center;
+    Vector2 groundPosition = { 0 };
+    groundPosition.x = player->body.position.x;
+    groundPosition.y = player->body.position.y;
+    return groundPosition;
 }
 
-Vector2 player_get_attach_point(Player *player, PlayerAttachPoint attachPoint)
+Vector3 player_get_attach_point(const Player *player, PlayerAttachPoint attachPoint)
 {
-    Vector2 attach = { 0 };
+    Vector3 attach = { 0 };
     switch (attachPoint) {
         case PlayerAttachPoint_Gut: {
-            attach = v2_add(player_get_center(player), (Vector2){ 0.0f, 10.0f });
+            attach = v3_add(player_get_center(player), (Vector3){ 0.0f, 0.0f, 10.0f });
             break;
         } default: {
             assert(!"That's not a valid attachment point identifier");
@@ -117,7 +117,11 @@ bool player_move(Player *player, Vector2 offset)
     if (v2_is_zero(offset))
         return false;
 
-    player->transform.position = v2_add(player->transform.position, offset);
+    // Don't allow player to move if they're not touching the ground (currently no jump/fall, so just assert)
+    assert(player->body.position.z == 0.0f);
+
+    player->body.position.x += offset.x;
+    player->body.position.y += offset.y;
     player->lastMoveTime = GetTime();
     update_direction(player, offset);
     return true;
@@ -168,6 +172,10 @@ void player_draw(Player *player)
     // Funny bug where texture stays still relative to screen, could be fun to abuse later
     const Rectangle rect = player_get_rect(player);
 #endif
-    const Rectangle rect = player_get_frame_rect(player);
-    DrawTextureRec(*player->sprite->spritesheet->texture, rect, player->transform.position, WHITE);
+    const Rectangle source = player_get_frame_rect(player);
+    const Rectangle dest = player_get_rect(player);
+    Vector2 position = { 0 };
+    position.x = dest.x;
+    position.y = dest.y;
+    DrawTextureRec(*player->sprite->spritesheet->texture, source, position, WHITE);
 }

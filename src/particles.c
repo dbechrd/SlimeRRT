@@ -16,10 +16,13 @@ static void blood_generate(Particle *particle, float duration)
     particle->dieAt = duration - random_normalized(100) * duration * 0.15f;
     assert(particle->dieAt > particle->spawnAt);
 
-    particle->transform.acceleration = (Vector2){ 0.0f, METERS(10.0f) };  // gravity
+    particle->body.acceleration = (Vector3){ 0.0f, 0.0f, METERS(-10.0f) };  // gravity
 #if 1
     float randX = random_normalized_signed(100) * METERS(1.0f);
-    particle->transform.velocity = (Vector2){ randX, METERS(-4.0f) };
+    float randY = random_normalized_signed(100) * METERS(1.0f);
+    float randZ = random_normalized(100) * METERS(4.0f);
+    particle->body.velocity = (Vector3){ randX, randY, randZ };
+    particle->body.friction = 1.0f;
 #else
     const float direction = 1.0f;
     float randX = direction * random_normalized(100) * METERS(1.0f);
@@ -45,8 +48,8 @@ static void blood_draw(Particle *particle)
 {
     const float radius = 5.0f;
     DrawCircle(
-        (int)particle->transform.position.x,
-        (int)particle->transform.position.y,
+        (int)particle->body.position.x,
+        (int)(particle->body.position.y - particle->body.position.z),
         radius * particle->scale,
         particle->color
     );
@@ -61,10 +64,14 @@ static void gold_generate(Particle *particle, float duration)
     particle->dieAt = duration - random_normalized(100) * duration * 0.15f;
     assert(particle->dieAt > particle->spawnAt);
 
-    particle->transform.acceleration = (Vector2){ 0.0f, METERS(20.0f) };  // gravity
+    particle->body.acceleration = (Vector3){ 0.0f, 0.0f, METERS(-10.0f) };  // gravity
 #if 1
     float randX = random_normalized_signed(100) * METERS(1.0f);
-    particle->transform.velocity = (Vector2){ randX, METERS(-4.0f) };
+    float randY = random_normalized_signed(100) * METERS(1.0f);
+    float randZ = random_normalized(100) * METERS(4.0f);
+    particle->body.velocity = (Vector3){ randX, randY, randZ };
+    particle->body.restitution = 0.8f;
+    particle->body.friction = 0.5f;
 #else
     const float direction = 1.0f;
     float randX = direction * random_normalized(100) * METERS(1.0f);
@@ -84,8 +91,8 @@ static void gold_draw(Particle *particle)
 {
     const float radius = 12.0f;
     DrawCircle(
-        (int)particle->transform.position.x,
-        (int)particle->transform.position.y,
+        (int)particle->body.position.x,
+        (int)(particle->body.position.y - particle->body.position.z),
         radius * particle->scale,
         particle->color
     );
@@ -139,7 +146,7 @@ void particle_effect_generate(ParticleEffect *particleEffect, ParticleEffectType
     effect_generate(particleEffect);
 }
 
-bool particle_effect_start(ParticleEffect *particleEffect, double time, Vector2 origin)
+bool particle_effect_start(ParticleEffect *particleEffect, double time, Vector3 origin)
 {
     assert(particleEffect);
     assert(time);
@@ -203,10 +210,10 @@ void particle_effect_update(ParticleEffect *particleEffect, double time)
         const float alpha = (float)((animTime - particle->spawnAt) / (particle->dieAt - particle->spawnAt));
         if (alpha >= 0.0f && alpha < 1.0f) {
             if (particle->state == ParticleState_Dead) {
-                particle->transform.position = particleEffect->origin;
+                particle->body.position = particleEffect->origin;
                 particle->state = ParticleState_Alive;
             }
-            transform_update(&particle->transform, dt);
+            body3d_update(&particle->body, dt);
 
             switch (particleEffect->type) {
                 case ParticleEffectType_Blood: {

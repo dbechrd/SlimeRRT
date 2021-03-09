@@ -18,7 +18,7 @@
     <ClCompile Include="src\spritesheet.c" />
     <ClCompile Include="src\tilemap.c" />
     <ClCompile Include="src\tileset.c" />
-    <ClCompile Include="src\transform.c" />
+    <ClCompile Include="src\body.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\helpers.h" />
@@ -28,8 +28,8 @@
     <ClInclude Include="src\spritesheet.h" />
     <ClInclude Include="src\tilemap.h" />
     <ClInclude Include="src\tileset.h" />
-    <ClInclude Include="src\transform.h" />
-    <ClInclude Include="src\vector2f.h" />
+    <ClInclude Include="src\body.h" />
+    <ClInclude Include="src\math.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

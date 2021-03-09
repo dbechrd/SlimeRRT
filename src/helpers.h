@@ -1,6 +1,9 @@
 #pragma once
 #include "raylib.h"
 
+#define MIN(a, b) (((a)<(b))?(a):(b))
+#define MAX(a, b) (((a)>(b))?(a):(b))
+#define CLAMP(x, min, max) (MAX((min), MIN((x), (max))))
 #define SQUARED(x) ((x)*(x))
 
 // Generate random number in [0.0f, 1.0f] range, with specified resolution (higher = smaller increments in variability)

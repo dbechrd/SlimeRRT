@@ -1,6 +1,6 @@
 #pragma once
 #include "raylib.h"
-#include "transform.h"
+#include "body.h"
 #include <stdbool.h>
 
 typedef enum ParticleState {
@@ -11,7 +11,7 @@ typedef enum ParticleState {
 
 typedef struct Particle {
     ParticleState state;
-    Transform2D transform;
+    Body3D body;
     double spawnAt;
     double dieAt;
     float rotation;
@@ -43,7 +43,7 @@ typedef void (*ParticeEffectEventCallback)(struct ParticleEffect *particleEffect
 typedef struct ParticleEffect {
     ParticleEffectType type;
     ParticleEffectState state;  // dead or alive (and maybe paused in the future?)
-    Vector2 origin;             // origin of particle effect
+    Vector3 origin;             // origin of particle effect
     double startedAt;           // time started
     double lastUpdatedAt;       // time last updated
     double duration;            // time to play effect for
@@ -54,7 +54,7 @@ typedef struct ParticleEffect {
 } ParticleEffect;
 
 void particle_effect_generate   (ParticleEffect *particleEffect, ParticleEffectType type, size_t particleCount, double duration);
-bool particle_effect_start      (ParticleEffect *particleEffect, double time, Vector2 origin);
+bool particle_effect_start      (ParticleEffect *particleEffect, double time, Vector3 origin);
 void particle_effect_stop       (ParticleEffect *particleEffect);
 void particle_effect_update     (ParticleEffect *particleEffect, double time);
 void particle_effect_draw       (ParticleEffect *particleEffect, double time);
