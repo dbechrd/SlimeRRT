@@ -4,8 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-// NOTE: This defines 1 meter = 64 pixels
-#define METERS(m) ((m) * 64.0f)
+static size_t activeEffectsCapacity;
+static ParticleEffect **activeEffects;
 
 static void blood_generate(Particle *particle, float duration)
 {
@@ -98,124 +98,150 @@ static void gold_draw(Particle *particle)
     );
 }
 
-static void effect_generate(ParticleEffect *particleEffect)
+static void effect_generate(ParticleEffect *effect)
 {
-    assert(particleEffect);
+    assert(effect);
 
-    Particle *particle = particleEffect->particles;
-    void *particles_end = particleEffect->particles + particleEffect->particleCount;
-    while (particle != particles_end) {
+    for (size_t i = 0; i < effect->particleCount; i++) {
+        Particle *particle = &effect->particles[i];
         particle->state = ParticleState_Dead;
-        switch (particleEffect->type) {
+        switch (effect->type) {
             case ParticleEffectType_Blood: {
-                blood_generate(particle, (float)particleEffect->duration);
+                blood_generate(particle, (float)effect->duration);
                 break;
             } case ParticleEffectType_Gold: {
-                gold_generate(particle, (float)particleEffect->duration);
+                gold_generate(particle, (float)effect->duration);
                 break;
             } default: {
                 TraceLog(LOG_FATAL, "Unknown particle effect type\n");
                 return;
             }
         }
-        particle++;
     }
 }
 
-void particle_effect_generate(ParticleEffect *particleEffect, ParticleEffectType type, size_t particleCount, double duration)
+ParticleEffect *particle_effect_alloc(ParticleEffectType type, size_t particleCount)
 {
-    assert(particleEffect);
-    assert(!particleEffect->particles);  // double initialization error; use particle_effect_reset() to reuse the buffer
-    assert(particleCount);
     assert(type >= 0);
     assert(type < ParticleEffectType_Count);
-    assert(duration >= 0.0);
+    assert(particleCount);
 
-    Particle *particles = calloc(particleCount, sizeof(*particleEffect->particles));
-    if (!particles) {
-        TraceLog(LOG_FATAL, "Failed to allocate particle effect\n");
-        return;
+    // Allocate effect
+    ParticleEffect *effect = calloc(1, sizeof(*effect) + sizeof(*effect->particles) * particleCount);
+    assert(effect);
+
+    effect->type = type;
+    effect->particleCount = particleCount;
+    effect->particles = (Particle *)((char *)effect + sizeof(*effect));
+
+    int freeIndex = -1;
+
+    // Find free slot for effect pointer
+    for (size_t i = 0; i < activeEffectsCapacity; i++) {
+        if (activeEffects[i] == NULL) {
+            freeIndex = (int)i;
+            break;
+        }
     }
-    particleEffect->type = type;
-    particleEffect->state = ParticleEffectState_Dead;
-    particleEffect->startedAt = 0;
-    particleEffect->duration = duration;
-    particleEffect->particleNext = 0;
-    particleEffect->particleCount = particleCount;
-    particleEffect->particles = particles;
-    effect_generate(particleEffect);
+
+    // If not found, expand array
+    if (freeIndex == -1) {
+        if (!activeEffects) {
+            activeEffectsCapacity = 16;
+            activeEffects = calloc(activeEffectsCapacity, sizeof(*activeEffects));
+            freeIndex = 0;
+        } else {
+            activeEffects = realloc(activeEffects, sizeof(*activeEffects) * activeEffectsCapacity * 2);
+            freeIndex = (int)activeEffectsCapacity;
+            activeEffectsCapacity *= 2;
+        }
+        assert(activeEffects);
+    }
+
+    // Store pointer to new effect in effects list
+    assert(freeIndex >= 0);
+    assert(freeIndex < activeEffectsCapacity);
+    activeEffects[freeIndex] = effect;
+    return effect;
 }
 
-bool particle_effect_start(ParticleEffect *particleEffect, double time, Vector3 origin)
+bool particle_effect_start(ParticleEffect *effect, double time, double duration, Vector3 origin)
 {
-    assert(particleEffect);
+    assert(effect);
     assert(time);
+    assert(duration > 0.0);
 
-    if (particleEffect->state == ParticleEffectState_Dead) {
-        particleEffect->state = ParticleEffectState_Alive;
-        particleEffect->origin = origin;
-        particleEffect->startedAt = time;
-        particleEffect->lastUpdatedAt = time;
-        effect_generate(particleEffect);
+    if (effect->state == ParticleEffectState_Dead) {
+        effect->state = ParticleEffectState_Alive;
+        effect->origin = origin;
+        effect->startedAt = time;
+        effect->lastUpdatedAt = time;
+        effect->duration = duration;
+        effect_generate(effect);
         return true;
     }
     return false;
 }
+//
+//static void particle_effect_reset(ParticleEffect *effect)
+//{
+//    assert(effect);
+//    assert(effect->particles);
+//
+//    effect->startedAt = 0;
+//    effect->lastUpdatedAt = 0;
+//    effect->state = ParticleEffectState_Dead;
+//    memset(effect->particles, 0, sizeof(*effect->particles) * effect->particleCount);
+//}
 
-static void particle_effect_reset(ParticleEffect *particleEffect)
+void particle_effect_stop(ParticleEffect *effect)
 {
-    assert(particleEffect);
-    assert(particleEffect->particles);
-    assert(particleEffect->particleCount);
+    assert(effect);
 
-    particleEffect->particleNext = 0;
-    memset(particleEffect->particles, 0, particleEffect->particleCount * sizeof(*particleEffect->particles));
-    particleEffect->startedAt = 0;
-    particleEffect->lastUpdatedAt = 0;
-    particleEffect->state = ParticleEffectState_Dead;
-}
-
-void particle_effect_stop(ParticleEffect *particleEffect)
-{
-    assert(particleEffect);
-
-    if (particleEffect->state == ParticleEffectState_Dead) {
+    if (effect->state == ParticleEffectState_Dead) {
         return;
     }
 
-    if (particleEffect->callbacks[ParticleEffectEvent_Stopping]) {
-        particleEffect->callbacks[ParticleEffectEvent_Stopping](particleEffect);
+    effect->state = ParticleEffectState_Stopping;
+    ParticeEffectEventCallback *callback = &effect->callbacks[ParticleEffectEvent_Stopped];
+    if (callback->function) {
+        callback->function(effect, callback->userData);
     }
-
-    particle_effect_reset(particleEffect);
+    particle_effect_free(effect);
 }
 
-void particle_effect_update(ParticleEffect *particleEffect, double time)
+static void particle_effect_update(ParticleEffect *effect, double time)
 {
-    assert(particleEffect);
+    assert(effect);
+    assert(effect->particleCount);
+    assert(effect->particles);
     assert(time);
 
-    if (particleEffect->state == ParticleEffectState_Dead) {
+    if (effect->state == ParticleEffectState_Dead) {
         return;
     }
 
-    const float dt       = (float)(time - particleEffect->lastUpdatedAt);
-    const float animTime = (float)(time - particleEffect->startedAt);
+    ParticeEffectEventCallback *callback = &effect->callbacks[ParticleEffectEvent_BeforeUpdate];
+    if (callback->function) {
+        callback->function(effect, callback->userData);
+    }
+
+    const float dt       = (float)(time - effect->lastUpdatedAt);
+    const float animTime = (float)(time - effect->startedAt);
 
     size_t deadParticleCount = 0;
-    Particle *particle = particleEffect->particles;
-    void *particles_end = particleEffect->particles + particleEffect->particleCount;
 
-    while (particle != particles_end) {
+    for (size_t i = 0; i < effect->particleCount; i++) {
+        Particle *particle = &effect->particles[i];
         const float alpha = (float)((animTime - particle->spawnAt) / (particle->dieAt - particle->spawnAt));
         if (alpha >= 0.0f && alpha < 1.0f) {
             if (particle->state == ParticleState_Dead) {
-                particle->body.position = particleEffect->origin;
+                particle->body.position = effect->origin;
                 particle->state = ParticleState_Alive;
             }
             body3d_update(&particle->body, dt);
 
-            switch (particleEffect->type) {
+            switch (effect->type) {
                 case ParticleEffectType_Blood: {
                     blood_update(particle, alpha);
                     break;
@@ -231,34 +257,40 @@ void particle_effect_update(ParticleEffect *particleEffect, double time)
             particle->state = ParticleState_Dead;
             deadParticleCount++;
         }
-        particle++;
     }
 
-    if (deadParticleCount == particleEffect->particleCount) {
-        if (particleEffect->callbacks[ParticleEffectEvent_Dying]) {
-            particleEffect->callbacks[ParticleEffectEvent_Dying](particleEffect);
+    if (deadParticleCount == effect->particleCount) {
+        ParticeEffectEventCallback *callback = &effect->callbacks[ParticleEffectEvent_Dying];
+        if (callback->function) {
+            callback->function(effect, callback->userData);
         }
-        particle_effect_reset(particleEffect);
+        particle_effect_free(effect);
+    } else {
+        effect->lastUpdatedAt = time;
     }
-
-    particleEffect->lastUpdatedAt = time;
 }
 
-void particle_effect_draw(ParticleEffect *particleEffect, double time)
+void particle_effects_update(double time)
 {
-    assert(particleEffect);
+    for (size_t i = 0; i < activeEffectsCapacity; i++) {
+        if (activeEffects[i]) {
+            particle_effect_update(activeEffects[i], time);
+        }
+    }
+}
 
-    if (particleEffect->state == ParticleEffectState_Dead) {
+static void particle_effect_draw(ParticleEffect *effect, double time)
+{
+    assert(effect);
+
+    if (effect->state == ParticleEffectState_Dead) {
         return;
     }
 
-    const float age = (float)(time - particleEffect->startedAt);
-
-    Particle *particle = particleEffect->particles;
-    void *particles_end = particleEffect->particles + particleEffect->particleCount;
-    while (particle != particles_end) {
+    for (size_t i = 0; i < effect->particleCount; i++) {
+        Particle *particle = &effect->particles[i];
         if (particle->state == ParticleState_Alive) {
-            switch (particleEffect->type) {
+            switch (effect->type) {
                 case ParticleEffectType_Blood: {
                     blood_draw(particle);
                     break;
@@ -271,14 +303,40 @@ void particle_effect_draw(ParticleEffect *particleEffect, double time)
                 }
             }
         }
-        particle++;
     }
 }
 
-void particle_effect_free(ParticleEffect *particleEffect)
+void particle_effects_draw(double time)
 {
-    assert(particleEffect);
+    for (size_t i = 0; i < activeEffectsCapacity; i++) {
+        if (activeEffects[i]) {
+            particle_effect_draw(activeEffects[i], time);
+        }
+    }
+}
 
-    free(particleEffect->particles);
-    memset(particleEffect, 0, sizeof(*particleEffect));
+void particle_effect_free(ParticleEffect *effect)
+{
+    assert(effect);
+
+    // Remove effect pointer from active effects list
+    for (size_t i = 0; i < activeEffectsCapacity; i++) {
+        if (activeEffects[i] == effect) {
+            activeEffects[i] = NULL;
+        }
+    }
+
+    free(effect);
+}
+
+void particle_effects_free()
+{
+    // Remove effect pointer from active effects list
+    for (size_t i = 0; i < activeEffectsCapacity; i++) {
+        if (activeEffects[i]) {
+            particle_effect_free(activeEffects[i]);
+        }
+    }
+
+    free(activeEffects);
 }

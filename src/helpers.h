@@ -6,6 +6,9 @@
 #define CLAMP(x, min, max) (MAX((min), MIN((x), (max))))
 #define SQUARED(x) ((x)*(x))
 
+// NOTE: This defines 1 meter = 64 pixels
+#define METERS(m) ((m) * 64.0f)
+
 // Generate random number in [0.0f, 1.0f] range, with specified resolution (higher = smaller increments in variability)
 static inline float random_normalized(int resolution)
 {

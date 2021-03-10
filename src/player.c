@@ -72,7 +72,7 @@ Vector3 player_get_attach_point(const Player *player, PlayerAttachPoint attachPo
     Vector3 attach = { 0 };
     switch (attachPoint) {
         case PlayerAttachPoint_Gut: {
-            attach = v3_add(player_get_center(player), (Vector3){ 0.0f, 0.0f, 10.0f });
+            attach = v3_add(player_get_center(player), (Vector3){ 0.0f, 0.0f, -10.0f });
             break;
         } default: {
             assert(!"That's not a valid attachment point identifier");

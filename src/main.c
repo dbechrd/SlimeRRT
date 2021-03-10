@@ -69,13 +69,24 @@ void DrawHealthBar(int x, int y, float hitPoints, float maxHitPoints)
 
 // TODO: Remove global variable, look up sound by event type.. e.g. PlaySound(sounds[AudioEvent_GoldDropped])
 static Sound snd_gold;
-void GoldParticlesDying(ParticleEffect *particleEffect)
+void GoldParticlesDying(ParticleEffect *effect, void *userData)
 {
-    assert(particleEffect->type == ParticleEffectType_Gold);
+    assert(effect);
+    assert(effect->type == ParticleEffectType_Gold);
     assert(snd_gold.sampleCount);
 
     SetSoundPitch(snd_gold, 1.0f + random_normalized_signed(6) * 0.1f);
     PlaySound(snd_gold);
+}
+
+void BloodParticlesFollowPlayer(ParticleEffect *effect, void *userData)
+{
+    assert(effect);
+    assert(effect->type == ParticleEffectType_Blood);
+    assert(userData);
+
+    Player *charlie = userData;
+    effect->origin = player_get_attach_point(charlie, PlayerAttachPoint_Gut);
 }
 
 int main(void)
@@ -220,14 +231,6 @@ int main(void)
         slimes[i].body.position.y = (float)GetRandomValue(0, 8192);
         slimesByDepth[i] = i;
     }
-
-    ParticleEffect bloodParticles = { 0 };
-    particle_effect_generate(&bloodParticles, ParticleEffectType_Blood, 40, 1.2);
-
-    const size_t maxGoldParticles = 64;
-    ParticleEffect goldParticles = { 0 };
-    particle_effect_generate(&goldParticles, ParticleEffectType_Gold, maxGoldParticles, 1.2);
-    goldParticles.callbacks[ParticleEffectEvent_Dying] = GoldParticlesDying;
 
     int slimesKilled = 0;
     int coinsCollected = 0;
@@ -410,12 +413,16 @@ int main(void)
                         if (!slimes[slimeIdx].hitPoints) {
                             SetSoundPitch(snd_squeak, 1.0f + random_normalized_signed(6) * 0.05f);
                             PlaySound(snd_squeak);
-                            const double time = GetTime();
-                            Vector3 slimeBC = slime_get_center(&slimes[slimeIdx]);
+
                             int coins = GetRandomValue(1, 4) * (int)slimes[slimeIdx].scale;
                             coinsCollected += coins;
-                            goldParticles.particleCount = MIN((size_t)coins, maxGoldParticles);
-                            particle_effect_start(&goldParticles, time, slimeBC);
+
+                            ParticleEffect *goldParticles = particle_effect_alloc(ParticleEffectType_Gold, (size_t)coins);
+                            goldParticles->callbacks[ParticleEffectEvent_Dying].function = GoldParticlesDying;
+                            const double time = GetTime();
+                            Vector3 slimeBC = slime_get_center(&slimes[slimeIdx]);
+                            particle_effect_start(goldParticles, time, 2.0, slimeBC);
+
                             slimesKilled++;
                         } else {
                             Sound *squish = GetRandomValue(0, 1) ? &snd_squish1 : &snd_squish2;
@@ -498,9 +505,21 @@ int main(void)
                 if (v2_length_sq(slimeToPlayer) <= SQUARED(slimeAttackReach)) {
                     if (slime_attack(&slimes[slimeIdx])) {
                         charlie.hitPoints = MAX(0.0f, charlie.hitPoints - (slimeAttackDamage * slimes[slimeIdx].scale));
+
+                        static double lastBleed = 0;
+                        const double bleedDuration = 1.2;
                         const double time = GetTime();
-                        Vector3 playerGut = player_get_attach_point(&charlie, PlayerAttachPoint_Gut);
-                        particle_effect_start(&bloodParticles, time, playerGut);
+
+                        if (time - lastBleed > bleedDuration) {
+                            ParticleEffect *bloodParticles = particle_effect_alloc(ParticleEffectType_Blood, 40);
+                            bloodParticles->callbacks[ParticleEffectEvent_BeforeUpdate].function = BloodParticlesFollowPlayer;
+                            bloodParticles->callbacks[ParticleEffectEvent_BeforeUpdate].userData = &charlie;
+
+                            Vector3 playerGut = player_get_attach_point(&charlie, PlayerAttachPoint_Gut);
+                            particle_effect_start(bloodParticles, time, bleedDuration, playerGut);
+                            lastBleed = time;
+                        }
+
                         // TODO: Kill peter if he dies
                     }
                 }
@@ -511,9 +530,7 @@ int main(void)
 
         {
             const double time = GetTime();
-            bloodParticles.origin = player_get_attach_point(&charlie, PlayerAttachPoint_Gut);
-            particle_effect_update(&bloodParticles, time);
-            particle_effect_update(&goldParticles, time);
+            particle_effects_update(time);
         }
 
 
@@ -691,8 +708,7 @@ int main(void)
 
         {
             const double time = GetTime();
-            particle_effect_draw(&bloodParticles, time);
-            particle_effect_draw(&goldParticles, time);
+            particle_effects_draw(time);
         }
 
 #if DEMO_VIEW_CULLING
@@ -805,8 +821,7 @@ int main(void)
     //--------------------------------------------------------------------------------------
     // Clean up
     //--------------------------------------------------------------------------------------
-    particle_effect_free(&goldParticles);
-    particle_effect_free(&bloodParticles);
+    particle_effects_free();
     tilemap_free(&tilemap);
     tileset_free(&tileset);
     UnloadTexture(tilesetTex);
