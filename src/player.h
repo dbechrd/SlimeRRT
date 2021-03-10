@@ -21,7 +21,7 @@ typedef struct Player {
 
 void player_init                    (Player *player, const char *name, struct Sprite *sprite);
 Vector3 player_get_attach_point     (const Player *player, PlayerAttachPoint attachPoint);
-bool player_move                    (Player *player, Vector2 offset);
-bool player_attack                  (Player *player);
-void player_update                  (Player *player);
+bool player_move                    (Player *player, double now, double dt, Vector2 offset);
+bool player_attack                  (Player *player, double now, double dt);
+void player_update                  (Player *player, double now, double dt);
 void player_draw                    (Player *player);

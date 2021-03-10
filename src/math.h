@@ -31,6 +31,12 @@ static inline Vector2 v2_negate(const Vector2 v)
     return result;
 }
 
+static inline int v2_equal(const Vector2 a, const Vector2 b)
+{
+    int equal = a.x == b.x && a.y == b.y;
+    return equal;
+}
+
 static inline Vector2 v2_add(const Vector2 a, const Vector2 b)
 {
     Vector2 result = { 0 };
@@ -137,6 +143,12 @@ static inline Vector3 v3_negate(const Vector3 v)
     result.y = -v.y;
     result.z = -v.z;
     return result;
+}
+
+static inline int v3_equal(const Vector3 a, const Vector3 b)
+{
+    int equal = a.x == b.x && a.y == b.y && a.z == b.z;
+    return equal;
 }
 
 static inline Vector3 v3_add(const Vector3 a, const Vector3 b)

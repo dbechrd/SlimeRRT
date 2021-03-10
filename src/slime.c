@@ -1,6 +1,7 @@
 #include "slime.h"
 #include "spritesheet.h"
 #include "math.h"
+#include "helpers.h"
 #include <assert.h>
 
 void slime_init(Slime *slime, const char *name, struct Sprite *sprite)
@@ -11,6 +12,10 @@ void slime_init(Slime *slime, const char *name, struct Sprite *sprite)
 
     slime->name = name;
     slime->body.scale = 1.0f;
+    slime->body.restitution = 0.0f;
+    slime->body.drag = 0.95f;
+    slime->body.friction = 0.95f;
+    slime->body.lastUpdated = GetTime();
     slime->body.facing = Facing_South;
     slime->body.alpha = 0.7f;
     slime->body.sprite = sprite;
@@ -45,13 +50,19 @@ static void update_direction(Slime *slime, Vector2 offset)
     }
 }
 
-void slime_move(Slime *slime, Vector2 offset)
+void slime_move(Slime *slime, double now, double dt, Vector2 offset)
 {
     assert(slime);
     if (v2_is_zero(offset)) return;
 
-    slime->body.position.x += offset.x;
-    slime->body.position.y += offset.y;
+    // On ground and hasn't moved for a bit
+    const double timeSinceLastMoved = now - slime->body.lastMoved;
+    if (slime->body.position.z == 0.0f && timeSinceLastMoved > slime->randJumpIdle) {
+        slime->body.velocity.x += offset.x;
+        slime->body.velocity.y += offset.y;
+        slime->body.velocity.z += METERS(3.0f);
+        slime->randJumpIdle = 0.5f + random_normalized(50) * 1.5f;
+    }
     update_direction(slime, offset);
 }
 
@@ -68,22 +79,20 @@ void slime_combine(Slime *slimeA, Slime *slimeB)
     slimeB->combat.hitPoints = 0.0f;
 }
 
-bool slime_attack(Slime *slime)
+bool slime_attack(Slime *slime, double now, double dt)
 {
     if (slime->action == SlimeAction_None) {
         slime->action = SlimeAction_Attack;
-        slime->combat.attackStartedAt = GetTime();
+        slime->combat.attackStartedAt = now;
         slime->combat.attackDuration = 0.1;
         return true;
     }
     return false;
 }
 
-void slime_update(Slime *slime)
+void slime_update(Slime *slime, double now, double dt)
 {
-    const double t = GetTime();
-
-    const double timeSinceAttackStarted = t - slime->combat.attackStartedAt;
+    const double timeSinceAttackStarted = now - slime->combat.attackStartedAt;
     if (timeSinceAttackStarted > slime->combat.attackDuration) {
         slime->action = SlimeAction_None;
         slime->combat.attackStartedAt = 0;
@@ -97,6 +106,8 @@ void slime_update(Slime *slime)
 
     slime->body.spriteFrameIdx = (size_t)frameIdx;
     assert(slime->body.spriteFrameIdx < slime->body.sprite->frameCount);
+
+    body_update(&slime->body, now, dt);
 }
 
 void slime_draw(Slime *slime)

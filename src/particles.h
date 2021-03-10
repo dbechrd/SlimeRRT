@@ -53,7 +53,6 @@ typedef struct ParticleEffect {
     ParticleEffectState state;      // dead or alive (and maybe paused in the future?)
     Vector3 origin;                 // origin of particle effect
     double startedAt;               // time started
-    double lastUpdatedAt;           // time last updated
     double duration;                // time to play effect for
     size_t particleCount;           // number of particles in particle buffer
     Particle *particles;            // particle buffer
@@ -61,9 +60,9 @@ typedef struct ParticleEffect {
 } ParticleEffect;
 
 ParticleEffect *particle_effect_alloc   (ParticleEffectType type, size_t particleCount);
-bool particle_effect_start              (ParticleEffect *effect, double time, double duration, Vector3 origin);
+bool particle_effect_start              (ParticleEffect *effect, double now, double duration, Vector3 origin);
 void particle_effect_stop               (ParticleEffect *effect);
-void particle_effects_update            (double time);
-void particle_effects_draw              (double time);
+void particle_effects_update            (double now, double dt);
+void particle_effects_draw              ();
 void particle_effect_free               (ParticleEffect *effect);
 void particle_effects_free              ();

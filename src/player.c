@@ -11,8 +11,8 @@ void player_init(Player *player, const char *name, struct Sprite *sprite)
 
     player->name = name;
     player->body.scale = 1.0f;
-    player->body.lastMoveTime = GetTime();
-    player->body.facing = Facing_Idle;
+    player->body.lastUpdated = GetTime();
+    player->body.facing = Facing_South;
     player->body.alpha = 1.0f;
     player->body.sprite = sprite;
     player->combat.maxHitPoints = 100.0f;
@@ -63,7 +63,7 @@ static void update_direction(Player *player, Vector2 offset)
     }
 }
 
-bool player_move(Player *player, Vector2 offset)
+bool player_move(Player *player, double now, double dt, Vector2 offset)
 {
     assert(player);
     if (v2_is_zero(offset))
@@ -74,33 +74,31 @@ bool player_move(Player *player, Vector2 offset)
 
     player->body.position.x += offset.x;
     player->body.position.y += offset.y;
-    player->body.lastMoveTime = GetTime();
     update_direction(player, offset);
     return true;
 }
 
-bool player_attack(Player *player)
+bool player_attack(Player *player, double now, double dt)
 {
     if (player->combat.weapon && player->action == PlayerAction_None) {
         player->action = PlayerAction_Attack;
-        player->body.lastMoveTime = GetTime();
-        player->combat.attackStartedAt = GetTime();
+        player->body.lastUpdated = now;
+        player->combat.attackStartedAt = now;
         player->combat.attackDuration = 0.1;
         return true;
     }
     return false;
 }
 
-void player_update(Player *player)
+void player_update(Player *player, double now, double dt)
 {
-    const double t = GetTime();
-
-    const double timeSinceLastMove = t - player->body.lastMoveTime;
-    if (timeSinceLastMove > 60.0) {
-        player->body.facing = Facing_Idle;
+    const double timeSinceLastMove = now - player->body.lastUpdated;
+    if (timeSinceLastMove > 6.0) {
+        // TODO: Find a better way to handle idling than overwriting the facing direction
+        //player->body.facing = Facing_Idle;
     }
 
-    const double timeSinceAttackStarted = t - player->combat.attackStartedAt;
+    const double timeSinceAttackStarted = now - player->combat.attackStartedAt;
     if (timeSinceAttackStarted > player->combat.attackDuration) {
         player->action = PlayerAction_None;
         player->combat.attackStartedAt = 0;
@@ -116,6 +114,8 @@ void player_update(Player *player)
     }
 
     player->body.spriteFrameIdx = (size_t)frameIdx;
+
+    //body_update(&player->body, t);
 }
 
 void player_draw(Player *player)

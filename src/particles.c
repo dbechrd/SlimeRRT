@@ -16,13 +16,12 @@ static void blood_generate(Particle *particle, float duration)
     particle->dieAt = duration - random_normalized(100) * duration * 0.15f;
     assert(particle->dieAt > particle->spawnAt);
 
-    particle->body.acceleration = (Vector3){ 0.0f, 0.0f, METERS(-10.0f) };  // gravity
 #if 1
     float randX = random_normalized_signed(100) * METERS(1.0f);
     float randY = random_normalized_signed(100) * METERS(1.0f);
-    float randZ = random_normalized(100) * METERS(4.0f);
+    float randZ = random_normalized(100) * METERS(2.0f);
     particle->body.velocity = (Vector3){ randX, randY, randZ };
-    particle->body.friction = 1.0f;
+    particle->body.friction = 0.5f;
 #else
     const float direction = 1.0f;
     float randX = direction * random_normalized(100) * METERS(1.0f);
@@ -58,13 +57,12 @@ static void blood_draw(Particle *particle)
 static void gold_generate(Particle *particle, float duration)
 {
     // Spawn randomly during first 25% of duration
-    particle->spawnAt = random_normalized(100) * duration * 0.25f;
+    particle->spawnAt = random_normalized(100) * duration * 0.05f;
 
     // Die randomly during last 15% of animation
     particle->dieAt = duration - random_normalized(100) * duration * 0.15f;
     assert(particle->dieAt > particle->spawnAt);
 
-    particle->body.acceleration = (Vector3){ 0.0f, 0.0f, METERS(-10.0f) };  // gravity
 #if 1
     float randX = random_normalized_signed(100) * METERS(1.0f);
     float randY = random_normalized_signed(100) * METERS(1.0f);
@@ -78,18 +76,18 @@ static void gold_generate(Particle *particle, float duration)
     particle->velocity = (Vector2){ randX, METERS(-3.0f) };
 #endif
     //particle->position = (Vector2){ 0.0f, 0.0f };
-    particle->scale = 0.5f;
+    particle->scale = 1.0f;
     particle->color = YELLOW;
 }
 
-static void gold_update(Particle *particle, float time)
+static void gold_update(Particle *particle, float alpha)
 {
     // UNUSED for now
 }
 
 static void gold_draw(Particle *particle)
 {
-    const float radius = 12.0f;
+    const float radius = 10.0f;
     DrawCircle(
         (int)particle->body.position.x,
         (int)(particle->body.position.y - particle->body.position.z),
@@ -165,17 +163,15 @@ ParticleEffect *particle_effect_alloc(ParticleEffectType type, size_t particleCo
     return effect;
 }
 
-bool particle_effect_start(ParticleEffect *effect, double time, double duration, Vector3 origin)
+bool particle_effect_start(ParticleEffect *effect, double now, double duration, Vector3 origin)
 {
     assert(effect);
-    assert(time);
     assert(duration > 0.0);
 
     if (effect->state == ParticleEffectState_Dead) {
         effect->state = ParticleEffectState_Alive;
         effect->origin = origin;
-        effect->startedAt = time;
-        effect->lastUpdatedAt = time;
+        effect->startedAt = now;
         effect->duration = duration;
         effect_generate(effect);
         return true;
@@ -210,12 +206,11 @@ void particle_effect_stop(ParticleEffect *effect)
     particle_effect_free(effect);
 }
 
-static void particle_effect_update(ParticleEffect *effect, double time)
+static void particle_effect_update(ParticleEffect *effect, double now, double dt)
 {
     assert(effect);
     assert(effect->particleCount);
     assert(effect->particles);
-    assert(time);
 
     if (effect->state == ParticleEffectState_Dead) {
         return;
@@ -226,8 +221,7 @@ static void particle_effect_update(ParticleEffect *effect, double time)
         callback->function(effect, callback->userData);
     }
 
-    const float dt       = (float)(time - effect->lastUpdatedAt);
-    const float animTime = (float)(time - effect->startedAt);
+    const float animTime = (float)(now - effect->startedAt);
 
     size_t deadParticleCount = 0;
 
@@ -239,7 +233,7 @@ static void particle_effect_update(ParticleEffect *effect, double time)
                 particle->body.position = effect->origin;
                 particle->state = ParticleState_Alive;
             }
-            body_update(&particle->body, dt);
+            body_update(&particle->body, now, dt);
 
             switch (effect->type) {
                 case ParticleEffectType_Blood: {
@@ -265,21 +259,19 @@ static void particle_effect_update(ParticleEffect *effect, double time)
             callback->function(effect, callback->userData);
         }
         particle_effect_free(effect);
-    } else {
-        effect->lastUpdatedAt = time;
     }
 }
 
-void particle_effects_update(double time)
+void particle_effects_update(double now, double dt)
 {
     for (size_t i = 0; i < activeEffectsCapacity; i++) {
         if (activeEffects[i]) {
-            particle_effect_update(activeEffects[i], time);
+            particle_effect_update(activeEffects[i], now, dt);
         }
     }
 }
 
-static void particle_effect_draw(ParticleEffect *effect, double time)
+static void particle_effect_draw(ParticleEffect *effect)
 {
     assert(effect);
 
@@ -306,11 +298,11 @@ static void particle_effect_draw(ParticleEffect *effect, double time)
     }
 }
 
-void particle_effects_draw(double time)
+void particle_effects_draw()
 {
     for (size_t i = 0; i < activeEffectsCapacity; i++) {
         if (activeEffects[i]) {
-            particle_effect_draw(activeEffects[i], time);
+            particle_effect_draw(activeEffects[i]);
         }
     }
 }

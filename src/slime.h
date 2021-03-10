@@ -14,11 +14,12 @@ typedef struct Slime {
     Body3D body;
     Combat combat;
     SlimeAction action;
+    double randJumpIdle;
 } Slime;
 
 void slime_init                     (Slime *slime, const char *name, struct Sprite *sprite);
-void slime_move                     (Slime *slime, Vector2 offset);
+void slime_move                     (Slime *slime, double now, double dt, Vector2 offset);
 void slime_combine                  (Slime *slimeA, Slime *slimeB);
-bool slime_attack                   (Slime *slime);
-void slime_update                   (Slime *slime);
+bool slime_attack                   (Slime *slime, double now, double dt);
+void slime_update                   (Slime *slime, double now, double dt);
 void slime_draw                     (Slime *slime);

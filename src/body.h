@@ -23,7 +23,8 @@ typedef struct Body3D {
     float restitution;  // 0 = no bounce    1 = 100% bounce
     float drag;         // 0 = no drag      1 = 100% drag
     float friction;     // 0 = no friction  1 = 100% friction (when touching ground, i.e. z == 0.0f)
-    double lastMoveTime;
+    double lastUpdated;
+    double lastMoved;
     Facing facing;
     float alpha;        // transparency of sprite
     Sprite *sprite;
@@ -35,5 +36,5 @@ Rectangle body_frame_rect    (const Body3D *body);
 Rectangle body_rect          (const Body3D *body);
 Vector3 body_center          (const Body3D *body);
 Vector2 body_ground_position (const Body3D *body);
-void body_update             (Body3D *body, float dt);
+void body_update             (Body3D *body, double now, double dt);
 void body_draw               (const Body3D *body);

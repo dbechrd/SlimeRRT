@@ -148,7 +148,9 @@ int main(void)
     tileset_init_ex(&tileset, &tilesetTex, 64, 64, Tile_Count);
 
     Tilemap tilemap = { 0 };
-    tilemap_generate_ex(&tilemap, 128, 128, &tileset);
+    tilemap_generate_ex(&tilemap, 64, 64, &tileset);
+    //tilemap_generate_ex(&tilemap, 128, 128, &tileset);
+    //tilemap_generate_ex(&tilemap, 256, 256, &tileset);
     //tilemap_generate_ex(&tilemap, 512, 512, &tileset);
 
     Color tileColors[Tile_Count] = {
@@ -228,22 +230,40 @@ int main(void)
 #define SLIMES_COUNT 100
     Slime slimes[SLIMES_COUNT] = { 0 };
     int slimesByDepth[SLIMES_COUNT] = { 0 };
-    for (int i = 0; i < SLIMES_COUNT; i++) {
-        slime_init(&slimes[i], 0, slimeSprite);
-        slimes[i].body.position.x = (float)GetRandomValue(0, 8192);
-        slimes[i].body.position.y = (float)GetRandomValue(0, 8192);
-        slimesByDepth[i] = i;
+
+    {
+        const int slimeRadiusX = slimeSprite->frames[0].width / 2;
+        const int slimeRadiusY = slimeSprite->frames[0].height / 2;
+        const size_t mapPixelsX = tilemap.widthTiles * tilemap.tileset->tileWidth;
+        const size_t mapPixelsY = tilemap.heightTiles * tilemap.tileset->tileHeight;
+        const int maxX = (int)mapPixelsX - slimeRadiusX;
+        const int maxY = (int)mapPixelsY - slimeRadiusY;
+        for (int i = 0; i < SLIMES_COUNT; i++) {
+            slime_init(&slimes[i], 0, slimeSprite);
+            slimes[i].body.position.x = (float)GetRandomValue(slimeRadiusX, maxX);
+            slimes[i].body.position.y = (float)GetRandomValue(slimeRadiusY, maxY);
+            slimesByDepth[i] = i;
+        }
     }
 
     int slimesKilled = 0;
     int coinsCollected = 0;
 
-    SetTargetFPS(60);
+    double frameStart = GetTime();
+    double dt = 0;
+    const int targetFPS = 60;
+    SetTargetFPS(targetFPS);
     //---------------------------------------------------------------------------------------
 
     // Main game loop
     while (!WindowShouldClose())
     {
+        // NOTE: Limit delta time to 2 frames worth of updates to prevent chaos for large dt (e.g. when debugging)
+        const double dtMax = (1.0 / targetFPS) * 2;
+        const double now = GetTime();
+        dt = MIN(now - frameStart, dtMax);
+        frameStart = now;
+
         if (IsWindowResized()) {
             screenWidth = GetScreenWidth();
             screenHeight = GetScreenHeight();
@@ -335,13 +355,13 @@ int main(void)
                     }
                 }
 
-                if (player_move(&charlie, moveOffset)) {
+                if (player_move(&charlie, now, dt, moveOffset)) {
                     static double lastFootstep = 0;
-                    double timeSinceLastFootstep = GetTime() - lastFootstep;
+                    double timeSinceLastFootstep = now - lastFootstep;
                     if (timeSinceLastFootstep > 1.0 / (double)playerSpeed) {
                         SetSoundPitch(snd_footstep, 1.0f + random_normalized_signed(6) * 0.5f);
                         PlaySound(snd_footstep);
-                        lastFootstep = GetTime();
+                        lastFootstep = now;
                     }
                 }
             }
@@ -401,9 +421,9 @@ int main(void)
         }
 
         if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
-            const float playerAttackReach = 50.0f;
+            const float playerAttackReach = METERS(1.0f);
 
-            if (player_attack(&charlie)) {
+            if (player_attack(&charlie, now, dt)) {
                 size_t slimesHit = 0;
                 for (size_t slimeIdx = 0; slimeIdx < SLIMES_COUNT; slimeIdx++) {
                     if (!slimes[slimeIdx].combat.hitPoints)
@@ -421,9 +441,8 @@ int main(void)
 
                             ParticleEffect *goldParticles = particle_effect_alloc(ParticleEffectType_Gold, (size_t)coins);
                             goldParticles->callbacks[ParticleEffectEvent_Dying].function = GoldParticlesDying;
-                            const double time = GetTime();
                             Vector3 slimeBC = body_center(&slimes[slimeIdx].body);
-                            particle_effect_start(goldParticles, time, 2.0, slimeBC);
+                            particle_effect_start(goldParticles, now, 2.0, slimeBC);
 
                             slimesKilled++;
                         } else {
@@ -445,7 +464,7 @@ int main(void)
             }
         }
 
-        player_update(&charlie);
+        player_update(&charlie, now, dt);
         if (charlie.body.facing == Facing_Idle && !IsMusicPlaying(mus_whistle)) {
             PlayMusicStream(mus_whistle);
         } else if (charlie.body.facing != Facing_Idle && IsMusicPlaying(mus_whistle)) {
@@ -454,14 +473,14 @@ int main(void)
 
         {
             // TODO: Move these to Body3D
-            const float slimeMoveSpeed = 3.0f;
-            const float slimeAttackReach = 32.0f;
-            const float slimeAttackTrack = 640.0f;
+            const float slimeMoveSpeed = METERS(2.0f);
+            const float slimeAttackReach = METERS(0.5f);
+            const float slimeAttackTrack = METERS(32.0f);
             const float slimeAttackDamage = 1.0f;
-            const float slimeRadius = 32.0f;
+            const float slimeRadius = METERS(0.5f);
 
             static double lastSquish = 0;
-            double timeSinceLastSquish = GetTime() - lastSquish;
+            double timeSinceLastSquish = now - lastSquish;
 
             for (size_t slimeIdx = 0; slimeIdx < SLIMES_COUNT; slimeIdx++) {
                 if (!slimes[slimeIdx].combat.hitPoints)
@@ -496,7 +515,7 @@ int main(void)
                     }
 
                     if (!willCollide) {
-                        slime_move(&slimes[slimeIdx], slimeMove);
+                        slime_move(&slimes[slimeIdx], now, dt, slimeMove);
                         if (!IsSoundPlaying(snd_squish1) && !IsSoundPlaying(snd_squish2) && timeSinceLastSquish > 1.0) {
                             //PlaySound(GetRandomValue(0, 1) ? snd_squish1 : snd_squish2);
                             lastSquish = GetTime();
@@ -504,36 +523,35 @@ int main(void)
                     }
                 }
 
+                // Allow slime to attack if on the ground and close enough to the player
                 slimeToPlayer = v2_sub(body_ground_position(&charlie.body), body_ground_position(&slimes[slimeIdx].body));
                 if (v2_length_sq(slimeToPlayer) <= SQUARED(slimeAttackReach)) {
-                    if (slime_attack(&slimes[slimeIdx])) {
+                    if (slime_attack(&slimes[slimeIdx], now, dt)) {
                         charlie.combat.hitPoints = MAX(0.0f, charlie.combat.hitPoints - (slimeAttackDamage * slimes[slimeIdx].body.scale));
 
                         static double lastBleed = 0;
                         const double bleedDuration = 1.2;
-                        const double time = GetTime();
 
-                        if (time - lastBleed > bleedDuration) {
+                        if (now - lastBleed > bleedDuration) {
                             ParticleEffect *bloodParticles = particle_effect_alloc(ParticleEffectType_Blood, 40);
                             bloodParticles->callbacks[ParticleEffectEvent_BeforeUpdate].function = BloodParticlesFollowPlayer;
                             bloodParticles->callbacks[ParticleEffectEvent_BeforeUpdate].userData = &charlie;
 
                             Vector3 playerGut = player_get_attach_point(&charlie, PlayerAttachPoint_Gut);
-                            particle_effect_start(bloodParticles, time, bleedDuration, playerGut);
-                            lastBleed = time;
+                            particle_effect_start(bloodParticles, now, bleedDuration, playerGut);
+                            lastBleed = now;
                         }
 
                         // TODO: Kill peter if he dies
                     }
                 }
 
-                slime_update(&slimes[slimeIdx]);
+                slime_update(&slimes[slimeIdx], now, dt);
             }
         }
 
         {
-            const double time = GetTime();
-            particle_effects_update(time);
+            particle_effects_update(now, dt);
         }
 
 
@@ -710,8 +728,7 @@ int main(void)
         DrawHealthBar(x, y, charlie.combat.hitPoints, charlie.combat.maxHitPoints);
 
         {
-            const double time = GetTime();
-            particle_effects_draw(time);
+            particle_effects_draw(dt);
         }
 
 #if DEMO_VIEW_CULLING
