@@ -1,6 +1,10 @@
 #pragma once
 #include "raylib.h"
 
+#define DEMO_VIEW_CULLING 0
+#define DEMO_AI_TRACKING 0
+#define DEMO_BODY_RECT 0
+
 #define MIN(a, b) (((a)<(b))?(a):(b))
 #define MAX(a, b) (((a)>(b))?(a):(b))
 #define CLAMP(x, min, max) (MAX((min), MIN((x), (max))))

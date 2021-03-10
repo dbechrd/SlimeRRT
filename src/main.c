@@ -12,9 +12,6 @@
 #include <string.h>
 #include <time.h>
 
-#define DEMO_VIEW_CULLING 0
-#define DEMO_AI_TRACKING 0
-
 static FILE *logFile;
 
 void traceLogCallback(int logType, const char *text, va_list args)
@@ -173,6 +170,7 @@ int main(void)
 
     Texture tex_charlie = LoadTexture("resources/charlie.png");
     assert(tex_charlie.width);
+    assert(tex_charlie.width >= Facing_Count * 54);
 
     Spritesheet charlieSpritesheet = { 0 };
     charlieSpritesheet.spriteCount = 1;
@@ -181,16 +179,21 @@ int main(void)
 
     Sprite *charlieSprite = &charlieSpritesheet.sprites[0];
     charlieSprite->spritesheet = &charlieSpritesheet;
-    const int charlieFramesInRow = 9;
-    charlieSprite->frameCount = (size_t)charlieFramesInRow * 3;
+    charlieSprite->frameCount = (size_t)Facing_Count * 3;
     charlieSprite->frames = calloc(charlieSprite->frameCount, sizeof(*charlieSprite->frames));
     for (size_t frameIdx = 0; frameIdx < charlieSprite->frameCount; frameIdx++) {
         SpriteFrame *frame = &charlieSprite->frames[frameIdx];
-        frame->x = 54 * ((int)frameIdx % charlieFramesInRow);
-        frame->y = 94 * ((int)frameIdx / charlieFramesInRow);
+        frame->x = 54 * ((int)frameIdx % Facing_Count);
+        frame->y = 94 * ((int)frameIdx / Facing_Count);
         frame->width = 54;
         frame->height = 94;
     }
+
+    Weapon weaponFist = { 0 };
+    weaponFist.damage = 1.0f;
+
+    Weapon weaponSword = { 0 };
+    weaponSword.damage = 2.0f;
 
     Player charlie = { 0 };
     player_init(&charlie, "Charlie", charlieSprite);
@@ -199,25 +202,25 @@ int main(void)
         (float)tilemap.heightTiles / 2.0f * tilemap.tileset->tileHeight,
         0.0f
     };
-    charlie.equippedWeapon = PlayerWeapon_Sword;
+    charlie.combat.weapon = &weaponSword;
 
-    Texture tex_slime = LoadTexture("resources/peter48.png");
+    Texture tex_slime = LoadTexture("resources/slime.png");
     assert(tex_slime.width);
 
     Spritesheet slimeSpritesheet = { 0 };
     slimeSpritesheet.spriteCount = 1;
     slimeSpritesheet.sprites = calloc(slimeSpritesheet.spriteCount, sizeof(*slimeSpritesheet.sprites));
     slimeSpritesheet.texture = &tex_slime;
+    assert(tex_slime.width >= Facing_Count * 48);
 
     Sprite *slimeSprite = &slimeSpritesheet.sprites[0];
     slimeSprite->spritesheet = &slimeSpritesheet;
-    const int slimeFramesInRow = 4;
-    slimeSprite->frameCount = (size_t)slimeFramesInRow * 2;
+    slimeSprite->frameCount = (size_t)Facing_Count * 2;
     slimeSprite->frames = calloc(slimeSprite->frameCount, sizeof(*slimeSprite->frames));
     for (size_t frameIdx = 0; frameIdx < slimeSprite->frameCount; frameIdx++) {
         SpriteFrame *frame = &slimeSprite->frames[frameIdx];
-        frame->x = 48 * ((int)frameIdx % slimeFramesInRow);
-        frame->y = 32 * ((int)frameIdx / slimeFramesInRow);
+        frame->x = 48 * ((int)frameIdx % Facing_Count);
+        frame->y = 32 * ((int)frameIdx / Facing_Count);
         frame->width = 48;
         frame->height = 32;
     }
@@ -288,7 +291,7 @@ int main(void)
 
             Vector2 moveOffset = v2_round(v2_scale(v2_normalize(moveBuffer), playerSpeed));
             if (!v2_is_zero(moveOffset)) {
-                Vector2 curPos = player_get_ground_position(&charlie);
+                Vector2 curPos = body_ground_position(&charlie.body);
                 Tile *curTile = tilemap_at_world_try(&tilemap, (int)curPos.x, (int)curPos.y);
                 int curWalkable = tile_is_walkable(curTile);
 
@@ -343,7 +346,7 @@ int main(void)
                 }
             }
 
-            camera.target = player_get_ground_position(&charlie);
+            camera.target = body_ground_position(&charlie.body);
         } else {
             const int cameraSpeed = 5;
             if (IsKeyDown(KEY_A)) camera.target.x -= cameraSpeed / camera.zoom;
@@ -392,35 +395,34 @@ int main(void)
         const float invZoom = 1.0f / camera.zoom;
 #endif
         if (IsKeyPressed(KEY_ONE)) {
-            charlie.equippedWeapon = PlayerWeapon_None;
+            charlie.combat.weapon = &weaponFist;
         } else if (IsKeyPressed(KEY_TWO)) {
-            charlie.equippedWeapon = PlayerWeapon_Sword;
+            charlie.combat.weapon = &weaponSword;
         }
 
         if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
             const float playerAttackReach = 50.0f;
-            const float playerAttackDamage = 2.0f;
 
             if (player_attack(&charlie)) {
                 size_t slimesHit = 0;
                 for (size_t slimeIdx = 0; slimeIdx < SLIMES_COUNT; slimeIdx++) {
-                    if (!slimes[slimeIdx].hitPoints)
+                    if (!slimes[slimeIdx].combat.hitPoints)
                         continue;
 
                     Vector3 playerToSlime = v3_sub(slimes[slimeIdx].body.position, charlie.body.position);
                     if (v3_length_sq(playerToSlime) <= playerAttackReach * playerAttackReach) {
-                        slimes[slimeIdx].hitPoints = MAX(0.0f, slimes[slimeIdx].hitPoints - playerAttackDamage);
-                        if (!slimes[slimeIdx].hitPoints) {
+                        slimes[slimeIdx].combat.hitPoints = MAX(0.0f, slimes[slimeIdx].combat.hitPoints - charlie.combat.weapon->damage);
+                        if (!slimes[slimeIdx].combat.hitPoints) {
                             SetSoundPitch(snd_squeak, 1.0f + random_normalized_signed(6) * 0.05f);
                             PlaySound(snd_squeak);
 
-                            int coins = GetRandomValue(1, 4) * (int)slimes[slimeIdx].scale;
+                            int coins = GetRandomValue(1, 4) * (int)slimes[slimeIdx].body.scale;
                             coinsCollected += coins;
 
                             ParticleEffect *goldParticles = particle_effect_alloc(ParticleEffectType_Gold, (size_t)coins);
                             goldParticles->callbacks[ParticleEffectEvent_Dying].function = GoldParticlesDying;
                             const double time = GetTime();
-                            Vector3 slimeBC = slime_get_center(&slimes[slimeIdx]);
+                            Vector3 slimeBC = body_center(&slimes[slimeIdx].body);
                             particle_effect_start(goldParticles, time, 2.0, slimeBC);
 
                             slimesKilled++;
@@ -444,13 +446,14 @@ int main(void)
         }
 
         player_update(&charlie);
-        if (charlie.facing == PlayerFacing_Idle && !IsMusicPlaying(mus_whistle)) {
+        if (charlie.body.facing == Facing_Idle && !IsMusicPlaying(mus_whistle)) {
             PlayMusicStream(mus_whistle);
-        } else if (charlie.facing != PlayerFacing_Idle && IsMusicPlaying(mus_whistle)) {
+        } else if (charlie.body.facing != Facing_Idle && IsMusicPlaying(mus_whistle)) {
             StopMusicStream(mus_whistle);
         }
 
         {
+            // TODO: Move these to Body3D
             const float slimeMoveSpeed = 3.0f;
             const float slimeAttackReach = 32.0f;
             const float slimeAttackTrack = 640.0f;
@@ -461,17 +464,17 @@ int main(void)
             double timeSinceLastSquish = GetTime() - lastSquish;
 
             for (size_t slimeIdx = 0; slimeIdx < SLIMES_COUNT; slimeIdx++) {
-                if (!slimes[slimeIdx].hitPoints)
+                if (!slimes[slimeIdx].combat.hitPoints)
                     continue;
 
-                Vector2 slimeToPlayer = v2_sub(player_get_ground_position(&charlie), slime_get_ground_position(&slimes[slimeIdx]));
+                Vector2 slimeToPlayer = v2_sub(body_ground_position(&charlie.body), body_ground_position(&slimes[slimeIdx].body));
                 const float slimeToPlayerDistSq = v2_length_sq(slimeToPlayer);
                 if (slimeToPlayerDistSq > SQUARED(slimeAttackReach) &&
                     slimeToPlayerDistSq <= SQUARED(slimeAttackTrack))
                 {
                     Vector2 slimeMoveDir = v2_normalize(slimeToPlayer);
                     Vector2 slimeMove = v2_scale(slimeMoveDir, slimeMoveSpeed + (float)GetRandomValue(0, 2));
-                    Vector2 slimePos = slime_get_ground_position(&slimes[slimeIdx]);
+                    Vector2 slimePos = body_ground_position(&slimes[slimeIdx].body);
                     Vector2 slimePosNew = v2_add(slimePos, slimeMove);
 
                     int willCollide = 0;
@@ -479,12 +482,12 @@ int main(void)
                         if (collideIdx == slimeIdx)
                             continue;
 
-                        if (!slimes[collideIdx].hitPoints)
+                        if (!slimes[collideIdx].combat.hitPoints)
                             continue;
 
-                        Vector2 otherSlimePos = slime_get_ground_position(&slimes[collideIdx]);
+                        Vector2 otherSlimePos = body_ground_position(&slimes[collideIdx].body);
                         const float zDist = fabsf(slimes[slimeIdx].body.position.z - slimes[collideIdx].body.position.z);
-                        const float radiusScaled = slimeRadius * slimes[slimeIdx].scale;
+                        const float radiusScaled = slimeRadius * slimes[slimeIdx].body.scale;
                         if (v2_length_sq(v2_sub(slimePosNew, otherSlimePos)) < SQUARED(radiusScaled) && zDist < radiusScaled) {
                             slime_combine(&slimes[slimeIdx], &slimes[collideIdx]);
                             willCollide = 1;
@@ -501,10 +504,10 @@ int main(void)
                     }
                 }
 
-                slimeToPlayer = v2_sub(player_get_ground_position(&charlie), slime_get_ground_position(&slimes[slimeIdx]));
+                slimeToPlayer = v2_sub(body_ground_position(&charlie.body), body_ground_position(&slimes[slimeIdx].body));
                 if (v2_length_sq(slimeToPlayer) <= SQUARED(slimeAttackReach)) {
                     if (slime_attack(&slimes[slimeIdx])) {
-                        charlie.hitPoints = MAX(0.0f, charlie.hitPoints - (slimeAttackDamage * slimes[slimeIdx].scale));
+                        charlie.combat.hitPoints = MAX(0.0f, charlie.combat.hitPoints - (slimeAttackDamage * slimes[slimeIdx].body.scale));
 
                         static double lastBleed = 0;
                         const double bleedDuration = 1.2;
@@ -632,19 +635,19 @@ int main(void)
             //qsort(slimes, sizeof(slimes)/sizeof(*slimes), sizeof(*slimes), SlimeCompareDepth);
             for (int i = 1; i < SLIMES_COUNT; i++) {
                 int index = slimesByDepth[i];
-                Vector2 groundPosA = slime_get_ground_position(&slimes[index]);
+                Vector2 groundPosA = body_ground_position(&slimes[index].body);
                 int j = i - 1;
-                Vector2 groundPosB = slime_get_ground_position(&slimes[slimesByDepth[j]]);
+                Vector2 groundPosB = body_ground_position(&slimes[slimesByDepth[j]].body);
                 while (groundPosB.y > groundPosA.y) {
                     slimesByDepth[j + 1] = slimesByDepth[j];
                     j--;
                     if (j < 0) break;
-                    groundPosB = slime_get_ground_position(&slimes[slimesByDepth[j]]);
+                    groundPosB = body_ground_position(&slimes[slimesByDepth[j]].body);
                 }
                 slimesByDepth[j + 1] = index;
             }
 
-            const Vector2 playerGroundPos = player_get_ground_position(&charlie);
+            const Vector2 playerGroundPos = body_ground_position(&charlie.body);
 
             // TODO: Shadow size based on height from ground
             // https://yal.cc/top-down-bouncing-loot-effects/
@@ -654,11 +657,11 @@ int main(void)
             // Draw shadows
             for (int i = 0; i < SLIMES_COUNT; i++) {
                 int slimeIdx = slimesByDepth[i];
-                if (!slimes[slimeIdx].hitPoints)
+                if (!slimes[slimeIdx].combat.hitPoints)
                     continue;
 
-                const Vector2 slimeBC = slime_get_ground_position(&slimes[slimeIdx]);
-                DrawShadow((int)slimeBC.x, (int)slimeBC.y, 16.0f * slimes[slimeIdx].scale, -8.0f * slimes[slimeIdx].scale);
+                const Vector2 slimeBC = body_ground_position(&slimes[slimeIdx].body);
+                DrawShadow((int)slimeBC.x, (int)slimeBC.y, 16.0f * slimes[slimeIdx].body.scale, -8.0f * slimes[slimeIdx].body.scale);
             }
 
             // Player shadow
@@ -669,11 +672,11 @@ int main(void)
 
             for (int i = 0; i < SLIMES_COUNT; i++) {
                 int slimeIdx = slimesByDepth[i];
-                if (!slimes[slimeIdx].hitPoints) {
+                if (!slimes[slimeIdx].combat.hitPoints) {
                     continue;
                 }
 
-                const Vector2 slimeGroundPos = slime_get_ground_position(&slimes[slimeIdx]);
+                const Vector2 slimeGroundPos = body_ground_position(&slimes[slimeIdx].body);
 
                 // HACK: Draw charlie in sorted order
                 if (!charlieDrawn && playerGroundPos.y < slimeGroundPos.y) {
@@ -690,21 +693,21 @@ int main(void)
         }
 
         for (size_t slimeIdx = 0; slimeIdx < SLIMES_COUNT; slimeIdx++) {
-            if (!slimes[slimeIdx].hitPoints) {
+            if (!slimes[slimeIdx].combat.hitPoints) {
                 continue;
             }
 
             // TODO: slime_get_top_center (after unify player/slime code)
-            Rectangle slimeRect = slime_get_rect(&slimes[slimeIdx]);
+            Rectangle slimeRect = body_rect(&slimes[slimeIdx].body);
             const int x = (int)(slimeRect.x + slimeRect.width / 2.0f);
             const int y = (int)slimeRect.y;
-            DrawHealthBar(x, y, slimes[slimeIdx].hitPoints, slimes[slimeIdx].maxHitPoints);
+            DrawHealthBar(x, y, slimes[slimeIdx].combat.hitPoints, slimes[slimeIdx].combat.maxHitPoints);
         }
         // TODO: player_get_top_center (after unify player/slime code)
-        Rectangle playerRect = player_get_rect(&charlie);
+        Rectangle playerRect = body_rect(&charlie.body);
         const int x = (int)(playerRect.x + playerRect.width / 2.0f);
         const int y = (int)playerRect.y;
-        DrawHealthBar(x, y, charlie.hitPoints, charlie.maxHitPoints);
+        DrawHealthBar(x, y, charlie.combat.hitPoints, charlie.combat.maxHitPoints);
 
         {
             const double time = GetTime();

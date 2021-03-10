@@ -5,7 +5,57 @@
 
 #define VELOCITY_EPSILON 0.001f
 
-void body3d_update(Body3D *body, float dt)
+SpriteFrame *body_frame(const Body3D *body)
+{
+    assert(body->spriteFrameIdx < body->sprite->frameCount);
+
+    SpriteFrame *frame = &body->sprite->frames[body->spriteFrameIdx];
+    return frame;
+}
+
+Rectangle body_frame_rect(const Body3D *body)
+{
+    const SpriteFrame *frame = body_frame(body);
+    Rectangle rect = { 0 };
+    rect.x = (float)frame->x;
+    rect.y = (float)frame->y;
+    rect.width = (float)frame->width;
+    rect.height = (float)frame->height;
+    return rect;
+}
+
+Rectangle body_rect(const Body3D *body)
+{
+    Rectangle frameRect = body_frame_rect(body);
+    Rectangle rect = { 0 };
+    rect.x = body->position.x - frameRect.width / 2.0f * body->scale;
+    rect.y = body->position.y - frameRect.height * body->scale - body->position.z;
+    rect.width = frameRect.width * body->scale;
+    rect.height = frameRect.height * body->scale;
+    return rect;
+}
+
+Vector3 body_center(const Body3D *body)
+{
+    assert(body->spriteFrameIdx < body->sprite->frameCount);
+
+    const SpriteFrame *spriteFrame = &body->sprite->frames[body->spriteFrameIdx];
+    Vector3 center = { 0 };
+    center.x = body->position.x;
+    center.y = body->position.y;
+    center.z = body->position.z + spriteFrame->height / 2.0f * body->scale;
+    return center;
+}
+
+Vector2 body_ground_position(const Body3D *body)
+{
+    Vector2 groundPosition = { 0 };
+    groundPosition.x = body->position.x;
+    groundPosition.y = body->position.y;
+    return groundPosition;
+}
+
+void body_update(Body3D *body, float dt)
 {
     assert(body);
 
@@ -37,4 +87,31 @@ void body3d_update(Body3D *body, float dt)
     if (fabsf(body->velocity.x) < VELOCITY_EPSILON) body->velocity.x = 0.0f;
     if (fabsf(body->velocity.y) < VELOCITY_EPSILON) body->velocity.y = 0.0f;
     if (fabsf(body->velocity.z) < VELOCITY_EPSILON) body->velocity.z = 0.0f;
+}
+
+void body_draw(const Body3D *body)
+{
+#if 0
+    // Funny bug where texture stays still relative to screen, could be fun to abuse later
+    const Rectangle rect = body_rect(body);
+#endif
+    const Rectangle rect = body_frame_rect(body);
+    //DrawTextureRec(*body->sprite->spritesheet->texture, rect, body->transform.position, WHITE);
+
+    Rectangle dest = body_rect(body);
+
+#if DEMO_BODY_RECT
+    // DEBUG: Draw collision rectangle
+    DrawRectangleRec(dest, Fade(RED, 0.2f));
+#endif
+
+    // Draw textured sprite
+    DrawTextureTiled(*body->sprite->spritesheet->texture, rect, dest, (Vector2){ 0.0f, 0.0f }, 0.0f, body->scale,
+        Fade(WHITE, body->alpha));
+
+#if DEMO_BODY_RECT
+    // DEBUG: Draw bottom bottomCenter
+    Vector2 groundPos = body_ground_position(body);
+    DrawCircle((int)groundPos.x, (int)groundPos.y, 4.0f, RED);
+#endif
 }

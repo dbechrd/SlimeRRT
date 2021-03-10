@@ -10,61 +10,13 @@ void player_init(Player *player, const char *name, struct Sprite *sprite)
     assert(sprite);
 
     player->name = name;
-    player->facing = PlayerFacing_South;
-    player->lastMoveTime = GetTime();
-    player->maxHitPoints = 100.0f;
-    player->hitPoints = player->maxHitPoints;
-    player->sprite = sprite;
-}
-
-SpriteFrame *player_get_frame(const Player *player)
-{
-    SpriteFrame *frame = &player->sprite->frames[player->spriteFrameIdx];
-    return frame;
-}
-
-Rectangle player_get_frame_rect(const Player *player)
-{
-    assert(player->spriteFrameIdx < player->sprite->frameCount);
-
-    const SpriteFrame *frame = player_get_frame(player);
-    Rectangle rect = { 0 };
-    rect.x = (float)frame->x;
-    rect.y = (float)frame->y;
-    rect.width = (float)frame->width;
-    rect.height = (float)frame->height;
-    return rect;
-}
-
-Rectangle player_get_rect(const Player *player)
-{
-    assert(player->spriteFrameIdx < player->sprite->frameCount);
-
-    Rectangle frameRect = player_get_frame_rect(player);
-    Rectangle rect = { 0 };
-    rect.x = player->body.position.x - frameRect.width / 2.0f;
-    rect.y = player->body.position.y - frameRect.height - player->body.position.z;
-    rect.width = frameRect.width;
-    rect.height = frameRect.height;
-    return rect;
-}
-
-Vector3 player_get_center(const Player *player)
-{
-    const SpriteFrame *spriteFrame = &player->sprite->frames[player->spriteFrameIdx];
-    Vector3 center = { 0 };
-    center.x = player->body.position.x;
-    center.y = player->body.position.y;
-    center.z = player->body.position.z + spriteFrame->height / 2.0f;
-    return center;
-}
-
-Vector2 player_get_ground_position(const Player *player)
-{
-    Vector2 groundPosition = { 0 };
-    groundPosition.x = player->body.position.x;
-    groundPosition.y = player->body.position.y;
-    return groundPosition;
+    player->body.scale = 1.0f;
+    player->body.lastMoveTime = GetTime();
+    player->body.facing = Facing_Idle;
+    player->body.alpha = 1.0f;
+    player->body.sprite = sprite;
+    player->combat.maxHitPoints = 100.0f;
+    player->combat.hitPoints = player->combat.maxHitPoints;
 }
 
 Vector3 player_get_attach_point(const Player *player, PlayerAttachPoint attachPoint)
@@ -72,7 +24,7 @@ Vector3 player_get_attach_point(const Player *player, PlayerAttachPoint attachPo
     Vector3 attach = { 0 };
     switch (attachPoint) {
         case PlayerAttachPoint_Gut: {
-            attach = v3_add(player_get_center(player), (Vector3){ 0.0f, 0.0f, -10.0f });
+            attach = v3_add(body_center(&player->body), (Vector3){ 0.0f, 0.0f, -10.0f });
             break;
         } default: {
             assert(!"That's not a valid attachment point identifier");
@@ -88,25 +40,25 @@ static void update_direction(Player *player, Vector2 offset)
     // only applies to players since there would be so few.
     if (offset.x > 0.0f) {
         if (offset.y > 0.0f) {
-            player->facing = PlayerFacing_SouthEast;
+            player->body.facing = Facing_SouthEast;
         } else if (offset.y < 0.0f) {
-            player->facing = PlayerFacing_NorthEast;
+            player->body.facing = Facing_NorthEast;
         } else {
-            player->facing = PlayerFacing_East;
+            player->body.facing = Facing_East;
         }
     } else if (offset.x < 0.0f) {
         if (offset.y > 0.0f) {
-            player->facing = PlayerFacing_SouthWest;
+            player->body.facing = Facing_SouthWest;
         } else if (offset.y < 0.0f) {
-            player->facing = PlayerFacing_NorthWest;
+            player->body.facing = Facing_NorthWest;
         } else {
-            player->facing = PlayerFacing_West;
+            player->body.facing = Facing_West;
         }
     } else {
         if (offset.y > 0.0f) {
-            player->facing = PlayerFacing_South;
+            player->body.facing = Facing_South;
         } else if (offset.y < 0.0f) {
-            player->facing = PlayerFacing_North;
+            player->body.facing = Facing_North;
         }
     }
 }
@@ -122,18 +74,18 @@ bool player_move(Player *player, Vector2 offset)
 
     player->body.position.x += offset.x;
     player->body.position.y += offset.y;
-    player->lastMoveTime = GetTime();
+    player->body.lastMoveTime = GetTime();
     update_direction(player, offset);
     return true;
 }
 
 bool player_attack(Player *player)
 {
-    if (player->equippedWeapon && player->action == PlayerAction_None) {
+    if (player->combat.weapon && player->action == PlayerAction_None) {
         player->action = PlayerAction_Attack;
-        player->lastMoveTime = GetTime();
-        player->attackStartedAt = GetTime();
-        player->attackDuration = 0.1;
+        player->body.lastMoveTime = GetTime();
+        player->combat.attackStartedAt = GetTime();
+        player->combat.attackDuration = 0.1;
         return true;
     }
     return false;
@@ -143,39 +95,30 @@ void player_update(Player *player)
 {
     const double t = GetTime();
 
-    const double timeSinceLastMove = t - player->lastMoveTime;
+    const double timeSinceLastMove = t - player->body.lastMoveTime;
     if (timeSinceLastMove > 60.0) {
-        player->facing = PlayerFacing_Idle;
+        player->body.facing = Facing_Idle;
     }
 
-    const double timeSinceAttackStarted = t - player->attackStartedAt;
-    if (timeSinceAttackStarted > player->attackDuration) {
+    const double timeSinceAttackStarted = t - player->combat.attackStartedAt;
+    if (timeSinceAttackStarted > player->combat.attackDuration) {
         player->action = PlayerAction_None;
-        player->attackStartedAt = 0;
-        player->attackDuration = 0;
+        player->combat.attackStartedAt = 0;
+        player->combat.attackDuration = 0;
     }
 
     // TODO: Set player->sprite to the correct sprite more intelligently?
     // TODO: Could use bitmask with & on the various states / flags
-    int frameIdx = player->facing;
-    frameIdx += player->equippedWeapon * PlayerFacing_Count;
-    if (player->equippedWeapon) {
-        frameIdx += player->action * PlayerFacing_Count;
+    int frameIdx = player->body.facing;
+    frameIdx += (player->combat.weapon ? 1 : 0) * Facing_Count;
+    if (player->combat.weapon) {
+        frameIdx += player->action * Facing_Count;
     }
 
-    player->spriteFrameIdx = (size_t)frameIdx;
+    player->body.spriteFrameIdx = (size_t)frameIdx;
 }
 
 void player_draw(Player *player)
 {
-#if 0
-    // Funny bug where texture stays still relative to screen, could be fun to abuse later
-    const Rectangle rect = player_get_rect(player);
-#endif
-    const Rectangle source = player_get_frame_rect(player);
-    const Rectangle dest = player_get_rect(player);
-    Vector2 position = { 0 };
-    position.x = dest.x;
-    position.y = dest.y;
-    DrawTextureRec(*player->sprite->spritesheet->texture, source, position, WHITE);
+    body_draw(&player->body);
 }

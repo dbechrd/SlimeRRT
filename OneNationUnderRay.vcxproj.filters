@@ -9,6 +9,7 @@
     <ClCompile Include="src\spritesheet.c" />
     <ClCompile Include="src\slime.c" />
     <ClCompile Include="src\body.c" />
+    <ClCompile Include="src\combat.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\tilemap.h" />
@@ -20,5 +21,6 @@
     <ClInclude Include="src\slime.h" />
     <ClInclude Include="src\helpers.h" />
     <ClInclude Include="src\body.h" />
+    <ClInclude Include="src\combat.h" />
   </ItemGroup>
 </Project>

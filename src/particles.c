@@ -239,7 +239,7 @@ static void particle_effect_update(ParticleEffect *effect, double time)
                 particle->body.position = effect->origin;
                 particle->state = ParticleState_Alive;
             }
-            body3d_update(&particle->body, dt);
+            body_update(&particle->body, dt);
 
             switch (effect->type) {
                 case ParticleEffectType_Blood: {
