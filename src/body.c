@@ -60,6 +60,19 @@ void body_update(Body3D *body, double now, double dt)
 {
     assert(body);
 
+    // animation
+    // TODO: SpriteAnimation struct that stores array of spriteFrameIdx/delay pairs
+    // HACK: Update sprite animation manually
+    if (body->sprite && body->sprite->frameCount == 8) {
+        const double animFps = 24.0;
+        const double animDelay = 1.0 / animFps;
+        if (now - body->lastAnimFrameStarted > animDelay) {
+            body->spriteFrameIdx++;
+            body->spriteFrameIdx %= body->sprite->frameCount;
+            body->lastAnimFrameStarted = now;
+        }
+    }
+
     body->lastUpdated = now;
     const Vector3 prevPosition = body->position;
 
@@ -123,7 +136,7 @@ void body_draw(const Body3D *body)
 
     // Draw textured sprite
     DrawTextureTiled(*body->sprite->spritesheet->texture, rect, dest, (Vector2){ 0.0f, 0.0f }, 0.0f, body->scale,
-        Fade(WHITE, body->alpha));
+        body->color);
 
 #if DEMO_BODY_RECT
     // DEBUG: Draw bottom bottomCenter

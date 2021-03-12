@@ -13,7 +13,7 @@ void player_init(Player *player, const char *name, struct Sprite *sprite)
     player->body.scale = 1.0f;
     player->body.lastUpdated = GetTime();
     player->body.facing = Facing_South;
-    player->body.alpha = 1.0f;
+    player->body.color = WHITE;
     player->body.sprite = sprite;
     player->combat.maxHitPoints = 100.0f;
     player->combat.hitPoints = player->combat.maxHitPoints;

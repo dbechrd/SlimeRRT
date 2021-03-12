@@ -64,6 +64,14 @@ void DrawHealthBar(int x, int y, float hitPoints, float maxHitPoints)
     DrawText(hpText, hp_x, hp_y, hp_h, WHITE);
 }
 
+void GoldParticlesStarted(ParticleEffect *effect, void *userData)
+{
+    Sprite *coinSprite = (Sprite *)userData;
+    for (size_t i = 0; i < effect->particleCount; i++) {
+        effect->particles[i].body.sprite = coinSprite;
+    }
+}
+
 // TODO: Remove global variable, look up sound by event type.. e.g. PlaySound(sounds[AudioEvent_GoldDropped])
 static Sound snd_gold;
 void GoldParticlesDying(ParticleEffect *effect, void *userData)
@@ -82,7 +90,7 @@ void BloodParticlesFollowPlayer(ParticleEffect *effect, void *userData)
     assert(effect->type == ParticleEffectType_Blood);
     assert(userData);
 
-    Player *charlie = userData;
+    Player *charlie = (Player *)userData;
     effect->origin = player_get_attach_point(charlie, PlayerAttachPoint_Gut);
 }
 
@@ -244,6 +252,26 @@ int main(void)
             slimes[i].body.position.y = (float)GetRandomValue(slimeRadiusY, maxY);
             slimesByDepth[i] = i;
         }
+    }
+
+    Texture tex_coin = LoadTexture("resources/coin_gold.png");
+    assert(tex_coin.width);
+
+    Spritesheet coinSpritesheet = { 0 };
+    coinSpritesheet.spriteCount = 1;
+    coinSpritesheet.sprites = calloc(coinSpritesheet.spriteCount, sizeof(*coinSpritesheet.sprites));
+    coinSpritesheet.texture = &tex_coin;
+
+    Sprite *coinSprite = &coinSpritesheet.sprites[0];
+    coinSprite->spritesheet = &coinSpritesheet;
+    coinSprite->frameCount = 8;
+    coinSprite->frames = calloc(coinSprite->frameCount, sizeof(*coinSprite->frames));
+    for (size_t frameIdx = 0; frameIdx < coinSprite->frameCount; frameIdx++) {
+        SpriteFrame *frame = &coinSprite->frames[frameIdx];
+        frame->x = 20 * (int)frameIdx;
+        frame->y = 0;
+        frame->width = 20;
+        frame->height = 18;
     }
 
     int slimesKilled = 0;
@@ -440,6 +468,8 @@ int main(void)
                             coinsCollected += coins;
 
                             ParticleEffect *goldParticles = particle_effect_alloc(ParticleEffectType_Gold, (size_t)coins);
+                            goldParticles->callbacks[ParticleEffectEvent_Started].function = GoldParticlesStarted;
+                            goldParticles->callbacks[ParticleEffectEvent_Started].userData = coinSprite;
                             goldParticles->callbacks[ParticleEffectEvent_Dying].function = GoldParticlesDying;
                             Vector3 slimeBC = body_center(&slimes[slimeIdx].body);
                             particle_effect_start(goldParticles, now, 2.0, slimeBC);
@@ -845,8 +875,13 @@ int main(void)
     tilemap_free(&tilemap);
     tileset_free(&tileset);
     UnloadTexture(tilesetTex);
+    free(coinSprite->frames);
+    free(coinSpritesheet.sprites);
+    free(slimeSprite->frames);
+    free(slimeSpritesheet.sprites);
     free(charlieSprite->frames);
     free(charlieSpritesheet.sprites);
+    UnloadTexture(tex_coin);
     UnloadTexture(tex_slime);
     UnloadTexture(tex_charlie);
     UnloadTexture(checkboardTexture);

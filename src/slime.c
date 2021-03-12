@@ -17,7 +17,8 @@ void slime_init(Slime *slime, const char *name, struct Sprite *sprite)
     slime->body.friction = 0.95f;
     slime->body.lastUpdated = GetTime();
     slime->body.facing = Facing_South;
-    slime->body.alpha = 0.7f;
+    slime->body.color = WHITE;
+    slime->body.color.a = (unsigned char)(255.0f * 0.7f);
     slime->body.sprite = sprite;
     slime->combat.maxHitPoints = 10.0f;
     slime->combat.hitPoints = slime->combat.maxHitPoints;

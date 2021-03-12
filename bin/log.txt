@@ -41,8 +41,15 @@ TEXTURE: [ID 5] Texture created successfully (486x282 - 1 mipmaps)
 FILEIO: [resources/slime.png] File loaded successfully
 IMAGE: [resources/slime.png] Data loaded successfully (432x128)
 TEXTURE: [ID 6] Texture created successfully (432x128 - 1 mipmaps)
+FILEIO: [resources/coin_gold.png] File loaded successfully
+IMAGE: [resources/coin_gold.png] Data loaded successfully (160x18)
+TEXTURE: [ID 7] Texture created successfully (160x18 - 1 mipmaps)
 TIMER: Target time per frame: 16.667 milliseconds
+SYSTEM: Start animated GIF recording: screenrec001.gif
+FILEIO: [./screenrec001.gif] File saved successfully
+SYSTEM: Finish animated GIF recording
 TEXTURE: [ID 4] Unloaded texture data from VRAM (GPU)
+TEXTURE: [ID 7] Unloaded texture data from VRAM (GPU)
 TEXTURE: [ID 6] Unloaded texture data from VRAM (GPU)
 TEXTURE: [ID 5] Unloaded texture data from VRAM (GPU)
 TEXTURE: [ID 3] Unloaded texture data from VRAM (GPU)

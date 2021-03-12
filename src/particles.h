@@ -14,9 +14,6 @@ typedef struct Particle {
     Body3D body;
     double spawnAt;
     double dieAt;
-    float rotation;
-    float scale;
-    Color color;
 } Particle;
 
 typedef enum ParticleEffectType {

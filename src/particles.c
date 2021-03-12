@@ -28,29 +28,30 @@ static void blood_generate(Particle *particle, float duration)
     particle->velocity = (Vector2){ randX, METERS(-3.0f) };
 #endif
     //particle->position = (Vector2){ 0.0f, 0.0f };
-    particle->scale = 1.0f;
-    particle->color = RED;
+    particle->body.scale = 1.0f;
+    particle->body.color = RED;
 }
 
 static void blood_update(Particle *particle, float alpha)
 {
-    // 1.0 -> 0.2
-    particle->scale = 1.0f - alpha * 0.8f;
+    const float radius = 5.0f;
+    // radius * 1.0 -> 0.2
+    particle->body.scale = radius * (1.0f - alpha * 0.8f);
     // 1.0 -> 0.0
     const unsigned char r = (unsigned char)((1.0f - alpha * 1.0f) * 255.0f);
     // 1.0 -> 0.6
     const unsigned char a = (unsigned char)((1.0f - alpha * 0.4f) * 255.0f);
-    particle->color = (Color){ r, 0, 0, a };
+    particle->body.color = (Color){ r, 0, 0, a };
 }
 
 static void blood_draw(Particle *particle)
 {
-    const float radius = 5.0f;
+    // TODO: Use body draw, but let "sprite" be == "circle" somehow instead of a sprite?
     DrawCircle(
         (int)particle->body.position.x,
         (int)(particle->body.position.y - particle->body.position.z),
-        radius * particle->scale,
-        particle->color
+        particle->body.scale,
+        particle->body.color
     );
 }
 
@@ -76,8 +77,8 @@ static void gold_generate(Particle *particle, float duration)
     particle->velocity = (Vector2){ randX, METERS(-3.0f) };
 #endif
     //particle->position = (Vector2){ 0.0f, 0.0f };
-    particle->scale = 1.0f;
-    particle->color = YELLOW;
+    particle->body.scale = 1.0f;
+    particle->body.color = WHITE;
 }
 
 static void gold_update(Particle *particle, float alpha)
@@ -87,13 +88,8 @@ static void gold_update(Particle *particle, float alpha)
 
 static void gold_draw(Particle *particle)
 {
-    const float radius = 10.0f;
-    DrawCircle(
-        (int)particle->body.position.x,
-        (int)(particle->body.position.y - particle->body.position.z),
-        radius * particle->scale,
-        particle->color
-    );
+    // Draw sprite
+    body_draw(&particle->body);
 }
 
 static void effect_generate(ParticleEffect *effect)
@@ -174,6 +170,12 @@ bool particle_effect_start(ParticleEffect *effect, double now, double duration, 
         effect->startedAt = now;
         effect->duration = duration;
         effect_generate(effect);
+
+        ParticeEffectEventCallback *callback = &effect->callbacks[ParticleEffectEvent_Started];
+        if (callback->function) {
+            callback->function(effect, callback->userData);
+        }
+
         return true;
     }
     return false;
