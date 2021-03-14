@@ -4,6 +4,8 @@
 #include "helpers.h"
 #include <assert.h>
 
+#define SLIME_MAX_SCALE 3.0f
+
 void slime_init(Slime *slime, const char *name, struct Sprite *sprite)
 {
     assert(slime);
@@ -26,6 +28,7 @@ void slime_init(Slime *slime, const char *name, struct Sprite *sprite)
 
 static void update_direction(Slime *slime, Vector2 offset)
 {
+    Facing prevFacing = slime->body.facing;
     if (offset.x > 0.0f) {
         if (offset.y > 0.0f) {
             slime->body.facing = fabs(offset.x) > fabs(offset.y) ? Facing_East : Facing_South;
@@ -49,6 +52,9 @@ static void update_direction(Slime *slime, Vector2 offset)
             slime->body.facing = Facing_North;
         }
     }
+    if (slime->body.facing != prevFacing) {
+        slime->body.animFrameIdx = 0;
+    }
 }
 
 void slime_move(Slime *slime, double now, double dt, Vector2 offset)
@@ -69,6 +75,11 @@ void slime_move(Slime *slime, double now, double dt, Vector2 offset)
 
 void slime_combine(Slime *slimeA, Slime *slimeB)
 {
+    // Limit max scale
+    if (slimeA->body.scale >= SLIME_MAX_SCALE && slimeB->body.scale >= SLIME_MAX_SCALE) {
+        return;
+    }
+
     // Combine slime B's attributes into Slime A
     slimeA->combat.hitPoints    += 0.5f * slimeB->combat.hitPoints;
     slimeA->combat.maxHitPoints += 0.5f * slimeB->combat.maxHitPoints;
@@ -99,14 +110,6 @@ void slime_update(Slime *slime, double now, double dt)
         slime->combat.attackStartedAt = 0;
         slime->combat.attackDuration = 0;
     }
-
-    // TODO: Set slime->sprite to the correct sprite more intelligently?
-    // TODO: Could use bitmask with & on the various states / flags
-    int frameIdx = slime->body.facing;
-    frameIdx += slime->action * Facing_Count;
-
-    slime->body.spriteFrameIdx = (size_t)frameIdx;
-    assert(slime->body.spriteFrameIdx < slime->body.sprite->frameCount);
 
     body_update(&slime->body, now, dt);
 }

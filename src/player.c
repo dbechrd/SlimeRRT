@@ -38,6 +38,7 @@ static void update_direction(Player *player, Vector2 offset)
 {
     // NOTE: Branching could be removed by putting the sprites in a more logical order.. doesn't matter if this
     // only applies to players since there would be so few.
+    Facing prevFacing = player->body.facing;
     if (offset.x > 0.0f) {
         if (offset.y > 0.0f) {
             player->body.facing = Facing_SouthEast;
@@ -60,6 +61,9 @@ static void update_direction(Player *player, Vector2 offset)
         } else if (offset.y < 0.0f) {
             player->body.facing = Facing_North;
         }
+    }
+    if (player->body.facing != prevFacing) {
+        player->body.animFrameIdx = 0;
     }
 }
 
@@ -105,17 +109,29 @@ void player_update(Player *player, double now, double dt)
         player->combat.attackDuration = 0;
     }
 
-    // TODO: Set player->sprite to the correct sprite more intelligently?
-    // TODO: Could use bitmask with & on the various states / flags
-    int frameIdx = player->body.facing;
-    frameIdx += (player->combat.weapon ? 1 : 0) * Facing_Count;
-    if (player->combat.weapon) {
-        frameIdx += player->action * Facing_Count;
+    // TODO: Make this suck less
+    Spritesheet *sheet = player->body.sprite->spritesheet;
+    assert(sheet->spriteCount == 3);
+    if (player->combat.weapon->damage == 1.0f) {
+        // TODO: If not found, set sprite to null and draw a red rectangle
+        // sprite_by_name("player_melee");
+        player->body.sprite = &sheet->sprites[0];
+    } else {
+        switch (player->action) {
+            case PlayerAction_None: {
+                // sprite_by_name("player_sword");
+                player->body.sprite = &sheet->sprites[1];
+                break;
+            }
+            case PlayerAction_Attack: {
+                // sprite_by_name("player_sword_attack");
+                player->body.sprite = &sheet->sprites[2];
+                break;
+            }
+        }
     }
 
-    player->body.spriteFrameIdx = (size_t)frameIdx;
-
-    //body_update(&player->body, t);
+    body_update(&player->body, now, dt);
 }
 
 void player_draw(Player *player)

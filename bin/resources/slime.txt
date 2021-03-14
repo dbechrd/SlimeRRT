@@ -1,0 +1,45 @@
+spritesheet 8 8 2 resources/slime.png
+
+# row 1 (slime facing)
+frame slime_north  48 0 48 32
+frame slime_east   96 0 48 32
+frame slime_south 144 0 48 32
+frame slime_west  192 0 48 32
+
+# row 2 (slime attack)
+frame slime_attack_north  48 32 48 32
+frame slime_attack_east   96 32 48 32
+frame slime_attack_south 144 32 48 32
+frame slime_attack_west  192 32 48 32
+
+animation slime_north 0  # slime_north
+animation slime_east  1  # slime_east
+animation slime_south 2  # slime_south
+animation slime_west  3  # slime_west
+
+animation slime_attack_north 4  # slime_attack_north
+animation slime_attack_east  5  # slime_attack_east
+animation slime_attack_south 6  # slime_attack_south
+animation slime_attack_west  7  # slime_attack_west
+
+sprite slime
+    -  # no idle
+    0  # slime_north
+    1  # slime_east
+    2  # slime_south
+    3  # slime_west
+    -  # no NE
+    -  # no SE
+    -  # no SW
+    -  # no NW
+
+sprite slime_attack
+    -  # no idle
+    4  # slime_attack_north
+    5  # slime_attack_east
+    6  # slime_attack_south
+    7  # slime_attack_west
+    -  # no NE
+    -  # no SE
+    -  # no SW
+    -  # no NW

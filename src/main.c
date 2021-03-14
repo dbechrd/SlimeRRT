@@ -18,6 +18,8 @@ void traceLogCallback(int logType, const char *text, va_list args)
 {
     vfprintf(logFile, text, args);
     fputs("\n", logFile);
+    vfprintf(stdout, text, args);
+    fputs("\n", stdout);
     fflush(logFile);
 }
 
@@ -136,7 +138,7 @@ int main(void)
     Sound snd_slime_stab1   = LoadSound("resources/slime_stab1.ogg");
     Sound snd_squeak        = LoadSound("resources/squeak1.ogg");
     Sound snd_footstep      = LoadSound("resources/footstep1.ogg");
-    snd_gold          = LoadSound("resources/gold1.ogg");
+    snd_gold                = LoadSound("resources/gold1.ogg");
     assert(snd_whoosh       .sampleCount);
     assert(snd_squish1      .sampleCount);
     assert(snd_squish2      .sampleCount);
@@ -178,26 +180,18 @@ int main(void)
     int cameraReset = 0;
     int cameraFollowPlayer = 1;
 
-    Texture tex_charlie = LoadTexture("resources/charlie.png");
-    assert(tex_charlie.width);
-    assert(tex_charlie.width >= Facing_Count * 54);
+    Spritesheet *charlieSpritesheet = LoadSpritesheet("resources/charlie.txt");
+    assert(charlieSpritesheet->sprites);
+    // TODO: These shouldn't hard-coded.. find_by_name maybe?
+    Sprite *charlieSprite = &charlieSpritesheet->sprites[0];
 
-    Spritesheet charlieSpritesheet = { 0 };
-    charlieSpritesheet.spriteCount = 1;
-    charlieSpritesheet.sprites = calloc(charlieSpritesheet.spriteCount, sizeof(*charlieSpritesheet.sprites));
-    charlieSpritesheet.texture = &tex_charlie;
+    Spritesheet *slimeSpritesheet = LoadSpritesheet("resources/slime.txt");
+    assert(slimeSpritesheet->sprites);
+    Sprite *slimeSprite = &slimeSpritesheet->sprites[0];
 
-    Sprite *charlieSprite = &charlieSpritesheet.sprites[0];
-    charlieSprite->spritesheet = &charlieSpritesheet;
-    charlieSprite->frameCount = (size_t)Facing_Count * 3;
-    charlieSprite->frames = calloc(charlieSprite->frameCount, sizeof(*charlieSprite->frames));
-    for (size_t frameIdx = 0; frameIdx < charlieSprite->frameCount; frameIdx++) {
-        SpriteFrame *frame = &charlieSprite->frames[frameIdx];
-        frame->x = 54 * ((int)frameIdx % Facing_Count);
-        frame->y = 94 * ((int)frameIdx / Facing_Count);
-        frame->width = 54;
-        frame->height = 94;
-    }
+    Spritesheet *coinSpritesheet = LoadSpritesheet("resources/coin_gold.txt");
+    assert(coinSpritesheet->sprites);
+    Sprite *coinSprite = &coinSpritesheet->sprites[0];
 
     Weapon weaponFist = { 0 };
     weaponFist.damage = 1.0f;
@@ -214,34 +208,25 @@ int main(void)
     };
     charlie.combat.weapon = &weaponSword;
 
-    Texture tex_slime = LoadTexture("resources/slime.png");
-    assert(tex_slime.width);
-
-    Spritesheet slimeSpritesheet = { 0 };
-    slimeSpritesheet.spriteCount = 1;
-    slimeSpritesheet.sprites = calloc(slimeSpritesheet.spriteCount, sizeof(*slimeSpritesheet.sprites));
-    slimeSpritesheet.texture = &tex_slime;
-    assert(tex_slime.width >= Facing_Count * 48);
-
-    Sprite *slimeSprite = &slimeSpritesheet.sprites[0];
-    slimeSprite->spritesheet = &slimeSpritesheet;
-    slimeSprite->frameCount = (size_t)Facing_Count * 2;
-    slimeSprite->frames = calloc(slimeSprite->frameCount, sizeof(*slimeSprite->frames));
-    for (size_t frameIdx = 0; frameIdx < slimeSprite->frameCount; frameIdx++) {
-        SpriteFrame *frame = &slimeSprite->frames[frameIdx];
-        frame->x = 48 * ((int)frameIdx % Facing_Count);
-        frame->y = 32 * ((int)frameIdx / Facing_Count);
-        frame->width = 48;
-        frame->height = 32;
-    }
 
 #define SLIMES_COUNT 100
     Slime slimes[SLIMES_COUNT] = { 0 };
     int slimesByDepth[SLIMES_COUNT] = { 0 };
 
     {
-        const int slimeRadiusX = slimeSprite->frames[0].width / 2;
-        const int slimeRadiusY = slimeSprite->frames[0].height / 2;
+        // TODO: Slime radius should probably be determined base on largest frame, no an arbitrary frame. Or, it could
+        // be specified in the config file.
+        int southAnimIdx = slimeSprite->animations[Facing_South];
+        assert(southAnimIdx >= 0);
+        assert(southAnimIdx < slimeSprite->spritesheet->animationCount);
+
+        int firstFrameIdx = slimeSprite->spritesheet->animations[southAnimIdx].frames[0];
+        assert(firstFrameIdx >= 0);
+        assert(firstFrameIdx < slimeSprite->spritesheet->frameCount);
+
+        SpriteFrame *firstFrame = &slimeSpritesheet->frames[firstFrameIdx];
+        const int slimeRadiusX = firstFrame->width / 2;
+        const int slimeRadiusY = firstFrame->height / 2;
         const size_t mapPixelsX = tilemap.widthTiles * tilemap.tileset->tileWidth;
         const size_t mapPixelsY = tilemap.heightTiles * tilemap.tileset->tileHeight;
         const int maxX = (int)mapPixelsX - slimeRadiusX;
@@ -252,26 +237,6 @@ int main(void)
             slimes[i].body.position.y = (float)GetRandomValue(slimeRadiusY, maxY);
             slimesByDepth[i] = i;
         }
-    }
-
-    Texture tex_coin = LoadTexture("resources/coin_gold.png");
-    assert(tex_coin.width);
-
-    Spritesheet coinSpritesheet = { 0 };
-    coinSpritesheet.spriteCount = 1;
-    coinSpritesheet.sprites = calloc(coinSpritesheet.spriteCount, sizeof(*coinSpritesheet.sprites));
-    coinSpritesheet.texture = &tex_coin;
-
-    Sprite *coinSprite = &coinSpritesheet.sprites[0];
-    coinSprite->spritesheet = &coinSpritesheet;
-    coinSprite->frameCount = 8;
-    coinSprite->frames = calloc(coinSprite->frameCount, sizeof(*coinSprite->frames));
-    for (size_t frameIdx = 0; frameIdx < coinSprite->frameCount; frameIdx++) {
-        SpriteFrame *frame = &coinSprite->frames[frameIdx];
-        frame->x = 20 * (int)frameIdx;
-        frame->y = 0;
-        frame->width = 20;
-        frame->height = 18;
     }
 
     int slimesKilled = 0;
@@ -536,7 +501,7 @@ int main(void)
 
                         Vector2 otherSlimePos = body_ground_position(&slimes[collideIdx].body);
                         const float zDist = fabsf(slimes[slimeIdx].body.position.z - slimes[collideIdx].body.position.z);
-                        const float radiusScaled = slimeRadius * slimes[slimeIdx].body.scale;
+                        const float radiusScaled = slimeRadius * slimes[slimeIdx].body.scale * 0.5f;
                         if (v2_length_sq(v2_sub(slimePosNew, otherSlimePos)) < SQUARED(radiusScaled) && zDist < radiusScaled) {
                             slime_combine(&slimes[slimeIdx], &slimes[collideIdx]);
                             willCollide = 1;
@@ -875,15 +840,9 @@ int main(void)
     tilemap_free(&tilemap);
     tileset_free(&tileset);
     UnloadTexture(tilesetTex);
-    free(coinSprite->frames);
-    free(coinSpritesheet.sprites);
-    free(slimeSprite->frames);
-    free(slimeSpritesheet.sprites);
-    free(charlieSprite->frames);
-    free(charlieSpritesheet.sprites);
-    UnloadTexture(tex_coin);
-    UnloadTexture(tex_slime);
-    UnloadTexture(tex_charlie);
+    UnloadSpritesheet(coinSpritesheet);
+    UnloadSpritesheet(slimeSpritesheet);
+    UnloadSpritesheet(charlieSpritesheet);
     UnloadTexture(checkboardTexture);
     UnloadSound(snd_gold);
     UnloadSound(snd_footstep);
