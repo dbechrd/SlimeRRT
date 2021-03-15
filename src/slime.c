@@ -69,26 +69,37 @@ void slime_move(Slime *slime, double now, double dt, Vector2 offset)
         slime->body.velocity.y += offset.y;
         slime->body.velocity.z += METERS(3.0f);
         slime->randJumpIdle = 0.5f + random_normalized(50) * 1.5f;
+        update_direction(slime, offset);
     }
-    update_direction(slime, offset);
 }
 
-void slime_combine(Slime *slimeA, Slime *slimeB)
+bool slime_combine(Slime *slimeA, Slime *slimeB)
 {
-    // Limit max scale
-    if (slimeA->body.scale >= SLIME_MAX_SCALE && slimeB->body.scale >= SLIME_MAX_SCALE) {
-        return;
+    // The bigger slime should absorb the smaller one
+    Slime *a = slimeA;
+    Slime *b = slimeB;
+    if (slimeB->body.scale > slimeA->body.scale) {
+        Slime *tmp = a;
+        a = b;
+        b = tmp;
     }
 
-    // Combine slime B's attributes into Slime A
-    slimeA->combat.hitPoints    += 0.5f * slimeB->combat.hitPoints;
-    slimeA->combat.maxHitPoints += 0.5f * slimeB->combat.maxHitPoints;
-    slimeA->body.scale          += 0.5f * slimeB->body.scale;
-    Vector3 halfAToB = v3_scale(v3_sub(slimeB->body.position, slimeA->body.position), 0.5f);
-    slimeA->body.position = v3_add(slimeA->body.position, halfAToB);
+    // Limit max scale
+    float newScale = a->body.scale + 0.5f * b->body.scale;
+    if (newScale > SLIME_MAX_SCALE) {
+        return false;
+    }
+
+    // Combine slime B's attributes into slime A
+    a->body.scale          = newScale;
+    a->combat.hitPoints    = a->combat.hitPoints    + 0.5f * b->combat.hitPoints;
+    a->combat.maxHitPoints = a->combat.maxHitPoints + 0.5f * b->combat.maxHitPoints;
+    //Vector3 halfAToB = v3_scale(v3_sub(b->body.position, a->body.position), 0.5f);
+    //a->body.position = v3_add(a->body.position, halfAToB);
 
     // Kill slime B
-    slimeB->combat.hitPoints = 0.0f;
+    b->combat.hitPoints = 0.0f;
+    return true;
 }
 
 bool slime_attack(Slime *slime, double now, double dt)

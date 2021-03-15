@@ -92,6 +92,49 @@ static void gold_draw(Particle *particle)
     body_draw(&particle->body);
 }
 
+static void goo_generate(Particle *particle, float duration)
+{
+    // Spawn randomly during first 25% of duration
+    particle->spawnAt = random_normalized(100) * duration * 0.25f;
+
+    // Die randomly during last 15% of animation
+    particle->dieAt = duration - random_normalized(100) * duration * 0.15f;
+    assert(particle->dieAt > particle->spawnAt);
+
+#if 1
+    float randX = random_normalized_signed(100) * METERS(1.0f);
+    float randY = random_normalized_signed(100) * METERS(1.0f);
+    float randZ = random_normalized(100) * METERS(2.0f);
+    particle->body.velocity = (Vector3){ randX, randY, randZ };
+    particle->body.friction = 0.5f;
+#else
+    const float direction = 1.0f;
+    float randX = direction * random_normalized(100) * METERS(1.0f);
+    particle->velocity = (Vector2){ randX, METERS(-3.0f) };
+#endif
+    //particle->position = (Vector2){ 0.0f, 0.0f };
+    particle->body.scale = 1.0f;
+    particle->body.color = (Color){ 154, 219, 63, 178 };  // Slime lime
+}
+
+static void goo_update(Particle *particle, float alpha)
+{
+    const float radius = 5.0f;
+    // radius * 1.0 -> 0.2
+    particle->body.scale = radius * (1.0f - alpha * 0.8f);
+}
+
+static void goo_draw(Particle *particle)
+{
+    // TODO: Use body draw, but let "sprite" be == "circle" somehow instead of a sprite?
+    DrawCircle(
+        (int)particle->body.position.x,
+        (int)(particle->body.position.y - particle->body.position.z),
+        particle->body.scale,
+        particle->body.color
+    );
+}
+
 static void effect_generate(ParticleEffect *effect)
 {
     assert(effect);
@@ -105,6 +148,9 @@ static void effect_generate(ParticleEffect *effect)
                 break;
             } case ParticleEffectType_Gold: {
                 gold_generate(particle, (float)effect->duration);
+                break;
+            } case ParticleEffectType_Goo: {
+                goo_generate(particle, (float)effect->duration);
                 break;
             } default: {
                 TraceLog(LOG_FATAL, "Unknown particle effect type\n");
@@ -244,6 +290,9 @@ static void particle_effect_update(ParticleEffect *effect, double now, double dt
                 } case ParticleEffectType_Gold: {
                     gold_update(particle, alpha);
                     break;
+                } case ParticleEffectType_Goo: {
+                    goo_update(particle, alpha);
+                    break;
                 } default: {
                     TraceLog(LOG_FATAL, "Unknown particle effect type\n");
                     return;
@@ -290,6 +339,9 @@ static void particle_effect_draw(ParticleEffect *effect)
                     break;
                 } case ParticleEffectType_Gold: {
                     gold_draw(particle);
+                    break;
+                } case ParticleEffectType_Goo: {
+                    goo_draw(particle);
                     break;
                 } default: {
                     TraceLog(LOG_FATAL, "Unknown particle effect type\n");

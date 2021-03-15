@@ -32,9 +32,9 @@ FILEIO: [resources/gold1.ogg] File loaded successfully
 WAVE: OGG data loaded successfully (44100 Hz, 16 bit, Stereo)
 WAVE: Unloaded wave data from RAM
 TEXTURE: [ID 3] Texture created successfully (1920x1080 - 1 mipmaps)
-FILEIO: [resources/tiles64.png] File loaded successfully
-IMAGE: [resources/tiles64.png] Data loaded successfully (512x512)
-TEXTURE: [ID 4] Texture created successfully (512x512 - 1 mipmaps)
+FILEIO: [resources/tiles32.png] File loaded successfully
+IMAGE: [resources/tiles32.png] Data loaded successfully (160x32)
+TEXTURE: [ID 4] Texture created successfully (160x32 - 1 mipmaps)
 FILEIO: [resources/charlie.txt] File loaded successfully
 FILEIO: [resources/charlie.png] File loaded successfully
 IMAGE: [resources/charlie.png] Data loaded successfully (486x282)

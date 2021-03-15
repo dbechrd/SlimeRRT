@@ -1,5 +1,7 @@
+# spritesheet <frame_count> <animation_count> <sprite_count> <texture_path>
 spritesheet 8 1 1 resources/coin_gold.png
 
+# frame <name> <x> <y> <width> <height>
 frame coin_spin_0   0 0 20 18
 frame coin_spin_1  20 0 20 18
 frame coin_spin_2  40 0 20 18
@@ -9,8 +11,10 @@ frame coin_spin_5 100 0 20 18
 frame coin_spin_6 120 0 20 18
 frame coin_spin_7 140 0 20 18
 
+# animation <name> <frame0> [frame1] ... [frame15]
 animation coin_spin 0 1 2 3 4 5 6 7
 
+# sprite <name> <anim_idle> <anim_n> <anim_e> <anim_s> <anim_w> <anim_ne> <anim_se> <anim_sw> <anim_nw>
 sprite coin
     0  # coin_spin
     -  # no N

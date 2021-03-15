@@ -9,7 +9,7 @@ typedef struct SpriteFrame {
     int height;       // height of frame
 } SpriteFrame;
 
-#define SPRITEANIM_MAX_FRAMES 9
+#define SPRITEANIM_MAX_FRAMES 16
 typedef struct Spritesheet Spritesheet;
 
 typedef struct SpriteAnim {

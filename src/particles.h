@@ -19,6 +19,7 @@ typedef struct Particle {
 typedef enum ParticleEffectType {
     ParticleEffectType_Blood,
     ParticleEffectType_Gold,
+    ParticleEffectType_Goo,
     ParticleEffectType_Count
 } ParticleEffectType;
 

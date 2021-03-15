@@ -151,15 +151,14 @@ int main(void)
     Texture checkboardTexture = LoadTextureFromImage(checkerboardImage);
     UnloadImage(checkerboardImage);
 
-    Texture tilesetTex = LoadTexture("resources/tiles64.png");
+    Texture tilesetTex = LoadTexture("resources/tiles32.png");
     assert(tilesetTex.width);
 
     Tileset tileset = { 0 };
-    tileset_init_ex(&tileset, &tilesetTex, 64, 64, Tile_Count);
+    tileset_init_ex(&tileset, &tilesetTex, 32, 32, Tile_Count);
 
     Tilemap tilemap = { 0 };
-    tilemap_generate_ex(&tilemap, 64, 64, &tileset);
-    //tilemap_generate_ex(&tilemap, 128, 128, &tileset);
+    tilemap_generate_ex(&tilemap, 128, 128, &tileset);
     //tilemap_generate_ex(&tilemap, 256, 256, &tileset);
     //tilemap_generate_ex(&tilemap, 512, 512, &tileset);
 
@@ -432,6 +431,13 @@ int main(void)
                             int coins = GetRandomValue(1, 4) * (int)slimes[slimeIdx].body.scale;
                             coinsCollected += coins;
 
+                            ParticleEffect *gooParticles = particle_effect_alloc(ParticleEffectType_Goo, 20);
+                            //gooParticles->callbacks[ParticleEffectEvent_Started].function = GooParticlesStarted;
+                            //gooParticles->callbacks[ParticleEffectEvent_Started].userData = gooSprite;
+                            //gooParticles->callbacks[ParticleEffectEvent_Dying].function = GooParticlesDying;
+                            Vector3 deadCenter = body_center(&slimes[slimeIdx].body);
+                            particle_effect_start(gooParticles, now, 2.0, deadCenter);
+
                             ParticleEffect *goldParticles = particle_effect_alloc(ParticleEffectType_Gold, (size_t)coins);
                             goldParticles->callbacks[ParticleEffectEvent_Started].function = GoldParticlesStarted;
                             goldParticles->callbacks[ParticleEffectEvent_Started].userData = coinSprite;
@@ -486,10 +492,14 @@ int main(void)
                 if (slimeToPlayerDistSq > SQUARED(slimeAttackReach) &&
                     slimeToPlayerDistSq <= SQUARED(slimeAttackTrack))
                 {
-                    Vector2 slimeMoveDir = v2_normalize(slimeToPlayer);
-                    Vector2 slimeMove = v2_scale(slimeMoveDir, slimeMoveSpeed + (float)GetRandomValue(0, 2));
-                    Vector2 slimePos = body_ground_position(&slimes[slimeIdx].body);
-                    Vector2 slimePosNew = v2_add(slimePos, slimeMove);
+                    const float slimeToPlayerDist = sqrtf(slimeToPlayerDistSq);
+                    const float moveDist = MIN(slimeToPlayerDist, slimeMoveSpeed * slimes[slimeIdx].body.scale);
+                    // 25% -1.0, 75% +1.0f
+                    const float moveRandMult = (random_normalized_signed(100) + 0.5f) > 0.0f ? 1.0f : -1.0f;
+                    const Vector2 slimeMoveDir = v2_scale(slimeToPlayer, 1.0f / slimeToPlayerDist);
+                    const Vector2 slimeMove = v2_scale(slimeMoveDir, moveDist * moveRandMult);
+                    const Vector2 slimePos = body_ground_position(&slimes[slimeIdx].body);
+                    const Vector2 slimePosNew = v2_add(slimePos, slimeMove);
 
                     int willCollide = 0;
                     for (size_t collideIdx = 0; collideIdx < SLIMES_COUNT; collideIdx++) {
@@ -501,11 +511,22 @@ int main(void)
 
                         Vector2 otherSlimePos = body_ground_position(&slimes[collideIdx].body);
                         const float zDist = fabsf(slimes[slimeIdx].body.position.z - slimes[collideIdx].body.position.z);
-                        const float radiusScaled = slimeRadius * slimes[slimeIdx].body.scale * 0.5f;
+                        const float radiusScaled = slimeRadius * slimes[slimeIdx].body.scale;
+                        if (v2_length_sq(v2_sub(slimePos, otherSlimePos)) < SQUARED(radiusScaled) && zDist < radiusScaled) {
+                            Slime *a = &slimes[slimeIdx];
+                            Slime *b = &slimes[collideIdx];
+                            if (slime_combine(a, b)) {
+                                Slime *dead = a->combat.hitPoints == 0.0f ? a : b;
+                                ParticleEffect *gooParticles = particle_effect_alloc(ParticleEffectType_Goo, 20);
+                                //gooParticles->callbacks[ParticleEffectEvent_Started].function = GooParticlesStarted;
+                                //gooParticles->callbacks[ParticleEffectEvent_Started].userData = gooSprite;
+                                //gooParticles->callbacks[ParticleEffectEvent_Dying].function = GooParticlesDying;
+                                Vector3 deadCenter = body_center(&dead->body);
+                                particle_effect_start(gooParticles, now, 2.0, deadCenter);
+                            }
+                        }
                         if (v2_length_sq(v2_sub(slimePosNew, otherSlimePos)) < SQUARED(radiusScaled) && zDist < radiusScaled) {
-                            slime_combine(&slimes[slimeIdx], &slimes[collideIdx]);
                             willCollide = 1;
-                            break;
                         }
                     }
 
