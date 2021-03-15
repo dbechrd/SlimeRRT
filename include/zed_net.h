@@ -254,12 +254,12 @@ ZED_NET_DEF int zed_net_get_address(zed_net_address_t *address, const char *host
     }
 
     address->port = port;
-    
+
     return 0;
 }
 
 ZED_NET_DEF const char *zed_net_host_to_str(unsigned int host) {
-    struct in_addr in;
+    struct in_addr in = { 0 };
     in.s_addr = host;
 
     return inet_ntoa(in);
@@ -270,14 +270,14 @@ ZED_NET_DEF int zed_net_udp_socket_open(zed_net_socket_t *sock, unsigned int por
         return zed_net__error("Socket is NULL");
 
     // Create the socket
-    sock->handle = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    sock->handle = (int)socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     if (sock->handle <= 0) {
         zed_net_socket_close(sock);
         return zed_net__error("Failed to create socket");
     }
 
     // Bind the socket to the port
-    struct sockaddr_in address;
+    struct sockaddr_in address = { 0 };
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = INADDR_ANY;
     address.sin_port = htons(port);
@@ -312,14 +312,14 @@ ZED_NET_DEF int zed_net_tcp_socket_open(zed_net_socket_t *sock, unsigned int por
         return zed_net__error("Socket is NULL");
 
     // Create the socket
-    sock->handle = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    sock->handle = (int)socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (sock->handle <= 0) {
         zed_net_socket_close(sock);
         return zed_net__error("Failed to create socket");
     }
 
     // Bind the socket to the port
-    struct sockaddr_in address;
+    struct sockaddr_in address = { 0 };
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = INADDR_ANY;
     address.sin_port = htons(port);
@@ -361,8 +361,8 @@ ZED_NET_DEF int zed_net_tcp_socket_open(zed_net_socket_t *sock, unsigned int por
 
 // Returns 1 if it would block, <0 if there's an error.
 ZED_NET_DEF int zed_net_check_would_block(zed_net_socket_t *socket) {
-    struct timeval timer;
-    fd_set writefd;
+    struct timeval timer = { 0 };
+    fd_set writefd = { 0 };
     int retval;
 
     if (socket->non_blocking && !socket->ready) {
@@ -389,7 +389,7 @@ ZED_NET_DEF int zed_net_tcp_make_socket_ready(zed_net_socket_t *socket) {
 	if (socket->ready)
 		return 0;
 
-    fd_set writefd;
+    fd_set writefd = { 0 };
     int retval;
 
     FD_ZERO(&writefd);
@@ -404,7 +404,7 @@ ZED_NET_DEF int zed_net_tcp_make_socket_ready(zed_net_socket_t *socket) {
 }
 
 ZED_NET_DEF int zed_net_tcp_connect(zed_net_socket_t *socket, zed_net_address_t remote_addr) {
-    struct sockaddr_in address;
+    struct sockaddr_in address = { 0 };
     int retval;
 
     if (!socket)
@@ -430,7 +430,7 @@ ZED_NET_DEF int zed_net_tcp_connect(zed_net_socket_t *socket, zed_net_address_t 
 }
 
 ZED_NET_DEF int zed_net_tcp_accept(zed_net_socket_t *listening_socket, zed_net_socket_t *remote_socket, zed_net_address_t *remote_addr) {
-    struct sockaddr_in address;
+    struct sockaddr_in address = { 0 };
 	int retval, handle;
 
     if (!listening_socket)
@@ -449,7 +449,7 @@ ZED_NET_DEF int zed_net_tcp_accept(zed_net_socket_t *listening_socket, zed_net_s
     typedef int socklen_t;
 #endif
 	socklen_t addrlen = sizeof(address);
-	handle = accept(listening_socket->handle, (struct sockaddr *)&address, &addrlen);
+	handle = (int)accept(listening_socket->handle, (struct sockaddr *)&address, &addrlen);
 
 	if (handle == ZED_NET_INVALID_SOCKET)
 		return 2;
@@ -482,7 +482,7 @@ ZED_NET_DEF int zed_net_udp_socket_send(zed_net_socket_t *socket, zed_net_addres
         return zed_net__error("Socket is NULL");
     }
 
-    struct sockaddr_in address;
+    struct sockaddr_in address = { 0 };
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = destination.host;
     address.sin_port = htons(destination.port);
@@ -504,11 +504,32 @@ ZED_NET_DEF int zed_net_udp_socket_receive(zed_net_socket_t *socket, zed_net_add
     typedef int socklen_t;
 #endif
 
-    struct sockaddr_in from;
+    struct sockaddr_in from = { 0 };
     socklen_t from_length = sizeof(from);
 
     int received_bytes = recvfrom(socket->handle, (char *) data, size, 0, (struct sockaddr *) &from, &from_length);
-    if (received_bytes <= 0) {
+    if (received_bytes < 0) {
+        int wsError = WSAGetLastError();
+        switch (wsError) {
+            case WSANOTINITIALISED:  puts("[WS_ERROR] A successful WSAStartup call must occur before using this function.\n"); break;
+            case WSAENETDOWN      :  puts("[WS_ERROR] The network subsystem has failed.\n"); break;
+            case WSAEFAULT        :  puts("[WS_ERROR] The buffer pointed to by the buf or from parameters are not in the user address space, or the fromlen parameter is too small to accommodate the source address of the peer address.\n"); break;
+            case WSAEINTR         :  puts("[WS_ERROR] The (blocking) call was canceled through WSACancelBlockingCall.\n"); break;
+            case WSAEINPROGRESS   :  puts("[WS_ERROR] A blocking Windows Sockets 1.1 call is in progress, or the service provider is still processing a callback function.\n"); break;
+            case WSAEINVAL        :  puts("[WS_ERROR] The socket has not been bound with bind, or an unknown flag was specified, or MSG_OOB was specified for a socket with SO_OOBINLINE enabled, or (for byte stream-style sockets only) len was zero or negative.\n"); break;
+            case WSAEISCONN       :  puts("[WS_ERROR] The socket is connected. This function is not permitted with a connected socket, whether the socket is connection oriented or connectionless.\n"); break;
+            case WSAENETRESET     :  puts("[WS_ERROR] For a datagram socket, this error indicates that the time to live has expired.\n"); break;
+            case WSAENOTSOCK      :  puts("[WS_ERROR] The descriptor in the s parameter is not a socket.\n"); break;
+            case WSAEOPNOTSUPP    :  puts("[WS_ERROR] MSG_OOB was specified, but the socket is not stream-style such as type SOCK_STREAM, OOB data is not supported in the communication domain associated with this socket, or the socket is unidirectional and supports only send operations.\n"); break;
+            case WSAESHUTDOWN     :  puts("[WS_ERROR] The socket has been shut down; it is not possible to recvfrom on a socket after shutdown has been invoked with how set to SD_RECEIVE or SD_BOTH.\n"); break;
+            case WSAEWOULDBLOCK   :  break; //puts("[WS_ERROR] The socket is marked as nonblocking and the recvfrom operation would block.\n"); break;
+            case WSAEMSGSIZE      :  puts("[WS_ERROR] The message was too large to fit into the buffer pointed to by the buf parameter and was truncated.\n"); break;
+            case WSAETIMEDOUT     :  puts("[WS_ERROR] The connection has been dropped, because of a network failure or because the system on the other end went down without notice.\n"); break;
+            case WSAECONNRESET    :  puts("[WS_ERROR] The virtual circuit was reset by the remote side executing a hard or abortive close. The application should close the socket; it is no longer usable. On a UDP-datagram socket this error indicates a previous send operation resulted in an ICMP Port Unreachable message.\n"); break;
+            default: printf("[WS_ERROR] Unrecognized error code: %d\n", wsError);
+        }
+        return 0;
+    } else if (received_bytes == 0) {
         return 0;
     }
 

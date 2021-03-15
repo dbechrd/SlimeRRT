@@ -1,4 +1,5 @@
 ﻿#include "helpers.h"
+#include "network.h"
 #include "particles.h"
 #include "player.h"
 #include "slime.h"
@@ -102,6 +103,8 @@ int main(void)
     // Initialization
     //--------------------------------------------------------------------------------------
     logFile = fopen("log.txt", "w");
+
+    network_test();
 
     InitWindow(800, 600, "Attack the slimes!");
     SetWindowState(FLAG_WINDOW_RESIZABLE);

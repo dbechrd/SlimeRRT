@@ -13,6 +13,7 @@
   <ItemGroup>
     <ClCompile Include="src\combat.c" />
     <ClCompile Include="src\main.c" />
+    <ClCompile Include="src\network.c" />
     <ClCompile Include="src\player.c" />
     <ClCompile Include="src\particles.c" />
     <ClCompile Include="src\slime.c" />
@@ -24,6 +25,7 @@
   <ItemGroup>
     <ClInclude Include="src\combat.h" />
     <ClInclude Include="src\helpers.h" />
+    <ClInclude Include="src\network.h" />
     <ClInclude Include="src\particles.h" />
     <ClInclude Include="src\player.h" />
     <ClInclude Include="src\slime.h" />
