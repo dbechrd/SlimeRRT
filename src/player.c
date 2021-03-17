@@ -1,6 +1,6 @@
 #include "player.h"
 #include "spritesheet.h"
-#include "math.h"
+#include "maths.h"
 #include <assert.h>
 
 void player_init(Player *player, const char *name, struct Sprite *sprite)

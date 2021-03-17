@@ -1,6 +1,6 @@
 #include "body.h"
 #include "helpers.h"
-#include "math.h"
+#include "maths.h"
 #include "spritesheet.h"
 #include <assert.h>
 #include <math.h>

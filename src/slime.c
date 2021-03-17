@@ -1,7 +1,8 @@
 #include "slime.h"
 #include "spritesheet.h"
-#include "math.h"
 #include "helpers.h"
+#include "dlb_rand.h"
+#include "maths.h"
 #include <assert.h>
 
 #define SLIME_MAX_SCALE 3.0f
@@ -68,7 +69,7 @@ void slime_move(Slime *slime, double now, double dt, Vector2 offset)
         slime->body.velocity.x += offset.x;
         slime->body.velocity.y += offset.y;
         slime->body.velocity.z += METERS(3.0f);
-        slime->randJumpIdle = 0.5f + random_normalized(50) * 1.5f;
+        slime->randJumpIdle = (double)dlb_rand_float(-1.0f, 1.5f);
         update_direction(slime, offset);
     }
 }

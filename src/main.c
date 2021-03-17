@@ -1,11 +1,13 @@
 ﻿#include "helpers.h"
-#include "network.h"
+#include "maths.h"
+#include "network_server.h"
 #include "particles.h"
 #include "player.h"
 #include "slime.h"
 #include "spritesheet.h"
 #include "tileset.h"
 #include "tilemap.h"
+#include "dlb_rand.h"
 #include "raylib.h"
 #include <assert.h>
 #include <stdio.h>
@@ -22,6 +24,9 @@ void traceLogCallback(int logType, const char *text, va_list args)
     vfprintf(stdout, text, args);
     fputs("\n", stdout);
     fflush(logFile);
+    if (logType == LOG_FATAL) {
+        assert(!"Catch in debugger");
+    }
 }
 
 Rectangle RectPad(const Rectangle rec, float pad)
@@ -83,7 +88,7 @@ void GoldParticlesDying(ParticleEffect *effect, void *userData)
     assert(effect->type == ParticleEffectType_Gold);
     assert(snd_gold.sampleCount);
 
-    SetSoundPitch(snd_gold, 1.0f + random_normalized_signed(6) * 0.1f);
+    SetSoundPitch(snd_gold, 1.0f + dlb_rand_variance(0.1f));
     PlaySound(snd_gold);
 }
 
@@ -104,7 +109,22 @@ int main(void)
     //--------------------------------------------------------------------------------------
     logFile = fopen("log.txt", "w");
 
-    network_test();
+    //dlb_rand_seed(42);
+    dlb_rand_seed((u32)time(NULL));
+
+    if (!network_init()) {
+        // TODO: Handle "offline mode" gracefully. This shouldn't prevent people people from playing single player
+        TraceLog(LOG_FATAL, "Failed to initialize networking.\n");
+        return 0;
+    }
+
+    network_server server = { 0 };
+    const unsigned short port = 4040;
+    if (!network_server_start(&server, port)) {
+        // TODO: Handle "offline mode" gracefully. This shouldn't prevent people people from playing single player
+        TraceLog(LOG_FATAL, "Failed to start server on port %hu.\n", port);
+        return 0;
+    }
 
     InitWindow(800, 600, "Attack the slimes!");
     SetWindowState(FLAG_WINDOW_RESIZABLE);
@@ -227,16 +247,16 @@ int main(void)
         assert(firstFrameIdx < slimeSprite->spritesheet->frameCount);
 
         SpriteFrame *firstFrame = &slimeSpritesheet->frames[firstFrameIdx];
-        const int slimeRadiusX = firstFrame->width / 2;
-        const int slimeRadiusY = firstFrame->height / 2;
+        const float slimeRadiusX = firstFrame->width / 2.0f;
+        const float slimeRadiusY = firstFrame->height / 2.0f;
         const size_t mapPixelsX = tilemap.widthTiles * tilemap.tileset->tileWidth;
         const size_t mapPixelsY = tilemap.heightTiles * tilemap.tileset->tileHeight;
-        const int maxX = (int)mapPixelsX - slimeRadiusX;
-        const int maxY = (int)mapPixelsY - slimeRadiusY;
+        const float maxX = mapPixelsX - slimeRadiusX;
+        const float maxY = mapPixelsY - slimeRadiusY;
         for (int i = 0; i < SLIMES_COUNT; i++) {
             slime_init(&slimes[i], 0, slimeSprite);
-            slimes[i].body.position.x = (float)GetRandomValue(slimeRadiusX, maxX);
-            slimes[i].body.position.y = (float)GetRandomValue(slimeRadiusY, maxY);
+            slimes[i].body.position.x = dlb_rand_float(slimeRadiusX, maxX);
+            slimes[i].body.position.y = dlb_rand_float(slimeRadiusY, maxY);
             slimesByDepth[i] = i;
         }
     }
@@ -258,6 +278,8 @@ int main(void)
         const double now = GetTime();
         dt = MIN(now - frameStart, dtMax);
         frameStart = now;
+
+        network_server_process_incoming(&server);
 
         if (IsWindowResized()) {
             screenWidth = GetScreenWidth();
@@ -354,7 +376,7 @@ int main(void)
                     static double lastFootstep = 0;
                     double timeSinceLastFootstep = now - lastFootstep;
                     if (timeSinceLastFootstep > 1.0 / (double)playerSpeed) {
-                        SetSoundPitch(snd_footstep, 1.0f + random_normalized_signed(6) * 0.5f);
+                        SetSoundPitch(snd_footstep, 1.0f + dlb_rand_variance(0.5f));
                         PlaySound(snd_footstep);
                         lastFootstep = now;
                     }
@@ -428,10 +450,10 @@ int main(void)
                     if (v3_length_sq(playerToSlime) <= playerAttackReach * playerAttackReach) {
                         slimes[slimeIdx].combat.hitPoints = MAX(0.0f, slimes[slimeIdx].combat.hitPoints - charlie.combat.weapon->damage);
                         if (!slimes[slimeIdx].combat.hitPoints) {
-                            SetSoundPitch(snd_squeak, 1.0f + random_normalized_signed(6) * 0.05f);
+                            SetSoundPitch(snd_squeak, 1.0f + dlb_rand_variance(0.05f));
                             PlaySound(snd_squeak);
 
-                            int coins = GetRandomValue(1, 4) * (int)slimes[slimeIdx].body.scale;
+                            int coins = dlb_rand_int(1, 4) * (int)slimes[slimeIdx].body.scale;
                             coinsCollected += coins;
 
                             ParticleEffect *gooParticles = particle_effect_alloc(ParticleEffectType_Goo, 20);
@@ -450,8 +472,8 @@ int main(void)
 
                             slimesKilled++;
                         } else {
-                            Sound *squish = GetRandomValue(0, 1) ? &snd_squish1 : &snd_squish2;
-                            SetSoundPitch(*squish, 1.0f + random_normalized_signed(6) * 0.2f);
+                            Sound *squish = dlb_rand_int(0, 1) ? &snd_squish1 : &snd_squish2;
+                            SetSoundPitch(*squish, 1.0f + dlb_rand_variance(0.2f));
                             PlaySound(*squish);
                         }
                         slimesHit++;
@@ -460,9 +482,9 @@ int main(void)
 
                 if (slimesHit) {
                     //PlaySound(snd_slime_stab1);
-                    //PlaySound(GetRandomValue(0, 1) ? snd_squish1 : snd_squish2);
+                    //PlaySound(dlb_rand_int(0, 1) ? snd_squish1 : snd_squish2);
                 } else {
-                    SetSoundPitch(snd_whoosh, 1.0f + random_normalized_signed(12) * 0.1f);
+                    SetSoundPitch(snd_whoosh, 1.0f + dlb_rand_variance(0.1f));
                     PlaySound(snd_whoosh);
                 }
             }
@@ -498,7 +520,7 @@ int main(void)
                     const float slimeToPlayerDist = sqrtf(slimeToPlayerDistSq);
                     const float moveDist = MIN(slimeToPlayerDist, slimeMoveSpeed * slimes[slimeIdx].body.scale);
                     // 25% -1.0, 75% +1.0f
-                    const float moveRandMult = (random_normalized_signed(100) + 0.5f) > 0.0f ? 1.0f : -1.0f;
+                    const float moveRandMult = dlb_rand_int(1, 4) > 1 ? 1.0f : -1.0f;
                     const Vector2 slimeMoveDir = v2_scale(slimeToPlayer, 1.0f / slimeToPlayerDist);
                     const Vector2 slimeMove = v2_scale(slimeMoveDir, moveDist * moveRandMult);
                     const Vector2 slimePos = body_ground_position(&slimes[slimeIdx].body);
@@ -536,7 +558,7 @@ int main(void)
                     if (!willCollide) {
                         slime_move(&slimes[slimeIdx], now, dt, slimeMove);
                         if (!IsSoundPlaying(snd_squish1) && !IsSoundPlaying(snd_squish2) && timeSinceLastSquish > 1.0) {
-                            //PlaySound(GetRandomValue(0, 1) ? snd_squish1 : snd_squish2);
+                            //PlaySound(dlb_rand_int(0, 1) ? snd_squish1 : snd_squish2);
                             lastSquish = GetTime();
                         }
                     }
@@ -839,19 +861,38 @@ int main(void)
 
 #if _DEBUG
         {
-            const char *cameraZoomText = TextFormat("camera.zoom: %.03f (inv: %.03f)", camera.zoom, invZoom);
-            DrawText(cameraZoomText, 10, yOffset, 10, BLACK);
+            const char *text = 0;
+            text = TextFormat("camera.zoom: %.03f (inv: %.03f)", camera.zoom, invZoom);
+            DrawText(text, 10, yOffset, 10, BLACK);
             yOffset += 10;
 
-            const char *mipText = TextFormat("zoopMipLevel: %zu", zoomMipLevel);
-            DrawText(mipText, 10, yOffset, 10, BLACK);
+            text = TextFormat("zoopMipLevel: %zu", zoomMipLevel);
+            DrawText(text, 10, yOffset, 10, BLACK);
             yOffset += 10;
 
-            const char *tilesDrawnText = TextFormat("tilesDrawn: %zu", tilesDrawn);
-            DrawText(tilesDrawnText, 10, yOffset, 10, BLACK);
+            text = TextFormat("tilesDrawn: %zu", tilesDrawn);
+            DrawText(text, 10, yOffset, 10, BLACK);
             yOffset += 10;
         }
 #endif
+
+        // Render chat history
+        {
+            const int margin = 6;
+            const int pad = 4;
+            const int textY = screenHeight - margin - 10 - pad;
+            Vector2 pos = { (float)margin, (float)textY - pad };
+
+            const char *lastMessage = network_last_message(&server);
+            const char *text = TextFormat("[0:00:00]: %s", lastMessage);
+            const int chatWidth = 210;
+
+            Rectangle fpsRect = (Rectangle){ pos.x, pos.y, (float)chatWidth + pad*2, 10.0f + pad*2 };
+            DrawRectangleRec(fpsRect, Fade(DARKGRAY, 0.8f));
+            DrawRectangleLinesEx(fpsRect, 1, Fade(BLACK, 0.8f));
+            DrawText(text, (int)pos.x + pad, textY, 10, WHITE);
+            yOffset += 10 + pad*2 - 1;
+        }
 
         EndDrawing();
         //----------------------------------------------------------------------------------
@@ -860,6 +901,9 @@ int main(void)
     //--------------------------------------------------------------------------------------
     // Clean up
     //--------------------------------------------------------------------------------------
+    network_server_stop(&server);
+    network_shutdown();
+
     particle_effects_free();
     tilemap_free(&tilemap);
     tileset_free(&tileset);

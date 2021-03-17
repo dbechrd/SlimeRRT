@@ -10,11 +10,13 @@
     <ClCompile Include="src\slime.c" />
     <ClCompile Include="src\body.c" />
     <ClCompile Include="src\combat.c" />
-    <ClCompile Include="src\network.c" />
+    <ClCompile Include="src\network_server.c" />
+    <ClCompile Include="src\helpers.c" />
+    <ClCompile Include="src\network_client.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\tilemap.h" />
-    <ClInclude Include="src\math.h" />
+    <ClInclude Include="src\maths.h" />
     <ClInclude Include="src\tileset.h" />
     <ClInclude Include="src\particles.h" />
     <ClInclude Include="src\player.h" />
@@ -23,6 +25,7 @@
     <ClInclude Include="src\helpers.h" />
     <ClInclude Include="src\body.h" />
     <ClInclude Include="src\combat.h" />
-    <ClInclude Include="src\network.h" />
+    <ClInclude Include="src\network_server.h" />
+    <ClInclude Include="src\network_client.h" />
   </ItemGroup>
 </Project>

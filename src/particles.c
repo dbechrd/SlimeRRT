@@ -1,5 +1,6 @@
 #include "particles.h"
 #include "helpers.h"
+#include "dlb_rand.h"
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,21 +11,21 @@ static ParticleEffect **activeEffects;
 static void blood_generate(Particle *particle, float duration)
 {
     // Spawn randomly during first 25% of duration
-    particle->spawnAt = random_normalized(100) * duration * 0.25f;
+    particle->spawnAt = duration * dlb_rand_variance(0.25f);
 
     // Die randomly during last 15% of animation
-    particle->dieAt = duration - random_normalized(100) * duration * 0.15f;
+    particle->dieAt = duration - (duration * dlb_rand_variance(0.15f));
     assert(particle->dieAt > particle->spawnAt);
 
 #if 1
-    float randX = random_normalized_signed(100) * METERS(1.0f);
-    float randY = random_normalized_signed(100) * METERS(1.0f);
-    float randZ = random_normalized(100) * METERS(2.0f);
+    float randX = dlb_rand_variance(METERS(1.0f));
+    float randY = dlb_rand_variance(METERS(1.0f));
+    float randZ = dlb_rand_float(0.0f, METERS(2.0f));
     particle->body.velocity = (Vector3){ randX, randY, randZ };
     particle->body.friction = 0.5f;
 #else
     const float direction = 1.0f;
-    float randX = direction * random_normalized(100) * METERS(1.0f);
+    float randX = direction * dlb_rand_float(0.0f, METERS(1.0f));
     particle->velocity = (Vector2){ randX, METERS(-3.0f) };
 #endif
     //particle->position = (Vector2){ 0.0f, 0.0f };
@@ -57,23 +58,23 @@ static void blood_draw(Particle *particle)
 
 static void gold_generate(Particle *particle, float duration)
 {
-    // Spawn randomly during first 25% of duration
-    particle->spawnAt = random_normalized(100) * duration * 0.05f;
+    // Spawn randomly during first 5% of duration
+    particle->spawnAt = duration * dlb_rand_variance(0.05f);
 
     // Die randomly during last 15% of animation
-    particle->dieAt = duration - random_normalized(100) * duration * 0.15f;
+    particle->dieAt = duration - (duration * dlb_rand_variance(0.15f));
     assert(particle->dieAt > particle->spawnAt);
 
 #if 1
-    float randX = random_normalized_signed(100) * METERS(1.0f);
-    float randY = random_normalized_signed(100) * METERS(1.0f);
-    float randZ = random_normalized(100) * METERS(4.0f);
+    float randX = dlb_rand_variance(METERS(1.0f));
+    float randY = dlb_rand_variance(METERS(1.0f));
+    float randZ = dlb_rand_float(0.0f, METERS(4.0f));
     particle->body.velocity = (Vector3){ randX, randY, randZ };
     particle->body.restitution = 0.8f;
     particle->body.friction = 0.5f;
 #else
     const float direction = 1.0f;
-    float randX = direction * random_normalized(100) * METERS(1.0f);
+    float randX = direction * dlb_rand_float(0.0f, METERS(1.0f));
     particle->velocity = (Vector2){ randX, METERS(-3.0f) };
 #endif
     //particle->position = (Vector2){ 0.0f, 0.0f };
@@ -95,21 +96,21 @@ static void gold_draw(Particle *particle)
 static void goo_generate(Particle *particle, float duration)
 {
     // Spawn randomly during first 25% of duration
-    particle->spawnAt = random_normalized(100) * duration * 0.25f;
+    particle->spawnAt = duration * dlb_rand_variance(0.25f);
 
     // Die randomly during last 15% of animation
-    particle->dieAt = duration - random_normalized(100) * duration * 0.15f;
+    particle->dieAt = duration - (duration * dlb_rand_variance(0.15f));
     assert(particle->dieAt > particle->spawnAt);
 
 #if 1
-    float randX = random_normalized_signed(100) * METERS(1.0f);
-    float randY = random_normalized_signed(100) * METERS(1.0f);
-    float randZ = random_normalized(100) * METERS(2.0f);
+    float randX = dlb_rand_variance(METERS(1.0f));
+    float randY = dlb_rand_variance(METERS(1.0f));
+    float randZ = dlb_rand_float(0.0f, METERS(2.0f));
     particle->body.velocity = (Vector3){ randX, randY, randZ };
     particle->body.friction = 0.5f;
 #else
     const float direction = 1.0f;
-    float randX = direction * random_normalized(100) * METERS(1.0f);
+    float randX = direction * dlb_rand_float(0.0f, METERS(1.0f));
     particle->velocity = (Vector2){ randX, METERS(-3.0f) };
 #endif
     //particle->position = (Vector2){ 0.0f, 0.0f };
@@ -191,7 +192,11 @@ ParticleEffect *particle_effect_alloc(ParticleEffectType type, size_t particleCo
             activeEffects = calloc(activeEffectsCapacity, sizeof(*activeEffects));
             freeIndex = 0;
         } else {
+            // If we're playing this many particle effects at the same time we should investigate to see if there's
+            // another bug happening.
+            assert(activeEffectsCapacity * 2 <= 64);
             activeEffects = realloc(activeEffects, sizeof(*activeEffects) * activeEffectsCapacity * 2);
+            memset(activeEffects + activeEffectsCapacity, 0, sizeof(*activeEffects) * activeEffectsCapacity);
             freeIndex = (int)activeEffectsCapacity;
             activeEffectsCapacity *= 2;
         }

@@ -82,11 +82,21 @@ typedef struct {
 
 // Obtain an address from a host name and a port
 //
-// 'host' may contain a decimal formatted IP (such as "127.0.0.1"), a human readable
+// 'host_name' may contain a decimal formatted IP (such as "127.0.0.1"), a human readable
 // name (such as "localhost"), or NULL for the default address
 //
 // Returns 0 on success, -1 otherwise (call 'zed_net_get_error' for more info)
-ZED_NET_DEF int zed_net_get_address(zed_net_address_t *address, const char *host, unsigned short port);
+ZED_NET_DEF int zed_net_get_address(zed_net_address_t *address, const char *host_name, unsigned short port);
+
+// Obtain an address from a host name
+//
+// 'host' must contain a valid pointer to an unsigned int where we can store the result
+//
+// 'host_name' may contain a decimal formatted IP (such as "127.0.0.1"), a human readable
+// name (such as "localhost"), or NULL for the default address
+//
+// Returns 0 on success, -1 otherwise (call 'zed_net_get_error' for more info)
+ZED_NET_DEF int zed_net_str_to_host(unsigned int *host, const char *host_name, unsigned short port);
 
 // Converts an address's host name into a decimal formatted string
 //
@@ -120,7 +130,7 @@ ZED_NET_DEF void zed_net_socket_close(zed_net_socket_t *socket);
 //
 // Returns 0 on success
 // Returns -1 on failure (call 'zed_net_get_error' for more info)
-ZED_NET_DEF int zed_net_udp_socket_open(zed_net_socket_t *socket, unsigned int port, unsigned long non_blocking);
+ZED_NET_DEF int zed_net_udp_socket_open(zed_net_socket_t *socket, unsigned short port, unsigned long non_blocking);
 
 // Sends a specific amount of data to 'destination'
 //
@@ -143,10 +153,10 @@ ZED_NET_DEF int zed_net_udp_socket_receive(zed_net_socket_t *socket, zed_net_add
 // Socket will not block if 'non-blocking' is non-zero
 //
 // Returns NULL on failure (call 'zed_net_get_error' for more info)
-// Socket will listen for incoming connections if 'listen_socket' is non-zero
+// Socket will listen for incoming clients if 'listen_socket' is non-zero
 // Returns 0 on success
 // Returns -1 on failure (call 'zed_net_get_error' for more info)
-ZED_NET_DEF int zed_net_tcp_socket_open(zed_net_socket_t *socket, unsigned int port, unsigned long non_blocking, int listen_socket);
+ZED_NET_DEF int zed_net_tcp_socket_open(zed_net_socket_t *socket, unsigned short port, unsigned long non_blocking, int listen_socket);
 
 // Connect to a remote endpoint
 // Returns 0 on success.
@@ -183,11 +193,17 @@ ZED_NET_DEF int zed_net_tcp_make_socket_ready(zed_net_socket_t *socket);
 
 #endif // INCLUDE_ZED_NET_H
 
+#ifdef __INTELLISENSE__
+/* This makes MSVC intellisense work. */
+//#define ZED_NET_IMPLEMENTATION
+#endif
+
 #ifdef ZED_NET_IMPLEMENTATION
 
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <stdio.h>
 
 #ifdef _WIN32
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
@@ -238,13 +254,13 @@ ZED_NET_DEF void zed_net_shutdown(void) {
 #endif
 }
 
-ZED_NET_DEF int zed_net_get_address(zed_net_address_t *address, const char *host, unsigned short port) {
-    if (host == NULL) {
+ZED_NET_DEF int zed_net_get_address(zed_net_address_t *address, const char *host_name, unsigned short port) {
+    if (host_name == NULL) {
         address->host = INADDR_ANY;
     } else {
-        address->host = inet_addr(host);
+        address->host = inet_addr(host_name);
         if (address->host == INADDR_NONE) {
-            struct hostent *hostent = gethostbyname(host);
+            struct hostent *hostent = gethostbyname(host_name);
             if (hostent) {
                 memcpy(&address->host, hostent->h_addr, hostent->h_length);
             } else {
@@ -258,6 +274,24 @@ ZED_NET_DEF int zed_net_get_address(zed_net_address_t *address, const char *host
     return 0;
 }
 
+ZED_NET_DEF int zed_net_str_to_host(unsigned int *host, const char *hostname, unsigned short port) {
+    if (hostname == NULL) {
+        *host = INADDR_ANY;
+    } else {
+        *host = inet_addr(hostname);
+        if (*host == INADDR_NONE) {
+            struct hostent *hostent = gethostbyname(hostname);
+            if (hostent) {
+                memcpy(host, hostent->h_addr, hostent->h_length);
+            } else {
+                return zed_net__error("Invalid host name");
+            }
+        }
+    }
+
+    return 0;
+}
+
 ZED_NET_DEF const char *zed_net_host_to_str(unsigned int host) {
     struct in_addr in = { 0 };
     in.s_addr = host;
@@ -265,7 +299,7 @@ ZED_NET_DEF const char *zed_net_host_to_str(unsigned int host) {
     return inet_ntoa(in);
 }
 
-ZED_NET_DEF int zed_net_udp_socket_open(zed_net_socket_t *sock, unsigned int port, unsigned long non_blocking) {
+ZED_NET_DEF int zed_net_udp_socket_open(zed_net_socket_t *sock, unsigned short port, unsigned long non_blocking) {
     if (!sock)
         return zed_net__error("Socket is NULL");
 
@@ -307,7 +341,7 @@ ZED_NET_DEF int zed_net_udp_socket_open(zed_net_socket_t *sock, unsigned int por
     return 0;
 }
 
-ZED_NET_DEF int zed_net_tcp_socket_open(zed_net_socket_t *sock, unsigned int port, unsigned long non_blocking, int listen_socket) {
+ZED_NET_DEF int zed_net_tcp_socket_open(zed_net_socket_t *sock, unsigned short port, unsigned long non_blocking, int listen_socket) {
     if (!sock)
         return zed_net__error("Socket is NULL");
 

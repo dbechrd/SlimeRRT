@@ -1,8 +1,10 @@
 #include "tilemap.h"
-#include <assert.h>
-#include <stdlib.h>
-#include <float.h>
+#include "dlb_rand.h"
+#include "maths.h"
 #include "raylib.h"
+#include <assert.h>
+#include <float.h>
+#include <stdlib.h>
 
 static void rrt_build(Tilemap *map, Vector2 qinit, size_t numVertices, float maxGrowthDist);
 static size_t rrt_nearest_idx(Tilemap *map, Vector2 p);
@@ -152,7 +154,7 @@ static void rrt_build(Tilemap *map, Vector2 qinit, size_t numVertices, float max
     const int tileMax = (int)map->tileset->tileCount - 2;
 
     RRTVertex *vertex = map->rrt.vertices;
-    vertex->tileType = GetRandomValue(tileMin, tileMax);
+    vertex->tileType = dlb_rand_int(tileMin, tileMax);
     vertex->position = qinit;
     vertex++;
 
@@ -161,8 +163,8 @@ static void rrt_build(Tilemap *map, Vector2 qinit, size_t numVertices, float max
     Vector2 qrand = { 0 };
     for (size_t tileIdx = 1; tileIdx < map->rrt.vertexCount; tileIdx++) {
 #if 1
-        qrand.x = (float)GetRandomValue(0, (int)(map->widthTiles * map->tileset->tileWidth));
-        qrand.y = (float)GetRandomValue(0, (int)(map->heightTiles * map->tileset->tileHeight));
+        qrand.x = (float)dlb_rand_int(0, (int)(map->widthTiles * map->tileset->tileWidth));
+        qrand.y = (float)dlb_rand_int(0, (int)(map->heightTiles * map->tileset->tileHeight));
 #else
         // TODO: Try tile coords instead of pixels
         qrand.tileX = (float)GetRandomValue(0, map->widthTiles);
@@ -180,7 +182,7 @@ static void rrt_build(Tilemap *map, Vector2 qinit, size_t numVertices, float max
 #endif
         qnew = v2_add(qnew, qnear);
         if (tileIdx < randTiles) {
-            vertex->tileType = GetRandomValue(tileMin, tileMax);
+            vertex->tileType = dlb_rand_int(tileMin, tileMax);
         } else {
             vertex->tileType = map->rrt.vertices[nearestIdx].tileType;
         }
