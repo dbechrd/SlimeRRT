@@ -842,7 +842,7 @@ int main(void)
             DrawRectangleRec(fpsRect, Fade(DARKGRAY, 0.8f));
             DrawRectangleLinesEx(fpsRect, 1, Fade(BLACK, 0.8f));
             DrawText(text, (int)pos.x, yOffset, 10, RED);
-            yOffset += 10 + pad*2;
+            yOffset += 10 + pad*2 - 1;
         }
 
         {
@@ -856,7 +856,7 @@ int main(void)
             DrawRectangleRec(fpsRect, Fade(DARKGRAY, 0.8f));
             DrawRectangleLinesEx(fpsRect, 1, Fade(BLACK, 0.8f));
             DrawText(text, (int)pos.x, yOffset, 10, YELLOW);
-            yOffset += 10 + pad*2;
+            yOffset += 10 + pad*2 - 1;
         }
 
 #if _DEBUG
