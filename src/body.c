@@ -150,6 +150,7 @@ void body_update(Body3D *body, double now, double dt)
     if (!v3_equal(body->position, prevPosition)) {
         body->lastMoved = now;
     }
+    body->landed = (prevPosition.z > 0.0f && body->position.z == 0.0f);
 }
 
 void body_draw(const Body3D *body)

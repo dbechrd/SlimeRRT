@@ -194,7 +194,9 @@ ParticleEffect *particle_effect_alloc(ParticleEffectType type, size_t particleCo
         } else {
             // If we're playing this many particle effects at the same time we should investigate to see if there's
             // another bug happening.
-            assert(activeEffectsCapacity * 2 <= 64);
+            //if (activeEffectsCapacity * 2 > 1024) {
+            //    return 0;
+            //}
             activeEffects = realloc(activeEffects, sizeof(*activeEffects) * activeEffectsCapacity * 2);
             memset(activeEffects + activeEffectsCapacity, 0, sizeof(*activeEffects) * activeEffectsCapacity);
             freeIndex = (int)activeEffectsCapacity;

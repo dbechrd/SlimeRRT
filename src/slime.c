@@ -4,6 +4,7 @@
 #include "dlb_rand.h"
 #include "maths.h"
 #include <assert.h>
+#include "particles.h"
 
 #define SLIME_MAX_SCALE 3.0f
 
@@ -23,7 +24,7 @@ void slime_init(Slime *slime, const char *name, struct Sprite *sprite)
     slime->body.color = WHITE;
     slime->body.color.a = (unsigned char)(255.0f * 0.7f);
     slime->body.sprite = sprite;
-    slime->combat.maxHitPoints = 10.0f;
+    slime->combat.maxHitPoints = 5.0f;
     slime->combat.hitPoints = slime->combat.maxHitPoints;
 }
 
@@ -69,7 +70,7 @@ void slime_move(Slime *slime, double now, double dt, Vector2 offset)
         slime->body.velocity.x += offset.x;
         slime->body.velocity.y += offset.y;
         slime->body.velocity.z += METERS(3.0f);
-        slime->randJumpIdle = (double)dlb_rand_float(-1.0f, 1.5f);
+        slime->randJumpIdle = (double)dlb_rand_float(1.0f, 2.5f);
         update_direction(slime, offset);
     }
 }

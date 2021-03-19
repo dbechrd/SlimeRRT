@@ -229,7 +229,7 @@ int main(void)
     weaponFist.damage = 1.0f;
 
     Weapon weaponSword = { 0 };
-    weaponSword.damage = 2.0f;
+    weaponSword.damage = 5.0f;
 
     Player charlie = { 0 };
     player_init(&charlie, "Charlie", charlieSprite);
@@ -467,7 +467,7 @@ int main(void)
                     if (v3_length_sq(playerToSlime) <= playerAttackReach * playerAttackReach) {
                         slimes[slimeIdx].combat.hitPoints = MAX(0.0f, slimes[slimeIdx].combat.hitPoints - charlie.combat.weapon->damage);
                         if (!slimes[slimeIdx].combat.hitPoints) {
-                            SetSoundPitch(snd_squeak, 1.0f + dlb_rand_variance(0.05f));
+                            SetSoundPitch(snd_squeak, 0.75f + dlb_rand_variance(0.2f));
                             PlaySound(snd_squeak);
 
                             int coins = dlb_rand_int(1, 4) * (int)slimes[slimeIdx].body.scale;
@@ -518,7 +518,7 @@ int main(void)
             // TODO: Move these to Body3D
             const float slimeMoveSpeed = METERS(2.0f);
             const float slimeAttackReach = METERS(0.5f);
-            const float slimeAttackTrack = METERS(32.0f);
+            const float slimeAttackTrack = METERS(16.0f);
             const float slimeAttackDamage = 1.0f;
             const float slimeRadius = METERS(0.5f);
 
@@ -563,8 +563,8 @@ int main(void)
                                 //gooParticles->callbacks[ParticleEffectEvent_Started].function = GooParticlesStarted;
                                 //gooParticles->callbacks[ParticleEffectEvent_Started].userData = gooSprite;
                                 //gooParticles->callbacks[ParticleEffectEvent_Dying].function = GooParticlesDying;
-                                Vector3 deadCenter = body_center(&dead->body);
-                                particle_effect_start(gooParticles, now, 2.0, deadCenter);
+                                Vector3 slimeBC = body_center(&dead->body);
+                                particle_effect_start(gooParticles, now, 2.0, slimeBC);
                             }
                         }
                         if (v2_length_sq(v2_sub(slimePosNew, otherSlimePos)) < SQUARED(radiusScaled) && zDist < radiusScaled) {
@@ -599,19 +599,22 @@ int main(void)
                             particle_effect_start(bloodParticles, now, bleedDuration, playerGut);
                             lastBleed = now;
                         }
-
-                        // TODO: Kill peter if he dies
                     }
                 }
 
                 slime_update(&slimes[slimeIdx], now, dt);
+                //if (slimes[slimeIdx].body.landed) {
+                //    ParticleEffect *gooParticles = particle_effect_alloc(ParticleEffectType_Goo, 4);
+                //    //gooParticles->callbacks[ParticleEffectEvent_Started].function = GooParticlesStarted;
+                //    //gooParticles->callbacks[ParticleEffectEvent_Started].userData = gooSprite;
+                //    //gooParticles->callbacks[ParticleEffectEvent_Dying].function = GooParticlesDying;
+                //    Vector3 slimeBC = body_center(&slimes[slimeIdx].body);
+                //    particle_effect_start(gooParticles, now, 0.5, slimeBC);
+                //}
             }
         }
 
-        {
-            particle_effects_update(now, dt);
-        }
-
+        particle_effects_update(now, dt);
 
         //----------------------------------------------------------------------------------
         // Draw
