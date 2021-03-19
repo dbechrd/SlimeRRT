@@ -23,6 +23,7 @@
     <ClCompile Include="src\tilemap.c" />
     <ClCompile Include="src\tileset.c" />
     <ClCompile Include="src\body.c" />
+    <ClCompile Include="src\zed_net.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\combat.h" />
@@ -96,7 +97,7 @@
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(ProjectDir)lib</AdditionalLibraryDirectories>
-      <AdditionalDependencies>raylib.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>raylib-d.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalOptions>
       </AdditionalOptions>
     </Link>

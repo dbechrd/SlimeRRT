@@ -46,17 +46,16 @@ void DrawShadow(int x, int y, float radius, float yOffset)
     DrawEllipse(x, y + (int)yOffset, radius, radius / 2.0f, Fade(BLACK, 0.5f));
 }
 
-void DrawHealthBar(int x, int y, float hitPoints, float maxHitPoints)
+void DrawHealthBar(Font font, int fontSize, int x, int y, float hitPoints, float maxHitPoints)
 {
-    Font font = GetFontDefault();
     const float hpPercent = hitPoints / maxHitPoints;
     const char *hpText = TextFormat("HP: %.02f / %.02f", hitPoints, maxHitPoints);
 
-    const int hp_w = MeasureText(hpText, font.baseSize);
-    const int hp_h = font.baseSize;
+    const int hp_w = MeasureText(hpText, fontSize);
+    const int hp_h = fontSize;
     const int hp_x = x - hp_w / 2;
     //const int hp_y = y - hp_h / 2;
-    const int hp_y = y - font.baseSize;
+    const int hp_y = y - fontSize;
 
     const int pad_x = 4;
     const int pad_y = 2;
@@ -69,7 +68,7 @@ void DrawHealthBar(int x, int y, float hitPoints, float maxHitPoints)
     DrawRectangle(bg_x, bg_y, bg_w, bg_h, DARKGRAY);
     DrawRectangle(bg_x, bg_y, (int)(bg_w * hpPercent), bg_h, RED);
     DrawRectangleLines(bg_x, bg_y, bg_w, bg_h, BLACK);
-    DrawText(hpText, hp_x, hp_y, hp_h, WHITE);
+    DrawTextFont(font, hpText, hp_x, hp_y, hp_h, WHITE);
 }
 
 void GoldParticlesStarted(ParticleEffect *effect, void *userData)
@@ -118,7 +117,7 @@ int main(void)
         return 0;
     }
 
-    network_server server = { 0 };
+    NetworkServer server = { 0 };
     const unsigned short port = 4040;
     if (!network_server_start(&server, port)) {
         // TODO: Handle "offline mode" gracefully. This shouldn't prevent people people from playing single player
@@ -128,6 +127,17 @@ int main(void)
 
     InitWindow(800, 600, "Attack the slimes!");
     SetWindowState(FLAG_WINDOW_RESIZABLE);
+
+    const int fontHeight = 14;
+    Font fonts[3] = {
+        GetFontDefault(),
+        LoadFontEx("C:/Windows/Fonts/consola.ttf", fontHeight, 0, 0),
+        LoadFontEx("resources/UbuntuMono-Regular.ttf", fontHeight, 0, 0),
+    };
+    for (size_t i = 0; i < ARRAY_SIZE(fonts); i++) {
+        assert(fonts[i].texture.id);
+    }
+    size_t fontIdx = 1;
 
     int screenWidth = GetScreenWidth();
     int screenHeight = GetScreenHeight();
@@ -300,6 +310,13 @@ int main(void)
                 tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
             assert(len < sizeof(screenshotName));
             TakeScreenshot(screenshotName);
+        }
+
+        if (IsKeyPressed(KEY_SEVEN)) {
+            fontIdx++;
+            if (fontIdx >= ARRAY_SIZE(fonts)) {
+                fontIdx = 0;
+            }
         }
 
         if (IsKeyPressed(KEY_F)) {
@@ -760,13 +777,13 @@ int main(void)
             Rectangle slimeRect = body_rect(&slimes[slimeIdx].body);
             const int x = (int)(slimeRect.x + slimeRect.width / 2.0f);
             const int y = (int)slimeRect.y;
-            DrawHealthBar(x, y, slimes[slimeIdx].combat.hitPoints, slimes[slimeIdx].combat.maxHitPoints);
+            DrawHealthBar(fonts[0], 10, x, y, slimes[slimeIdx].combat.hitPoints, slimes[slimeIdx].combat.maxHitPoints);
         }
         // TODO: player_get_top_center (after unify player/slime code)
         Rectangle playerRect = body_rect(&charlie.body);
         const int x = (int)(playerRect.x + playerRect.width / 2.0f);
         const int y = (int)playerRect.y;
-        DrawHealthBar(x, y, charlie.combat.hitPoints, charlie.combat.maxHitPoints);
+        DrawHealthBar(fonts[0], 10, x, y, charlie.combat.hitPoints, charlie.combat.maxHitPoints);
 
         {
             particle_effects_draw(dt);
@@ -804,94 +821,99 @@ int main(void)
 
             const int fontHeight = 10;
             int lineOffset = 0;
-            DrawText(TextFormat("tilePos : %.02f, %.02f", mouseTile->position.x, mouseTile->position.y),
+            DrawTextFont(fonts[fontIdx], TextFormat("tilePos : %.02f, %.02f", mouseTile->position.x, mouseTile->position.y),
                 tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, fontHeight, BLACK);
             lineOffset += fontHeight;
-            DrawText(TextFormat("tileSize: %zu, %zu", tilemap.tileset->tileWidth, tilemap.tileset->tileHeight),
+            DrawTextFont(fonts[fontIdx], TextFormat("tileSize: %zu, %zu", tilemap.tileset->tileWidth, tilemap.tileset->tileHeight),
                 tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, fontHeight, BLACK);
             lineOffset += fontHeight;
-            DrawText(TextFormat("tileType: %d", mouseTile->tileType),
+            DrawTextFont(fonts[fontIdx], TextFormat("tileType: %d", mouseTile->tileType),
                 tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, fontHeight, BLACK);
             lineOffset += fontHeight;
-        }
-
-        int yOffset = 10;
-
-        {
-            Vector2 pos = { 10.0f, (float)yOffset };
-            const int pad = 4;
-
-            const char *text = TextFormat("%2i fps (%.02f ms)", GetFPS(), GetFrameTime() * 1000.0f);
-            int textWidth = 100; //MeasureText(text, 10);
-
-            Rectangle fpsRect = (Rectangle){ pos.x - pad, pos.y - pad, (float)textWidth + pad*2, 10.0f + pad*2 };
-            DrawRectangleRec(fpsRect, Fade(DARKGRAY, 0.8f));
-            DrawRectangleLinesEx(fpsRect, 1, Fade(BLACK, 0.8f));
-            DrawText(text, (int)pos.x, yOffset, 10, WHITE);
-            yOffset += 10 + pad*2 - 1;
         }
 
         {
-            Vector2 pos = { 10.0f, (float)yOffset };
-            const int pad = 4;
+#define PUSH_TEXT(txt, color) \
+    DrawTextFont(fonts[fontIdx], text, margin + pad, cursorY, fontHeight, color); \
+    cursorY += fontHeight + pad; \
 
-            const char *text = TextFormat("Slimes slain: %d", slimesKilled);
-            int textWidth = 100; //MeasureText(text, 10);
+            int linesOfText = 3;
+#if _DEBUG
+            linesOfText += 4;
+#endif
+            const int margin = 6;   // left/top margin
+            const int pad = 4;      // left/top pad
+            const int hudX = margin;
+            const int hudY = margin;
+            const int hudWidth = 200;
+            const int hudHeight = linesOfText * (fontHeight + pad) + pad;
 
-            Rectangle fpsRect = (Rectangle){ pos.x - pad, pos.y - pad, (float)textWidth + pad*2, 10.0f + pad*2 };
-            DrawRectangleRec(fpsRect, Fade(DARKGRAY, 0.8f));
-            DrawRectangleLinesEx(fpsRect, 1, Fade(BLACK, 0.8f));
-            DrawText(text, (int)pos.x, yOffset, 10, RED);
-            yOffset += 10 + pad*2 - 1;
-        }
+            int cursorY = hudY + pad;
+            const char *text = 0;
 
-        {
-            Vector2 pos = { 10.0f, (float)yOffset };
-            const int pad = 4;
+            DrawRectangle(hudX, hudY, hudWidth, hudHeight, Fade(DARKGRAY, 0.8f));
+            DrawRectangleLines(hudX, hudY, hudWidth, hudHeight, Fade(BLACK, 0.8f));
 
-            const char *text = TextFormat("Coins: %d", coinsCollected);
-            int textWidth = 100; //MeasureText(text, 10);
+            text = TextFormat("%2i fps (%.02f ms)", GetFPS(), GetFrameTime() * 1000.0f);
+            PUSH_TEXT(text, WHITE);
 
-            Rectangle fpsRect = (Rectangle){ pos.x - pad, pos.y - pad, (float)textWidth + pad*2, 10.0f + pad*2 };
-            DrawRectangleRec(fpsRect, Fade(DARKGRAY, 0.8f));
-            DrawRectangleLinesEx(fpsRect, 1, Fade(BLACK, 0.8f));
-            DrawText(text, (int)pos.x, yOffset, 10, YELLOW);
-            yOffset += 10 + pad*2 - 1;
-        }
+            text = TextFormat("Slimes slain: %d", slimesKilled);
+            PUSH_TEXT(text, RED);
+
+            text = TextFormat("Coins: %d", coinsCollected);
+            PUSH_TEXT(text, YELLOW);
 
 #if _DEBUG
-        {
-            const char *text = 0;
-            text = TextFormat("camera.zoom: %.03f (inv: %.03f)", camera.zoom, invZoom);
-            DrawText(text, 10, yOffset, 10, BLACK);
-            yOffset += 10;
+            text = TextFormat("Zoom: %.03f (inv: %.03f)", camera.zoom, invZoom);
+            PUSH_TEXT(text, PINK);
 
-            text = TextFormat("zoopMipLevel: %zu", zoomMipLevel);
-            DrawText(text, 10, yOffset, 10, BLACK);
-            yOffset += 10;
+            text = TextFormat("Zoom Mip: %zu", zoomMipLevel);
+            PUSH_TEXT(text, PINK);
 
-            text = TextFormat("tilesDrawn: %zu", tilesDrawn);
-            DrawText(text, 10, yOffset, 10, BLACK);
-            yOffset += 10;
-        }
+            text = TextFormat("Tiles visible: %zu", tilesDrawn);
+            PUSH_TEXT(text, PINK);
+
+            text = TextFormat("Font index: %zu", fontIdx);
+            PUSH_TEXT(text, PINK);
 #endif
+#undef PUSH_TEXT
+        }
 
         // Render chat history
         {
-            const int margin = 6;
-            const int pad = 4;
-            const int textY = screenHeight - margin - 10 - pad;
-            Vector2 pos = { (float)margin, (float)textY - pad };
+#define PUSH_TEXT(txt, color) \
+    DrawTextFont(fonts[fontIdx], text, margin + pad, cursorY, fontHeight, color); \
+    cursorY -= fontHeight + pad; \
 
-            const char *lastMessage = network_last_message(&server);
-            const char *text = TextFormat("[0:00:00]: %s", lastMessage);
-            const int chatWidth = 210;
+            const int linesOfText = 10;
+            const int margin = 6;   // left/bottom margin
+            const int pad = 4;      // left/bottom pad
+            const int chatWidth = 320;
+            const int chatHeight = linesOfText * (fontHeight + pad) + pad;
+            const int chatX = margin;
+            const int chatY = screenHeight - margin - chatHeight;
 
-            Rectangle fpsRect = (Rectangle){ pos.x, pos.y, (float)chatWidth + pad*2, 10.0f + pad*2 };
-            DrawRectangleRec(fpsRect, Fade(DARKGRAY, 0.8f));
-            DrawRectangleLinesEx(fpsRect, 1, Fade(BLACK, 0.8f));
-            DrawText(text, (int)pos.x + pad, textY, 10, WHITE);
-            yOffset += 10 + pad*2 - 1;
+            // NOTE: The chat history renders from the bottom up (most recent message first)
+            int cursorY = (chatY + chatHeight) - pad - fontHeight;
+            const char *text = 0;
+
+            DrawRectangle(chatX, chatY, chatWidth, chatHeight, Fade(DARKGRAY, 0.8f));
+            DrawRectangleLines(chatX, chatY, chatWidth, chatHeight, Fade(BLACK, 0.8f));
+
+            int msgCount = network_packet_history_count(&server);
+            int index = network_packet_history_newest(&server);
+            for (int i = 0; i < msgCount; i++) {
+                const NetworkPacket *packet = network_packet_history_at(&server, index);
+                if (!packet) {
+                    continue;
+                }
+
+                text = TextFormat("[%s]: %s", packet->timestampStr, packet->data);
+                PUSH_TEXT(text, WHITE);
+
+                index = network_packet_history_prev(&server, index);
+            }
+#undef PUSH_TEXT
         }
 
         EndDrawing();
@@ -921,9 +943,11 @@ int main(void)
     UnloadSound(snd_whoosh);
     UnloadMusicStream(mus_whistle);
     UnloadMusicStream(mus_background);
-
     CloseAudioDevice();
     CloseWindow();
+    for (size_t i = 0 ; i < ARRAY_SIZE(fonts); i++) {
+        UnloadFont(fonts[i]);
+    }
 
     fclose(logFile);
     return 0;

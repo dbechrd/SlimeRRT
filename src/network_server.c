@@ -4,23 +4,10 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
-#define MAX_PACKET_SIZE_BYTES 1024
-#define MAX_PACKET_HISTORY 10
-#define MAX_CHAT_HISTORY 10
-
-static char network_buffer[MAX_PACKET_SIZE_BYTES];
-static char *packet_history; //[MAX_PACKET_HISTORY][MAX_PACKET_SIZE_BYTES];
-static int packet_history_last = -1;
-static const char *packet_history_most_recent;
-
-typedef struct {
-    const char *message;
-    size_t len;
-    double timestamp;
-} chat_message;
-
-static chat_message chat_history [MAX_CHAT_HISTORY];
+static NetworkPacket *packet_history;
+static int packet_history_next = 0;
 
 int network_init()
 {
@@ -30,7 +17,7 @@ int network_init()
         return 0;
     }
 
-    packet_history = calloc(MAX_PACKET_HISTORY, sizeof(network_buffer));
+    packet_history = calloc(MAX_PACKET_HISTORY, sizeof(*packet_history));
     if (!packet_history) {
         TraceLog(LOG_FATAL, "Failed to allocate packet history buffer.\n");
         return 0;
@@ -39,7 +26,7 @@ int network_init()
     return 1;
 }
 
-int network_server_start(network_server *server, unsigned short port)
+int network_server_start(NetworkServer *server, unsigned short port)
 {
     assert(server);
     assert(port);
@@ -55,7 +42,7 @@ int network_server_start(network_server *server, unsigned short port)
     return 1;
 }
 
-int network_server_process_incoming(network_server *server)
+int network_server_process_incoming(NetworkServer *server)
 {
     assert(server);
 
@@ -71,8 +58,8 @@ int network_server_process_incoming(network_server *server)
     int bytes = 0;
     do {
         zed_net_address_t sender = { 0 };
-        memset(network_buffer, 0, sizeof(network_buffer));
-        bytes = zed_net_udp_socket_receive(&server->socket, &sender, network_buffer, sizeof(network_buffer) - 1);
+        NetworkPacket *packet = &packet_history[packet_history_next];
+        bytes = zed_net_udp_socket_receive(&server->socket, &sender, packet->data, sizeof(packet->data) - 1);
         if (bytes < 0) {
             // TODO: Ignore this.. or log it? zed_net doesn't pass through any useful error messages to diagnose this.
             const char *err = zed_net_get_error();
@@ -81,23 +68,25 @@ int network_server_process_incoming(network_server *server)
         }
 
         if (bytes > 0) {
-            // Save packet to history buffer
-            packet_history_last = (packet_history_last + 1) % MAX_PACKET_HISTORY;
-            char *hist = packet_history + (packet_history_last * MAX_PACKET_SIZE_BYTES);
-            memcpy(hist, network_buffer, bytes);
-            memset(hist + bytes, 0, MAX_PACKET_SIZE_BYTES - (size_t)bytes);
-            packet_history_most_recent = hist;
+            memset(packet->data + bytes, 0, MAX_PACKET_SIZE_BYTES - (size_t)bytes);
+            packet_history_next = (packet_history_next + 1) % MAX_PACKET_HISTORY;
+
+            time_t t = time(NULL);
+            struct tm tm = *localtime(&t);
+            int len = snprintf(packet->timestampStr, sizeof(packet->timestampStr), "%2d:%02d:%02d",
+                tm.tm_hour, tm.tm_min, tm.tm_sec);
+            assert(len < sizeof(packet->timestampStr));
 
             const char *host = 0;
             for (int i = 0; i < NETWORK_SERVER_MAX_CLIENTS; ++i) {
                 if (!server->clients[i].address.host) {
                     server->clients[i].address = sender;
                     host = zed_net_host_to_str(server->clients[i].address.host);
-                    printf("[SERVER] CONNECT %s:%u\n  %s\n", host, server->clients[i].address.port, network_buffer);
+                    printf("[SERVER] CONNECT %s:%u\n  %s\n", host, server->clients[i].address.port, packet->data);
                     break;
                 } else if (server->clients[i].address.host == sender.host) {
                     host = zed_net_host_to_str(server->clients[i].address.host);
-                    printf("[SERVER] RECEIVE %s:%u\n  %s\n", host, server->clients[i].address.port, network_buffer);
+                    printf("[SERVER] RECEIVE %s:%u\n  %s\n", host, server->clients[i].address.port, packet->data);
                     break;
                 }
             }
@@ -106,13 +95,13 @@ int network_server_process_incoming(network_server *server)
                 // Broadcast incoming message
                 for (int i = 0; i < NETWORK_SERVER_MAX_CLIENTS; ++i) {
                     if (server->clients[i].address.host) { // && server->clients[i].address.host != sender.host) {
-                        if (zed_net_udp_socket_send(&server->socket, server->clients[i].address, network_buffer, bytes) < 0) {
+                        if (zed_net_udp_socket_send(&server->socket, server->clients[i].address, packet->data, bytes) < 0) {
                             const char *err = zed_net_get_error();
                             TraceLog(LOG_ERROR, "Failed to send network data. Error: %s\n", err);
                         }
                     }
                 }
-                printf("[SERVER] BROADCAST\n  %s said %s\n", host, network_buffer);
+                printf("[SERVER] BROADCAST\n  %s said %s\n", host, packet->data);
             } else {
                 puts("Uh oh.. new client but all of the client slots are used up.. Respond 'server full' to address.\n");
             }
@@ -123,12 +112,60 @@ int network_server_process_incoming(network_server *server)
     return 1;
 }
 
-const char *network_last_message(network_server *server)
+int network_packet_history_count(NetworkServer *server)
 {
-    return packet_history_most_recent;
+    return MAX_PACKET_HISTORY;
 }
 
-void network_server_stop(network_server *server)
+int network_packet_history_next(NetworkServer *server, int index)
+{
+    assert(server);
+
+    int next = (index + 1) % MAX_PACKET_HISTORY;
+    assert(next < MAX_PACKET_HISTORY);
+    return next;
+}
+
+int network_packet_history_prev(NetworkServer *server, int index)
+{
+    assert(server);
+
+    int prev = (index - 1 + MAX_PACKET_HISTORY) % MAX_PACKET_HISTORY;
+    assert(prev >= 0);
+    return prev;
+}
+
+int network_packet_history_newest(NetworkServer *server)
+{
+    assert(server);
+
+    int newest = network_packet_history_prev(server, packet_history_next);
+    return newest;
+}
+
+int network_packet_history_oldest(NetworkServer *server)
+{
+    assert(server);
+
+    int index = packet_history_next % MAX_PACKET_HISTORY;
+    return index;
+}
+
+const NetworkPacket *network_packet_history_at(NetworkServer *server, int index)
+{
+    assert(server);
+    assert(index >= 0);
+    assert(index < MAX_PACKET_HISTORY);
+
+    const NetworkPacket *packet = &packet_history[index];
+    if (!packet->timestampStr[0]) {
+        // TODO: Make packet history / chat history have proper data/length and just check length == 0 for unused
+        return 0;  // empty packet data = unused buffer
+    }
+    return packet;
+}
+
+void network_server_stop(NetworkServer *server)
 {
     assert(server);
 

@@ -13,6 +13,7 @@
     <ClCompile Include="src\network_server.c" />
     <ClCompile Include="src\helpers.c" />
     <ClCompile Include="src\network_client.c" />
+    <ClCompile Include="src\zed_net.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\tilemap.h" />
