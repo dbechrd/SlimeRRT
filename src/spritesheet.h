@@ -16,25 +16,25 @@ typedef struct SpriteAnim {
     StringView name;                    // name of animation
     Spritesheet *spritesheet;           // parent spritesheet
     size_t frameCount;                  // 0 = not used, 1 = static sprite, > 1 = animation frame count
-    int frames[SPRITEANIM_MAX_FRAMES];  // frame indices (into spritesheet->frames)
+    int frames[SPRITEANIM_MAX_FRAMES];  // frame indices (spritesheet->frames)
 } SpriteAnim;
 
 typedef struct Sprite {
-    StringView name;               // name of sprite
-    Spritesheet *spritesheet;      // parent spritesheet
-    int animations[Facing_Count];  // animation data for each direction
+    StringView name;                  // name of sprite
+    Spritesheet *spritesheet;         // parent spritesheet
+    int animations[Direction_Count];  // animation index (spritesheet->animations)
 } Sprite;
 
 typedef struct Spritesheet {
-    Texture texture;        // spritesheet texture
-    int frameCount;         // # of frames
-    SpriteFrame *frames;    // array of frames
-    int animationCount;     // # of animations
-    SpriteAnim *animations; // array of animations
-    int spriteCount;        // # of sprites
-    Sprite *sprites;        // array of sprites
-    unsigned int bufLength; // length of file buffer in memory
-    unsigned char *buf;     // file buffer (needs to be freed with UnloadFileData())
+    Texture texture;         // spritesheet texture
+    int frameCount;          // # of frames
+    SpriteFrame *frames;     // array of frames
+    int animationCount;      // # of animations
+    SpriteAnim *animations;  // array of animations
+    int spriteCount;         // # of sprites
+    Sprite *sprites;         // array of directional sprites
+    unsigned int bufLength;  // length of file buffer in memory
+    unsigned char *buf;      // file buffer (needs to be freed with UnloadFileData())
 } Spritesheet;
 
 Spritesheet *LoadSpritesheet (const char *fileName);

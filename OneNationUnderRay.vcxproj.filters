@@ -14,6 +14,11 @@
     <ClCompile Include="src\helpers.c" />
     <ClCompile Include="src\network_client.c" />
     <ClCompile Include="src\zed_net.c" />
+    <ClCompile Include="src\sim.c" />
+    <ClCompile Include="src\player_inventory.c" />
+    <ClCompile Include="src\item.c" />
+    <ClCompile Include="src\input.c" />
+    <ClCompile Include="src\sound_catalog.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\tilemap.h" />
@@ -28,5 +33,10 @@
     <ClInclude Include="src\combat.h" />
     <ClInclude Include="src\network_server.h" />
     <ClInclude Include="src\network_client.h" />
+    <ClInclude Include="src\sim.h" />
+    <ClInclude Include="src\player_inventory.h" />
+    <ClInclude Include="src\item.h" />
+    <ClInclude Include="src\input.h" />
+    <ClInclude Include="src\sound_catalog.h" />
   </ItemGroup>
 </Project>

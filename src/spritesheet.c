@@ -55,6 +55,7 @@
 typedef enum TokenType {
     TOK_UNKNOWN,
     TOK_ANIMATION,
+    TOK_DIRSPRITE,
     TOK_FRAME,
     TOK_SPRITESHEET,
     TOK_SPRITE,
@@ -501,8 +502,8 @@ static bool ParseSprite(Scanner *scanner, Sprite *sprite)
     assert(scanner);
     assert(sprite);
 
-#define USAGE "  Usage: sprite <name> <anim_idle> <anim_n> <anim_e> <anim_s> <anim_w> <anim_ne> <anim_se> <anim_sw> <anim_nw>\n" \
-              "Example: sprite player_sword 9 10 11 12 13 14 15 16 17\n"
+#define USAGE "  Usage: sprite <name> <anim_n> <anim_e> <anim_s> <anim_w> <anim_ne> <anim_se> <anim_sw> <anim_nw>\n" \
+              "Example: sprite player_sword 10 11 12 13 14 15 16 17\n"
 
     // name
     DiscardWhitespaceNewlinesComments(scanner);
@@ -513,12 +514,12 @@ static bool ParseSprite(Scanner *scanner, Sprite *sprite)
     }
 
     // directional animations
-    for (int i = 0; i < Facing_Count; i++) {
+    for (int i = 0; i < Direction_Count; i++) {
         DiscardWhitespaceNewlinesComments(scanner);
         if (DiscardChar(scanner, '-')) {
             sprite->animations[i] = -1;
         } else if (!ConsumePositiveInt(scanner, &sprite->animations[i])) {
-            TraceLog(LOG_ERROR, "'%s': Expected an animation index for each of the %d directions.\n" USAGE, scanner->fileName, (int)Facing_Count);
+            TraceLog(LOG_ERROR, "'%s': Expected an animation index for each of the %d directions.\n" USAGE, scanner->fileName, (int)Direction_Count);
             return false;
         }
     }
@@ -532,6 +533,7 @@ static bool ParseSpritesheet(Scanner *scanner, Spritesheet *spritesheet)
     int framesParsed = 0;
     int animationsParsed = 0;
     int spritesParsed = 0;
+    int dirSpritesParsed = 0;
 
     DiscardWhitespaceNewlinesComments(scanner);
     char c = PeekChar(scanner);
@@ -602,6 +604,12 @@ static bool ParseSpritesheet(Scanner *scanner, Spritesheet *spritesheet)
                         break;
                     }
                 }
+                break;
+            }
+            default: {
+                // TODO: Better error handling
+                TraceLog(LOG_ERROR, "'%s': Error: Unexpected character '%c'\n.", scanner->fileName, c);
+                assert(!"Unexpected character");
                 break;
             }
         }

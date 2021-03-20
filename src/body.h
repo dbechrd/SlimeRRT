@@ -15,7 +15,8 @@ typedef struct Body3D {
     double lastMoved;
     double lastAnimFrameStarted;
     bool landed;
-    Facing facing;
+    bool idle;
+    Direction direction;
     Color color;
     struct Sprite *sprite;
     size_t animFrameIdx;

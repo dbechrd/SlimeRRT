@@ -1,12 +1,16 @@
 ﻿#include "helpers.h"
+#include "item.h"
 #include "maths.h"
 #include "network_server.h"
 #include "particles.h"
 #include "player.h"
 #include "slime.h"
 #include "spritesheet.h"
+#include "sound_catalog.h"
 #include "tileset.h"
 #include "tilemap.h"
+#include "sim.h"
+
 #include "dlb_rand.h"
 #include "raylib.h"
 #include <assert.h>
@@ -77,18 +81,7 @@ void GoldParticlesStarted(ParticleEffect *effect, void *userData)
     for (size_t i = 0; i < effect->particleCount; i++) {
         effect->particles[i].body.sprite = coinSprite;
     }
-}
-
-// TODO: Remove global variable, look up sound by event type.. e.g. PlaySound(sounds[AudioEvent_GoldDropped])
-static Sound snd_gold;
-void GoldParticlesDying(ParticleEffect *effect, void *userData)
-{
-    assert(effect);
-    assert(effect->type == ParticleEffectType_Gold);
-    assert(snd_gold.sampleCount);
-
-    SetSoundPitch(snd_gold, 1.0f + dlb_rand_variance(0.1f));
-    PlaySound(snd_gold);
+    sound_catalog_play(SoundID_Gold, 1.0f + dlb_rand_variance(0.1f));
 }
 
 void BloodParticlesFollowPlayer(ParticleEffect *effect, void *userData)
@@ -107,6 +100,7 @@ int main(void)
     // Initialization
     //--------------------------------------------------------------------------------------
     logFile = fopen("log.txt", "w");
+    SetTraceLogCallback(traceLogCallback);
 
     //dlb_rand_seed(42);
     dlb_rand_seed((u32)time(NULL));
@@ -153,7 +147,8 @@ int main(void)
     // NOTE: Minimum of 0.001 seems reasonable (0.0001 is still audible on max volume)
     //SetMasterVolume(0.01f);
 
-    SetTraceLogCallback(traceLogCallback);
+    item_catalog_init();
+    sound_catalog_init();
 
     Music mus_background;
     mus_background = LoadMusicStream("resources/fluquor_copyright.ogg");
@@ -164,21 +159,6 @@ int main(void)
 
     Music mus_whistle = LoadMusicStream("resources/whistle.ogg");
     mus_whistle.looping = true;
-
-    Sound snd_whoosh        = LoadSound("resources/whoosh1.ogg");
-    Sound snd_squish1       = LoadSound("resources/squish1.ogg");
-    Sound snd_squish2       = LoadSound("resources/squish2.ogg");
-    Sound snd_slime_stab1   = LoadSound("resources/slime_stab1.ogg");
-    Sound snd_squeak        = LoadSound("resources/squeak1.ogg");
-    Sound snd_footstep      = LoadSound("resources/footstep1.ogg");
-    snd_gold                = LoadSound("resources/gold1.ogg");
-    assert(snd_whoosh       .sampleCount);
-    assert(snd_squish1      .sampleCount);
-    assert(snd_squish2      .sampleCount);
-    assert(snd_slime_stab1  .sampleCount);
-    assert(snd_squeak       .sampleCount);
-    assert(snd_footstep     .sampleCount);
-    assert(snd_gold         .sampleCount);
 
     Image checkerboardImage = GenImageChecked(monitorWidth, monitorHeight, 32, 32, LIGHTGRAY, GRAY);
     Texture checkboardTexture = LoadTextureFromImage(checkerboardImage);
@@ -248,11 +228,11 @@ int main(void)
     {
         // TODO: Slime radius should probably be determined base on largest frame, no an arbitrary frame. Or, it could
         // be specified in the config file.
-        int southAnimIdx = slimeSprite->animations[Facing_South];
-        assert(southAnimIdx >= 0);
-        assert(southAnimIdx < slimeSprite->spritesheet->animationCount);
+        int firstAnimIndex = slimeSprite->animations[0];
+        assert(firstAnimIndex >= 0);
+        assert(firstAnimIndex < slimeSprite->spritesheet->animationCount);
 
-        int firstFrameIdx = slimeSprite->spritesheet->animations[southAnimIdx].frames[0];
+        int firstFrameIdx = slimeSprite->spritesheet->animations[firstAnimIndex].frames[0];
         assert(firstFrameIdx >= 0);
         assert(firstFrameIdx < slimeSprite->spritesheet->frameCount);
 
@@ -343,62 +323,7 @@ int main(void)
             if (IsKeyDown(KEY_W)) moveBuffer.y -= 1.0f;
             if (IsKeyDown(KEY_S)) moveBuffer.y += 1.0f;
 
-            Vector2 moveOffset = v2_round(v2_scale(v2_normalize(moveBuffer), playerSpeed));
-            if (!v2_is_zero(moveOffset)) {
-                Vector2 curPos = body_ground_position(&charlie.body);
-                Tile *curTile = tilemap_at_world_try(&tilemap, (int)curPos.x, (int)curPos.y);
-                int curWalkable = tile_is_walkable(curTile);
-
-                Vector2 newPos = v2_add(curPos, moveOffset);
-                Tile *newTile = tilemap_at_world_try(&tilemap, (int)newPos.x, (int)newPos.y);
-
-                // NOTE: This extra logic allows the player to slide when attempting to move diagonally against a wall
-                // NOTE: If current tile isn't walkable, allow player to walk off it. This may not be the best solution
-                // if the player can accidentally end up on unwalkable tiles through gameplay, but currently the only
-                // way to end up on an unwalkable tile is to spawn there.
-                // TODO: We should fix spawning to ensure player spawns on walkable tile (can probably just manually
-                // generate something interesting in the center of the world that overwrites procgen, like Don't
-                // Starve's fancy arrival portal.
-                if (curWalkable) {
-                    if (!tile_is_walkable(newTile)) {
-                        // XY unwalkable, try only X offset
-                        newPos = curPos;
-                        newPos.x += moveOffset.x;
-                        newTile = tilemap_at_world_try(&tilemap, (int)newPos.x, (int)newPos.y);
-                        if (tile_is_walkable(newTile)) {
-                            // X offset is walkable
-                            moveOffset.y = 0.0f;
-                        } else {
-                            // X unwalkable, try only Y offset
-                            newPos = curPos;
-                            newPos.y += moveOffset.y;
-                            newTile = tilemap_at_world_try(&tilemap, (int)newPos.x, (int)newPos.y);
-                            if (tile_is_walkable(newTile)) {
-                                // Y offset is walkable
-                                moveOffset.x = 0.0f;
-                            } else {
-                                // XY, and both slide directions are all unwalkable
-                                moveOffset.x = 0.0f;
-                                moveOffset.y = 0.0f;
-
-                                // TODO: Play wall bonk sound (or splash for water? heh)
-                                // TODO: Maybe bounce the player against the wall? This code doesn't do that nicely..
-                                //player_move(&charlie, v2_scale(v2_negate(moveOffset), 10.0f));
-                            }
-                        }
-                    }
-                }
-
-                if (player_move(&charlie, now, dt, moveOffset)) {
-                    static double lastFootstep = 0;
-                    double timeSinceLastFootstep = now - lastFootstep;
-                    if (timeSinceLastFootstep > 1.0 / (double)playerSpeed) {
-                        SetSoundPitch(snd_footstep, 1.0f + dlb_rand_variance(0.5f));
-                        PlaySound(snd_footstep);
-                        lastFootstep = now;
-                    }
-                }
-            }
+            sim(now, dt, &charlie, &tilemap);
 
             camera.target = body_ground_position(&charlie.body);
         } else {
@@ -467,8 +392,7 @@ int main(void)
                     if (v3_length_sq(playerToSlime) <= playerAttackReach * playerAttackReach) {
                         slimes[slimeIdx].combat.hitPoints = MAX(0.0f, slimes[slimeIdx].combat.hitPoints - charlie.combat.weapon->damage);
                         if (!slimes[slimeIdx].combat.hitPoints) {
-                            SetSoundPitch(snd_squeak, 0.75f + dlb_rand_variance(0.2f));
-                            PlaySound(snd_squeak);
+                            sound_catalog_play(SoundID_Squeak, 0.75f + dlb_rand_variance(0.2f));
 
                             int coins = dlb_rand_int(1, 4) * (int)slimes[slimeIdx].body.scale;
                             coinsCollected += coins;
@@ -483,34 +407,30 @@ int main(void)
                             ParticleEffect *goldParticles = particle_effect_alloc(ParticleEffectType_Gold, (size_t)coins);
                             goldParticles->callbacks[ParticleEffectEvent_Started].function = GoldParticlesStarted;
                             goldParticles->callbacks[ParticleEffectEvent_Started].userData = coinSprite;
-                            goldParticles->callbacks[ParticleEffectEvent_Dying].function = GoldParticlesDying;
                             Vector3 slimeBC = body_center(&slimes[slimeIdx].body);
                             particle_effect_start(goldParticles, now, 2.0, slimeBC);
 
                             slimesKilled++;
                         } else {
-                            Sound *squish = dlb_rand_int(0, 1) ? &snd_squish1 : &snd_squish2;
-                            SetSoundPitch(*squish, 1.0f + dlb_rand_variance(0.2f));
-                            PlaySound(*squish);
+                            SoundID squish = dlb_rand_int(0, 1) ? SoundID_Squish1 : SoundID_Squish2;
+                            sound_catalog_play(squish, 1.0f + dlb_rand_variance(0.2f));
                         }
                         slimesHit++;
                     }
                 }
 
                 if (slimesHit) {
-                    //PlaySound(snd_slime_stab1);
-                    //PlaySound(dlb_rand_int(0, 1) ? snd_squish1 : snd_squish2);
+                    sound_catalog_play(SoundID_Slime_Stab1, 1.0f + dlb_rand_variance(0.1f));
                 } else {
-                    SetSoundPitch(snd_whoosh, 1.0f + dlb_rand_variance(0.1f));
-                    PlaySound(snd_whoosh);
+                    sound_catalog_play(SoundID_Whoosh, 1.0f + dlb_rand_variance(0.1f));
                 }
             }
         }
 
         player_update(&charlie, now, dt);
-        if (charlie.body.facing == Facing_Idle && !IsMusicPlaying(mus_whistle)) {
+        if (charlie.body.idle && !IsMusicPlaying(mus_whistle)) {
             PlayMusicStream(mus_whistle);
-        } else if (charlie.body.facing != Facing_Idle && IsMusicPlaying(mus_whistle)) {
+        } else if (!charlie.body.idle && IsMusicPlaying(mus_whistle)) {
             StopMusicStream(mus_whistle);
         }
 
@@ -518,7 +438,7 @@ int main(void)
             // TODO: Move these to Body3D
             const float slimeMoveSpeed = METERS(2.0f);
             const float slimeAttackReach = METERS(0.5f);
-            const float slimeAttackTrack = METERS(16.0f);
+            const float slimeAttackTrack = METERS(10.0f);
             const float slimeAttackDamage = 1.0f;
             const float slimeRadius = METERS(0.5f);
 
@@ -572,12 +492,9 @@ int main(void)
                         }
                     }
 
-                    if (!willCollide) {
-                        slime_move(&slimes[slimeIdx], now, dt, slimeMove);
-                        if (!IsSoundPlaying(snd_squish1) && !IsSoundPlaying(snd_squish2) && timeSinceLastSquish > 1.0) {
-                            //PlaySound(dlb_rand_int(0, 1) ? snd_squish1 : snd_squish2);
-                            lastSquish = GetTime();
-                        }
+                    if (!willCollide && slime_move(&slimes[slimeIdx], now, dt, slimeMove)) {
+                        SoundID squish = dlb_rand_int(0, 1) ? SoundID_Squish1 : SoundID_Squish2;
+                        sound_catalog_play(squish, 1.0f + dlb_rand_variance(0.2f));
                     }
                 }
 
@@ -937,13 +854,7 @@ int main(void)
     UnloadSpritesheet(slimeSpritesheet);
     UnloadSpritesheet(charlieSpritesheet);
     UnloadTexture(checkboardTexture);
-    UnloadSound(snd_gold);
-    UnloadSound(snd_footstep);
-    UnloadSound(snd_squeak);
-    UnloadSound(snd_slime_stab1);
-    UnloadSound(snd_squish2);
-    UnloadSound(snd_squish1);
-    UnloadSound(snd_whoosh);
+    sound_catalog_free();
     UnloadMusicStream(mus_whistle);
     UnloadMusicStream(mus_background);
     CloseAudioDevice();

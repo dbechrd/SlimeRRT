@@ -1,12 +1,27 @@
 #pragma once
 #include "body.h"
 #include "combat.h"
+#include "player_inventory.h"
+#include "spritesheet.h"
 #include <stdbool.h>
 
-typedef enum PlayerAction {
-    PlayerAction_None   = 0,
-    PlayerAction_Attack = 1,
-} PlayerAction;
+typedef enum PlayerMoveState {
+    PlayerMoveState_Idle      = 0,
+    PlayerMoveState_Walking   = 1,
+    PlayerMoveState_Running   = 2,
+} PlayerMoveState;
+
+typedef enum PlayerActionState {
+    PlayerActionState_None      = 0,
+    PlayerActionState_Attacking = 1,
+} PlayerActionState;
+
+typedef struct PlayerInput {
+    PlayerInventorySlot selectedSlot;
+    PlayerMoveState moveState;
+    Direction direction;
+    PlayerActionState actionState;
+} PlayerInput;
 
 typedef enum PlayerAttachPoint {
     PlayerAttachPoint_Gut
@@ -16,7 +31,8 @@ typedef struct Player {
     const char *name;
     Body3D body;
     Combat combat;
-    PlayerAction action;
+    PlayerMoveState moveState;
+    PlayerActionState actionState;
 } Player;
 
 void player_init                (Player *player, const char *name, struct Sprite *sprite);

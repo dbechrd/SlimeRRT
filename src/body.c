@@ -6,6 +6,7 @@
 #include <math.h>
 
 #define VELOCITY_EPSILON 0.001f
+#define IDLE_THRESHOLD_SECONDS 6.0
 
 SpriteAnim *body_anim(const Body3D *body)
 {
@@ -15,7 +16,7 @@ SpriteAnim *body_anim(const Body3D *body)
     assert(body->sprite->animations);
 
     const Spritesheet *sheet = body->sprite->spritesheet;
-    const int animationIdx = body->sprite->animations[body->facing];
+    const int animationIdx = body->sprite->animations[body->direction];
     SpriteAnim *anim = &sheet->animations[animationIdx];
     return anim;
 }
@@ -151,6 +152,9 @@ void body_update(Body3D *body, double now, double dt)
         body->lastMoved = now;
     }
     body->landed = (prevPosition.z > 0.0f && body->position.z == 0.0f);
+
+    const double timeSinceLastMove = now - body->lastMoved;
+    body->idle = timeSinceLastMove > IDLE_THRESHOLD_SECONDS;
 }
 
 void body_draw(const Body3D *body)
@@ -169,9 +173,14 @@ void body_draw(const Body3D *body)
     DrawRectangleRec(dest, Fade(RED, 0.2f));
 #endif
 
-    // Draw textured sprite
-    DrawTextureTiled(body->sprite->spritesheet->texture, rect, dest, (Vector2){ 0.0f, 0.0f }, 0.0f, body->scale,
-        body->color);
+    if (body->sprite) {
+        // Draw textured sprite
+        DrawTextureTiled(body->sprite->spritesheet->texture, rect, dest, (Vector2){ 0.0f, 0.0f }, 0.0f, body->scale,
+            body->color);
+    } else {
+        // Draw magenta rectangle
+        DrawRectangleRec(dest, MAGENTA);
+    }
 
 #if DEMO_BODY_RECT
     // DEBUG: Draw bottom bottomCenter

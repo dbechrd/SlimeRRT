@@ -23,7 +23,6 @@ animation slime_attack_south 6  # slime_attack_south
 animation slime_attack_west  7  # slime_attack_west
 
 sprite slime
-    -  # no idle
     0  # slime_north
     1  # slime_east
     2  # slime_south
@@ -34,7 +33,6 @@ sprite slime
     -  # no NW
 
 sprite slime_attack
-    -  # no idle
     4  # slime_attack_north
     5  # slime_attack_east
     6  # slime_attack_south

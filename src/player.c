@@ -12,7 +12,7 @@ void player_init(Player *player, const char *name, struct Sprite *sprite)
     player->name = name;
     player->body.scale = 1.0f;
     player->body.lastUpdated = GetTime();
-    player->body.facing = Facing_South;
+    player->body.direction = Direction_South;
     player->body.color = WHITE;
     player->body.sprite = sprite;
     player->combat.maxHitPoints = 100.0f;
@@ -38,31 +38,31 @@ static void update_direction(Player *player, Vector2 offset)
 {
     // NOTE: Branching could be removed by putting the sprites in a more logical order.. doesn't matter if this
     // only applies to players since there would be so few.
-    Facing prevFacing = player->body.facing;
+    Direction prevDirection = player->body.direction;
     if (offset.x > 0.0f) {
         if (offset.y > 0.0f) {
-            player->body.facing = Facing_SouthEast;
+            player->body.direction = Direction_SouthEast;
         } else if (offset.y < 0.0f) {
-            player->body.facing = Facing_NorthEast;
+            player->body.direction = Direction_NorthEast;
         } else {
-            player->body.facing = Facing_East;
+            player->body.direction = Direction_East;
         }
     } else if (offset.x < 0.0f) {
         if (offset.y > 0.0f) {
-            player->body.facing = Facing_SouthWest;
+            player->body.direction = Direction_SouthWest;
         } else if (offset.y < 0.0f) {
-            player->body.facing = Facing_NorthWest;
+            player->body.direction = Direction_NorthWest;
         } else {
-            player->body.facing = Facing_West;
+            player->body.direction = Direction_West;
         }
     } else {
         if (offset.y > 0.0f) {
-            player->body.facing = Facing_South;
+            player->body.direction = Direction_South;
         } else if (offset.y < 0.0f) {
-            player->body.facing = Facing_North;
+            player->body.direction = Direction_North;
         }
     }
-    if (player->body.facing != prevFacing) {
+    if (player->body.direction != prevDirection) {
         player->body.animFrameIdx = 0;
     }
 }
@@ -84,8 +84,8 @@ bool player_move(Player *player, double now, double dt, Vector2 offset)
 
 bool player_attack(Player *player, double now, double dt)
 {
-    if (player->combat.weapon && player->action == PlayerAction_None) {
-        player->action = PlayerAction_Attack;
+    if (player->combat.weapon && player->actionState == PlayerActionState_None) {
+        player->actionState = PlayerActionState_Attacking;
         player->body.lastUpdated = now;
         player->combat.attackStartedAt = now;
         player->combat.attackDuration = 0.1;
@@ -96,36 +96,37 @@ bool player_attack(Player *player, double now, double dt)
 
 void player_update(Player *player, double now, double dt)
 {
-    const double timeSinceLastMove = now - player->body.lastUpdated;
-    if (timeSinceLastMove > 6.0) {
-        // TODO: Find a better way to handle idling than overwriting the facing direction
-        //player->body.facing = Facing_Idle;
-    }
-
     const double timeSinceAttackStarted = now - player->combat.attackStartedAt;
     if (timeSinceAttackStarted > player->combat.attackDuration) {
-        player->action = PlayerAction_None;
+        player->actionState = PlayerActionState_None;
         player->combat.attackStartedAt = 0;
         player->combat.attackDuration = 0;
     }
 
     // TODO: Make this suck less
     Spritesheet *sheet = player->body.sprite->spritesheet;
-    assert(sheet->spriteCount == 3);
+    assert(sheet->spriteCount == 5);
     if (player->combat.weapon->damage == 1.0f) {
-        // TODO: If not found, set sprite to null and draw a red rectangle
-        // sprite_by_name("player_melee");
-        player->body.sprite = &sheet->sprites[0];
+        switch (player->body.idle) {
+            // TODO: sprite_by_name("player_melee");
+            case false: player->body.sprite = &sheet->sprites[0]; break;
+            // TODO: sprite_by_name("player_melee_idle");
+            case true:  player->body.sprite = &sheet->sprites[1]; break;
+        }
     } else {
-        switch (player->action) {
-            case PlayerAction_None: {
-                // sprite_by_name("player_sword");
-                player->body.sprite = &sheet->sprites[1];
+        switch (player->actionState) {
+            case PlayerActionState_None: {
+                switch (player->body.idle) {
+                    // TODO: sprite_by_name("player_sword");
+                    case false: player->body.sprite = &sheet->sprites[2]; break;
+                    // TODO: sprite_by_name("player_sword_idle");
+                    case true:  player->body.sprite = &sheet->sprites[3]; break;
+                }
                 break;
             }
-            case PlayerAction_Attack: {
+            case PlayerActionState_Attacking: {
                 // sprite_by_name("player_sword_attack");
-                player->body.sprite = &sheet->sprites[2];
+                player->body.sprite = &sheet->sprites[4];
                 break;
             }
         }

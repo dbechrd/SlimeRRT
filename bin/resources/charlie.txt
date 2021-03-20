@@ -1,4 +1,4 @@
-spritesheet 26 26 3 resources/charlie.png
+spritesheet 26 26 5 resources/charlie.png
 
 # row 1 (empty hand)
 frame player_melee_idle        0 0 54 94
@@ -67,18 +67,26 @@ animation player_sword_attack_southwest 24
 animation player_sword_attack_northwest 25
 
 sprite player_melee
-    0 # player_melee_idle
-    1 # player_melee_north
-    2 # player_melee_east
-    3 # player_melee_south
-    4 # player_melee_west
-    5 # player_melee_northeast
-    6 # player_melee_southeast
-    7 # player_melee_southwest
-    8 # player_melee_northwest
+    1  # player_melee_north
+    2  # player_melee_east
+    3  # player_melee_south
+    4  # player_melee_west
+    5  # player_melee_northeast
+    6  # player_melee_southeast
+    7  # player_melee_southwest
+    8  # player_melee_northwest
+
+sprite player_melee_idle
+    0  # player_melee_idle
+    0  # player_melee_idle
+    0  # player_melee_idle
+    0  # player_melee_idle
+    0  # player_melee_idle
+    0  # player_melee_idle
+    0  # player_melee_idle
+    0  # player_melee_idle
 
 sprite player_sword
-    9   # player_sword_idle
     10  # player_sword_north
     11  # player_sword_east
     12  # player_sword_south
@@ -88,8 +96,17 @@ sprite player_sword
     16  # player_sword_southwest
     17  # player_sword_northwest
 
+sprite player_sword_idle
+    9   # player_sword_idle
+    9   # player_sword_idle
+    9   # player_sword_idle
+    9   # player_sword_idle
+    9   # player_sword_idle
+    9   # player_sword_idle
+    9   # player_sword_idle
+    9   # player_sword_idle
+
 sprite player_sword_attack
-     -   # no idle
     18   # player_sword_attack_north
     19   # player_sword_attack_east
     20   # player_sword_attack_south

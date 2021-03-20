@@ -20,7 +20,7 @@ void slime_init(Slime *slime, const char *name, struct Sprite *sprite)
     slime->body.drag = 0.95f;
     slime->body.friction = 0.95f;
     slime->body.lastUpdated = GetTime();
-    slime->body.facing = Facing_South;
+    slime->body.direction = Direction_South;
     slime->body.color = WHITE;
     slime->body.color.a = (unsigned char)(255.0f * 0.7f);
     slime->body.sprite = sprite;
@@ -30,39 +30,41 @@ void slime_init(Slime *slime, const char *name, struct Sprite *sprite)
 
 static void update_direction(Slime *slime, Vector2 offset)
 {
-    Facing prevFacing = slime->body.facing;
+    Direction prevDirection = slime->body.direction;
     if (offset.x > 0.0f) {
         if (offset.y > 0.0f) {
-            slime->body.facing = fabs(offset.x) > fabs(offset.y) ? Facing_East : Facing_South;
+            slime->body.direction = fabs(offset.x) > fabs(offset.y) ? Direction_East : Direction_South;
         } else if (offset.y < 0.0f) {
-            slime->body.facing = fabs(offset.x) > fabs(offset.y) ? Facing_East : Facing_North;
+            slime->body.direction = fabs(offset.x) > fabs(offset.y) ? Direction_East : Direction_North;
         } else {
-            slime->body.facing = Facing_East;
+            slime->body.direction = Direction_East;
         }
     } else if (offset.x < 0.0f) {
         if (offset.y > 0.0f) {
-            slime->body.facing = fabs(offset.x) > fabs(offset.y) ? Facing_West : Facing_South;
+            slime->body.direction = fabs(offset.x) > fabs(offset.y) ? Direction_West : Direction_South;
         } else if (offset.y < 0.0f) {
-            slime->body.facing = fabs(offset.x) > fabs(offset.y) ? Facing_West : Facing_North;
+            slime->body.direction = fabs(offset.x) > fabs(offset.y) ? Direction_West : Direction_North;
         } else {
-            slime->body.facing = Facing_West;
+            slime->body.direction = Direction_West;
         }
     } else {
         if (offset.y > 0.0f) {
-            slime->body.facing = Facing_South;
+            slime->body.direction = Direction_South;
         } else if (offset.y < 0.0f) {
-            slime->body.facing = Facing_North;
+            slime->body.direction = Direction_North;
         }
     }
-    if (slime->body.facing != prevFacing) {
+    if (slime->body.direction != prevDirection) {
         slime->body.animFrameIdx = 0;
     }
 }
 
-void slime_move(Slime *slime, double now, double dt, Vector2 offset)
+bool slime_move(Slime *slime, double now, double dt, Vector2 offset)
 {
     assert(slime);
-    if (v2_is_zero(offset)) return;
+    if (v2_is_zero(offset)) {
+        return false;
+    }
 
     // On ground and hasn't moved for a bit
     const double timeSinceLastMoved = now - slime->body.lastMoved;
@@ -72,7 +74,9 @@ void slime_move(Slime *slime, double now, double dt, Vector2 offset)
         slime->body.velocity.z += METERS(3.0f);
         slime->randJumpIdle = (double)dlb_rand_float(1.0f, 2.5f);
         update_direction(slime, offset);
+        return true;
     }
+    return false;
 }
 
 bool slime_combine(Slime *slimeA, Slime *slimeB)

@@ -18,7 +18,7 @@ typedef struct Slime {
 } Slime;
 
 void slime_init    (Slime *slime, const char *name, struct Sprite *sprite);
-void slime_move    (Slime *slime, double now, double dt, Vector2 offset);
+bool slime_move    (Slime *slime, double now, double dt, Vector2 offset);
 bool slime_combine (Slime *slimeA, Slime *slimeB);
 bool slime_attack  (Slime *slime, double now, double dt);
 void slime_update  (Slime *slime, double now, double dt);
