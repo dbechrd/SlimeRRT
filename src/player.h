@@ -16,27 +16,28 @@ typedef enum PlayerActionState {
     PlayerActionState_Attacking = 1,
 } PlayerActionState;
 
-typedef struct PlayerInput {
-    PlayerInventorySlot selectedSlot;
-    PlayerMoveState moveState;
-    Direction direction;
-    PlayerActionState actionState;
-} PlayerInput;
-
 typedef enum PlayerAttachPoint {
     PlayerAttachPoint_Gut
 } PlayerAttachPoint;
 
+typedef struct PlayerStats {
+    unsigned int slimesKilled;
+    unsigned int coinsCollected;
+} PlayerStats;
+
 typedef struct Player {
     const char *name;
+    PlayerActionState actionState;
+    PlayerMoveState moveState;
     Body3D body;
     Combat combat;
-    PlayerMoveState moveState;
-    PlayerActionState actionState;
+    PlayerInventory inventory;
+    PlayerStats stats;
 } Player;
 
-void player_init                (Player *player, const char *name, struct Sprite *sprite);
+void player_init                (Player *player, const char *name, const struct Sprite *sprite);
 Vector3 player_get_attach_point (const Player *player, PlayerAttachPoint attachPoint);
+const Item *player_selected_item(const Player *player);
 bool player_move                (Player *player, double now, double dt, Vector2 offset);
 bool player_attack              (Player *player, double now, double dt);
 void player_update              (Player *player, double now, double dt);

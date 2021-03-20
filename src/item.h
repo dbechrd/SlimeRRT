@@ -10,12 +10,11 @@ typedef enum ItemType {
 typedef enum ItemID {
     ItemID_Empty,
     ItemID_Currency_Coin,
-    ItemID_Weapon_Melee_Player,
-    ItemID_Weapon_Melee_Slime,
     ItemID_Weapon_Sword,
     ItemID_Count
 } ItemID;
 
+// TODO: Min damage, max damage, effects, etc.
 typedef struct Item_Weapon {
     float damage;
 } Item_Weapon;
@@ -33,6 +32,3 @@ typedef struct ItemStack {
     ItemID id;
     unsigned int stackCount;
 } ItemStack;
-
-void item_catalog_init();
-const Item *item_by_id(ItemID id);

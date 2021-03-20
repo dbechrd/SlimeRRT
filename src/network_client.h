@@ -15,12 +15,6 @@ typedef struct {
 // sword, attacking SE : 01 11 101
 //---------------------------------------------
 typedef struct {
-    // 00 - PlayerInventorySlot_1
-    // 01 - PlayerInventorySlot_2
-    // 10 - PlayerInventorySlot_3
-    // 11 - <unused>
-    unsigned int selectedSlot : 2;
-
     // 0       - idle       (no bits will follow)
     // 1       - moving     (running bit will follow)
     // 1 0     - walking    (direction bits will follow)
@@ -36,6 +30,16 @@ typedef struct {
     unsigned int moving : 1;
     unsigned int running : 1;
     unsigned int direction : 3;
+
+    // 0 - none             (no bits will follow)
+    // 1 - attacking
+    unsigned int attacking : 1;
+
+    // 00 - PlayerInventorySlot_1
+    // 01 - PlayerInventorySlot_2
+    // 10 - PlayerInventorySlot_3
+    // 11 - <unused>
+    unsigned int selectSlot : 2;
 } Net_PlayerInput;
 
 int network_client_send(network_client *client, const char *data, size_t len);

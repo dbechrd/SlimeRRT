@@ -8,7 +8,7 @@
 
 #define SLIME_MAX_SCALE 3.0f
 
-void slime_init(Slime *slime, const char *name, struct Sprite *sprite)
+void slime_init(Slime *slime, const char *name, const Sprite *sprite)
 {
     assert(slime);
     //assert(name);

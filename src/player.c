@@ -1,15 +1,18 @@
 #include "player.h"
-#include "spritesheet.h"
+#include "item_catalog.h"
 #include "maths.h"
+#include "spritesheet.h"
 #include <assert.h>
 
-void player_init(Player *player, const char *name, struct Sprite *sprite)
+void player_init(Player *player, const char *name, const struct Sprite *sprite)
 {
     assert(player);
     assert(name);
     assert(sprite);
 
     player->name = name;
+    player->actionState = PlayerActionState_None;
+    player->moveState = PlayerMoveState_Idle;
     player->body.scale = 1.0f;
     player->body.lastUpdated = GetTime();
     player->body.direction = Direction_South;
@@ -17,6 +20,18 @@ void player_init(Player *player, const char *name, struct Sprite *sprite)
     player->body.sprite = sprite;
     player->combat.maxHitPoints = 100.0f;
     player->combat.hitPoints = player->combat.maxHitPoints;
+    player->combat.meleeDamage = 1.0f;
+
+    // TODO: Load selected slot from save file / server
+    player->inventory.selectedSlot = PlayerInventorySlot_1;
+
+    // TODO: Load inventory from save file / server
+    player->inventory.slots[PlayerInventorySlot_1    ] = (ItemStack){ ItemID_Weapon_Sword       ,  1 };
+    player->inventory.slots[PlayerInventorySlot_Coins] = (ItemStack){ ItemID_Currency_Coin      , 20 };
+
+    // TODO: Load stats from save file / server
+    player->stats.coinsCollected = 33;
+    player->stats.slimesKilled = 44;
 }
 
 Vector3 player_get_attach_point(const Player *player, PlayerAttachPoint attachPoint)
@@ -32,6 +47,13 @@ Vector3 player_get_attach_point(const Player *player, PlayerAttachPoint attachPo
         }
     }
     return attach;
+}
+
+const Item *player_selected_item(const Player *player)
+{
+    const ItemStack *selectedStack = &player->inventory.slots[player->inventory.selectedSlot];
+    const Item *selectedItem = item_catalog_find(selectedStack->id);
+    return selectedItem;
 }
 
 static void update_direction(Player *player, Vector2 offset)
@@ -84,7 +106,7 @@ bool player_move(Player *player, double now, double dt, Vector2 offset)
 
 bool player_attack(Player *player, double now, double dt)
 {
-    if (player->combat.weapon && player->actionState == PlayerActionState_None) {
+    if (player->actionState == PlayerActionState_None) {
         player->actionState = PlayerActionState_Attacking;
         player->body.lastUpdated = now;
         player->combat.attackStartedAt = now;
@@ -103,23 +125,18 @@ void player_update(Player *player, double now, double dt)
         player->combat.attackDuration = 0;
     }
 
-    // TODO: Make this suck less
+    // TODO: Less hard-coded way to look up player sprite based on selected item id
     Spritesheet *sheet = player->body.sprite->spritesheet;
     assert(sheet->spriteCount == 5);
-    if (player->combat.weapon->damage == 1.0f) {
-        switch (player->body.idle) {
-            // TODO: sprite_by_name("player_melee");
-            case false: player->body.sprite = &sheet->sprites[0]; break;
-            // TODO: sprite_by_name("player_melee_idle");
-            case true:  player->body.sprite = &sheet->sprites[1]; break;
-        }
-    } else {
+
+    const Item *selectedItem = player_selected_item(player);
+    if (selectedItem->id == ItemID_Weapon_Sword) {
         switch (player->actionState) {
             case PlayerActionState_None: {
                 switch (player->body.idle) {
                     // TODO: sprite_by_name("player_sword");
                     case false: player->body.sprite = &sheet->sprites[2]; break;
-                    // TODO: sprite_by_name("player_sword_idle");
+                        // TODO: sprite_by_name("player_sword_idle");
                     case true:  player->body.sprite = &sheet->sprites[3]; break;
                 }
                 break;
@@ -129,6 +146,13 @@ void player_update(Player *player, double now, double dt)
                 player->body.sprite = &sheet->sprites[4];
                 break;
             }
+        }
+    } else {
+        switch (player->body.idle) {
+            // TODO: sprite_by_name("player_melee");
+            case false: player->body.sprite = &sheet->sprites[0]; break;
+                // TODO: sprite_by_name("player_melee_idle");
+            case true:  player->body.sprite = &sheet->sprites[1]; break;
         }
     }
 

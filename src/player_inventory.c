@@ -1,3 +1,3 @@
 #include "player_inventory.h"
 
-void unused(){}
+void player_inventory_unused(){}

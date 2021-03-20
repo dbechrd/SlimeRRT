@@ -631,14 +631,12 @@ static bool ParseSpritesheet(Scanner *scanner, Spritesheet *spritesheet)
     return true;
 }
 
-Spritesheet *LoadSpritesheet(const char *fileName)
+void spritesheet_init(Spritesheet *spritesheet, const char *fileName)
 {
-    Spritesheet *spritesheet = calloc(1, sizeof(*spritesheet));
-
     unsigned int dataLength = 0;
     unsigned char *data = LoadFileData(fileName, &dataLength);
     if (!data) {
-        return 0;
+        return;
     }
     spritesheet->buf = data;
     spritesheet->bufLength = dataLength;
@@ -648,13 +646,23 @@ Spritesheet *LoadSpritesheet(const char *fileName)
     scanner.text = spritesheet->buf;
     scanner.length = spritesheet->bufLength;
     if (!ParseSpritesheet(&scanner, spritesheet)) {
-        UnloadSpritesheet(spritesheet);
+        spritesheet_free(spritesheet);
     }
-
-    return spritesheet;
 }
 
-void UnloadSpritesheet(Spritesheet *spritesheet)
+const Sprite *spritesheet_find_sprite(const Spritesheet *spritesheet, const char *name)
+{
+    // TODO: Hash table if the # of sprites per sheet grows to > 16.. or make SpriteID / sprite catalog?
+    for (int i = 0; i < spritesheet->spriteCount; i++) {
+        const Sprite *sprite = &spritesheet->sprites[i];
+        if (!strncmp(sprite->name.text, name, sprite->name.length)) {
+            return sprite;
+        }
+    }
+    return 0;
+}
+
+void spritesheet_free(Spritesheet *spritesheet)
 {
     free(spritesheet->frames);
     free(spritesheet->animations);

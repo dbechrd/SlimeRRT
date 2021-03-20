@@ -1,14 +1,9 @@
 #pragma once
 
-// TODO: Min damage, max damage, effects, etc.
-typedef struct Weapon {
-    float damage;
-} Weapon;
-
 typedef struct Combat {
-    double attackStartedAt;
-    double attackDuration;
     float maxHitPoints;
     float hitPoints;
-    Weapon *weapon;
+    float meleeDamage;  // TODO: add min/max and randomly choose?
+    double attackStartedAt;
+    double attackDuration;
 } Combat;

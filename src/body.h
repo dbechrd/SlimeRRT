@@ -18,7 +18,7 @@ typedef struct Body3D {
     bool idle;
     Direction direction;
     Color color;
-    struct Sprite *sprite;
+    const struct Sprite *sprite;
     size_t animFrameIdx;
 } Body3D;
 

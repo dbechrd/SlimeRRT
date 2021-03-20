@@ -13,8 +13,9 @@
   <ItemGroup>
     <ClCompile Include="src\combat.c" />
     <ClCompile Include="src\helpers.c" />
-    <ClCompile Include="src\input.c" />
+    <ClCompile Include="src\controller.c" />
     <ClCompile Include="src\item.c" />
+    <ClCompile Include="src\item_catalog.c" />
     <ClCompile Include="src\main.c" />
     <ClCompile Include="src\network_client.c" />
     <ClCompile Include="src\network_server.c" />
@@ -25,6 +26,7 @@
     <ClCompile Include="src\slime.c" />
     <ClCompile Include="src\sound_catalog.c" />
     <ClCompile Include="src\spritesheet.c" />
+    <ClCompile Include="src\spritesheet_catalog.c" />
     <ClCompile Include="src\tilemap.c" />
     <ClCompile Include="src\tileset.c" />
     <ClCompile Include="src\body.c" />
@@ -33,8 +35,9 @@
   <ItemGroup>
     <ClInclude Include="src\combat.h" />
     <ClInclude Include="src\helpers.h" />
-    <ClInclude Include="src\input.h" />
+    <ClInclude Include="src\controller.h" />
     <ClInclude Include="src\item.h" />
+    <ClInclude Include="src\item_catalog.h" />
     <ClInclude Include="src\network_client.h" />
     <ClInclude Include="src\network_server.h" />
     <ClInclude Include="src\particles.h" />
@@ -44,6 +47,7 @@
     <ClInclude Include="src\slime.h" />
     <ClInclude Include="src\sound_catalog.h" />
     <ClInclude Include="src\spritesheet.h" />
+    <ClInclude Include="src\spritesheet_catalog.h" />
     <ClInclude Include="src\tilemap.h" />
     <ClInclude Include="src\tileset.h" />
     <ClInclude Include="src\body.h" />

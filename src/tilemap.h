@@ -29,8 +29,6 @@ typedef struct Tile {
     Vector2 position;
 } Tile;
 
-bool tile_is_walkable(Tile *tile);   // Return true if player can walk on the tile (false if tile is null)
-
 typedef struct Tilemap {
     size_t widthTiles;   // width of map in tiles
     size_t heightTiles;  // height of map in tiles
@@ -39,6 +37,8 @@ typedef struct Tilemap {
     Tileset *tileset;    // tileset to use for rendering
     RRT rrt;             // "Rapidly-exploring Random Tree" data struture (used for procedural generation)
 } Tilemap;
+
+bool tile_is_walkable       (const Tile *tile);   // Return true if player can walk on the tile (false if tile is null)
 
 void tilemap_generate       (Tilemap *map);
 void tilemap_generate_ex    (Tilemap *map, size_t width, size_t height, Tileset *tileset);

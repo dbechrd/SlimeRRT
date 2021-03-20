@@ -37,5 +37,6 @@ typedef struct Spritesheet {
     unsigned char *buf;      // file buffer (needs to be freed with UnloadFileData())
 } Spritesheet;
 
-Spritesheet *LoadSpritesheet (const char *fileName);
-void UnloadSpritesheet       (Spritesheet *spritesheet);
+void           spritesheet_init        (Spritesheet *spritesheet, const char *fileName);
+const Sprite * spritesheet_find_sprite (const Spritesheet *spritesheet, const char *name);
+void           spritesheet_free        (Spritesheet *spritesheet);

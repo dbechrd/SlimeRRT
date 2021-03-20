@@ -9,7 +9,7 @@
 static void rrt_build(Tilemap *map, Vector2 qinit, size_t numVertices, float maxGrowthDist);
 static size_t rrt_nearest_idx(Tilemap *map, Vector2 p);
 
-bool tile_is_walkable(Tile *tile)
+bool tile_is_walkable(const Tile *tile)
 {
     return tile && tile->tileType != Tile_Water;
 }

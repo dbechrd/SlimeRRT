@@ -1,16 +1,16 @@
-﻿#include "helpers.h"
-#include "item.h"
+﻿#include "controller.h"
+#include "helpers.h"
+#include "item_catalog.h"
 #include "maths.h"
 #include "network_server.h"
 #include "particles.h"
 #include "player.h"
 #include "slime.h"
-#include "spritesheet.h"
 #include "sound_catalog.h"
+#include "spritesheet_catalog.h"
 #include "tileset.h"
 #include "tilemap.h"
 #include "sim.h"
-
 #include "dlb_rand.h"
 #include "raylib.h"
 #include <assert.h>
@@ -73,15 +73,6 @@ void DrawHealthBar(Font font, int fontSize, int x, int y, float hitPoints, float
     DrawRectangle(bg_x, bg_y, (int)(bg_w * hpPercent), bg_h, RED);
     DrawRectangleLines(bg_x, bg_y, bg_w, bg_h, BLACK);
     DrawTextFont(font, hpText, hp_x, hp_y, hp_h, WHITE);
-}
-
-void GoldParticlesStarted(ParticleEffect *effect, void *userData)
-{
-    Sprite *coinSprite = (Sprite *)userData;
-    for (size_t i = 0; i < effect->particleCount; i++) {
-        effect->particles[i].body.sprite = coinSprite;
-    }
-    sound_catalog_play(SoundID_Gold, 1.0f + dlb_rand_variance(0.1f));
 }
 
 void BloodParticlesFollowPlayer(ParticleEffect *effect, void *userData)
@@ -147,8 +138,9 @@ int main(void)
     // NOTE: Minimum of 0.001 seems reasonable (0.0001 is still audible on max volume)
     //SetMasterVolume(0.01f);
 
-    item_catalog_init();
     sound_catalog_init();
+    spritesheet_catalog_init();
+    item_catalog_init();
 
     Music mus_background;
     mus_background = LoadMusicStream("resources/fluquor_copyright.ogg");
@@ -192,24 +184,14 @@ int main(void)
     int cameraReset = 0;
     int cameraFollowPlayer = 1;
 
-    Spritesheet *charlieSpritesheet = LoadSpritesheet("resources/charlie.txt");
-    assert(charlieSpritesheet->sprites);
-    // TODO: These shouldn't hard-coded.. find_by_name maybe?
-    Sprite *charlieSprite = &charlieSpritesheet->sprites[0];
+    const Spritesheet *charlieSpritesheet = spritesheet_catalog_find(SpritesheetID_Charlie);
+    const Sprite *charlieSprite = spritesheet_find_sprite(charlieSpritesheet, "player_sword");
 
-    Spritesheet *slimeSpritesheet = LoadSpritesheet("resources/slime.txt");
-    assert(slimeSpritesheet->sprites);
-    Sprite *slimeSprite = &slimeSpritesheet->sprites[0];
+    const Spritesheet *slimeSpritesheet = spritesheet_catalog_find(SpritesheetID_Slime);
+    const Sprite *slimeSprite = spritesheet_find_sprite(slimeSpritesheet, "slime");
 
-    Spritesheet *coinSpritesheet = LoadSpritesheet("resources/coin_gold.txt");
-    assert(coinSpritesheet->sprites);
-    Sprite *coinSprite = &coinSpritesheet->sprites[0];
-
-    Weapon weaponFist = { 0 };
-    weaponFist.damage = 1.0f;
-
-    Weapon weaponSword = { 0 };
-    weaponSword.damage = 5.0f;
+    const Spritesheet *coinSpritesheet = spritesheet_catalog_find(SpritesheetID_Coin);
+    const Sprite *coinSprite = spritesheet_find_sprite(coinSpritesheet, "coin");
 
     Player charlie = { 0 };
     player_init(&charlie, "Charlie", charlieSprite);
@@ -218,8 +200,6 @@ int main(void)
         (float)tilemap.heightTiles / 2.0f * tilemap.tileset->tileHeight,
         0.0f
     };
-    charlie.combat.weapon = &weaponSword;
-
 
 #define SLIMES_COUNT 100
     Slime slimes[SLIMES_COUNT] = { 0 };
@@ -228,6 +208,7 @@ int main(void)
     {
         // TODO: Slime radius should probably be determined base on largest frame, no an arbitrary frame. Or, it could
         // be specified in the config file.
+        assert(slimeSprite);
         int firstAnimIndex = slimeSprite->animations[0];
         assert(firstAnimIndex >= 0);
         assert(firstAnimIndex < slimeSprite->spritesheet->animationCount);
@@ -250,9 +231,6 @@ int main(void)
             slimesByDepth[i] = i;
         }
     }
-
-    int slimesKilled = 0;
-    int coinsCollected = 0;
 
     double frameStart = GetTime();
     double dt = 0;
@@ -313,17 +291,8 @@ int main(void)
         }
 
         if (cameraFollowPlayer) {
-            float playerSpeed = 4.0f;
-            Vector2 moveBuffer = { 0 };
-            if (IsKeyDown(KEY_LEFT_SHIFT)) {
-                playerSpeed += 2.0f;
-            }
-            if (IsKeyDown(KEY_A)) moveBuffer.x -= 1.0f;
-            if (IsKeyDown(KEY_D)) moveBuffer.x += 1.0f;
-            if (IsKeyDown(KEY_W)) moveBuffer.y -= 1.0f;
-            if (IsKeyDown(KEY_S)) moveBuffer.y += 1.0f;
-
-            sim(now, dt, &charlie, &tilemap);
+            PlayerControllerState input = QueryPlayerController();
+            sim(now, dt, input, &charlie, &tilemap, slimes, SLIMES_COUNT);
 
             camera.target = body_ground_position(&charlie.body);
         } else {
@@ -373,59 +342,6 @@ int main(void)
         camera.zoom = CLAMP(roundedZoom, minZoom, maxZoom);
         const float invZoom = 1.0f / camera.zoom;
 #endif
-        if (IsKeyPressed(KEY_ONE)) {
-            charlie.combat.weapon = &weaponFist;
-        } else if (IsKeyPressed(KEY_TWO)) {
-            charlie.combat.weapon = &weaponSword;
-        }
-
-        if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
-            const float playerAttackReach = METERS(1.0f);
-
-            if (player_attack(&charlie, now, dt)) {
-                size_t slimesHit = 0;
-                for (size_t slimeIdx = 0; slimeIdx < SLIMES_COUNT; slimeIdx++) {
-                    if (!slimes[slimeIdx].combat.hitPoints)
-                        continue;
-
-                    Vector3 playerToSlime = v3_sub(slimes[slimeIdx].body.position, charlie.body.position);
-                    if (v3_length_sq(playerToSlime) <= playerAttackReach * playerAttackReach) {
-                        slimes[slimeIdx].combat.hitPoints = MAX(0.0f, slimes[slimeIdx].combat.hitPoints - charlie.combat.weapon->damage);
-                        if (!slimes[slimeIdx].combat.hitPoints) {
-                            sound_catalog_play(SoundID_Squeak, 0.75f + dlb_rand_variance(0.2f));
-
-                            int coins = dlb_rand_int(1, 4) * (int)slimes[slimeIdx].body.scale;
-                            coinsCollected += coins;
-
-                            ParticleEffect *gooParticles = particle_effect_alloc(ParticleEffectType_Goo, 20);
-                            //gooParticles->callbacks[ParticleEffectEvent_Started].function = GooParticlesStarted;
-                            //gooParticles->callbacks[ParticleEffectEvent_Started].userData = gooSprite;
-                            //gooParticles->callbacks[ParticleEffectEvent_Dying].function = GooParticlesDying;
-                            Vector3 deadCenter = body_center(&slimes[slimeIdx].body);
-                            particle_effect_start(gooParticles, now, 2.0, deadCenter);
-
-                            ParticleEffect *goldParticles = particle_effect_alloc(ParticleEffectType_Gold, (size_t)coins);
-                            goldParticles->callbacks[ParticleEffectEvent_Started].function = GoldParticlesStarted;
-                            goldParticles->callbacks[ParticleEffectEvent_Started].userData = coinSprite;
-                            Vector3 slimeBC = body_center(&slimes[slimeIdx].body);
-                            particle_effect_start(goldParticles, now, 2.0, slimeBC);
-
-                            slimesKilled++;
-                        } else {
-                            SoundID squish = dlb_rand_int(0, 1) ? SoundID_Squish1 : SoundID_Squish2;
-                            sound_catalog_play(squish, 1.0f + dlb_rand_variance(0.2f));
-                        }
-                        slimesHit++;
-                    }
-                }
-
-                if (slimesHit) {
-                    sound_catalog_play(SoundID_Slime_Stab1, 1.0f + dlb_rand_variance(0.1f));
-                } else {
-                    sound_catalog_play(SoundID_Whoosh, 1.0f + dlb_rand_variance(0.1f));
-                }
-            }
-        }
 
         player_update(&charlie, now, dt);
         if (charlie.body.idle && !IsMusicPlaying(mus_whistle)) {
@@ -777,10 +693,10 @@ int main(void)
             text = TextFormat("%2i fps (%.02f ms)", GetFPS(), GetFrameTime() * 1000.0f);
             PUSH_TEXT(text, WHITE);
 
-            text = TextFormat("Slimes slain: %d", slimesKilled);
+            text = TextFormat("Slimes slain: %d", charlie.stats.slimesKilled);
             PUSH_TEXT(text, RED);
 
-            text = TextFormat("Coins: %d", coinsCollected);
+            text = TextFormat("Coins: %d", charlie.stats.coinsCollected);
             PUSH_TEXT(text, YELLOW);
 
 #if _DEBUG
@@ -850,11 +766,9 @@ int main(void)
     tilemap_free(&tilemap);
     tileset_free(&tileset);
     UnloadTexture(tilesetTex);
-    UnloadSpritesheet(coinSpritesheet);
-    UnloadSpritesheet(slimeSpritesheet);
-    UnloadSpritesheet(charlieSpritesheet);
     UnloadTexture(checkboardTexture);
     sound_catalog_free();
+    spritesheet_catalog_free();
     UnloadMusicStream(mus_whistle);
     UnloadMusicStream(mus_background);
     CloseAudioDevice();
