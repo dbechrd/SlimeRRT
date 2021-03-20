@@ -239,8 +239,11 @@ int main(void)
     //---------------------------------------------------------------------------------------
 
     // Main game loop
+    SetExitKey(KEY_F4);
     while (!WindowShouldClose())
     {
+        bool escape = IsKeyPressed(KEY_ESCAPE);
+
         // NOTE: Limit delta time to 2 frames worth of updates to prevent chaos for large dt (e.g. when debugging)
         const double dtMax = (1.0 / targetFPS) * 2;
         const double now = GetTime();
@@ -645,8 +648,8 @@ int main(void)
 
             int tooltipX = (int)mousePosScreen.x + tooltipOffsetX;
             int tooltipY = (int)mousePosScreen.y + tooltipOffsetY;
-            const int tooltipW = 150 + tooltipPad * 2;
-            const int tooltipH = 30  + tooltipPad * 2;
+            const int tooltipW = 220 + tooltipPad * 2;
+            const int tooltipH = 40  + tooltipPad * 2;
 
             if (tooltipX + tooltipW > screenWidth ) tooltipX = screenWidth  - tooltipW;
             if (tooltipY + tooltipH > screenHeight) tooltipY = screenHeight - tooltipH;
@@ -655,7 +658,6 @@ int main(void)
             DrawRectangleRec(tooltipRect, Fade(RAYWHITE, 0.8f));
             DrawRectangleLinesEx(tooltipRect, 1, Fade(BLACK, 0.8f));
 
-            const int fontHeight = 10;
             int lineOffset = 0;
             DrawTextFont(fonts[fontIdx], TextFormat("tilePos : %.02f, %.02f", mouseTile->position.x, mouseTile->position.y),
                 tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, fontHeight, BLACK);
@@ -725,43 +727,55 @@ int main(void)
 
         // Render chat history
         {
-#define PUSH_TEXT(txt, color) \
-    DrawTextFont(fonts[fontIdx], text, margin + pad, cursorY, fontHeight, color); \
-    cursorY -= fontHeight + pad; \
+            static bool chatVisible = false;
 
-            const int linesOfText = 10;
-            const int margin = 6;   // left/bottom margin
-            const int pad = 4;      // left/bottom pad
-            const int chatWidth = 320;
-            const int chatHeight = linesOfText * (fontHeight + pad) + pad;
-            const int chatX = margin;
-            const int chatY = screenHeight - margin - chatHeight;
-
-            // NOTE: The chat history renders from the bottom up (most recent message first)
-            int cursorY = (chatY + chatHeight) - pad - fontHeight;
-            const char *text = 0;
-
-            DrawRectangle(chatX, chatY, chatWidth, chatHeight, Fade(DARKGRAY, 0.8f));
-            DrawRectangleLines(chatX, chatY, chatWidth, chatHeight, Fade(BLACK, 0.8f));
-
-            int msgCount = network_packet_history_count(&server);
-            int index = network_packet_history_newest(&server);
-            for (int i = 0; i < msgCount; i++) {
-                const NetworkPacket *packet = network_packet_history_at(&server, index);
-                if (!packet) {
-                    continue;
-                }
-
-                text = TextFormat("[%s]: %s", packet->timestampStr, packet->data);
-                PUSH_TEXT(text, WHITE);
-
-                index = network_packet_history_prev(&server, index);
+            if (!chatVisible && IsKeyDown(KEY_T)) {
+                chatVisible = true;
+            } else if (chatVisible && escape) {
+                chatVisible = false;
+                escape = false;
             }
-#undef PUSH_TEXT
+
+            if (chatVisible) {
+                const int linesOfText = 10;
+                const int margin = 6;   // left/bottom margin
+                const int pad = 4;      // left/bottom pad
+                const int chatWidth = 320;
+                const int chatHeight = linesOfText * (fontHeight + pad) + pad;
+                const int chatX = margin;
+                const int chatY = screenHeight - margin - chatHeight;
+
+                // NOTE: The chat history renders from the bottom up (most recent message first)
+                int cursorY = (chatY + chatHeight) - pad - fontHeight;
+                const char *text = 0;
+
+                DrawRectangle(chatX, chatY, chatWidth, chatHeight, Fade(DARKGRAY, 0.8f));
+                DrawRectangleLines(chatX, chatY, chatWidth, chatHeight, Fade(BLACK, 0.8f));
+
+                int msgCount = network_packet_history_count(&server);
+                int index = network_packet_history_newest(&server);
+                for (int i = 0; i < msgCount; i++) {
+                    const NetworkPacket *packet = network_packet_history_at(&server, index);
+                    if (!packet) {
+                        continue;
+                    }
+
+                    text = TextFormat("[%s]: %s", packet->timestampStr, packet->data);
+                    DrawTextFont(fonts[fontIdx], text, margin + pad, cursorY, fontHeight, WHITE);
+                    cursorY -= fontHeight + pad;
+
+                    index = network_packet_history_prev(&server, index);
+                }
+            }
         }
 
         EndDrawing();
         //----------------------------------------------------------------------------------
+
+        // If nobody else handled the escape key, time to exit!
+        if (escape) {
+            break;
+        }
     }
 
     //--------------------------------------------------------------------------------------
