@@ -12,7 +12,8 @@
 #define SQUARED(x) ((x)*(x))
 
 // NOTE: This defines 1 meter = 64 pixels
-#define METERS(m) ((m) * 64.0f)
+#define METERS_TO_PIXELS(meters) ((meters) * 64.0f)
+#define PIXELS_TO_METERS(pixels) ((pixels) / 64.0f)
 
 // TODO: This could go in direction.h.. but that seems unnecessary atm
 typedef enum Direction {

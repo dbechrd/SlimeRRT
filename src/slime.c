@@ -71,7 +71,7 @@ bool slime_move(Slime *slime, double now, double dt, Vector2 offset)
     if (slime->body.position.z == 0.0f && timeSinceLastMoved > slime->randJumpIdle) {
         slime->body.velocity.x += offset.x;
         slime->body.velocity.y += offset.y;
-        slime->body.velocity.z += METERS(3.0f);
+        slime->body.velocity.z += METERS_TO_PIXELS(3.0f);
         slime->randJumpIdle = (double)dlb_rand_float(1.0f, 2.5f);
         update_direction(slime, offset);
         return true;

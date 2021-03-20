@@ -352,11 +352,11 @@ int main(void)
 
         {
             // TODO: Move these to Body3D
-            const float slimeMoveSpeed = METERS(2.0f);
-            const float slimeAttackReach = METERS(0.5f);
-            const float slimeAttackTrack = METERS(10.0f);
+            const float slimeMoveSpeed = METERS_TO_PIXELS(2.0f);
+            const float slimeAttackReach = METERS_TO_PIXELS(0.5f);
+            const float slimeAttackTrack = METERS_TO_PIXELS(10.0f);
             const float slimeAttackDamage = 1.0f;
-            const float slimeRadius = METERS(0.5f);
+            const float slimeRadius = METERS_TO_PIXELS(0.5f);
 
             static double lastSquish = 0;
             double timeSinceLastSquish = now - lastSquish;
@@ -673,9 +673,9 @@ int main(void)
     DrawTextFont(fonts[fontIdx], text, margin + pad, cursorY, fontHeight, color); \
     cursorY += fontHeight + pad; \
 
-            int linesOfText = 3;
+            int linesOfText = 8;
 #if _DEBUG
-            linesOfText += 4;
+            linesOfText += 5;
 #endif
             const int margin = 6;   // left/top margin
             const int pad = 4;      // left/top pad
@@ -692,25 +692,33 @@ int main(void)
 
             text = TextFormat("%2i fps (%.02f ms)", GetFPS(), GetFrameTime() * 1000.0f);
             PUSH_TEXT(text, WHITE);
-
-            text = TextFormat("Slimes slain: %d", charlie.stats.slimesKilled);
-            PUSH_TEXT(text, RED);
-
-            text = TextFormat("Coins: %d", charlie.stats.coinsCollected);
+            text = TextFormat("Coins: %d", charlie.inventory.slots[PlayerInventorySlot_Coins].stackCount);
             PUSH_TEXT(text, YELLOW);
 
+            text = TextFormat("Coins collected   %u", charlie.stats.coinsCollected);
+            PUSH_TEXT(text, LIGHTGRAY);
+            text = TextFormat("Damage dealt      %.2f", charlie.stats.damageDealt);
+            PUSH_TEXT(text, LIGHTGRAY);
+            text = TextFormat("Kilometers walked %.2f", charlie.stats.kmWalked);
+            PUSH_TEXT(text, LIGHTGRAY);
+            text = TextFormat("Slimes slain      %u", charlie.stats.slimesSlain);
+            PUSH_TEXT(text, LIGHTGRAY);
+            text = TextFormat("Times fist swung  %u", charlie.stats.timesFistSwung);
+            PUSH_TEXT(text, LIGHTGRAY);
+            text = TextFormat("Times sword swung %u", charlie.stats.timesSwordSwung);
+            PUSH_TEXT(text, LIGHTGRAY);
+
 #if _DEBUG
-            text = TextFormat("Zoom: %.03f (inv: %.03f)", camera.zoom, invZoom);
-            PUSH_TEXT(text, PINK);
-
-            text = TextFormat("Zoom Mip: %zu", zoomMipLevel);
-            PUSH_TEXT(text, PINK);
-
-            text = TextFormat("Tiles visible: %zu", tilesDrawn);
-            PUSH_TEXT(text, PINK);
-
-            text = TextFormat("Font index: %zu", fontIdx);
-            PUSH_TEXT(text, PINK);
+            text = TextFormat("Zoom          %.03f", camera.zoom);
+            PUSH_TEXT(text, GRAY);
+            text = TextFormat("Zoom inverse  %.03f", invZoom);
+            PUSH_TEXT(text, GRAY);
+            text = TextFormat("Zoom mip      %zu", zoomMipLevel);
+            PUSH_TEXT(text, GRAY);
+            text = TextFormat("Tiles visible %zu", tilesDrawn);
+            PUSH_TEXT(text, GRAY);
+            text = TextFormat("Font index    %zu", fontIdx);
+            PUSH_TEXT(text, GRAY);
 #endif
 #undef PUSH_TEXT
         }

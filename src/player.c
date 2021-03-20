@@ -31,7 +31,7 @@ void player_init(Player *player, const char *name, const struct Sprite *sprite)
 
     // TODO: Load stats from save file / server
     player->stats.coinsCollected = 33;
-    player->stats.slimesKilled = 44;
+    player->stats.slimesSlain = 44;
 }
 
 Vector3 player_get_attach_point(const Player *player, PlayerAttachPoint attachPoint)
@@ -101,6 +101,10 @@ bool player_move(Player *player, double now, double dt, Vector2 offset)
     player->body.position.x += offset.x;
     player->body.position.y += offset.y;
     update_direction(player, offset);
+
+    const float pixelsMoved = v2_length(offset);
+    const float metersMoved = PIXELS_TO_METERS(pixelsMoved);
+    player->stats.kmWalked += metersMoved / 1000.0f;
     return true;
 }
 
@@ -111,6 +115,19 @@ bool player_attack(Player *player, double now, double dt)
         player->body.lastUpdated = now;
         player->combat.attackStartedAt = now;
         player->combat.attackDuration = 0.1;
+
+        const Item *selectedItem = player_selected_item(player);
+        switch (selectedItem->id) {
+            case ItemID_Weapon_Sword: {
+                player->stats.timesSwordSwung++;
+                break;
+            }
+            default: {
+                player->stats.timesFistSwung++;
+                break;
+            }
+        }
+
         return true;
     }
     return false;

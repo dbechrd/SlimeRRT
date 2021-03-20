@@ -21,8 +21,12 @@ typedef enum PlayerAttachPoint {
 } PlayerAttachPoint;
 
 typedef struct PlayerStats {
-    unsigned int slimesKilled;
     unsigned int coinsCollected;
+    float damageDealt;
+    float kmWalked;
+    unsigned int slimesSlain;
+    unsigned int timesFistSwung;
+    unsigned int timesSwordSwung;
 } PlayerStats;
 
 typedef struct Player {

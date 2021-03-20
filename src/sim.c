@@ -118,7 +118,7 @@ void sim(double now, double dt, const PlayerControllerState input, Player *playe
     }
 
     if (input.actionState == PlayerActionState_Attacking) {
-        const float playerAttackReach = METERS(1.0f);
+        const float playerAttackReach = METERS_TO_PIXELS(1.0f);
 
         if (player_attack(player, now, dt)) {
             float playerDamage;
@@ -142,6 +142,7 @@ void sim(double now, double dt, const PlayerControllerState input, Player *playe
 
                 Vector3 playerToSlime = v3_sub(slimes[slimeIdx].body.position, player->body.position);
                 if (v3_length_sq(playerToSlime) <= playerAttackReach * playerAttackReach) {
+                    player->stats.damageDealt += MIN(slimes[slimeIdx].combat.hitPoints, playerDamage);
                     slimes[slimeIdx].combat.hitPoints = MAX(0.0f, slimes[slimeIdx].combat.hitPoints - playerDamage);
                     if (!slimes[slimeIdx].combat.hitPoints) {
                         //sound_catalog_play(SoundID_Squeak, 0.75f + dlb_rand_variance(0.2f));
@@ -163,7 +164,7 @@ void sim(double now, double dt, const PlayerControllerState input, Player *playe
                         Vector3 slimeBC = body_center(&slimes[slimeIdx].body);
                         particle_effect_start(goldParticles, now, 2.0, slimeBC);
 
-                        player->stats.slimesKilled++;
+                        player->stats.slimesSlain++;
                     } else {
                         SoundID squish = dlb_rand_int(0, 1) ? SoundID_Squish1 : SoundID_Squish2;
                         sound_catalog_play(squish, 1.0f + dlb_rand_variance(0.2f));

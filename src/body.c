@@ -122,7 +122,7 @@ void body_update(Body3D *body, double now, double dt)
         return;
     }
 
-    const float gravity = METERS(10.0f);
+    const float gravity = METERS_TO_PIXELS(10.0f);
     body->velocity.z -= gravity * (float)dt; // * drag_coef;
 
     body->position.x += body->velocity.x * (float)dt;
