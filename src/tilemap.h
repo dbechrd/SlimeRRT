@@ -4,12 +4,12 @@
 #include <stdbool.h>
 
 typedef enum TileType {
-    Tile_Grass,
-    Tile_Water,
-    Tile_Forest,
-    Tile_Wood,
-    Tile_Concrete,
-    Tile_Count
+    TileType_Grass,
+    TileType_Water,
+    TileType_Forest,
+    TileType_Wood,
+    TileType_Concrete,
+    TileType_Count
 } TileType;
 
 // TODO: Refactor RRT logic out into standalone file

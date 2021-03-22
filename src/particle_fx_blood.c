@@ -7,7 +7,7 @@
 PARTICLE_FX_INIT(blood)
 {
     // Spawn randomly during first 25% of duration
-    particle->spawnAt = duration * dlb_rand_float(0.0f, 0.25f);
+    particle->spawnAt = duration * dlb_rand_float(0.0f, 0.45f);
 
     // Die randomly during last 15% of animation
     particle->dieAt = duration * dlb_rand_float(0.85f, 1.0f);

@@ -121,7 +121,7 @@ int main(void)
 #endif
 
     SetExitKey(0);  // Disable default Escape exit key, we'll handle escape ourselves
-    InitWindow(800, 600, "Attack the slimes!");
+    InitWindow(1600, 900, "Attack the slimes!");
     SetWindowState(FLAG_WINDOW_RESIZABLE);
 
     const int fontHeight = 14;
@@ -172,12 +172,53 @@ int main(void)
     assert(tilesetTex.width);
 
     Tileset tileset = { 0 };
-    tileset_init_ex(&tileset, &tilesetTex, 32, 32, Tile_Count);
+    tileset_init_ex(&tileset, &tilesetTex, 32, 32, TileType_Count);
 
     Tilemap tilemap = { 0 };
-    tilemap_generate_ex(&tilemap, 128, 128, &tileset);
-    //tilemap_generate_ex(&tilemap, 256, 256, &tileset);
+    //tilemap_generate_ex(&tilemap, 128, 128, &tileset);
+    tilemap_generate_ex(&tilemap, 256, 256, &tileset);
     //tilemap_generate_ex(&tilemap, 512, 512, &tileset);
+
+    Texture minimapTex = { 0 };
+    {
+        Image minimapImg = { 0 };
+        minimapImg.width = (int)tilemap.widthTiles;
+        minimapImg.height = (int)tilemap.heightTiles;
+        minimapImg.mipmaps = 1;
+        minimapImg.format = UNCOMPRESSED_R8G8B8A8;
+        assert(sizeof(Color) == 4);
+        minimapImg.data = calloc(minimapImg.width * minimapImg.height, sizeof(Color));
+        assert(minimapImg.data);
+
+        Color tileColors[TileType_Count] = {
+            [TileType_Grass   ] = GREEN,
+            [TileType_Water   ] = SKYBLUE,
+            [TileType_Forest  ] = DARKGREEN,
+            [TileType_Wood    ] = BROWN,
+            [TileType_Concrete] = GRAY
+        };
+
+        const float tileWidthMip  = (float)tilemap.tileset->tileWidth;
+        const float tileHeightMip = (float)tilemap.tileset->tileHeight;
+        const size_t heightTiles = tilemap.heightTiles;
+        const size_t widthTiles = tilemap.widthTiles;
+        const Rectangle *tileRects = tilemap.tileset->textureRects;
+
+        Color *minimapPixel = minimapImg.data;
+        for (size_t y = 0; y < heightTiles; y += 1) {
+            for (size_t x = 0; x < widthTiles; x += 1) {
+                const Tile *tile = &tilemap.tiles[y * tilemap.widthTiles + x];
+                // Draw all tiles as different colored pixels
+                assert(tile->tileType >= 0);
+                assert(tile->tileType < TileType_Count);
+                *minimapPixel = tileColors[tile->tileType];
+                minimapPixel++;
+            }
+        }
+
+        minimapTex = LoadTextureFromImage(minimapImg);
+        free(minimapImg.data);
+    }
 
     const Vector3 worldSpawn = (Vector3){
         (float)tilemap.widthTiles / 2.0f * tilemap.tileset->tileWidth,
@@ -211,7 +252,7 @@ int main(void)
     player_init(&charlie, "Charlie", charlieSpriteDef);
     charlie.body.position = worldSpawn;
 
-#define SLIMES_COUNT 100
+#define SLIMES_COUNT 256
     Slime slimes[SLIMES_COUNT] = { 0 };
     int slimesByDepth[SLIMES_COUNT] = { 0 };
 
@@ -435,11 +476,11 @@ int main(void)
                             charlie.combat.hitPoints - (slimeAttackDamage * slime->sprite.scale));
 
                         static double lastBleed = 0;
-                        const double bleedDuration = 1.0;
+                        const double bleedDuration = 3.0;
 
-                        if (now - lastBleed > bleedDuration / 4.0) {
+                        if (now - lastBleed > bleedDuration / 3.0) {
                             Vector3 playerGut = player_get_attach_point(&charlie, PlayerAttachPoint_Gut);
-                            ParticleEffect *bloodParticles = particle_effect_create(ParticleEffectType_Blood, 32,
+                            ParticleEffect *bloodParticles = particle_effect_create(ParticleEffectType_Blood, 64,
                                 playerGut, bleedDuration, now, 0);
                             if (bloodParticles) {
                                 bloodParticles->callbacks[ParticleEffectEvent_BeforeUpdate].function =
@@ -506,22 +547,9 @@ int main(void)
                         tilePos.x < camRight &&
                         tilePos.y < camBottom)
                     {
-#if 1
                         // Draw all tiles as textured rects (looks best, performs worst)
                         Rectangle textureRect = tileRects[tile->tileType];
                         DrawTextureRec(*tilemap.tileset->texture, textureRect, tile->position, WHITE);
-#else
-                        // Draw repeating texture of top-left mip tile when zoomed out
-                        const Rectangle bounds = (Rectangle){
-                            tile->position.x,
-                            tile->position.y,
-                            tileWidthMip,
-                            tileHeightMip
-                        };
-
-                        const Rectangle source = tileRects[tile->tileType];
-                        DrawTexturePro(*tilemap.tileset->texture, source, bounds, (Vector2){ 0.0f, 0.0f }, 0.0f, WHITE);
-#endif
                         tilesDrawn++;
                     }
                 }
@@ -664,6 +692,8 @@ int main(void)
             lineOffset += fontHeight;
         }
 
+        DrawTexture(minimapTex, screenWidth - 6 - minimapTex.width, 6, WHITE);
+
         {
 #define PUSH_TEXT(txt, color) \
     DrawTextFont(fonts[fontIdx], text, margin + pad, cursorY, fontHeight, color); \
@@ -788,6 +818,7 @@ int main(void)
 #endif
     tilemap_free(&tilemap);
     tileset_free(&tileset);
+    UnloadTexture(minimapTex);
     UnloadTexture(tilesetTex);
     UnloadTexture(checkboardTexture);
     sound_catalog_free();

@@ -673,7 +673,7 @@ static Sound load_missing_ogg()
 
     static Sound missingOgg = { 0 };
     if (!missingOgg.sampleCount) {
-        Wave missingOggWav = LoadWaveFromMemory("ogg", MISSING_OGG, ARRAY_SIZE(MISSING_OGG));
+        Wave missingOggWav = LoadWaveFromMemory(".ogg", MISSING_OGG, ARRAY_SIZE(MISSING_OGG));
         assert(missingOggWav.sampleCount);
         missingOgg = LoadSoundFromWave(missingOggWav);
         UnloadWave(missingOggWav);
