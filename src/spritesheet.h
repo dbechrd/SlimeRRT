@@ -1,5 +1,7 @@
 #pragma once
-#include "helpers.h"
+#include "direction.h"
+#include "string_view.h"
+#include "raylib.h"
 
 typedef struct SpriteFrame {
     StringView name;  // name of frame
@@ -10,20 +12,19 @@ typedef struct SpriteFrame {
 } SpriteFrame;
 
 #define SPRITEANIM_MAX_FRAMES 16
-typedef struct Spritesheet Spritesheet;
 
 typedef struct SpriteAnim {
     StringView name;                    // name of animation
-    Spritesheet *spritesheet;           // parent spritesheet
+    struct Spritesheet *spritesheet;    // parent spritesheet
     size_t frameCount;                  // 0 = not used, 1 = static sprite, > 1 = animation frame count
     int frames[SPRITEANIM_MAX_FRAMES];  // frame indices (spritesheet->frames)
 } SpriteAnim;
 
-typedef struct Sprite {
+typedef struct SpriteDef {
     StringView name;                  // name of sprite
-    Spritesheet *spritesheet;         // parent spritesheet
+    struct Spritesheet *spritesheet;  // parent spritesheet
     int animations[Direction_Count];  // animation index (spritesheet->animations)
-} Sprite;
+} SpriteDef;
 
 typedef struct Spritesheet {
     Texture texture;         // spritesheet texture
@@ -32,11 +33,11 @@ typedef struct Spritesheet {
     int animationCount;      // # of animations
     SpriteAnim *animations;  // array of animations
     int spriteCount;         // # of sprites
-    Sprite *sprites;         // array of directional sprites
+    SpriteDef *sprites;      // array of sprites definitions
     unsigned int bufLength;  // length of file buffer in memory
     unsigned char *buf;      // file buffer (needs to be freed with UnloadFileData())
 } Spritesheet;
 
-void           spritesheet_init        (Spritesheet *spritesheet, const char *fileName);
-const Sprite * spritesheet_find_sprite (const Spritesheet *spritesheet, const char *name);
-void           spritesheet_free        (Spritesheet *spritesheet);
+void              spritesheet_init        (Spritesheet *spritesheet, const char *fileName);
+const SpriteDef * spritesheet_find_sprite (const Spritesheet *spritesheet, const char *name);
+void              spritesheet_free        (Spritesheet *spritesheet);

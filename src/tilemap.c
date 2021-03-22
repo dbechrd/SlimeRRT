@@ -130,6 +130,10 @@ Tile *tilemap_at_try(Tilemap *map, int tileX, int tileY)
 
 Tile *tilemap_at_world(Tilemap *map, int x, int y)
 {
+    assert(x >= 0);
+    assert(y >= 0);
+    assert(x < (int)map->tileset->tileWidth * map->widthTiles);
+    assert(y < (int)map->tileset->tileHeight * map->heightTiles);
     int tileX = x / (int)map->tileset->tileWidth;
     int tileY = y / (int)map->tileset->tileHeight;
     return tilemap_at(map, tileX, tileY);
@@ -137,6 +141,13 @@ Tile *tilemap_at_world(Tilemap *map, int x, int y)
 
 Tile *tilemap_at_world_try(Tilemap *map, int x, int y)
 {
+    if (x < 0 || y < 0 ||
+        (size_t)x >= map->tileset->tileWidth * map->widthTiles ||
+        (size_t)y >= map->tileset->tileHeight * map->heightTiles)
+    {
+        return 0;
+    }
+
     int tileX = x / (int)map->tileset->tileWidth;
     int tileY = y / (int)map->tileset->tileHeight;
     return tilemap_at_try(map, tileX, tileY);

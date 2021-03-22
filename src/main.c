@@ -4,9 +4,11 @@
 #include "maths.h"
 #include "network_server.h"
 #include "particles.h"
+#include "particle_fx.h"
 #include "player.h"
 #include "slime.h"
 #include "sound_catalog.h"
+#include "spritesheet.h"
 #include "spritesheet_catalog.h"
 #include "tileset.h"
 #include "tilemap.h"
@@ -50,8 +52,14 @@ void DrawShadow(int x, int y, float radius, float yOffset)
     DrawEllipse(x, y + (int)yOffset, radius, radius / 2.0f, Fade(BLACK, 0.5f));
 }
 
-void DrawHealthBar(Font font, int fontSize, int x, int y, float hitPoints, float maxHitPoints)
+void DrawHealthBar(Font font, int fontSize, const Sprite *sprite, const Body3D *body, float hitPoints, float maxHitPoints)
 {
+    return;
+
+    Vector3 topCenter = sprite_world_top_center(sprite, body->position, sprite->scale);
+    int x = (int)topCenter.x;
+    int y = (int)(topCenter.y - topCenter.z) - 10;
+
     const float hpPercent = hitPoints / maxHitPoints;
     const char *hpText = TextFormat("HP: %.02f / %.02f", hitPoints, maxHitPoints);
 
@@ -96,6 +104,7 @@ int main(void)
     //dlb_rand_seed(42);
     dlb_rand_seed((u32)time(NULL));
 
+#if ALPHA_NETWORKING
     if (!network_init()) {
         // TODO: Handle "offline mode" gracefully. This shouldn't prevent people people from playing single player
         TraceLog(LOG_FATAL, "Failed to initialize networking.\n");
@@ -109,7 +118,9 @@ int main(void)
         TraceLog(LOG_FATAL, "Failed to start server on port %hu.\n", port);
         return 0;
     }
+#endif
 
+    SetExitKey(0);  // Disable default Escape exit key, we'll handle escape ourselves
     InitWindow(800, 600, "Attack the slimes!");
     SetWindowState(FLAG_WINDOW_RESIZABLE);
 
@@ -141,6 +152,7 @@ int main(void)
     sound_catalog_init();
     spritesheet_catalog_init();
     item_catalog_init();
+    particles_init();
 
     Music mus_background;
     mus_background = LoadMusicStream("resources/fluquor_copyright.ogg");
@@ -167,16 +179,17 @@ int main(void)
     //tilemap_generate_ex(&tilemap, 256, 256, &tileset);
     //tilemap_generate_ex(&tilemap, 512, 512, &tileset);
 
-    Color tileColors[Tile_Count] = {
-        GREEN,
-        SKYBLUE,
-        DARKGREEN,
-        BROWN,
-        GRAY
+    const Vector3 worldSpawn = (Vector3){
+        (float)tilemap.widthTiles / 2.0f * tilemap.tileset->tileWidth,
+        (float)tilemap.heightTiles / 2.0f * tilemap.tileset->tileHeight,
+        0.0f
     };
 
     Camera2D camera = { 0 };
-    //camera.target = (Vector2){ (float)tilemap.widthTiles / 2.0f * tilemap.tileset->tileWidth, (float)tilemap.heightTiles / 2.0f * tilemap.tileset->tileHeight };
+    //camera.target = (Vector2){
+    //    (float)tilemap.widthTiles / 2.0f * tilemap.tileset->tileWidth,
+    //    (float)tilemap.heightTiles / 2.0f * tilemap.tileset->tileHeight
+    //};
     camera.offset = (Vector2){ screenWidth / 2.0f, screenHeight / 2.0f };
     camera.rotation = 0.0f;
     camera.zoom = 1.0f;
@@ -184,22 +197,19 @@ int main(void)
     int cameraReset = 0;
     int cameraFollowPlayer = 1;
 
+    // TODO: Move sprite loading to somewhere more sane
     const Spritesheet *charlieSpritesheet = spritesheet_catalog_find(SpritesheetID_Charlie);
-    const Sprite *charlieSprite = spritesheet_find_sprite(charlieSpritesheet, "player_sword");
+    const SpriteDef *charlieSpriteDef = spritesheet_find_sprite(charlieSpritesheet, "player_sword");
 
     const Spritesheet *slimeSpritesheet = spritesheet_catalog_find(SpritesheetID_Slime);
-    const Sprite *slimeSprite = spritesheet_find_sprite(slimeSpritesheet, "slime");
+    const SpriteDef *slimeSpriteDef = spritesheet_find_sprite(slimeSpritesheet, "slime");
 
     const Spritesheet *coinSpritesheet = spritesheet_catalog_find(SpritesheetID_Coin);
-    const Sprite *coinSprite = spritesheet_find_sprite(coinSpritesheet, "coin");
+    const SpriteDef *coinSpriteDef = spritesheet_find_sprite(coinSpritesheet, "coin");
 
     Player charlie = { 0 };
-    player_init(&charlie, "Charlie", charlieSprite);
-    charlie.body.position = (Vector3){
-        (float)tilemap.widthTiles / 2.0f * tilemap.tileset->tileWidth,
-        (float)tilemap.heightTiles / 2.0f * tilemap.tileset->tileHeight,
-        0.0f
-    };
+    player_init(&charlie, "Charlie", charlieSpriteDef);
+    charlie.body.position = worldSpawn;
 
 #define SLIMES_COUNT 100
     Slime slimes[SLIMES_COUNT] = { 0 };
@@ -208,14 +218,14 @@ int main(void)
     {
         // TODO: Slime radius should probably be determined base on largest frame, no an arbitrary frame. Or, it could
         // be specified in the config file.
-        assert(slimeSprite);
-        int firstAnimIndex = slimeSprite->animations[0];
+        assert(slimeSpriteDef);
+        int firstAnimIndex = slimeSpriteDef->animations[0];
         assert(firstAnimIndex >= 0);
-        assert(firstAnimIndex < slimeSprite->spritesheet->animationCount);
+        assert(firstAnimIndex < slimeSpriteDef->spritesheet->animationCount);
 
-        int firstFrameIdx = slimeSprite->spritesheet->animations[firstAnimIndex].frames[0];
+        int firstFrameIdx = slimeSpriteDef->spritesheet->animations[firstAnimIndex].frames[0];
         assert(firstFrameIdx >= 0);
-        assert(firstFrameIdx < slimeSprite->spritesheet->frameCount);
+        assert(firstFrameIdx < slimeSpriteDef->spritesheet->frameCount);
 
         SpriteFrame *firstFrame = &slimeSpritesheet->frames[firstFrameIdx];
         const float slimeRadiusX = firstFrame->width / 2.0f;
@@ -225,7 +235,7 @@ int main(void)
         const float maxX = mapPixelsX - slimeRadiusX;
         const float maxY = mapPixelsY - slimeRadiusY;
         for (int i = 0; i < SLIMES_COUNT; i++) {
-            slime_init(&slimes[i], 0, slimeSprite);
+            slime_init(&slimes[i], 0, slimeSpriteDef);
             slimes[i].body.position.x = dlb_rand_float(slimeRadiusX, maxX);
             slimes[i].body.position.y = dlb_rand_float(slimeRadiusY, maxY);
             slimesByDepth[i] = i;
@@ -239,7 +249,6 @@ int main(void)
     //---------------------------------------------------------------------------------------
 
     // Main game loop
-    SetExitKey(KEY_F4);
     while (!WindowShouldClose())
     {
         bool escape = IsKeyPressed(KEY_ESCAPE);
@@ -250,7 +259,9 @@ int main(void)
         dt = MIN(now - frameStart, dtMax);
         frameStart = now;
 
+#if ALPHA_NETWORKING
         network_server_process_incoming(&server);
+#endif
 
         if (IsWindowResized()) {
             screenWidth = GetScreenWidth();
@@ -295,7 +306,7 @@ int main(void)
 
         if (cameraFollowPlayer) {
             PlayerControllerState input = QueryPlayerController();
-            sim(now, dt, input, &charlie, &tilemap, slimes, SLIMES_COUNT);
+            sim(now, dt, input, &charlie, &tilemap, slimes, SLIMES_COUNT, coinSpriteDef);
 
             camera.target = body_ground_position(&charlie.body);
         } else {
@@ -354,7 +365,7 @@ int main(void)
         }
 
         {
-            // TODO: Move these to Body3D
+            // TODO: Move these to somewhere
             const float slimeMoveSpeed = METERS_TO_PIXELS(2.0f);
             const float slimeAttackReach = METERS_TO_PIXELS(0.5f);
             const float slimeAttackTrack = METERS_TO_PIXELS(10.0f);
@@ -365,21 +376,23 @@ int main(void)
             double timeSinceLastSquish = now - lastSquish;
 
             for (size_t slimeIdx = 0; slimeIdx < SLIMES_COUNT; slimeIdx++) {
-                if (!slimes[slimeIdx].combat.hitPoints)
+                Slime *slime = &slimes[slimeIdx];
+                if (!slime->combat.hitPoints)
                     continue;
 
-                Vector2 slimeToPlayer = v2_sub(body_ground_position(&charlie.body), body_ground_position(&slimes[slimeIdx].body));
+                Vector2 slimeToPlayer = v2_sub(body_ground_position(&charlie.body),
+                    body_ground_position(&slime->body));
                 const float slimeToPlayerDistSq = v2_length_sq(slimeToPlayer);
                 if (slimeToPlayerDistSq > SQUARED(slimeAttackReach) &&
                     slimeToPlayerDistSq <= SQUARED(slimeAttackTrack))
                 {
                     const float slimeToPlayerDist = sqrtf(slimeToPlayerDistSq);
-                    const float moveDist = MIN(slimeToPlayerDist, slimeMoveSpeed * slimes[slimeIdx].body.scale);
+                    const float moveDist = MIN(slimeToPlayerDist, slimeMoveSpeed * slime->sprite.scale);
                     // 25% -1.0, 75% +1.0f
                     const float moveRandMult = dlb_rand_int(1, 4) > 1 ? 1.0f : -1.0f;
                     const Vector2 slimeMoveDir = v2_scale(slimeToPlayer, 1.0f / slimeToPlayerDist);
                     const Vector2 slimeMove = v2_scale(slimeMoveDir, moveDist * moveRandMult);
-                    const Vector2 slimePos = body_ground_position(&slimes[slimeIdx].body);
+                    const Vector2 slimePos = body_ground_position(&slime->body);
                     const Vector2 slimePosNew = v2_add(slimePos, slimeMove);
 
                     int willCollide = 0;
@@ -391,19 +404,16 @@ int main(void)
                             continue;
 
                         Vector2 otherSlimePos = body_ground_position(&slimes[collideIdx].body);
-                        const float zDist = fabsf(slimes[slimeIdx].body.position.z - slimes[collideIdx].body.position.z);
-                        const float radiusScaled = slimeRadius * slimes[slimeIdx].body.scale;
+                        const float zDist = fabsf(slime->body.position.z - slimes[collideIdx].body.position.z);
+                        const float radiusScaled = slimeRadius * slime->sprite.scale;
                         if (v2_length_sq(v2_sub(slimePos, otherSlimePos)) < SQUARED(radiusScaled) && zDist < radiusScaled) {
                             Slime *a = &slimes[slimeIdx];
                             Slime *b = &slimes[collideIdx];
                             if (slime_combine(a, b)) {
-                                Slime *dead = a->combat.hitPoints == 0.0f ? a : b;
-                                ParticleEffect *gooParticles = particle_effect_alloc(ParticleEffectType_Goo, 20);
-                                //gooParticles->callbacks[ParticleEffectEvent_Started].function = GooParticlesStarted;
-                                //gooParticles->callbacks[ParticleEffectEvent_Started].userData = gooSprite;
-                                //gooParticles->callbacks[ParticleEffectEvent_Dying].function = GooParticlesDying;
-                                Vector3 slimeBC = body_center(&dead->body);
-                                particle_effect_start(gooParticles, now, 2.0, slimeBC);
+                                const Slime *dead = a->combat.hitPoints == 0.0f ? a : b;
+                                const Vector3 slimeBC = sprite_world_center(&dead->sprite, dead->body.position,
+                                    dead->sprite.scale);
+                                particle_effect_create(ParticleEffectType_Goo, 20, slimeBC, 2.0, now, 0);
                             }
                         }
                         if (v2_length_sq(v2_sub(slimePosNew, otherSlimePos)) < SQUARED(radiusScaled) && zDist < radiusScaled) {
@@ -418,39 +428,34 @@ int main(void)
                 }
 
                 // Allow slime to attack if on the ground and close enough to the player
-                slimeToPlayer = v2_sub(body_ground_position(&charlie.body), body_ground_position(&slimes[slimeIdx].body));
+                slimeToPlayer = v2_sub(body_ground_position(&charlie.body), body_ground_position(&slime->body));
                 if (v2_length_sq(slimeToPlayer) <= SQUARED(slimeAttackReach)) {
                     if (slime_attack(&slimes[slimeIdx], now, dt)) {
-                        charlie.combat.hitPoints = MAX(0.0f, charlie.combat.hitPoints - (slimeAttackDamage * slimes[slimeIdx].body.scale));
+                        charlie.combat.hitPoints = MAX(0.0f,
+                            charlie.combat.hitPoints - (slimeAttackDamage * slime->sprite.scale));
 
                         static double lastBleed = 0;
-                        const double bleedDuration = 1.2;
+                        const double bleedDuration = 1.0;
 
-                        if (now - lastBleed > bleedDuration) {
-                            ParticleEffect *bloodParticles = particle_effect_alloc(ParticleEffectType_Blood, 40);
-                            bloodParticles->callbacks[ParticleEffectEvent_BeforeUpdate].function = BloodParticlesFollowPlayer;
-                            bloodParticles->callbacks[ParticleEffectEvent_BeforeUpdate].userData = &charlie;
-
+                        if (now - lastBleed > bleedDuration / 4.0) {
                             Vector3 playerGut = player_get_attach_point(&charlie, PlayerAttachPoint_Gut);
-                            particle_effect_start(bloodParticles, now, bleedDuration, playerGut);
+                            ParticleEffect *bloodParticles = particle_effect_create(ParticleEffectType_Blood, 32,
+                                playerGut, bleedDuration, now, 0);
+                            if (bloodParticles) {
+                                bloodParticles->callbacks[ParticleEffectEvent_BeforeUpdate].function =
+                                    BloodParticlesFollowPlayer;
+                                bloodParticles->callbacks[ParticleEffectEvent_BeforeUpdate].userData = &charlie;
+                            }
                             lastBleed = now;
                         }
                     }
                 }
 
                 slime_update(&slimes[slimeIdx], now, dt);
-                //if (slimes[slimeIdx].body.landed) {
-                //    ParticleEffect *gooParticles = particle_effect_alloc(ParticleEffectType_Goo, 4);
-                //    //gooParticles->callbacks[ParticleEffectEvent_Started].function = GooParticlesStarted;
-                //    //gooParticles->callbacks[ParticleEffectEvent_Started].userData = gooSprite;
-                //    //gooParticles->callbacks[ParticleEffectEvent_Dying].function = GooParticlesDying;
-                //    Vector3 slimeBC = body_center(&slimes[slimeIdx].body);
-                //    particle_effect_start(gooParticles, now, 0.5, slimeBC);
-                //}
             }
         }
 
-        particle_effects_update(now, dt);
+        particles_update(now, dt);
 
         //----------------------------------------------------------------------------------
         // Draw
@@ -478,86 +483,83 @@ int main(void)
         // Alternatively, we could group nearby tiles of the same type together into large quads?
         const int zoomMipLevel = MAX(1, (int)invZoom / 8);
 
-        const Vector2 mousePosScreen = GetMousePosition();
-        Vector2 mousePosWorld = { 0 };
-        mousePosWorld.x += mousePosScreen.x * invZoom + cameraRect.x;
-        mousePosWorld.y += mousePosScreen.y * invZoom + cameraRect.y;
-
-        const int findMouseTile = IsKeyDown(KEY_LEFT_CONTROL);
-        Tile *mouseTile = 0;
-        Rectangle mouseTileRect;
-
         BeginMode2D(camera);
         size_t tilesDrawn = 0;
-        for (size_t y = 0; y < tilemap.heightTiles; y += zoomMipLevel) {
-            for (size_t x = 0; x < tilemap.widthTiles; x += zoomMipLevel) {
-                Tile *tile = &tilemap.tiles[y * tilemap.widthTiles + x];
-                if (tile->position.x + tilemap.tileset->tileWidth  * zoomMipLevel >= cameraRect.x &&
-                    tile->position.y + tilemap.tileset->tileHeight * zoomMipLevel >= cameraRect.y &&
-                    tile->position.x < cameraRect.x + cameraRect.width &&
-                    tile->position.y < cameraRect.y + cameraRect.height)
-                {
-                    Rectangle bounds = (Rectangle){
-                        tile->position.x,
-                        tile->position.y,
-                        (float)tilemap.tileset->tileWidth  * zoomMipLevel,
-                        (float)tilemap.tileset->tileHeight * zoomMipLevel
-                    };
-#if 0
-                    // Draw solid color rectangles
-                    DrawRectangle((int)tile->position.x, (int)tile->position.y, (int)tilemap.tileset->tileWidth * zoomMipLevel,
-                        (int)tilemap.tileset->tileHeight * zoomMipLevel, tileColors[tile->tileType]);
-#elif 0
-                    // Draw all tiles as textured rects (looks best, performs worst)
-                    Rectangle textureRect = tilemap.tileset->textureRects[tile->tileType];
-                    DrawTextureRec(tilemap.tileset->texture, textureRect, tile->position, WHITE);
-#else
-                    // Draw repeating texture of top-left mip tile when zoomed out
-                    Rectangle source = tilemap.tileset->textureRects[tile->tileType];
-                    DrawTexturePro(*tilemap.tileset->texture, source, bounds, (Vector2){ 0.0f, 0.0f }, 0.0f, WHITE);
-#endif
-                    tilesDrawn++;
 
-                    // TODO: This can be done deterministically outside of the loop, no need to run it per-tile
-                    if (findMouseTile &&
-                        mousePosWorld.x >= bounds.x &&
-                        mousePosWorld.y >= bounds.y &&
-                        mousePosWorld.x < bounds.x + bounds.width &&
-                        mousePosWorld.y < bounds.y + bounds.height)
+        {
+            const float tileWidthMip  = (float)(tilemap.tileset->tileWidth * zoomMipLevel);
+            const float tileHeightMip = (float)(tilemap.tileset->tileHeight * zoomMipLevel);
+            const size_t heightTiles = tilemap.heightTiles;
+            const size_t widthTiles = tilemap.widthTiles;
+            const Rectangle *tileRects = tilemap.tileset->textureRects;
+            const float camLeft   = cameraRect.x;
+            const float camTop    = cameraRect.y;
+            const float camRight  = cameraRect.x + cameraRect.width;
+            const float camBottom = cameraRect.y + cameraRect.height;
+
+            for (size_t y = 0; y < heightTiles; y += zoomMipLevel) {
+                for (size_t x = 0; x < widthTiles; x += zoomMipLevel) {
+                    const Tile *tile = &tilemap.tiles[y * tilemap.widthTiles + x];
+                    const Vector2 tilePos = tile->position;
+                    if (tilePos.x + tileWidthMip >= camLeft &&
+                        tilePos.y + tileHeightMip >= camTop &&
+                        tilePos.x < camRight &&
+                        tilePos.y < camBottom)
                     {
-                        mouseTile = tile;
-                        mouseTileRect = bounds;
+#if 1
+                        // Draw all tiles as textured rects (looks best, performs worst)
+                        Rectangle textureRect = tileRects[tile->tileType];
+                        DrawTextureRec(*tilemap.tileset->texture, textureRect, tile->position, WHITE);
+#else
+                        // Draw repeating texture of top-left mip tile when zoomed out
+                        const Rectangle bounds = (Rectangle){
+                            tile->position.x,
+                            tile->position.y,
+                            tileWidthMip,
+                            tileHeightMip
+                        };
+
+                        const Rectangle source = tileRects[tile->tileType];
+                        DrawTexturePro(*tilemap.tileset->texture, source, bounds, (Vector2){ 0.0f, 0.0f }, 0.0f, WHITE);
+#endif
+                        tilesDrawn++;
                     }
                 }
             }
         }
         //DrawRectangleRec(cameraRect, Fade(PINK, 0.5f));
 
-        if (findMouseTile && mouseTile) {
-            // Draw red outline on hovered tile
-#if 0
-            DrawRectangleLines
-                (int)mouseTile->position.x, (int)mouseTile->position.y,
-                (int)tilemap.tileset->tileWidth, (int)tilemap.tileset->tileHeight, RED);
-#else
-            DrawRectangleLinesEx(mouseTileRect, 1 * (int)invZoom, RED);
-#endif
+        const Vector2 mousePosScreen = GetMousePosition();
+        Vector2 mousePosWorld = { 0 };
+        mousePosWorld.x += mousePosScreen.x * invZoom + cameraRect.x;
+        mousePosWorld.y += mousePosScreen.y * invZoom + cameraRect.y;
+
+        bool findMouseTile = IsKeyDown(KEY_LEFT_CONTROL);
+        Tile *mouseTile = 0;
+        if (findMouseTile) {
+            mouseTile = tilemap_at_world_try(&tilemap, (int)mousePosWorld.x, (int)mousePosWorld.y);
+            if (mouseTile) {
+                // Draw red outline on hovered tile
+                Rectangle mouseTileRect = (Rectangle){
+                    mouseTile->position.x,
+                    mouseTile->position.y,
+                    (float)tilemap.tileset->tileWidth  * zoomMipLevel,
+                    (float)tilemap.tileset->tileHeight * zoomMipLevel
+                };
+                DrawRectangleLinesEx(mouseTileRect, 1 * (int)invZoom, RED);
+            }
         }
 
         {
             // Sort by y value of bottom of sprite rect
-            // TODO(perf): Sort indices instead to prevent copying Slimes around in array?
             //qsort(slimes, sizeof(slimes)/sizeof(*slimes), sizeof(*slimes), SlimeCompareDepth);
-            for (int i = 1; i < SLIMES_COUNT; i++) {
-                int index = slimesByDepth[i];
-                Vector2 groundPosA = body_ground_position(&slimes[index].body);
-                int j = i - 1;
-                Vector2 groundPosB = body_ground_position(&slimes[slimesByDepth[j]].body);
-                while (groundPosB.y > groundPosA.y) {
+            int i, j, index;
+            float groundPosA;
+            for (i = 1; i < SLIMES_COUNT; i++) {
+                index = slimesByDepth[i];
+                groundPosA = slimes[index].body.position.y;
+                for (j = i - 1; j >= 0 && (slimes[slimesByDepth[j]].body.position.y > groundPosA); j--) {
                     slimesByDepth[j + 1] = slimesByDepth[j];
-                    j--;
-                    if (j < 0) break;
-                    groundPosB = body_ground_position(&slimes[slimesByDepth[j]].body);
                 }
                 slimesByDepth[j + 1] = index;
             }
@@ -567,16 +569,17 @@ int main(void)
             // TODO: Shadow size based on height from ground
             // https://yal.cc/top-down-bouncing-loot-effects/
 
-            //const float shadowScale = 1.0f + slimes[slimeIdx].transform.position.z / 20.0f;
+            //const float shadowScale = 1.0f + slime->transform.position.z / 20.0f;
 
             // Draw shadows
             for (int i = 0; i < SLIMES_COUNT; i++) {
                 int slimeIdx = slimesByDepth[i];
-                if (!slimes[slimeIdx].combat.hitPoints)
+                const Slime *slime = &slimes[slimeIdx];
+                if (!slime->combat.hitPoints)
                     continue;
 
-                const Vector2 slimeBC = body_ground_position(&slimes[slimeIdx].body);
-                DrawShadow((int)slimeBC.x, (int)slimeBC.y, 16.0f * slimes[slimeIdx].body.scale, -8.0f * slimes[slimeIdx].body.scale);
+                const Vector2 slimeBC = body_ground_position(&slime->body);
+                DrawShadow((int)slimeBC.x, (int)slimeBC.y, 16.0f * slime->sprite.scale, -8.0f * slime->sprite.scale);
             }
 
             // Player shadow
@@ -587,11 +590,12 @@ int main(void)
 
             for (int i = 0; i < SLIMES_COUNT; i++) {
                 int slimeIdx = slimesByDepth[i];
-                if (!slimes[slimeIdx].combat.hitPoints) {
+                const Slime *slime = &slimes[slimeIdx];
+                if (!slime->combat.hitPoints) {
                     continue;
                 }
 
-                const Vector2 slimeGroundPos = body_ground_position(&slimes[slimeIdx].body);
+                const Vector2 slimeGroundPos = body_ground_position(&slime->body);
 
                 // HACK: Draw charlie in sorted order
                 if (!charlieDrawn && playerGroundPos.y < slimeGroundPos.y) {
@@ -607,26 +611,16 @@ int main(void)
             }
         }
 
+        particles_draw(now, dt);
+
         for (size_t slimeIdx = 0; slimeIdx < SLIMES_COUNT; slimeIdx++) {
-            if (!slimes[slimeIdx].combat.hitPoints) {
+            const Slime *slime = &slimes[slimeIdx];
+            if (!slime->combat.hitPoints) {
                 continue;
             }
-
-            // TODO: slime_get_top_center (after unify player/slime code)
-            Rectangle slimeRect = body_rect(&slimes[slimeIdx].body);
-            const int x = (int)(slimeRect.x + slimeRect.width / 2.0f);
-            const int y = (int)slimeRect.y;
-            DrawHealthBar(fonts[0], 10, x, y, slimes[slimeIdx].combat.hitPoints, slimes[slimeIdx].combat.maxHitPoints);
+            DrawHealthBar(fonts[0], 10, &slime->sprite, &slime->body, slime->combat.hitPoints, slime->combat.maxHitPoints);
         }
-        // TODO: player_get_top_center (after unify player/slime code)
-        Rectangle playerRect = body_rect(&charlie.body);
-        const int x = (int)(playerRect.x + playerRect.width / 2.0f);
-        const int y = (int)playerRect.y;
-        DrawHealthBar(fonts[0], 10, x, y, charlie.combat.hitPoints, charlie.combat.maxHitPoints);
-
-        {
-            particle_effects_draw(dt);
-        }
+        DrawHealthBar(fonts[0], 10, &charlie.sprite, &charlie.body, charlie.combat.hitPoints, charlie.combat.maxHitPoints);
 
 #if DEMO_VIEW_CULLING
         DrawRectangleRec(cameraRect, Fade(PINK, 0.5f));
@@ -676,8 +670,8 @@ int main(void)
     cursorY += fontHeight + pad; \
 
             int linesOfText = 8;
-#if _DEBUG
-            linesOfText += 5;
+#if SHOW_DEBUG_STATS
+            linesOfText += 7;
 #endif
             const int margin = 6;   // left/top margin
             const int pad = 4;      // left/top pad
@@ -689,8 +683,9 @@ int main(void)
             int cursorY = hudY + pad;
             const char *text = 0;
 
-            DrawRectangle(hudX, hudY, hudWidth, hudHeight, Fade(DARKGRAY, 0.8f));
-            DrawRectangleLines(hudX, hudY, hudWidth, hudHeight, Fade(BLACK, 0.8f));
+            const Color darkerGray = (Color){ 40, 40, 40, 255 };
+            DrawRectangle(hudX, hudY, hudWidth, hudHeight, Fade(darkerGray, 0.9f));
+            DrawRectangleLines(hudX, hudY, hudWidth, hudHeight, Fade(BLACK, 0.9f));
 
             text = TextFormat("%2i fps (%.02f ms)", GetFPS(), GetFrameTime() * 1000.0f);
             PUSH_TEXT(text, WHITE);
@@ -710,7 +705,7 @@ int main(void)
             text = TextFormat("Times sword swung %u", charlie.stats.timesSwordSwung);
             PUSH_TEXT(text, LIGHTGRAY);
 
-#if _DEBUG
+#if SHOW_DEBUG_STATS
             text = TextFormat("Zoom          %.03f", camera.zoom);
             PUSH_TEXT(text, GRAY);
             text = TextFormat("Zoom inverse  %.03f", invZoom);
@@ -721,10 +716,15 @@ int main(void)
             PUSH_TEXT(text, GRAY);
             text = TextFormat("Font index    %zu", fontIdx);
             PUSH_TEXT(text, GRAY);
+            text = TextFormat("Particle FX   %zu", particle_effects_active());
+            PUSH_TEXT(text, GRAY);
+            text = TextFormat("Particles     %zu", particles_active());
+            PUSH_TEXT(text, GRAY);
 #endif
 #undef PUSH_TEXT
         }
 
+#if ALPHA_NETWORKING
         // Render chat history
         {
             static bool chatVisible = false;
@@ -768,6 +768,7 @@ int main(void)
                 }
             }
         }
+#endif
 
         EndDrawing();
         //----------------------------------------------------------------------------------
@@ -781,16 +782,17 @@ int main(void)
     //--------------------------------------------------------------------------------------
     // Clean up
     //--------------------------------------------------------------------------------------
+#if ALPHA_NETWORKING
     network_server_stop(&server);
     network_shutdown();
-
-    particle_effects_free();
+#endif
     tilemap_free(&tilemap);
     tileset_free(&tileset);
     UnloadTexture(tilesetTex);
     UnloadTexture(checkboardTexture);
     sound_catalog_free();
     spritesheet_catalog_free();
+    particles_free();
     UnloadMusicStream(mus_whistle);
     UnloadMusicStream(mus_background);
     CloseAudioDevice();

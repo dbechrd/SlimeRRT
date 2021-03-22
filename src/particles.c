@@ -1,395 +1,227 @@
 #include "particles.h"
+#include "particle_fx.h"
+#include "sprite.h"
+#include "spritesheet.h"
 #include "helpers.h"
 #include "dlb_rand.h"
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 
-static size_t activeEffectsCapacity;
-static ParticleEffect **activeEffects;
+#define MAX_PARTICLES 16384
+#define MAX_EFFECTS   32
 
-static void blood_generate(Particle *particle, float duration)
+static Particle *particles;
+static Particle *particlesFree;
+static size_t particlesActiveCount;
+static ParticleEffect *effects;
+static ParticleEffect *effectsFree;
+static size_t effectsActiveCount;
+
+void particles_init()
 {
-    // Spawn randomly during first 25% of duration
-    particle->spawnAt = duration * dlb_rand_variance(0.25f);
+    assert(MAX_PARTICLES);
+    assert(MAX_EFFECTS);
 
-    // Die randomly during last 15% of animation
-    particle->dieAt = duration - (duration * dlb_rand_variance(0.15f));
-    assert(particle->dieAt > particle->spawnAt);
-
-#if 1
-    float randX = dlb_rand_variance(METERS_TO_PIXELS(1.0f));
-    float randY = dlb_rand_variance(METERS_TO_PIXELS(1.0f));
-    float randZ = dlb_rand_float(0.0f, METERS_TO_PIXELS(2.0f));
-    particle->body.velocity = (Vector3){ randX, randY, randZ };
-    particle->body.friction = 0.5f;
-#else
-    const float direction = 1.0f;
-    float randX = direction * dlb_rand_float(0.0f, METERS_TO_PIXELS(1.0f));
-    particle->velocity = (Vector2){ randX, METERS_TO_PIXELS(-3.0f) };
-#endif
-    //particle->position = (Vector2){ 0.0f, 0.0f };
-    particle->body.scale = 1.0f;
-    particle->body.color = RED;
-}
-
-static void blood_update(Particle *particle, float alpha)
-{
-    const float radius = 5.0f;
-    // radius * 1.0 -> 0.2
-    particle->body.scale = radius * (1.0f - alpha * 0.8f);
-    // 1.0 -> 0.0
-    const unsigned char r = (unsigned char)((1.0f - alpha * 1.0f) * 255.0f);
-    // 1.0 -> 0.6
-    const unsigned char a = (unsigned char)((1.0f - alpha * 0.4f) * 255.0f);
-    particle->body.color = (Color){ r, 0, 0, a };
-}
-
-static void blood_draw(Particle *particle)
-{
-    // TODO: Use body draw, but let "sprite" be == "circle" somehow instead of a sprite?
-    DrawCircle(
-        (int)particle->body.position.x,
-        (int)(particle->body.position.y - particle->body.position.z),
-        particle->body.scale,
-        particle->body.color
-    );
-}
-
-static void gold_generate(Particle *particle, float duration)
-{
-    // Spawn randomly during first 5% of duration
-    particle->spawnAt = duration * dlb_rand_variance(0.05f);
-
-    // Die randomly during last 15% of animation
-    particle->dieAt = duration - (duration * dlb_rand_variance(0.15f));
-    assert(particle->dieAt > particle->spawnAt);
-
-#if 1
-    float randX = dlb_rand_variance(METERS_TO_PIXELS(1.0f));
-    float randY = dlb_rand_variance(METERS_TO_PIXELS(1.0f));
-    float randZ = dlb_rand_float(0.0f, METERS_TO_PIXELS(4.0f));
-    particle->body.velocity = (Vector3){ randX, randY, randZ };
-    particle->body.restitution = 0.8f;
-    particle->body.friction = 0.5f;
-#else
-    const float direction = 1.0f;
-    float randX = direction * dlb_rand_float(0.0f, METERS_TO_PIXELS(1.0f));
-    particle->velocity = (Vector2){ randX, METERS_TO_PIXELS(-3.0f) };
-#endif
-    //particle->position = (Vector2){ 0.0f, 0.0f };
-    particle->body.scale = 1.0f;
-    particle->body.color = WHITE;
-}
-
-static void gold_update(Particle *particle, float alpha)
-{
-    // UNUSED for now
-}
-
-static void gold_draw(Particle *particle)
-{
-    // Draw sprite
-    body_draw(&particle->body);
-}
-
-static void goo_generate(Particle *particle, float duration)
-{
-    // Spawn randomly during first 25% of duration
-    particle->spawnAt = duration * dlb_rand_variance(0.25f);
-
-    // Die randomly during last 15% of animation
-    particle->dieAt = duration - (duration * dlb_rand_variance(0.15f));
-    assert(particle->dieAt > particle->spawnAt);
-
-#if 1
-    float randX = dlb_rand_variance(METERS_TO_PIXELS(1.0f));
-    float randY = dlb_rand_variance(METERS_TO_PIXELS(1.0f));
-    float randZ = dlb_rand_float(0.0f, METERS_TO_PIXELS(2.0f));
-    particle->body.velocity = (Vector3){ randX, randY, randZ };
-    particle->body.friction = 0.5f;
-#else
-    const float direction = 1.0f;
-    float randX = direction * dlb_rand_float(0.0f, METERS_TO_PIXELS(1.0f));
-    particle->velocity = (Vector2){ randX, METERS_TO_PIXELS(-3.0f) };
-#endif
-    //particle->position = (Vector2){ 0.0f, 0.0f };
-    particle->body.scale = 1.0f;
-    particle->body.color = (Color){ 154, 219, 63, 178 };  // Slime lime
-}
-
-static void goo_update(Particle *particle, float alpha)
-{
-    const float radius = 5.0f;
-    // radius * 1.0 -> 0.2
-    particle->body.scale = radius * (1.0f - alpha * 0.8f);
-}
-
-static void goo_draw(Particle *particle)
-{
-    // TODO: Use body draw, but let "sprite" be == "circle" somehow instead of a sprite?
-    DrawCircle(
-        (int)particle->body.position.x,
-        (int)(particle->body.position.y - particle->body.position.z),
-        particle->body.scale,
-        particle->body.color
-    );
-}
-
-static void effect_generate(ParticleEffect *effect)
-{
-    assert(effect);
-
-    for (size_t i = 0; i < effect->particleCount; i++) {
-        Particle *particle = &effect->particles[i];
-        particle->state = ParticleState_Dead;
-        switch (effect->type) {
-            case ParticleEffectType_Blood: {
-                blood_generate(particle, (float)effect->duration);
-                break;
-            } case ParticleEffectType_Gold: {
-                gold_generate(particle, (float)effect->duration);
-                break;
-            } case ParticleEffectType_Goo: {
-                goo_generate(particle, (float)effect->duration);
-                break;
-            } default: {
-                TraceLog(LOG_FATAL, "Unknown particle effect type\n");
-                return;
-            }
-        }
+    // Allocate pools
+    particles = calloc(MAX_PARTICLES, sizeof(*particles));
+    effects = calloc(MAX_EFFECTS, sizeof(*effects));
+    if (!particles || !effects) {
+        TraceLog(LOG_FATAL, "Failed to allocate memory for particles\n");
+        exit(-1);
     }
+
+    // Initialze intrusive free lists
+    for (size_t i = 0; i < MAX_PARTICLES - 1; i++) {
+        particles[i].next = &particles[i + 1];
+    }
+    particlesFree = particles;
+    for (size_t i = 0; i < MAX_EFFECTS - 1; i++) {
+        effects[i].next = &effects[i + 1];
+    }
+    effectsFree = effects;
 }
 
-ParticleEffect *particle_effect_alloc(ParticleEffectType type, size_t particleCount)
+void particles_free()
 {
-    assert(type >= 0);
-    assert(type < ParticleEffectType_Count);
-    assert(particleCount);
+    free(particles);
+    free(effects);
+    particles = 0;
+    effects = 0;
+    particlesFree = 0;
+    effectsFree = 0;
+}
 
+static Particle *particle_alloc()
+{
     // Allocate effect
-    ParticleEffect *effect = calloc(1, sizeof(*effect) + sizeof(*effect->particles) * particleCount);
-    assert(effect);
+    Particle *particle = particlesFree;
+    if (!particle) {
+        assert(!"Particle pool is full");
+        TraceLog(LOG_ERROR, "Particle pool is full; discarding particle.\n");
+        return 0;
+    }
+    particlesFree = particle->next;
+    particlesActiveCount++;
 
-    effect->type = type;
-    effect->particleCount = particleCount;
-    effect->particles = (Particle *)((char *)effect + sizeof(*effect));
+    return particle;
+}
 
-    int freeIndex = -1;
-
-    // Find free slot for effect pointer
-    for (size_t i = 0; i < activeEffectsCapacity; i++) {
-        if (activeEffects[i] == NULL) {
-            freeIndex = (int)i;
+static void generate_effect_particles(ParticleEffect *effect, size_t particleCount, const SpriteDef *spriteDef)
+{
+    Particle *prev = 0;
+    for (size_t i = 0; i < particleCount; i++) {
+        Particle *particle = particle_alloc();
+        if (!particle) {
             break;
         }
-    }
-
-    // If not found, expand array
-    if (freeIndex == -1) {
-        if (!activeEffects) {
-            activeEffectsCapacity = 16;
-            activeEffects = calloc(activeEffectsCapacity, sizeof(*activeEffects));
-            freeIndex = 0;
-        } else {
-            // If we're playing this many particle effects at the same time we should investigate to see if there's
-            // another bug happening.
-            //if (activeEffectsCapacity * 2 > 1024) {
-            //    return 0;
-            //}
-            activeEffects = realloc(activeEffects, sizeof(*activeEffects) * activeEffectsCapacity * 2);
-            memset(activeEffects + activeEffectsCapacity, 0, sizeof(*activeEffects) * activeEffectsCapacity);
-            freeIndex = (int)activeEffectsCapacity;
-            activeEffectsCapacity *= 2;
+        if (prev) {
+            prev->next = particle;
         }
-        assert(activeEffects);
-    }
 
-    // Store pointer to new effect in effects list
-    assert(freeIndex >= 0);
-    assert(freeIndex < activeEffectsCapacity);
-    activeEffects[freeIndex] = effect;
+        particle->effect = effect;
+        particle->sprite.spriteDef = spriteDef;
+        effect->def->init(particle, effect->duration);
+        effect->particlesLeft++;
+
+        prev = particle;
+    }
+}
+
+ParticleEffect *particle_effect_create(ParticleEffectType type, size_t particleCount, Vector3 origin, double duration,
+    double now, const SpriteDef *spriteDef)
+{
+    assert(type > 0);
+    assert(type < ParticleEffectType_Count);
+    assert(particleCount);
+    assert(duration);
+    assert(duration > 0.0);
+
+    // Allocate effect
+    ParticleEffect *effect = effectsFree;
+    if (!effect) {
+        assert(!"Particle effect pool is full");
+        TraceLog(LOG_ERROR, "Particle effect pool is full; discarding particle effect.\n");
+        return 0;
+    }
+    effectsFree = effect->next;
+    effectsActiveCount++;
+
+    // Sanity checks to ensure previous effect was freed properly and/or free list is returning valid pointers
+    assert(effect->type == ParticleEffectType_Dead);
+    assert(effect->particlesLeft == 0);
+
+    effect->type = type;
+    effect->origin = origin;
+    effect->duration = duration;
+    effect->startedAt = now;
+
+    static ParticleDef particle_fx_defs[ParticleEffectType_Count] = {
+        [ParticleEffectType_Blood] = { particle_fx_blood_init, particle_fx_blood_update },
+        [ParticleEffectType_Gold ] = { particle_fx_gold_init, particle_fx_gold_update },
+        [ParticleEffectType_Goo  ] = { particle_fx_goo_init, particle_fx_goo_update },
+    };
+    effect->def = &particle_fx_defs[effect->type];
+
+    generate_effect_particles(effect, particleCount, spriteDef);
+
     return effect;
 }
 
-bool particle_effect_start(ParticleEffect *effect, double now, double duration, Vector3 origin)
+size_t particles_active()
 {
-    assert(effect);
-    assert(duration > 0.0);
+    return particlesActiveCount;
+}
 
-    if (effect->state == ParticleEffectState_Dead) {
-        effect->state = ParticleEffectState_Alive;
-        effect->origin = origin;
-        effect->startedAt = now;
-        effect->duration = duration;
-        effect_generate(effect);
+size_t particle_effects_active()
+{
+    return effectsActiveCount;
+}
 
-        ParticeEffectEventCallback *callback = &effect->callbacks[ParticleEffectEvent_Started];
-        if (callback->function) {
-            callback->function(effect, callback->userData);
+void particles_update(double now, double dt)
+{
+    for (size_t i = 0; i < MAX_EFFECTS; i++) {
+        ParticleEffect *effect = &effects[i];
+        if (effect->type == ParticleEffectType_Dead)
+            continue;
+
+        if (effect->callbacks[ParticleEffectEvent_BeforeUpdate].function) {
+            effect->callbacks[ParticleEffectEvent_BeforeUpdate].function(
+                effect, effect->callbacks[ParticleEffectEvent_BeforeUpdate].userData
+            );
         }
-
-        return true;
-    }
-    return false;
-}
-//
-//static void particle_effect_reset(ParticleEffect *effect)
-//{
-//    assert(effect);
-//    assert(effect->particles);
-//
-//    effect->startedAt = 0;
-//    effect->lastUpdatedAt = 0;
-//    effect->state = ParticleEffectState_Dead;
-//    memset(effect->particles, 0, sizeof(*effect->particles) * effect->particleCount);
-//}
-
-void particle_effect_stop(ParticleEffect *effect)
-{
-    assert(effect);
-
-    if (effect->state == ParticleEffectState_Dead) {
-        return;
     }
 
-    effect->state = ParticleEffectState_Stopping;
-    ParticeEffectEventCallback *callback = &effect->callbacks[ParticleEffectEvent_Stopped];
-    if (callback->function) {
-        callback->function(effect, callback->userData);
-    }
-    particle_effect_free(effect);
-}
+    for (size_t i = 0; i < MAX_PARTICLES; i++) {
+        Particle *particle = &particles[i];
+        if (!particle->effect)
+            continue;  // particle is dead
 
-static void particle_effect_update(ParticleEffect *effect, double now, double dt)
-{
-    assert(effect);
-    assert(effect->particleCount);
-    assert(effect->particles);
-
-    if (effect->state == ParticleEffectState_Dead) {
-        return;
-    }
-
-    ParticeEffectEventCallback *callback = &effect->callbacks[ParticleEffectEvent_BeforeUpdate];
-    if (callback->function) {
-        callback->function(effect, callback->userData);
-    }
-
-    const float animTime = (float)(now - effect->startedAt);
-
-    size_t deadParticleCount = 0;
-
-    for (size_t i = 0; i < effect->particleCount; i++) {
-        Particle *particle = &effect->particles[i];
+        ParticleEffect *effect = particle->effect;
+        const float animTime = (float)(now - particle->effect->startedAt);
         const float alpha = (float)((animTime - particle->spawnAt) / (particle->dieAt - particle->spawnAt));
         if (alpha >= 0.0f && alpha < 1.0f) {
-            if (particle->state == ParticleState_Dead) {
+            if (!particle->body.lastUpdated) {
                 particle->body.position = effect->origin;
-                particle->state = ParticleState_Alive;
             }
             body_update(&particle->body, now, dt);
+            sprite_update(&particle->sprite, now, dt);
+            particle->effect->def->update(particle, alpha);
+        } else if (alpha >= 1.0f) {
+            particle->effect->particlesLeft--;
 
-            switch (effect->type) {
-                case ParticleEffectType_Blood: {
-                    blood_update(particle, alpha);
-                    break;
-                } case ParticleEffectType_Gold: {
-                    gold_update(particle, alpha);
-                    break;
-                } case ParticleEffectType_Goo: {
-                    goo_update(particle, alpha);
-                    break;
-                } default: {
-                    TraceLog(LOG_FATAL, "Unknown particle effect type\n");
-                    return;
-                }
+            // Return particle to free list
+            memset(particle, 0, sizeof(*particle));
+            particle->next = particlesFree;
+            particlesFree = particle;
+            particlesActiveCount--;
+        }
+    }
+
+    for (size_t i = 0; i < MAX_EFFECTS; i++) {
+        ParticleEffect *effect = &effects[i];
+        if (effect->type == ParticleEffectType_Dead)
+            continue;
+
+        // note: ParticleEffectEvent_AfterUpdate would go here if I ever care about that..
+
+        if (!effect->particlesLeft) {
+            if (effect->callbacks[ParticleEffectEvent_Dying].function) {
+                effect->callbacks[ParticleEffectEvent_Dying].function(
+                    effect, effect->callbacks[ParticleEffectEvent_Dying].userData
+                );
             }
-        } else if(alpha >= 1.0f) {
-            particle->state = ParticleState_Dead;
-            deadParticleCount++;
-        }
-    }
 
-    if (deadParticleCount == effect->particleCount) {
-        ParticeEffectEventCallback *callback = &effect->callbacks[ParticleEffectEvent_Dying];
-        if (callback->function) {
-            callback->function(effect, callback->userData);
-        }
-        particle_effect_free(effect);
-    }
-}
-
-void particle_effects_update(double now, double dt)
-{
-    for (size_t i = 0; i < activeEffectsCapacity; i++) {
-        if (activeEffects[i]) {
-            particle_effect_update(activeEffects[i], now, dt);
+            // Return effect to free list
+            memset(effect, 0, sizeof(*effect));
+            effect->next = effectsFree;
+            effectsFree = effect;
+            effectsActiveCount--;
         }
     }
 }
 
-static void particle_effect_draw(ParticleEffect *effect)
+static void particle_draw(const Particle *particle)
 {
-    assert(effect);
-
-    if (effect->state == ParticleEffectState_Dead) {
-        return;
-    }
-
-    for (size_t i = 0; i < effect->particleCount; i++) {
-        Particle *particle = &effect->particles[i];
-        if (particle->state == ParticleState_Alive) {
-            switch (effect->type) {
-                case ParticleEffectType_Blood: {
-                    blood_draw(particle);
-                    break;
-                } case ParticleEffectType_Gold: {
-                    gold_draw(particle);
-                    break;
-                } case ParticleEffectType_Goo: {
-                    goo_draw(particle);
-                    break;
-                } default: {
-                    TraceLog(LOG_FATAL, "Unknown particle effect type\n");
-                    return;
-                }
-            }
-        }
+    if (particle->sprite.spriteDef) {
+        sprite_draw_body(&particle->sprite, &particle->body, particle->sprite.scale, particle->color);
+    } else {
+        DrawCircle(
+            (int)particle->body.position.x,
+            (int)(particle->body.position.y - particle->body.position.z),
+            particle->sprite.scale,
+            particle->color
+        );
     }
 }
 
-void particle_effects_draw()
+void particles_draw(double now, double dt)
 {
-    for (size_t i = 0; i < activeEffectsCapacity; i++) {
-        if (activeEffects[i]) {
-            particle_effect_draw(activeEffects[i]);
-        }
+    for (size_t i = 0; i < MAX_PARTICLES; i++) {
+        Particle *particle = &particles[i];
+        if (!particle->effect)
+            continue;  // particle is dead
+
+        particle_draw(particle);
     }
-}
-
-void particle_effect_free(ParticleEffect *effect)
-{
-    assert(effect);
-
-    // Remove effect pointer from active effects list
-    for (size_t i = 0; i < activeEffectsCapacity; i++) {
-        if (activeEffects[i] == effect) {
-            activeEffects[i] = NULL;
-        }
-    }
-
-    free(effect);
-}
-
-void particle_effects_free()
-{
-    // Remove effect pointer from active effects list
-    for (size_t i = 0; i < activeEffectsCapacity; i++) {
-        if (activeEffects[i]) {
-            particle_effect_free(activeEffects[i]);
-        }
-    }
-
-    free(activeEffects);
 }

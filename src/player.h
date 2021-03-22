@@ -1,8 +1,8 @@
 #pragma once
 #include "body.h"
 #include "combat.h"
+#include "sprite.h"
 #include "player_inventory.h"
-#include "spritesheet.h"
 #include <stdbool.h>
 
 typedef enum PlayerMoveState {
@@ -35,11 +35,12 @@ typedef struct Player {
     PlayerMoveState moveState;
     Body3D body;
     Combat combat;
+    Sprite sprite;
     PlayerInventory inventory;
     PlayerStats stats;
 } Player;
 
-void player_init                (Player *player, const char *name, const struct Sprite *sprite);
+void player_init                (Player *player, const char *name, const struct SpriteDef *spriteDef);
 Vector3 player_get_attach_point (const Player *player, PlayerAttachPoint attachPoint);
 const Item *player_selected_item(const Player *player);
 bool player_move                (Player *player, double now, double dt, Vector2 offset);

@@ -497,7 +497,7 @@ static bool ParseAnimation(Scanner *scanner, SpriteAnim *animation)
 #undef USAGE
 }
 
-static bool ParseSprite(Scanner *scanner, Sprite *sprite)
+static bool ParseSprite(Scanner *scanner, SpriteDef *sprite)
 {
     assert(scanner);
     assert(sprite);
@@ -589,7 +589,7 @@ static bool ParseSpritesheet(Scanner *scanner, Spritesheet *spritesheet)
                             TraceLog(LOG_ERROR, "'%s': Error: Encountered 'sprite', but [%d of %d] sprites have already been added to the spritesheet.\n", scanner->fileName, spritesParsed, spritesheet->spriteCount);
                             return false;
                         }
-                        Sprite *sprite = &spritesheet->sprites[spritesParsed];
+                        SpriteDef *sprite = &spritesheet->sprites[spritesParsed];
                         sprite->spritesheet = spritesheet;
                         if (!ParseSprite(scanner, sprite)) {
                             return false;
@@ -650,11 +650,11 @@ void spritesheet_init(Spritesheet *spritesheet, const char *fileName)
     }
 }
 
-const Sprite *spritesheet_find_sprite(const Spritesheet *spritesheet, const char *name)
+const SpriteDef *spritesheet_find_sprite(const Spritesheet *spritesheet, const char *name)
 {
     // TODO: Hash table if the # of sprites per sheet grows to > 16.. or make SpriteID / sprite catalog?
     for (int i = 0; i < spritesheet->spriteCount; i++) {
-        const Sprite *sprite = &spritesheet->sprites[i];
+        const SpriteDef *sprite = &spritesheet->sprites[i];
         if (!strncmp(sprite->name.text, name, sprite->name.length)) {
             return sprite;
         }

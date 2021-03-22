@@ -19,12 +19,16 @@
     <ClCompile Include="src\main.c" />
     <ClCompile Include="src\network_client.c" />
     <ClCompile Include="src\network_server.c" />
+    <ClCompile Include="src\particle_fx_blood.c" />
+    <ClCompile Include="src\particle_fx_gold.c" />
+    <ClCompile Include="src\particle_fx_goo.c" />
     <ClCompile Include="src\player.c" />
     <ClCompile Include="src\particles.c" />
     <ClCompile Include="src\player_inventory.c" />
     <ClCompile Include="src\sim.c" />
     <ClCompile Include="src\slime.c" />
     <ClCompile Include="src\sound_catalog.c" />
+    <ClCompile Include="src\sprite.c" />
     <ClCompile Include="src\spritesheet.c" />
     <ClCompile Include="src\spritesheet_catalog.c" />
     <ClCompile Include="src\tilemap.c" />
@@ -34,6 +38,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\combat.h" />
+    <ClInclude Include="src\direction.h" />
     <ClInclude Include="src\helpers.h" />
     <ClInclude Include="src\controller.h" />
     <ClInclude Include="src\item.h" />
@@ -41,13 +46,16 @@
     <ClInclude Include="src\network_client.h" />
     <ClInclude Include="src\network_server.h" />
     <ClInclude Include="src\particles.h" />
+    <ClInclude Include="src\particle_fx.h" />
     <ClInclude Include="src\player.h" />
     <ClInclude Include="src\player_inventory.h" />
     <ClInclude Include="src\sim.h" />
     <ClInclude Include="src\slime.h" />
     <ClInclude Include="src\sound_catalog.h" />
+    <ClInclude Include="src\sprite.h" />
     <ClInclude Include="src\spritesheet.h" />
     <ClInclude Include="src\spritesheet_catalog.h" />
+    <ClInclude Include="src\string_view.h" />
     <ClInclude Include="src\tilemap.h" />
     <ClInclude Include="src\tileset.h" />
     <ClInclude Include="src\body.h" />

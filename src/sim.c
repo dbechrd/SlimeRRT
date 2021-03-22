@@ -8,28 +8,14 @@
 #include "player_inventory.h"
 #include "slime.h"
 #include "sound_catalog.h"
+#include "spritesheet.h"
 #include "spritesheet_catalog.h"
 #include "tilemap.h"
 #include "dlb_rand.h"
 #include <assert.h>
 
-static void GoldParticlesStarted(ParticleEffect *effect, void *userData)
-{
-    UNUSED(userData);
-    static const Sprite *coinSprite = 0;
-    if (!coinSprite) {
-        const Spritesheet *coinSpritesheet = spritesheet_catalog_find(SpritesheetID_Coin);
-        coinSprite = spritesheet_find_sprite(coinSpritesheet, "coin");
-    }
-
-    for (size_t i = 0; i < effect->particleCount; i++) {
-        effect->particles[i].body.sprite = coinSprite;
-    }
-    sound_catalog_play(SoundID_Gold, 1.0f + dlb_rand_variance(0.1f));
-}
-
 void sim(double now, double dt, const PlayerControllerState input, Player *player, Tilemap *map, Slime *slimes,
-    size_t slimeCount)
+    size_t slimeCount, const SpriteDef *coinSpriteDef)
 {
     assert(player);
     assert(map);
@@ -137,32 +123,26 @@ void sim(double now, double dt, const PlayerControllerState input, Player *playe
 
             size_t slimesHit = 0;
             for (size_t slimeIdx = 0; slimeIdx < slimeCount; slimeIdx++) {
-                if (!slimes[slimeIdx].combat.hitPoints)
+                Slime *slime = &slimes[slimeIdx];
+                if (!slime->combat.hitPoints)
                     continue;
 
-                Vector3 playerToSlime = v3_sub(slimes[slimeIdx].body.position, player->body.position);
+                Vector3 playerToSlime = v3_sub(slime->body.position, player->body.position);
                 if (v3_length_sq(playerToSlime) <= playerAttackReach * playerAttackReach) {
-                    player->stats.damageDealt += MIN(slimes[slimeIdx].combat.hitPoints, playerDamage);
-                    slimes[slimeIdx].combat.hitPoints = MAX(0.0f, slimes[slimeIdx].combat.hitPoints - playerDamage);
-                    if (!slimes[slimeIdx].combat.hitPoints) {
+                    player->stats.damageDealt += MIN(slime->combat.hitPoints, playerDamage);
+                    slime->combat.hitPoints = MAX(0.0f, slime->combat.hitPoints - playerDamage);
+                    if (!slime->combat.hitPoints) {
                         //sound_catalog_play(SoundID_Squeak, 0.75f + dlb_rand_variance(0.2f));
 
-                        int coins = dlb_rand_int(1, 4) * (int)slimes[slimeIdx].body.scale;
+                        int coins = dlb_rand_int(1, 4) * (int)slime->sprite.scale;
                         // TODO(design): Convert coins to higher currency if stack fills up?
                         player->inventory.slots[PlayerInventorySlot_Coins].stackCount += coins;
                         player->stats.coinsCollected += coins;
 
-                        ParticleEffect *gooParticles = particle_effect_alloc(ParticleEffectType_Goo, 20);
-                        //gooParticles->callbacks[ParticleEffectEvent_Started].function = GooParticlesStarted;
-                        //gooParticles->callbacks[ParticleEffectEvent_Started].userData = gooSprite;
-                        //gooParticles->callbacks[ParticleEffectEvent_Dying].function = GooParticlesDying;
-                        Vector3 deadCenter = body_center(&slimes[slimeIdx].body);
-                        particle_effect_start(gooParticles, now, 2.0, deadCenter);
-
-                        ParticleEffect *goldParticles = particle_effect_alloc(ParticleEffectType_Gold, (size_t)coins);
-                        goldParticles->callbacks[ParticleEffectEvent_Started].function = GoldParticlesStarted;
-                        Vector3 slimeBC = body_center(&slimes[slimeIdx].body);
-                        particle_effect_start(goldParticles, now, 2.0, slimeBC);
+                        Vector3 deadCenter = sprite_world_center(&slime->sprite, slime->body.position, slime->sprite.scale);
+                        particle_effect_create(ParticleEffectType_Goo, 20, deadCenter, 2.0, now, 0);
+                        particle_effect_create(ParticleEffectType_Gold, (size_t)coins, deadCenter, 2.0, now, coinSpriteDef);
+                        sound_catalog_play(SoundID_Gold, 1.0f + dlb_rand_variance(0.1f));
 
                         player->stats.slimesSlain++;
                     } else {

@@ -8,54 +8,52 @@
 
 #define SLIME_MAX_SCALE 3.0f
 
-void slime_init(Slime *slime, const char *name, const Sprite *sprite)
+void slime_init(Slime *slime, const char *name, const SpriteDef *spriteDef)
 {
     assert(slime);
     //assert(name);
-    assert(sprite);
+    assert(spriteDef);
 
     slime->name = name;
-    slime->body.scale = 1.0f;
     slime->body.restitution = 0.0f;
     slime->body.drag = 0.95f;
     slime->body.friction = 0.95f;
     slime->body.lastUpdated = GetTime();
-    slime->body.direction = Direction_South;
-    slime->body.color = WHITE;
-    slime->body.color.a = (unsigned char)(255.0f * 0.7f);
-    slime->body.sprite = sprite;
+    slime->sprite.spriteDef = spriteDef;
+    slime->sprite.scale = 1.0f;
+    slime->sprite.direction = Direction_South;
     slime->combat.maxHitPoints = 5.0f;
     slime->combat.hitPoints = slime->combat.maxHitPoints;
 }
 
 static void update_direction(Slime *slime, Vector2 offset)
 {
-    Direction prevDirection = slime->body.direction;
+    Direction prevDirection = slime->sprite.direction;
     if (offset.x > 0.0f) {
         if (offset.y > 0.0f) {
-            slime->body.direction = fabs(offset.x) > fabs(offset.y) ? Direction_East : Direction_South;
+            slime->sprite.direction = fabs(offset.x) > fabs(offset.y) ? Direction_East : Direction_South;
         } else if (offset.y < 0.0f) {
-            slime->body.direction = fabs(offset.x) > fabs(offset.y) ? Direction_East : Direction_North;
+            slime->sprite.direction = fabs(offset.x) > fabs(offset.y) ? Direction_East : Direction_North;
         } else {
-            slime->body.direction = Direction_East;
+            slime->sprite.direction = Direction_East;
         }
     } else if (offset.x < 0.0f) {
         if (offset.y > 0.0f) {
-            slime->body.direction = fabs(offset.x) > fabs(offset.y) ? Direction_West : Direction_South;
+            slime->sprite.direction = fabs(offset.x) > fabs(offset.y) ? Direction_West : Direction_South;
         } else if (offset.y < 0.0f) {
-            slime->body.direction = fabs(offset.x) > fabs(offset.y) ? Direction_West : Direction_North;
+            slime->sprite.direction = fabs(offset.x) > fabs(offset.y) ? Direction_West : Direction_North;
         } else {
-            slime->body.direction = Direction_West;
+            slime->sprite.direction = Direction_West;
         }
     } else {
         if (offset.y > 0.0f) {
-            slime->body.direction = Direction_South;
+            slime->sprite.direction = Direction_South;
         } else if (offset.y < 0.0f) {
-            slime->body.direction = Direction_North;
+            slime->sprite.direction = Direction_North;
         }
     }
-    if (slime->body.direction != prevDirection) {
-        slime->body.animFrameIdx = 0;
+    if (slime->sprite.direction != prevDirection) {
+        slime->sprite.animFrameIdx = 0;
     }
 }
 
@@ -84,20 +82,20 @@ bool slime_combine(Slime *slimeA, Slime *slimeB)
     // The bigger slime should absorb the smaller one
     Slime *a = slimeA;
     Slime *b = slimeB;
-    if (slimeB->body.scale > slimeA->body.scale) {
+    if (slimeB->sprite.scale > slimeA->sprite.scale) {
         Slime *tmp = a;
         a = b;
         b = tmp;
     }
 
     // Limit max scale
-    float newScale = a->body.scale + 0.5f * b->body.scale;
+    float newScale = a->sprite.scale + 0.5f * b->sprite.scale;
     if (newScale > SLIME_MAX_SCALE) {
         return false;
     }
 
     // Combine slime B's attributes into slime A
-    a->body.scale          = newScale;
+    a->sprite.scale        = newScale;
     a->combat.hitPoints    = a->combat.hitPoints    + 0.5f * b->combat.hitPoints;
     a->combat.maxHitPoints = a->combat.maxHitPoints + 0.5f * b->combat.maxHitPoints;
     //Vector3 halfAToB = v3_scale(v3_sub(b->body.position, a->body.position), 0.5f);
@@ -129,9 +127,10 @@ void slime_update(Slime *slime, double now, double dt)
     }
 
     body_update(&slime->body, now, dt);
+    sprite_update(&slime->sprite, now, dt);
 }
 
 void slime_draw(Slime *slime)
 {
-    body_draw(&slime->body);
+    sprite_draw_body(&slime->sprite, &slime->body, slime->sprite.scale, Fade(WHITE, 0.7f));
 }

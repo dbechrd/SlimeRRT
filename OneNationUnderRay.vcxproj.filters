@@ -21,6 +21,10 @@
     <ClCompile Include="src\sound_catalog.c" />
     <ClCompile Include="src\item_catalog.c" />
     <ClCompile Include="src\spritesheet_catalog.c" />
+    <ClCompile Include="src\particle_fx_blood.c" />
+    <ClCompile Include="src\particle_fx_gold.c" />
+    <ClCompile Include="src\particle_fx_goo.c" />
+    <ClCompile Include="src\sprite.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\tilemap.h" />
@@ -42,5 +46,9 @@
     <ClInclude Include="src\sound_catalog.h" />
     <ClInclude Include="src\item_catalog.h" />
     <ClInclude Include="src\spritesheet_catalog.h" />
+    <ClInclude Include="src\particle_fx.h" />
+    <ClInclude Include="src\sprite.h" />
+    <ClInclude Include="src\direction.h" />
+    <ClInclude Include="src\string_view.h" />
   </ItemGroup>
 </Project>

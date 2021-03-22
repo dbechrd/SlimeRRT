@@ -1,4 +1,5 @@
 #pragma once
+#include "direction.h"
 #include "player.h"
 
 typedef struct PlayerControllerState {
