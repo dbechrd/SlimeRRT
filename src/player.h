@@ -46,4 +46,6 @@ const Item *player_selected_item(const Player *player);
 bool player_move                (Player *player, double now, double dt, Vector2 offset);
 bool player_attack              (Player *player, double now, double dt);
 void player_update              (Player *player, double now, double dt);
-void player_draw                (Player *player);
+float player_depth              (const Player *player);
+void player_push                (const Player *player);
+void player_draw                (const Player *player);

@@ -15,11 +15,11 @@
 #include <assert.h>
 
 void sim(double now, double dt, const PlayerControllerState input, Player *player, Tilemap *map, Slime *slimes,
-    size_t slimeCount, const SpriteDef *coinSpriteDef)
+    const SpriteDef *coinSpriteDef)
 {
     assert(player);
     assert(map);
-    assert(!slimeCount || slimes);
+    assert(slimes);
 
     if (input.selectSlot) {
         assert(input.selectSlot >= PlayerInventorySlot_1);
@@ -97,7 +97,7 @@ void sim(double now, double dt, const PlayerControllerState input, Player *playe
             static double lastFootstep = 0;
             double timeSinceLastFootstep = now - lastFootstep;
             if (timeSinceLastFootstep > 1.0 / (double)playerSpeed) {
-                sound_catalog_play(SoundID_Footstep, 1.0f + dlb_rand_variance(0.5f));
+                sound_catalog_play(SoundID_Footstep, 1.0f + dlb_rand32f_variance(0.5f));
                 lastFootstep = now;
             }
         }
@@ -122,7 +122,7 @@ void sim(double now, double dt, const PlayerControllerState input, Player *playe
             }
 
             size_t slimesHit = 0;
-            for (size_t slimeIdx = 0; slimeIdx < slimeCount; slimeIdx++) {
+            for (size_t slimeIdx = 0; slimeIdx < MAX_SLIMES; slimeIdx++) {
                 Slime *slime = &slimes[slimeIdx];
                 if (!slime->combat.hitPoints)
                     continue;
@@ -132,9 +132,9 @@ void sim(double now, double dt, const PlayerControllerState input, Player *playe
                     player->stats.damageDealt += MIN(slime->combat.hitPoints, playerDamage);
                     slime->combat.hitPoints = MAX(0.0f, slime->combat.hitPoints - playerDamage);
                     if (!slime->combat.hitPoints) {
-                        //sound_catalog_play(SoundID_Squeak, 0.75f + dlb_rand_variance(0.2f));
+                        //sound_catalog_play(SoundID_Squeak, 0.75f + dlb_rand32f_variance(0.2f));
 
-                        int coins = dlb_rand_int(1, 4) * (int)slime->sprite.scale;
+                        int coins = dlb_rand32i_range(1, 4) * (int)slime->sprite.scale;
                         // TODO(design): Convert coins to higher currency if stack fills up?
                         player->inventory.slots[PlayerInventorySlot_Coins].stackCount += coins;
                         player->stats.coinsCollected += coins;
@@ -142,21 +142,21 @@ void sim(double now, double dt, const PlayerControllerState input, Player *playe
                         Vector3 deadCenter = sprite_world_center(&slime->sprite, slime->body.position, slime->sprite.scale);
                         particle_effect_create(ParticleEffectType_Goo, 20, deadCenter, 2.0, now, 0);
                         particle_effect_create(ParticleEffectType_Gold, (size_t)coins, deadCenter, 2.0, now, coinSpriteDef);
-                        sound_catalog_play(SoundID_Gold, 1.0f + dlb_rand_variance(0.1f));
+                        sound_catalog_play(SoundID_Gold, 1.0f + dlb_rand32f_variance(0.1f));
 
                         player->stats.slimesSlain++;
                     } else {
-                        SoundID squish = dlb_rand_int(0, 1) ? SoundID_Squish1 : SoundID_Squish2;
-                        sound_catalog_play(squish, 1.0f + dlb_rand_variance(0.2f));
+                        SoundID squish = dlb_rand32i_range(0, 1) ? SoundID_Squish1 : SoundID_Squish2;
+                        sound_catalog_play(squish, 1.0f + dlb_rand32f_variance(0.2f));
                     }
                     slimesHit++;
                 }
             }
 
             if (slimesHit) {
-                sound_catalog_play(SoundID_Slime_Stab1, 1.0f + dlb_rand_variance(0.1f));
+                sound_catalog_play(SoundID_Slime_Stab1, 1.0f + dlb_rand32f_variance(0.1f));
             }
-            sound_catalog_play(SoundID_Whoosh, 1.0f + dlb_rand_variance(0.1f));
+            sound_catalog_play(SoundID_Whoosh, 1.0f + dlb_rand32f_variance(0.1f));
         }
     }
 }

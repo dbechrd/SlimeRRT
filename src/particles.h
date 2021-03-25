@@ -4,6 +4,8 @@
 #include "spritesheet.h"
 #include "raylib.h"
 
+#define MAX_PARTICLES 16384
+
 typedef struct Particle {
     struct ParticleEffect *effect; // parent effect, 0 = dead
     struct Particle *next;         // when alive, next particle in effect. when dead, intrusive free list.
@@ -14,11 +16,14 @@ typedef struct Particle {
     double dieAt;                  // time to die   (relative to effect->startedAt)
 } Particle;
 
-void       particles_init   ();
-void       particles_free   ();
-size_t     particles_active ();
+void       particles_init   (void);
+void       particles_free   (void);
+size_t     particles_active (void);
 void       particles_update (double now, double dt);
-void       particles_draw   (double now, double dt);
+void       particles_sort   (void);
+float      particle_depth   (const Particle *particle);
+void       particles_push   (void);
+void       particle_draw    (const Particle *particle);
 
 //-----------------------------------------------------------------------------
 

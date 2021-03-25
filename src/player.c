@@ -1,4 +1,5 @@
 #include "player.h"
+#include "draw_command.h"
 #include "item_catalog.h"
 #include "maths.h"
 #include "sprite.h"
@@ -178,7 +179,18 @@ void player_update(Player *player, double now, double dt)
     sprite_update(&player->sprite, now, dt);
 }
 
-void player_draw(Player *player)
+float player_depth(const Player *player)
+{
+    const float depth = player->body.position.y;
+    return depth;
+}
+
+void player_push(const Player *player)
+{
+    draw_command_push(DrawableType_Player, player);
+}
+
+void player_draw(const Player *player)
 {
     sprite_draw_body(&player->sprite, &player->body, player->sprite.scale, WHITE);
 }

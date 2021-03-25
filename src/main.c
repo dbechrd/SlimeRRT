@@ -1,7 +1,10 @@
-﻿#include "controller.h"
+﻿#include "chat.h"
+#include "controller.h"
+#include "draw_command.h"
 #include "helpers.h"
 #include "item_catalog.h"
 #include "maths.h"
+#include "network_client.h"
 #include "network_server.h"
 #include "particles.h"
 #include "particle_fx.h"
@@ -15,6 +18,7 @@
 #include "sim.h"
 #include "dlb_rand.h"
 #include "raylib.h"
+#include "zed_net.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -32,6 +36,7 @@ void traceLogCallback(int logType, const char *text, va_list args)
     fflush(logFile);
     if (logType == LOG_FATAL) {
         assert(!"Catch in debugger");
+        exit(-1);
     }
 }
 
@@ -54,8 +59,6 @@ void DrawShadow(int x, int y, float radius, float yOffset)
 
 void DrawHealthBar(Font font, int fontSize, const Sprite *sprite, const Body3D *body, float hitPoints, float maxHitPoints)
 {
-    return;
-
     Vector3 topCenter = sprite_world_top_center(sprite, body->position, sprite->scale);
     int x = (int)topCenter.x;
     int y = (int)(topCenter.y - topCenter.z) - 10;
@@ -93,6 +96,9 @@ void BloodParticlesFollowPlayer(ParticleEffect *effect, void *userData)
     effect->origin = player_get_attach_point(charlie, PlayerAttachPoint_Gut);
 }
 
+#define DLB_RAND_TEST
+#include "dlb_rand.h"
+
 int main(void)
 {
     //--------------------------------------------------------------------------------------
@@ -101,24 +107,50 @@ int main(void)
     logFile = fopen("log.txt", "w");
     SetTraceLogCallback(traceLogCallback);
 
-    //dlb_rand_seed(42);
-    dlb_rand_seed((u32)time(NULL));
+    //dlb_rand32_seed(42);
+    dlb_rand32_seed(time(NULL));
+
+    //dlb_rand_test();
 
 #if ALPHA_NETWORKING
-    if (!network_init()) {
-        // TODO: Handle "offline mode" gracefully. This shouldn't prevent people people from playing single player
-        TraceLog(LOG_FATAL, "Failed to initialize networking.\n");
-        return 0;
+    if (zed_net_init() < 0) {
+        const char *err = zed_net_get_error();
+        TraceLog(LOG_FATAL, "Failed to initialize network utilities. Error: %s\n", err);
     }
 
     NetworkServer server = { 0 };
-    const unsigned short port = 4040;
-    if (!network_server_start(&server, port)) {
+    if (!network_server_init(&server)) {
+        TraceLog(LOG_FATAL, "Failed to initialize network server system.\n");
+    }
+
+    const unsigned int SERVER_PORT = 4040;
+    if (!network_server_open_socket(&server, SERVER_PORT)) {
+        TraceLog(LOG_ERROR, "Failed to open server socket on port %hu.\n", SERVER_PORT);
+        // TODO: Handle gracefully if local server to allow singleplayer mode
+        exit(-1);
+    }
+
+    NetworkClient client = { 0 };
+    if (!network_client_init(&client)) {
+        TraceLog(LOG_FATAL, "Failed to initialize network client system.\n");
+    }
+
+    if (!network_client_open_socket(&client)) {
+        TraceLog(LOG_ERROR, "Failed to open client socket.\n");
         // TODO: Handle "offline mode" gracefully. This shouldn't prevent people people from playing single player
-        TraceLog(LOG_FATAL, "Failed to start server on port %hu.\n", port);
-        return 0;
+        exit(-1);
+    }
+
+    if (!network_client_connect(&client, "127.0.0.1", 4040)) {
+    //if (!network_client_connect(&client, "slime.theprogrammingjunkie.com", 4040)) {
+        // TODO: Handle connection failure.
+        TraceLog(LOG_FATAL, "Failed to connect client.\n");
     }
 #endif
+
+    if (!chat_init()) {
+        TraceLog(LOG_FATAL, "Failed to initialize chat system.\n");
+    }
 
     SetExitKey(0);  // Disable default Escape exit key, we'll handle escape ourselves
     InitWindow(1600, 900, "Attack the slimes!");
@@ -149,6 +181,7 @@ int main(void)
     // NOTE: Minimum of 0.001 seems reasonable (0.0001 is still audible on max volume)
     //SetMasterVolume(0.01f);
 
+    draw_commands_init();
     sound_catalog_init();
     spritesheet_catalog_init();
     item_catalog_init();
@@ -187,7 +220,7 @@ int main(void)
         minimapImg.mipmaps = 1;
         minimapImg.format = UNCOMPRESSED_R8G8B8A8;
         assert(sizeof(Color) == 4);
-        minimapImg.data = calloc(minimapImg.width * minimapImg.height, sizeof(Color));
+        minimapImg.data = calloc((size_t)minimapImg.width * minimapImg.height, sizeof(Color));
         assert(minimapImg.data);
 
         Color tileColors[TileType_Count] = {
@@ -198,11 +231,8 @@ int main(void)
             [TileType_Concrete] = GRAY
         };
 
-        const float tileWidthMip  = (float)tilemap.tileset->tileWidth;
-        const float tileHeightMip = (float)tilemap.tileset->tileHeight;
         const size_t heightTiles = tilemap.heightTiles;
         const size_t widthTiles = tilemap.widthTiles;
-        const Rectangle *tileRects = tilemap.tileset->textureRects;
 
         Color *minimapPixel = minimapImg.data;
         for (size_t y = 0; y < heightTiles; y += 1) {
@@ -252,9 +282,8 @@ int main(void)
     player_init(&charlie, "Charlie", charlieSpriteDef);
     charlie.body.position = worldSpawn;
 
-#define SLIMES_COUNT 256
-    Slime slimes[SLIMES_COUNT] = { 0 };
-    int slimesByDepth[SLIMES_COUNT] = { 0 };
+    Slime slimes[MAX_SLIMES] = { 0 };
+    int slimesByDepth[MAX_SLIMES] = { 0 };
 
     {
         // TODO: Slime radius should probably be determined base on largest frame, no an arbitrary frame. Or, it could
@@ -275,10 +304,10 @@ int main(void)
         const size_t mapPixelsY = tilemap.heightTiles * tilemap.tileset->tileHeight;
         const float maxX = mapPixelsX - slimeRadiusX;
         const float maxY = mapPixelsY - slimeRadiusY;
-        for (int i = 0; i < SLIMES_COUNT; i++) {
+        for (int i = 0; i < MAX_SLIMES; i++) {
             slime_init(&slimes[i], 0, slimeSpriteDef);
-            slimes[i].body.position.x = dlb_rand_float(slimeRadiusX, maxX);
-            slimes[i].body.position.y = dlb_rand_float(slimeRadiusY, maxY);
+            slimes[i].body.position.x = dlb_rand32f_range(slimeRadiusX, maxX);
+            slimes[i].body.position.y = dlb_rand32f_range(slimeRadiusY, maxY);
             slimesByDepth[i] = i;
         }
     }
@@ -301,7 +330,7 @@ int main(void)
         frameStart = now;
 
 #if ALPHA_NETWORKING
-        network_server_process_incoming(&server);
+        network_server_receive(&server);
 #endif
 
         if (IsWindowResized()) {
@@ -313,7 +342,6 @@ int main(void)
         UpdateMusicStream(mus_background);
         UpdateMusicStream(mus_whistle);
 
-        // TODO: This should be on its own thread probably
         if (IsKeyPressed(KEY_F11)) {
             time_t t = time(NULL);
             struct tm tm = *localtime(&t);
@@ -332,6 +360,12 @@ int main(void)
             }
         }
 
+#if ALPHA_NETWORKING
+        if (IsKeyPressed(KEY_C)) {
+            network_client_send(&client, CSTR("User pressed the C key."));
+        }
+#endif
+
         if (IsKeyPressed(KEY_F)) {
             cameraFollowPlayer = !cameraFollowPlayer;
         }
@@ -347,7 +381,7 @@ int main(void)
 
         if (cameraFollowPlayer) {
             PlayerControllerState input = QueryPlayerController();
-            sim(now, dt, input, &charlie, &tilemap, slimes, SLIMES_COUNT, coinSpriteDef);
+            sim(now, dt, input, &charlie, &tilemap, slimes, coinSpriteDef);
 
             camera.target = body_ground_position(&charlie.body);
         } else {
@@ -413,10 +447,10 @@ int main(void)
             const float slimeAttackDamage = 1.0f;
             const float slimeRadius = METERS_TO_PIXELS(0.5f);
 
-            static double lastSquish = 0;
-            double timeSinceLastSquish = now - lastSquish;
+            //static double lastSquish = 0;
+            //double timeSinceLastSquish = now - lastSquish;
 
-            for (size_t slimeIdx = 0; slimeIdx < SLIMES_COUNT; slimeIdx++) {
+            for (size_t slimeIdx = 0; slimeIdx < MAX_SLIMES; slimeIdx++) {
                 Slime *slime = &slimes[slimeIdx];
                 if (!slime->combat.hitPoints)
                     continue;
@@ -430,14 +464,14 @@ int main(void)
                     const float slimeToPlayerDist = sqrtf(slimeToPlayerDistSq);
                     const float moveDist = MIN(slimeToPlayerDist, slimeMoveSpeed * slime->sprite.scale);
                     // 25% -1.0, 75% +1.0f
-                    const float moveRandMult = dlb_rand_int(1, 4) > 1 ? 1.0f : -1.0f;
+                    const float moveRandMult = dlb_rand32i_range(1, 4) > 1 ? 1.0f : -1.0f;
                     const Vector2 slimeMoveDir = v2_scale(slimeToPlayer, 1.0f / slimeToPlayerDist);
                     const Vector2 slimeMove = v2_scale(slimeMoveDir, moveDist * moveRandMult);
                     const Vector2 slimePos = body_ground_position(&slime->body);
                     const Vector2 slimePosNew = v2_add(slimePos, slimeMove);
 
                     int willCollide = 0;
-                    for (size_t collideIdx = 0; collideIdx < SLIMES_COUNT; collideIdx++) {
+                    for (size_t collideIdx = 0; collideIdx < MAX_SLIMES; collideIdx++) {
                         if (collideIdx == slimeIdx)
                             continue;
 
@@ -463,8 +497,8 @@ int main(void)
                     }
 
                     if (!willCollide && slime_move(&slimes[slimeIdx], now, dt, slimeMove)) {
-                        SoundID squish = dlb_rand_int(0, 1) ? SoundID_Squish1 : SoundID_Squish2;
-                        sound_catalog_play(squish, 1.0f + dlb_rand_variance(0.2f));
+                        SoundID squish = dlb_rand32i_range(0, 1) ? SoundID_Squish1 : SoundID_Squish2;
+                        sound_catalog_play(squish, 1.0f + dlb_rand32f_variance(0.2f));
                     }
                 }
 
@@ -480,7 +514,7 @@ int main(void)
 
                         if (now - lastBleed > bleedDuration / 3.0) {
                             Vector3 playerGut = player_get_attach_point(&charlie, PlayerAttachPoint_Gut);
-                            ParticleEffect *bloodParticles = particle_effect_create(ParticleEffectType_Blood, 64,
+                            ParticleEffect *bloodParticles = particle_effect_create(ParticleEffectType_Blood, 32,
                                 playerGut, bleedDuration, now, 0);
                             if (bloodParticles) {
                                 bloodParticles->callbacks[ParticleEffectEvent_BeforeUpdate].function =
@@ -581,71 +615,59 @@ int main(void)
         {
             // Sort by y value of bottom of sprite rect
             //qsort(slimes, sizeof(slimes)/sizeof(*slimes), sizeof(*slimes), SlimeCompareDepth);
-            int i, j, index;
-            float groundPosA;
-            for (i = 1; i < SLIMES_COUNT; i++) {
-                index = slimesByDepth[i];
-                groundPosA = slimes[index].body.position.y;
+            for (int i = 1; i < MAX_SLIMES; i++) {
+                const int index = slimesByDepth[i];
+                const float groundPosA = slimes[index].body.position.y;
+                int j;
                 for (j = i - 1; j >= 0 && (slimes[slimesByDepth[j]].body.position.y > groundPosA); j--) {
                     slimesByDepth[j + 1] = slimesByDepth[j];
                 }
                 slimesByDepth[j + 1] = index;
             }
 
-            const Vector2 playerGroundPos = body_ground_position(&charlie.body);
-
+            // Player shadow
             // TODO: Shadow size based on height from ground
             // https://yal.cc/top-down-bouncing-loot-effects/
-
             //const float shadowScale = 1.0f + slime->transform.position.z / 20.0f;
+            const Vector2 playerGroundPos = body_ground_position(&charlie.body);
+            DrawShadow((int)playerGroundPos.x, (int)playerGroundPos.y, 16.0f, -6.0f);
 
-            // Draw shadows
-            for (int i = 0; i < SLIMES_COUNT; i++) {
-                int slimeIdx = slimesByDepth[i];
-                const Slime *slime = &slimes[slimeIdx];
-                if (!slime->combat.hitPoints)
+            // Slime shadows
+            for (int i = 0; i < MAX_SLIMES; i++) {
+                const Slime *slime = &slimes[i];
+                if (!slime->combat.hitPoints) {
                     continue;
+                }
 
                 const Vector2 slimeBC = body_ground_position(&slime->body);
                 DrawShadow((int)slimeBC.x, (int)slimeBC.y, 16.0f * slime->sprite.scale, -8.0f * slime->sprite.scale);
             }
 
-            // Player shadow
-            DrawShadow((int)playerGroundPos.x, (int)playerGroundPos.y, 16.0f, -6.0f);
+            // Queue player for drawing
+            player_push(&charlie);
 
-            // Draw entities
-            bool charlieDrawn = false;
-
-            for (int i = 0; i < SLIMES_COUNT; i++) {
-                int slimeIdx = slimesByDepth[i];
-                const Slime *slime = &slimes[slimeIdx];
+            // Queue slimes for drawing
+            for (int i = 0; i < MAX_SLIMES; i++) {
+                const Slime *slime = &slimes[i];
                 if (!slime->combat.hitPoints) {
                     continue;
                 }
 
-                const Vector2 slimeGroundPos = body_ground_position(&slime->body);
-
-                // HACK: Draw charlie in sorted order
-                if (!charlieDrawn && playerGroundPos.y < slimeGroundPos.y) {
-                    player_draw(&charlie);
-                    charlieDrawn = true;
-                }
-
-                slime_draw(&slimes[slimeIdx]);
+                slime_push(slime);
             }
 
-            if (!charlieDrawn) {
-                player_draw(&charlie);
-            }
+            // Queue particles for drawing
+            particles_push();
+
+            draw_commands_flush();
         }
 
-        particles_draw(now, dt);
-
-        for (size_t slimeIdx = 0; slimeIdx < SLIMES_COUNT; slimeIdx++) {
+        for (size_t slimeIdx = 0; slimeIdx < MAX_SLIMES; slimeIdx++) {
             const Slime *slime = &slimes[slimeIdx];
             if (!slime->combat.hitPoints) {
                 continue;
             }
+
             DrawHealthBar(fonts[0], 10, &slime->sprite, &slime->body, slime->combat.hitPoints, slime->combat.maxHitPoints);
         }
         DrawHealthBar(fonts[0], 10, &charlie.sprite, &charlie.body, charlie.combat.hitPoints, charlie.combat.maxHitPoints);
@@ -692,30 +714,43 @@ int main(void)
             lineOffset += fontHeight;
         }
 
-        DrawTexture(minimapTex, screenWidth - 6 - minimapTex.width, 6, WHITE);
+        const int minimapMargin = 6;
+        const int minimapBorderWidth = 1;
+        const int minimapX = screenWidth - minimapMargin - minimapTex.width - minimapBorderWidth * 2;
+        const int minimapY = minimapMargin;
+        const int minimapW = minimapTex.width + minimapBorderWidth * 2;
+        const int minimapH = minimapTex.height + minimapBorderWidth * 2;
+        const int minimapTexX = minimapX + minimapBorderWidth;
+        const int minimapTexY = minimapY + minimapBorderWidth;
+        DrawRectangleLines(minimapX, minimapY, minimapW, minimapH, BLACK);
+        DrawTexture(minimapTex, minimapTexX, minimapTexY, WHITE);
 
+        const char *text = 0;
+        int hudCursorY = 0;
+
+#define PUSH_TEXT(text, color) \
+    DrawTextFont(fonts[fontIdx], text, margin + pad, hudCursorY, fontHeight, color); \
+    hudCursorY += fontHeight + pad; \
+
+        // Render HUD
         {
-#define PUSH_TEXT(txt, color) \
-    DrawTextFont(fonts[fontIdx], text, margin + pad, cursorY, fontHeight, color); \
-    cursorY += fontHeight + pad; \
-
             int linesOfText = 8;
 #if SHOW_DEBUG_STATS
             linesOfText += 7;
 #endif
             const int margin = 6;   // left/top margin
             const int pad = 4;      // left/top pad
-            const int hudX = margin;
-            const int hudY = margin;
             const int hudWidth = 200;
             const int hudHeight = linesOfText * (fontHeight + pad) + pad;
 
-            int cursorY = hudY + pad;
-            const char *text = 0;
+            hudCursorY += margin;
 
             const Color darkerGray = (Color){ 40, 40, 40, 255 };
-            DrawRectangle(hudX, hudY, hudWidth, hudHeight, Fade(darkerGray, 0.9f));
-            DrawRectangleLines(hudX, hudY, hudWidth, hudHeight, Fade(BLACK, 0.9f));
+            UNUSED(darkerGray);
+            DrawRectangle(margin, hudCursorY, hudWidth, hudHeight, DARKBLUE);
+            DrawRectangleLines(margin, hudCursorY, hudWidth, hudHeight, BLACK);
+
+            hudCursorY += pad;
 
             text = TextFormat("%2i fps (%.02f ms)", GetFPS(), GetFrameTime() * 1000.0f);
             PUSH_TEXT(text, WHITE);
@@ -751,10 +786,38 @@ int main(void)
             text = TextFormat("Particles     %zu", particles_active());
             PUSH_TEXT(text, GRAY);
 #endif
-#undef PUSH_TEXT
         }
 
 #if ALPHA_NETWORKING
+        // Render connected clients
+        {
+            int linesOfText = 1 + (int)server.clientsConnected;
+
+            const int margin = 6;   // left/top margin
+            const int pad = 4;      // left/top pad
+            const int hudWidth = 200;
+            const int hudHeight = linesOfText * (fontHeight + pad) + pad;
+
+            hudCursorY += margin;
+
+            const Color darkerGray = (Color){ 40, 40, 40, 255 };
+            UNUSED(darkerGray);
+            DrawRectangle(margin, hudCursorY, hudWidth, hudHeight, DARKBLUE);
+            DrawRectangleLines(margin, hudCursorY, hudWidth, hudHeight, BLACK);
+
+            hudCursorY += pad;
+
+            PUSH_TEXT("Connected clients:", WHITE);
+
+            for (size_t i = 0; i < NETWORK_SERVER_MAX_CLIENTS; i++) {
+                const NetworkServerClient *serverClient = &server.clients[i];
+                if (serverClient->address.host) {
+                    text = TextFormat("%s:%hu", serverClient->hostname, serverClient->address.port);
+                    PUSH_TEXT(text, WHITE);
+                }
+            }
+        }
+
         // Render chat history
         {
             static bool chatVisible = false;
@@ -767,7 +830,7 @@ int main(void)
             }
 
             if (chatVisible) {
-                const int linesOfText = 10;
+                const int linesOfText = (int)server.packetHistory.count;
                 const int margin = 6;   // left/bottom margin
                 const int pad = 4;      // left/bottom pad
                 const int chatWidth = 320;
@@ -782,23 +845,19 @@ int main(void)
                 DrawRectangle(chatX, chatY, chatWidth, chatHeight, Fade(DARKGRAY, 0.8f));
                 DrawRectangleLines(chatX, chatY, chatWidth, chatHeight, Fade(BLACK, 0.8f));
 
-                int msgCount = network_packet_history_count(&server);
-                int index = network_packet_history_newest(&server);
-                for (int i = 0; i < msgCount; i++) {
-                    const NetworkPacket *packet = network_packet_history_at(&server, index);
-                    if (!packet) {
-                        continue;
-                    }
+                for (int i = (int)server.packetHistory.count - 1; i >= 0; i--) {
+                    size_t packetIdx = (server.packetHistory.first + i) & (NETWORK_SERVER_MAX_PACKETS - 1);
+                    const Packet *packet = &server.packetHistory.packets[packetIdx];
+                    assert(packet->data[0]);
 
-                    text = TextFormat("[%s]: %s", packet->timestampStr, packet->data);
+                    text = TextFormat("[%s][%s]: %s", packet->timestampStr, packet->hostname, packet->data);
                     DrawTextFont(fonts[fontIdx], text, margin + pad, cursorY, fontHeight, WHITE);
                     cursorY -= fontHeight + pad;
-
-                    index = network_packet_history_prev(&server, index);
                 }
             }
         }
 #endif
+#undef PUSH_TEXT
 
         EndDrawing();
         //----------------------------------------------------------------------------------
@@ -813,9 +872,11 @@ int main(void)
     // Clean up
     //--------------------------------------------------------------------------------------
 #if ALPHA_NETWORKING
-    network_server_stop(&server);
-    network_shutdown();
+    network_client_free(&client);
+    network_server_free(&server);
+    zed_net_shutdown();
 #endif
+    chat_free();
     tilemap_free(&tilemap);
     tileset_free(&tileset);
     UnloadTexture(minimapTex);
@@ -824,6 +885,7 @@ int main(void)
     sound_catalog_free();
     spritesheet_catalog_free();
     particles_free();
+    draw_commands_free();
     UnloadMusicStream(mus_whistle);
     UnloadMusicStream(mus_background);
     CloseAudioDevice();

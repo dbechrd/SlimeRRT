@@ -1,4 +1,5 @@
 #include "slime.h"
+#include "draw_command.h"
 #include "spritesheet.h"
 #include "helpers.h"
 #include "dlb_rand.h"
@@ -28,6 +29,8 @@ void slime_init(Slime *slime, const char *name, const SpriteDef *spriteDef)
 
 static void update_direction(Slime *slime, Vector2 offset)
 {
+    assert(slime);
+
     Direction prevDirection = slime->sprite.direction;
     if (offset.x > 0.0f) {
         if (offset.y > 0.0f) {
@@ -60,6 +63,8 @@ static void update_direction(Slime *slime, Vector2 offset)
 bool slime_move(Slime *slime, double now, double dt, Vector2 offset)
 {
     assert(slime);
+    UNUSED(dt);  // todo: use dt
+
     if (v2_is_zero(offset)) {
         return false;
     }
@@ -70,7 +75,7 @@ bool slime_move(Slime *slime, double now, double dt, Vector2 offset)
         slime->body.velocity.x += offset.x;
         slime->body.velocity.y += offset.y;
         slime->body.velocity.z += METERS_TO_PIXELS(3.0f);
-        slime->randJumpIdle = (double)dlb_rand_float(1.0f, 2.5f);
+        slime->randJumpIdle = (double)dlb_rand32f_range(1.0f, 2.5f);
         update_direction(slime, offset);
         return true;
     }
@@ -79,6 +84,9 @@ bool slime_move(Slime *slime, double now, double dt, Vector2 offset)
 
 bool slime_combine(Slime *slimeA, Slime *slimeB)
 {
+    assert(slimeA);
+    assert(slimeB);
+
     // The bigger slime should absorb the smaller one
     Slime *a = slimeA;
     Slime *b = slimeB;
@@ -108,6 +116,9 @@ bool slime_combine(Slime *slimeA, Slime *slimeB)
 
 bool slime_attack(Slime *slime, double now, double dt)
 {
+    assert(slime);
+    UNUSED(dt); // todo: use dt;
+
     if (slime->action == SlimeAction_None) {
         slime->action = SlimeAction_Attack;
         slime->combat.attackStartedAt = now;
@@ -119,6 +130,8 @@ bool slime_attack(Slime *slime, double now, double dt)
 
 void slime_update(Slime *slime, double now, double dt)
 {
+    assert(slime);
+
     const double timeSinceAttackStarted = now - slime->combat.attackStartedAt;
     if (timeSinceAttackStarted > slime->combat.attackDuration) {
         slime->action = SlimeAction_None;
@@ -130,7 +143,20 @@ void slime_update(Slime *slime, double now, double dt)
     sprite_update(&slime->sprite, now, dt);
 }
 
-void slime_draw(Slime *slime)
+float slime_depth(const Slime *slime)
 {
+    const float depth = slime->body.position.y;
+    return depth;
+}
+
+void slime_push(const Slime *slime)
+{
+    draw_command_push(DrawableType_Slime, slime);
+}
+
+void slime_draw(const Slime *slime)
+{
+    assert(slime);
+
     sprite_draw_body(&slime->sprite, &slime->body, slime->sprite.scale, Fade(WHITE, 0.7f));
 }

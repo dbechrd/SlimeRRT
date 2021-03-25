@@ -1,39 +1,33 @@
 #include "network_server.h"
+#include "packet.h"
 #include "raylib.h"
 #include <assert.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
 
-static NetworkPacket *packet_history;
-static int packet_history_next = 0;
-
-int network_init()
+int network_server_init(NetworkServer *server)
 {
-    if (zed_net_init() < 0) {
-        const char *err = zed_net_get_error();
-        TraceLog(LOG_FATAL, "Failed to initialize network utilities. Error: %s\n", err);
+    assert(server);
+
+    server->packetHistory.capacity = NETWORK_SERVER_MAX_PACKETS;
+    server->packetHistory.packets = calloc(server->packetHistory.capacity, sizeof(*server->packetHistory.packets));
+    if (!server->packetHistory.packets) {
+        TraceLog(LOG_FATAL, "[NetworkServer] Failed to allocate packet history buffer.");
         return 0;
     }
-
-    packet_history = calloc(MAX_PACKET_HISTORY, sizeof(*packet_history));
-    if (!packet_history) {
-        TraceLog(LOG_FATAL, "Failed to allocate packet history buffer.\n");
-        return 0;
-    }
-
     return 1;
 }
 
-int network_server_start(NetworkServer *server, unsigned short port)
+int network_server_open_socket(NetworkServer *server, unsigned short port)
 {
     assert(server);
-    assert(port);
 
     if (zed_net_udp_socket_open(&server->socket, port, 1) < 0) {
         const char *err = zed_net_get_error();
-        TraceLog(LOG_ERROR, "Failed to start server on port %hu. Error: %s\n", port, err);
+        TraceLog(LOG_ERROR, "[NetworkServer] Failed to start server on port %hu. Error: %s", server->port, err);
         return 0;
     }
 
@@ -42,12 +36,12 @@ int network_server_start(NetworkServer *server, unsigned short port)
     return 1;
 }
 
-int network_server_process_incoming(NetworkServer *server)
+int network_server_receive(NetworkServer *server)
 {
     assert(server);
 
     if (!server->socket.handle) {
-        TraceLog(LOG_FATAL, "Server socket handle invalid. Cannot processing incoming packets.\n");
+        TraceLog(LOG_FATAL, "[NetworkServer] Server socket handle invalid. Cannot processing incoming packets.");
         return 0;
     }
 
@@ -58,62 +52,101 @@ int network_server_process_incoming(NetworkServer *server)
     int bytes = 0;
     do {
         zed_net_address_t sender = { 0 };
-        NetworkPacket *packet = &packet_history[packet_history_next];
+        size_t packetIdx = (server->packetHistory.first + server->packetHistory.count) & (NETWORK_SERVER_MAX_PACKETS - 1);
+        assert(packetIdx < NETWORK_SERVER_MAX_PACKETS);
+        Packet *packet = &server->packetHistory.packets[packetIdx];
         bytes = zed_net_udp_socket_receive(&server->socket, &sender, packet->data, sizeof(packet->data) - 1);
         if (bytes < 0) {
             // TODO: Ignore this.. or log it? zed_net doesn't pass through any useful error messages to diagnose this.
             const char *err = zed_net_get_error();
-            TraceLog(LOG_ERROR, "Failed to receive network data. Error: %s\n", err);
+            TraceLog(LOG_ERROR, "[NetworkServer] Failed to receive network data. Error: %s", err);
             return 0;
         }
 
         if (bytes > 0) {
             memset(packet->data + bytes, 0, MAX_PACKET_SIZE_BYTES - (size_t)bytes);
-            packet_history_next = (packet_history_next + 1) % MAX_PACKET_HISTORY;
+            // NOTE: If packet history already full, we're overwriting the oldest packet, so count stays the same
+            if (server->packetHistory.count < server->packetHistory.capacity) {
+                server->packetHistory.count++;
+            }
 
             time_t t = time(NULL);
             struct tm tm = *localtime(&t);
-            int len = snprintf(packet->timestampStr, sizeof(packet->timestampStr), "%2d:%02d:%02d",
-                tm.tm_hour, tm.tm_min, tm.tm_sec);
+            int len = snprintf(packet->timestampStr, sizeof(packet->timestampStr), "%02d:%02d:%02d", tm.tm_hour,
+                tm.tm_min, tm.tm_sec);
             assert(len < sizeof(packet->timestampStr));
 
-            const char *host = 0;
+            NetworkServerClient *client = 0;
             for (int i = 0; i < NETWORK_SERVER_MAX_CLIENTS; ++i) {
+                // NOTE: This assumes tightly packed array
                 if (!server->clients[i].address.host) {
-                    server->clients[i].address = sender;
-                    host = zed_net_host_to_str(server->clients[i].address.host);
-                    printf("[SERVER] CONNECT %s:%u\n  %s\n", host, server->clients[i].address.port, packet->data);
+                    client = &server->clients[i];
+                    client->address = sender;
+                    const char *host = zed_net_host_to_str(client->address.host);
+                    if (!host) {
+                        TraceLog(LOG_ERROR, "[NetworkServer] Unable to convert host [%u] to hostname.", sender.host);
+                        continue;
+                    }
+                    strncpy(client->hostname, host, sizeof(client->hostname));
+                    TraceLog(LOG_INFO, "[NetworkServer] CONNECT %s:%u\n  %s", host, client->address.port, packet->data);
+                    server->clientsConnected++;
                     break;
                 } else if (server->clients[i].address.host == sender.host) {
-                    host = zed_net_host_to_str(server->clients[i].address.host);
-                    printf("[SERVER] RECEIVE %s:%u\n  %s\n", host, server->clients[i].address.port, packet->data);
+                    client = &server->clients[i];
+                    TraceLog(LOG_INFO, "[NetworkServer] RECEIVE %s:%u\n  %s", client->hostname, client->address.port,
+                        packet->data);
                     break;
                 }
             }
 
-            if (host) {
+            if (client) {
+                strncpy(packet->hostname, client->hostname, sizeof(packet->hostname));
+
                 // Broadcast incoming message
                 for (int i = 0; i < NETWORK_SERVER_MAX_CLIENTS; ++i) {
-                    if (server->clients[i].address.host) { // && server->clients[i].address.host != sender.host) {
-                        if (zed_net_udp_socket_send(&server->socket, server->clients[i].address, packet->data, bytes) < 0) {
+                    if (client->address.host) {
+                        if (zed_net_udp_socket_send(&server->socket, client->address, packet->data, bytes) < 0) {
                             const char *err = zed_net_get_error();
-                            TraceLog(LOG_ERROR, "Failed to send network data. Error: %s\n", err);
+                            TraceLog(LOG_ERROR, "[NetworkServer] Failed to send network data. Error: %s", err);
                         }
                     }
                 }
-                printf("[SERVER] BROADCAST\n  %s said %s\n", host, packet->data);
+                TraceLog(LOG_INFO, "[NetworkServer] BROADCAST\n  %s said %s", client->hostname, packet->data);
             } else {
-                puts("Uh oh.. new client but all of the client slots are used up.. Respond 'server full' to address.\n");
+                // TODO: Send "server full" response to client
+                TraceLog(LOG_INFO, "[NetworkServer] Server full, client denied.");
             }
-            fflush(stdout);
         }
     } while (bytes > 0);
 
     return 1;
 }
 
+void network_server_close_socket(NetworkServer *server)
+{
+    assert(server);
+
+    // TODO: Notify all clients that the server is stopping
+
+    zed_net_socket_close(&server->socket);
+    memset(&server->socket, 0, sizeof(server->socket));
+    memset(&server->clients, 0, sizeof(server->clients));
+}
+
+void network_server_free(NetworkServer *server)
+{
+    assert(server);
+
+    network_server_close_socket(server);
+    free(server->packetHistory.packets);
+    memset(server, 0, sizeof(*server));
+}
+
+#if 0
 int network_packet_history_count(NetworkServer *server)
 {
+    assert(server);
+
     return MAX_PACKET_HISTORY;
 }
 
@@ -151,29 +184,17 @@ int network_packet_history_oldest(NetworkServer *server)
     return index;
 }
 
-const NetworkPacket *network_packet_history_at(NetworkServer *server, int index)
+void network_packet_history_at(NetworkServer *server, int index, const Packet **packet)
 {
     assert(server);
     assert(index >= 0);
     assert(index < MAX_PACKET_HISTORY);
+    assert(packet);
 
-    const NetworkPacket *packet = &packet_history[index];
-    if (!packet->timestampStr[0]) {
+    const NetworkPacket *pkt = &packet_history[index];
+    if (pkt->timestampStr[0]) {
         // TODO: Make packet history / chat history have proper data/length and just check length == 0 for unused
-        return 0;  // empty packet data = unused buffer
+        *packet = pkt;
     }
-    return packet;
 }
-
-void network_server_stop(NetworkServer *server)
-{
-    assert(server);
-
-    zed_net_socket_close(&server->socket);
-}
-
-void network_shutdown()
-{
-    zed_net_shutdown();
-    free(packet_history);
-}
+#endif

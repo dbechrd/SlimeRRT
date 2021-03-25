@@ -11,7 +11,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\combat.c" />
+    <ClCompile Include="src\chat.c" />
     <ClCompile Include="src\helpers.c" />
     <ClCompile Include="src\controller.c" />
     <ClCompile Include="src\item.c" />
@@ -27,6 +27,7 @@
     <ClCompile Include="src\player_inventory.c" />
     <ClCompile Include="src\sim.c" />
     <ClCompile Include="src\slime.c" />
+    <ClCompile Include="src\draw_command.c" />
     <ClCompile Include="src\sound_catalog.c" />
     <ClCompile Include="src\sprite.c" />
     <ClCompile Include="src\spritesheet.c" />
@@ -37,6 +38,8 @@
     <ClCompile Include="src\zed_net.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="network_packet.h" />
+    <ClInclude Include="src\chat.h" />
     <ClInclude Include="src\combat.h" />
     <ClInclude Include="src\direction.h" />
     <ClInclude Include="src\helpers.h" />
@@ -45,12 +48,14 @@
     <ClInclude Include="src\item_catalog.h" />
     <ClInclude Include="src\network_client.h" />
     <ClInclude Include="src\network_server.h" />
+    <ClInclude Include="src\packet.h" />
     <ClInclude Include="src\particles.h" />
     <ClInclude Include="src\particle_fx.h" />
     <ClInclude Include="src\player.h" />
     <ClInclude Include="src\player_inventory.h" />
     <ClInclude Include="src\sim.h" />
     <ClInclude Include="src\slime.h" />
+    <ClInclude Include="src\draw_command.h" />
     <ClInclude Include="src\sound_catalog.h" />
     <ClInclude Include="src\sprite.h" />
     <ClInclude Include="src\spritesheet.h" />
@@ -107,7 +112,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
-      <SDLCheck>true</SDLCheck>
+      <SDLCheck>false</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <AdditionalIncludeDirectories>$(ProjectDir)include</AdditionalIncludeDirectories>
@@ -129,7 +134,7 @@
       <WarningLevel>Level3</WarningLevel>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <SDLCheck>true</SDLCheck>
+      <SDLCheck>false</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <AdditionalIncludeDirectories>$(ProjectDir)include</AdditionalIncludeDirectories>

@@ -3,12 +3,12 @@
 #include "sprite.h"
 #include "spritesheet.h"
 #include "helpers.h"
+#include "draw_command.h"
 #include "dlb_rand.h"
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 
-#define MAX_PARTICLES 16384
 #define MAX_EFFECTS   32
 
 static Particle *particles;
@@ -18,7 +18,7 @@ static ParticleEffect *effects;
 static ParticleEffect *effectsFree;
 static size_t effectsActiveCount;
 
-void particles_init()
+void particles_init(void)
 {
     assert(MAX_PARTICLES);
     assert(MAX_EFFECTS);
@@ -42,7 +42,7 @@ void particles_init()
     effectsFree = effects;
 }
 
-void particles_free()
+void particles_free(void)
 {
     free(particles);
     free(effects);
@@ -52,7 +52,7 @@ void particles_free()
     effectsFree = 0;
 }
 
-static Particle *particle_alloc()
+static Particle *particle_alloc(void)
 {
     // Allocate effect
     Particle *particle = particlesFree;
@@ -128,19 +128,23 @@ ParticleEffect *particle_effect_create(ParticleEffectType type, size_t particleC
     return effect;
 }
 
-size_t particles_active()
+size_t particles_active(void)
 {
     return particlesActiveCount;
 }
 
-size_t particle_effects_active()
+size_t particle_effects_active(void)
 {
     return effectsActiveCount;
 }
 
 void particles_update(double now, double dt)
 {
-    for (size_t i = 0; i < MAX_EFFECTS; i++) {
+    assert(particlesActiveCount <= MAX_PARTICLES);
+    assert(effectsActiveCount <= MAX_EFFECTS);
+
+    size_t effectsCounted = 0;
+    for (size_t i = 0; effectsCounted < effectsActiveCount; i++) {
         ParticleEffect *effect = &effects[i];
         if (effect->type == ParticleEffectType_Dead)
             continue;
@@ -150,9 +154,11 @@ void particles_update(double now, double dt)
                 effect, effect->callbacks[ParticleEffectEvent_BeforeUpdate].userData
             );
         }
+        effectsCounted++;
     }
 
-    for (size_t i = 0; i < MAX_PARTICLES; i++) {
+    size_t particlesCounted = 0;
+    for (size_t i = 0; particlesCounted < particlesActiveCount; i++) {
         Particle *particle = &particles[i];
         if (!particle->effect)
             continue;  // particle is dead
@@ -176,9 +182,11 @@ void particles_update(double now, double dt)
             particlesFree = particle;
             particlesActiveCount--;
         }
+        particlesCounted++;
     }
 
-    for (size_t i = 0; i < MAX_EFFECTS; i++) {
+    effectsCounted = 0;
+    for (size_t i = 0; effectsCounted < effectsActiveCount; i++) {
         ParticleEffect *effect = &effects[i];
         if (effect->type == ParticleEffectType_Dead)
             continue;
@@ -198,10 +206,32 @@ void particles_update(double now, double dt)
             effectsFree = effect;
             effectsActiveCount--;
         }
+        effectsCounted++;
     }
 }
 
-static void particle_draw(const Particle *particle)
+float particle_depth(const Particle *particle)
+{
+    const float depth = particle->body.position.y;
+    return depth;
+}
+
+void particles_push(void)
+{
+    assert(particlesActiveCount <= MAX_PARTICLES);
+
+    size_t particlesPushed = 0;
+    for (size_t i = 0; particlesPushed < particlesActiveCount; i++) {
+        Particle *particle = &particles[i];
+        if (!particle->effect)
+            continue;  // particle is dead
+
+        draw_command_push(DrawableType_Particle, particle);
+        particlesPushed++;
+    }
+}
+
+void particle_draw(const Particle *particle)
 {
     if (particle->sprite.spriteDef) {
         sprite_draw_body(&particle->sprite, &particle->body, particle->sprite.scale, particle->color);
@@ -212,16 +242,5 @@ static void particle_draw(const Particle *particle)
             particle->sprite.scale,
             particle->color
         );
-    }
-}
-
-void particles_draw(double now, double dt)
-{
-    for (size_t i = 0; i < MAX_PARTICLES; i++) {
-        Particle *particle = &particles[i];
-        if (!particle->effect)
-            continue;  // particle is dead
-
-        particle_draw(particle);
     }
 }

@@ -82,21 +82,21 @@ typedef struct {
 
 // Obtain an address from a host name and a port
 //
-// 'host_name' may contain a decimal formatted IP (such as "127.0.0.1"), a human readable
+// 'hostname' may contain a decimal formatted IP (such as "127.0.0.1"), a human readable
 // name (such as "localhost"), or NULL for the default address
 //
 // Returns 0 on success, -1 otherwise (call 'zed_net_get_error' for more info)
-ZED_NET_DEF int zed_net_get_address(zed_net_address_t *address, const char *host_name, unsigned short port);
+ZED_NET_DEF int zed_net_get_address(zed_net_address_t *address, const char *hostname, unsigned short port);
 
 // Obtain an address from a host name
 //
 // 'host' must contain a valid pointer to an unsigned int where we can store the result
 //
-// 'host_name' may contain a decimal formatted IP (such as "127.0.0.1"), a human readable
+// 'hostname' may contain a decimal formatted IP (such as "127.0.0.1"), a human readable
 // name (such as "localhost"), or NULL for the default address
 //
 // Returns 0 on success, -1 otherwise (call 'zed_net_get_error' for more info)
-ZED_NET_DEF int zed_net_str_to_host(unsigned int *host, const char *host_name, unsigned short port);
+ZED_NET_DEF int zed_net_str_to_host(unsigned int *host, const char *hostname);
 
 // Converts an address's host name into a decimal formatted string
 //
@@ -116,7 +116,7 @@ typedef struct {
 } zed_net_socket_t;
 
 // Closes a previously opened socket
-ZED_NET_DEF void zed_net_socket_close(zed_net_socket_t *socket);
+ZED_NET_DEF void zed_net_socket_close(const zed_net_socket_t *socket);
 
 /////////////////////////////////////////////////////////////////////////////////////////
 //
@@ -135,12 +135,12 @@ ZED_NET_DEF int zed_net_udp_socket_open(zed_net_socket_t *socket, unsigned short
 // Sends a specific amount of data to 'destination'
 //
 // Returns 0 on success, -1 otherwise (call 'zed_net_get_error' for more info)
-ZED_NET_DEF int zed_net_udp_socket_send(zed_net_socket_t *socket, zed_net_address_t destination, const void *data, int size);
+ZED_NET_DEF int zed_net_udp_socket_send(const zed_net_socket_t *socket, zed_net_address_t destination, const void *data, int size);
 
 // Receives a specific amount of data from 'sender'
 //
 // Returns the number of bytes received, -1 otherwise (call 'zed_net_get_error' for more info)
-ZED_NET_DEF int zed_net_udp_socket_receive(zed_net_socket_t *socket, zed_net_address_t *sender, void *data, int size);
+ZED_NET_DEF int zed_net_udp_socket_receive(const zed_net_socket_t *socket, zed_net_address_t *sender, void *data, int size);
 
 /////////////////////////////////////////////////////////////////////////////////////////
 //
@@ -254,13 +254,13 @@ ZED_NET_DEF void zed_net_shutdown(void) {
 #endif
 }
 
-ZED_NET_DEF int zed_net_get_address(zed_net_address_t *address, const char *host_name, unsigned short port) {
-    if (host_name == NULL) {
+ZED_NET_DEF int zed_net_get_address(zed_net_address_t *address, const char *hostname, unsigned short port) {
+    if (hostname == NULL) {
         address->host = INADDR_ANY;
     } else {
-        address->host = inet_addr(host_name);
+        address->host = inet_addr(hostname);
         if (address->host == INADDR_NONE) {
-            struct hostent *hostent = gethostbyname(host_name);
+            struct hostent *hostent = gethostbyname(hostname);
             if (hostent) {
                 memcpy(&address->host, hostent->h_addr, hostent->h_length);
             } else {
@@ -274,7 +274,7 @@ ZED_NET_DEF int zed_net_get_address(zed_net_address_t *address, const char *host
     return 0;
 }
 
-ZED_NET_DEF int zed_net_str_to_host(unsigned int *host, const char *hostname, unsigned short port) {
+ZED_NET_DEF int zed_net_str_to_host(unsigned int *host, const char *hostname) {
     if (hostname == NULL) {
         *host = INADDR_ANY;
     } else {
@@ -497,7 +497,7 @@ ZED_NET_DEF int zed_net_tcp_accept(zed_net_socket_t *listening_socket, zed_net_s
 	return 0;
 }
 
-ZED_NET_DEF void zed_net_socket_close(zed_net_socket_t *socket) {
+ZED_NET_DEF void zed_net_socket_close(const zed_net_socket_t *socket) {
     if (!socket) {
         return;
     }
@@ -511,7 +511,7 @@ ZED_NET_DEF void zed_net_socket_close(zed_net_socket_t *socket) {
     }
 }
 
-ZED_NET_DEF int zed_net_udp_socket_send(zed_net_socket_t *socket, zed_net_address_t destination, const void *data, int size) {
+ZED_NET_DEF int zed_net_udp_socket_send(const zed_net_socket_t *socket, zed_net_address_t destination, const void *data, int size) {
     if (!socket) {
         return zed_net__error("Socket is NULL");
     }
@@ -529,7 +529,7 @@ ZED_NET_DEF int zed_net_udp_socket_send(zed_net_socket_t *socket, zed_net_addres
     return 0;
 }
 
-ZED_NET_DEF int zed_net_udp_socket_receive(zed_net_socket_t *socket, zed_net_address_t *sender, void *data, int size) {
+ZED_NET_DEF int zed_net_udp_socket_receive(const zed_net_socket_t *socket, zed_net_address_t *sender, void *data, int size) {
     if (!socket) {
         return zed_net__error("Socket is NULL");
     }

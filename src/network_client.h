@@ -1,11 +1,14 @@
 #pragma once
+#include "packet.h"
 #include "zed_net.h"
 #include "dlb_types.h"
 
 typedef struct {
-    zed_net_socket_t socket;
+    const char *serverHostname;
     zed_net_address_t server;
-} network_client;
+    zed_net_socket_t socket;
+    PacketBuffer packetHistory;
+} NetworkClient;
 
 //---------------------------------------------
 // Examples
@@ -42,4 +45,10 @@ typedef struct {
     unsigned int selectSlot : 2;
 } Net_PlayerInput;
 
-int network_client_send(network_client *client, const char *data, size_t len);
+int  network_client_init         (NetworkClient *client);
+int  network_client_open_socket  (NetworkClient *client);
+int  network_client_connect      (NetworkClient *client, const char *hostname, unsigned short port);
+int  network_client_send         (const NetworkClient *client, const char *data, size_t len);
+void network_client_disconnect   (const NetworkClient *client);
+void network_client_close_socket (const NetworkClient *client);
+void network_client_free         (NetworkClient *client);

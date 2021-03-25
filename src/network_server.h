@@ -1,26 +1,14 @@
 #pragma once
+#include "packet.h"
 #include "zed_net.h"
+#include <stdint.h>
 
 #define NETWORK_SERVER_MAX_CLIENTS 4
-
-#define MAX_PACKET_SIZE_BYTES 1024
-#define MAX_PACKET_HISTORY 10
-//#define MAX_CHAT_HISTORY 10
+// must be power of 2 (shift modulus ring buffer)
+#define NETWORK_SERVER_MAX_PACKETS 256
 
 typedef struct {
-    char timestampStr[9];  // hh:mm:ss
-    char data[MAX_PACKET_SIZE_BYTES];
-} NetworkPacket;
-
-//typedef struct {
-//    const char *message;
-//    size_t len;
-//    double timestamp;
-//} chat_message;
-//
-//static chat_message chat_history[MAX_CHAT_HISTORY];
-
-typedef struct {
+    char hostname[18];  // buffer size of inet_ntoa()
     zed_net_address_t address;
     // todo: double last_packet_received_at
 } NetworkServerClient;
@@ -28,18 +16,22 @@ typedef struct {
 typedef struct {
     unsigned short port;
     zed_net_socket_t socket;
+    size_t clientsConnected;
     NetworkServerClient clients[NETWORK_SERVER_MAX_CLIENTS];
+    PacketBuffer packetHistory;
 } NetworkServer;
 
-int                  network_init                    ();
-int                  network_server_start            (NetworkServer *server, unsigned short port);
-int                  network_server_process_incoming (NetworkServer *server);
-int                  network_packet_history_count    (NetworkServer *server);
-int                  network_packet_history_next     (NetworkServer *server, int index);
-int                  network_packet_history_prev     (NetworkServer *server, int index);
-int                  network_packet_history_newest   (NetworkServer *server);
-int                  network_packet_history_oldest   (NetworkServer *server);
-const NetworkPacket *network_packet_history_at       (NetworkServer *server, int index);
-void                 network_server_stop             (NetworkServer *server);
-void                 network_shutdown                ();
+int  network_server_init         (NetworkServer *server);
+int  network_server_open_socket  (NetworkServer *server, unsigned short port);
+int  network_server_receive      (NetworkServer *server);
+void network_server_close_socket (NetworkServer *server);
+void network_server_free         (NetworkServer *server);
 
+#if 0
+int  network_packet_history_count    (const NetworkServer *server);
+int  network_packet_history_next     (const NetworkServer *server, int index);
+int  network_packet_history_prev     (const NetworkServer *server, int index);
+int  network_packet_history_newest   (const NetworkServer *server);
+int  network_packet_history_oldest   (const NetworkServer *server);
+void network_packet_history_at       (const NetworkServer *server, int index, const Packet **packet);
+#endif

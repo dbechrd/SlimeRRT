@@ -2,6 +2,7 @@
 #include "dlb_rand.h"
 #include "maths.h"
 #include "raylib.h"
+#include "dlb_types.h"
 #include <assert.h>
 #include <float.h>
 #include <stdlib.h>
@@ -134,6 +135,7 @@ Tile *tilemap_at_world(Tilemap *map, int x, int y)
     assert(y >= 0);
     assert(x < (int)map->tileset->tileWidth * map->widthTiles);
     assert(y < (int)map->tileset->tileHeight * map->heightTiles);
+
     int tileX = x / (int)map->tileset->tileWidth;
     int tileY = y / (int)map->tileset->tileHeight;
     return tilemap_at(map, tileX, tileY);
@@ -165,7 +167,7 @@ static void rrt_build(Tilemap *map, Vector2 qinit, size_t numVertices, float max
     const int tileMax = (int)map->tileset->tileCount - 2;
 
     RRTVertex *vertex = map->rrt.vertices;
-    vertex->tileType = dlb_rand_int(tileMin, tileMax);
+    vertex->tileType = dlb_rand32i_range(tileMin, tileMax);
     vertex->position = qinit;
     vertex++;
 
@@ -174,8 +176,8 @@ static void rrt_build(Tilemap *map, Vector2 qinit, size_t numVertices, float max
     Vector2 qrand = { 0 };
     for (size_t tileIdx = 1; tileIdx < map->rrt.vertexCount; tileIdx++) {
 #if 1
-        qrand.x = (float)dlb_rand_int(0, (int)(map->widthTiles * map->tileset->tileWidth));
-        qrand.y = (float)dlb_rand_int(0, (int)(map->heightTiles * map->tileset->tileHeight));
+        qrand.x = (float)dlb_rand32i_range(0, (int)(map->widthTiles * map->tileset->tileWidth));
+        qrand.y = (float)dlb_rand32i_range(0, (int)(map->heightTiles * map->tileset->tileHeight));
 #else
         // TODO: Try tile coords instead of pixels
         qrand.tileX = (float)GetRandomValue(0, map->widthTiles);
@@ -184,16 +186,18 @@ static void rrt_build(Tilemap *map, Vector2 qinit, size_t numVertices, float max
         size_t nearestIdx = rrt_nearest_idx(map, qrand);
         Vector2 qnear = map->rrt.vertices[nearestIdx].position;
         Vector2 qnew = v2_sub(qrand, qnear);
-#if 1
-        //bool constantIncrement = false;  // always increment by "maxGrowthDist"
-        //bool clampIncrement = true;     // increment at most by maxGrowthDist
-        //if (constantIncrement || (clampIncrement && Vector2::LengthSq(qnear) > maxGrowthDistSq)) {
-        //    qnew = Vector2::Normalize(qrand - qnear) * maxGrowthDist;
-        //}
+#if 0
+        bool constantIncrement = false;  // always increment by "maxGrowthDist"
+        bool clampIncrement = true;     // increment at most by maxGrowthDist
+        if (constantIncrement || (clampIncrement && Vector2::LengthSq(qnear) > maxGrowthDistSq)) {
+            qnew = Vector2::Normalize(qrand - qnear) * maxGrowthDist;
+        }
+#else
+        UNUSED(maxGrowthDistSq);
 #endif
         qnew = v2_add(qnew, qnear);
         if (tileIdx < randTiles) {
-            vertex->tileType = dlb_rand_int(tileMin, tileMax);
+            vertex->tileType = dlb_rand32i_range(tileMin, tileMax);
         } else {
             vertex->tileType = map->rrt.vertices[nearestIdx].tileType;
         }
@@ -212,7 +216,7 @@ static size_t rrt_nearest_idx(Tilemap *map, Vector2 p)
     assert(map->rrt.vertexCount);
 
     float minDistSq = FLT_MAX;
-    size_t minIdx;
+    size_t minIdx = 0;
     for (size_t i = 0; i < map->rrt.vertexCount; i++) {
         float distSq = v2_distance_sq(p, map->rrt.vertices[i].position);
         if (distSq < minDistSq) {

@@ -9,7 +9,6 @@
     <ClCompile Include="src\spritesheet.c" />
     <ClCompile Include="src\slime.c" />
     <ClCompile Include="src\body.c" />
-    <ClCompile Include="src\combat.c" />
     <ClCompile Include="src\network_server.c" />
     <ClCompile Include="src\helpers.c" />
     <ClCompile Include="src\network_client.c" />
@@ -25,6 +24,8 @@
     <ClCompile Include="src\particle_fx_gold.c" />
     <ClCompile Include="src\particle_fx_goo.c" />
     <ClCompile Include="src\sprite.c" />
+    <ClCompile Include="src\draw_command.c" />
+    <ClCompile Include="src\chat.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\tilemap.h" />
@@ -50,5 +51,9 @@
     <ClInclude Include="src\sprite.h" />
     <ClInclude Include="src\direction.h" />
     <ClInclude Include="src\string_view.h" />
+    <ClInclude Include="src\draw_command.h" />
+    <ClInclude Include="network_packet.h" />
+    <ClInclude Include="src\packet.h" />
+    <ClInclude Include="src\chat.h" />
   </ItemGroup>
 </Project>
