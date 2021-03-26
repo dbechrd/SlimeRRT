@@ -2,6 +2,7 @@
 #include "direction.h"
 #include "spritesheet.h"
 #include "raylib.h"
+#include <stdbool.h>
 
 typedef struct Sprite {
     const SpriteDef *spriteDef;
@@ -18,5 +19,5 @@ Rectangle           sprite_world_rect       (const Sprite *sprite, Vector3 posit
 Vector3             sprite_world_top_center (const Sprite *sprite, Vector3 position, float scale);
 Vector3             sprite_world_center     (const Sprite *sprite, Vector3 position, float scale);
 void                sprite_update           (Sprite *sprite, double now, double dt);
-void                sprite_draw             (const Sprite *sprite, Rectangle dest, float scale, Color color);
-void                sprite_draw_body        (const Sprite *sprite, const struct Body3D *body, float scale, Color color);
+bool                sprite_cull_body        (const Sprite *sprite, const struct Body3D *body, Rectangle cullRect);
+void                sprite_draw_body        (const Sprite *sprite, const struct Body3D *body, Color color);

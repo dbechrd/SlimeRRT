@@ -8,6 +8,15 @@
 #define VELOCITY_EPSILON 0.001f
 #define IDLE_THRESHOLD_SECONDS 6.0
 
+Vector2 body_bottom_center(const Body3D *body)
+{
+    assert(body);
+
+    Vector2 bottomCenter = body_ground_position(body);
+    bottomCenter.y -= body->position.z;
+    return bottomCenter;
+}
+
 Vector2 body_ground_position(const Body3D *body)
 {
     assert(body);

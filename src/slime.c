@@ -1,9 +1,11 @@
 #include "slime.h"
 #include "draw_command.h"
-#include "spritesheet.h"
+#include "healthbar.h"
 #include "helpers.h"
-#include "dlb_rand.h"
 #include "maths.h"
+#include "shadow.h"
+#include "spritesheet.h"
+#include "dlb_rand.h"
 #include <assert.h>
 #include "particles.h"
 
@@ -149,6 +151,12 @@ float slime_depth(const Slime *slime)
     return depth;
 }
 
+bool slime_cull(const Slime* slime, Rectangle cullRect)
+{
+    bool cull = sprite_cull_body(&slime->sprite, &slime->body, cullRect);
+    return cull;
+}
+
 void slime_push(const Slime *slime)
 {
     draw_command_push(DrawableType_Slime, slime);
@@ -156,7 +164,13 @@ void slime_push(const Slime *slime)
 
 void slime_draw(const Slime *slime)
 {
-    assert(slime);
+    // Player shadow
+    // TODO: Shadow size based on height from ground
+    // https://yal.cc/top-down-bouncing-loot-effects/
+    //const float shadowScale = 1.0f + slime->transform.position.z / 20.0f;
+    const Vector2 slimeBC = body_ground_position(&slime->body);
+    shadow_draw((int)slimeBC.x, (int)slimeBC.y, 16.0f * slime->sprite.scale, -8.0f * slime->sprite.scale);
 
-    sprite_draw_body(&slime->sprite, &slime->body, slime->sprite.scale, Fade(WHITE, 0.7f));
+    sprite_draw_body(&slime->sprite, &slime->body, Fade(WHITE, 0.7f));
+    healthbar_draw(10, &slime->sprite, &slime->body, slime->combat.hitPoints, slime->combat.maxHitPoints);
 }

@@ -103,7 +103,23 @@ void sprite_update(Sprite *sprite, double now, double dt)
     }
 }
 
-void sprite_draw(const Sprite *sprite, Rectangle dest, float scale, Color color)
+static bool sprite_cull(const Sprite *sprite, Rectangle dest, Rectangle cullRect)
+{
+    bool cull = !CheckCollisionRecs(dest, cullRect);
+    return cull;
+}
+
+bool sprite_cull_body(const Sprite *sprite, const struct Body3D *body, Rectangle cullRect)
+{
+    assert(sprite);
+    assert(body);
+
+    const Rectangle bodyRect = sprite_world_rect(sprite, body->position, sprite->scale);
+    bool cull = sprite_cull(sprite, bodyRect, cullRect);
+    return cull;
+}
+
+static void sprite_draw(const Sprite *sprite, Rectangle dest, Color color)
 {
 #if DEMO_BODY_RECT
     // DEBUG: Draw collision rectangle
@@ -118,7 +134,8 @@ void sprite_draw(const Sprite *sprite, Rectangle dest, float scale, Color color)
         const Rectangle rect = sprite_frame_rect(sprite);
 #endif
         // Draw textured sprite
-        DrawTextureTiled(sprite->spriteDef->spritesheet->texture, rect, dest, (Vector2){ 0.0f, 0.0f }, 0.0f, scale, color);
+        DrawTextureTiled(sprite->spriteDef->spritesheet->texture, rect, dest, (Vector2){ 0.0f, 0.0f }, 0.0f,
+            sprite->scale, color);
     } else {
         // Draw magenta rectangle
         DrawRectangleRec(dest, MAGENTA);
@@ -131,11 +148,11 @@ void sprite_draw(const Sprite *sprite, Rectangle dest, float scale, Color color)
 #endif
 }
 
-void sprite_draw_body(const Sprite *sprite, const struct Body3D *body, float scale, Color color)
+void sprite_draw_body(const Sprite *sprite, const Body3D *body, Color color)
 {
     assert(sprite);
     assert(body);
 
-    Rectangle bodyRect = sprite_world_rect(sprite, body->position, scale);
-    sprite_draw(sprite, bodyRect, scale, color);
+    const Rectangle bodyRect = sprite_world_rect(sprite, body->position, sprite->scale);
+    sprite_draw(sprite, bodyRect, color);
 }

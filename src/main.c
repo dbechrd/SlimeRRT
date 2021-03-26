@@ -1,6 +1,7 @@
 ﻿#include "chat.h"
 #include "controller.h"
 #include "draw_command.h"
+#include "healthbar.h"
 #include "helpers.h"
 #include "item_catalog.h"
 #include "maths.h"
@@ -50,40 +51,6 @@ Rectangle RectPadXY(const Rectangle rec, float padX, float padY)
 {
     Rectangle padded = (Rectangle){ rec.x - padX, rec.y - padY, rec.width + padX * 2.0f, rec.height + padY * 2.0f };
     return padded;
-}
-
-void DrawShadow(int x, int y, float radius, float yOffset)
-{
-    DrawEllipse(x, y + (int)yOffset, radius, radius / 2.0f, Fade(BLACK, 0.5f));
-}
-
-void DrawHealthBar(Font font, int fontSize, const Sprite *sprite, const Body3D *body, float hitPoints, float maxHitPoints)
-{
-    Vector3 topCenter = sprite_world_top_center(sprite, body->position, sprite->scale);
-    int x = (int)topCenter.x;
-    int y = (int)(topCenter.y - topCenter.z) - 10;
-
-    const float hpPercent = hitPoints / maxHitPoints;
-    const char *hpText = TextFormat("HP: %.02f / %.02f", hitPoints, maxHitPoints);
-
-    const int hp_w = MeasureText(hpText, fontSize);
-    const int hp_h = fontSize;
-    const int hp_x = x - hp_w / 2;
-    //const int hp_y = y - hp_h / 2;
-    const int hp_y = y - fontSize;
-
-    const int pad_x = 4;
-    const int pad_y = 2;
-    const int bg_x = hp_x - pad_x;
-    const int bg_y = hp_y - pad_y;
-    const int bg_w = hp_w + pad_x * 2;
-    const int bg_h = hp_h + pad_y * 2;
-
-    // Draw hitpoint indicators
-    DrawRectangle(bg_x, bg_y, bg_w, bg_h, DARKGRAY);
-    DrawRectangle(bg_x, bg_y, (int)(bg_w * hpPercent), bg_h, RED);
-    DrawRectangleLines(bg_x, bg_y, bg_w, bg_h, BLACK);
-    DrawTextFont(font, hpText, hp_x, hp_y, hp_h, WHITE);
 }
 
 void BloodParticlesFollowPlayer(ParticleEffect *effect, void *userData)
@@ -166,6 +133,8 @@ int main(void)
         assert(fonts[i].texture.id);
     }
     size_t fontIdx = 1;
+
+    healthbars_set_font(fonts[0]);
 
     int screenWidth = GetScreenWidth();
     int screenHeight = GetScreenHeight();
@@ -283,7 +252,6 @@ int main(void)
     charlie.body.position = worldSpawn;
 
     Slime slimes[MAX_SLIMES] = { 0 };
-    int slimesByDepth[MAX_SLIMES] = { 0 };
 
     {
         // TODO: Slime radius should probably be determined base on largest frame, no an arbitrary frame. Or, it could
@@ -308,7 +276,6 @@ int main(void)
             slime_init(&slimes[i], 0, slimeSpriteDef);
             slimes[i].body.position.x = dlb_rand32f_range(slimeRadiusX, maxX);
             slimes[i].body.position.y = dlb_rand32f_range(slimeRadiusY, maxY);
-            slimesByDepth[i] = i;
         }
     }
 
@@ -316,6 +283,7 @@ int main(void)
     double dt = 0;
     const int targetFPS = 60;
     SetTargetFPS(targetFPS);
+    bool gifRecording = false;
     //---------------------------------------------------------------------------------------
 
     // Main game loop
@@ -328,6 +296,11 @@ int main(void)
         const double now = GetTime();
         dt = MIN(now - frameStart, dtMax);
         frameStart = now;
+
+        // HACK: No way to check if Raylib is currently recording.. :(
+        if (gifRecording) {
+            //dt = 1.0 / 10.0;
+        }
 
 #if ALPHA_NETWORKING
         network_server_receive(&server);
@@ -455,8 +428,7 @@ int main(void)
                 if (!slime->combat.hitPoints)
                     continue;
 
-                Vector2 slimeToPlayer = v2_sub(body_ground_position(&charlie.body),
-                    body_ground_position(&slime->body));
+                Vector2 slimeToPlayer = v2_sub(body_ground_position(&charlie.body), body_ground_position(&slime->body));
                 const float slimeToPlayerDistSq = v2_length_sq(slimeToPlayer);
                 if (slimeToPlayerDistSq > SQUARED(slimeAttackReach) &&
                     slimeToPlayerDistSq <= SQUARED(slimeAttackTrack))
@@ -486,8 +458,9 @@ int main(void)
                             Slime *b = &slimes[collideIdx];
                             if (slime_combine(a, b)) {
                                 const Slime *dead = a->combat.hitPoints == 0.0f ? a : b;
-                                const Vector3 slimeBC = sprite_world_center(&dead->sprite, dead->body.position,
-                                    dead->sprite.scale);
+                                const Vector3 slimeBC = sprite_world_center(
+                                    &dead->sprite, dead->body.position, dead->sprite.scale
+                                );
                                 particle_effect_create(ParticleEffectType_Goo, 20, slimeBC, 2.0, now, 0);
                             }
                         }
@@ -506,19 +479,21 @@ int main(void)
                 slimeToPlayer = v2_sub(body_ground_position(&charlie.body), body_ground_position(&slime->body));
                 if (v2_length_sq(slimeToPlayer) <= SQUARED(slimeAttackReach)) {
                     if (slime_attack(&slimes[slimeIdx], now, dt)) {
-                        charlie.combat.hitPoints = MAX(0.0f,
-                            charlie.combat.hitPoints - (slimeAttackDamage * slime->sprite.scale));
+                        charlie.combat.hitPoints = MAX(
+                            0.0f,
+                            charlie.combat.hitPoints - (slimeAttackDamage * slime->sprite.scale)
+                        );
 
                         static double lastBleed = 0;
                         const double bleedDuration = 3.0;
 
                         if (now - lastBleed > bleedDuration / 3.0) {
                             Vector3 playerGut = player_get_attach_point(&charlie, PlayerAttachPoint_Gut);
-                            ParticleEffect *bloodParticles = particle_effect_create(ParticleEffectType_Blood, 32,
-                                playerGut, bleedDuration, now, 0);
+                            ParticleEffect *bloodParticles = particle_effect_create(
+                                ParticleEffectType_Blood, 32, playerGut, bleedDuration, now, 0
+                            );
                             if (bloodParticles) {
-                                bloodParticles->callbacks[ParticleEffectEvent_BeforeUpdate].function =
-                                    BloodParticlesFollowPlayer;
+                                bloodParticles->callbacks[ParticleEffectEvent_BeforeUpdate].function = BloodParticlesFollowPlayer;
                                 bloodParticles->callbacks[ParticleEffectEvent_BeforeUpdate].userData = &charlie;
                             }
                             lastBleed = now;
@@ -596,7 +571,7 @@ int main(void)
         mousePosWorld.x += mousePosScreen.x * invZoom + cameraRect.x;
         mousePosWorld.y += mousePosScreen.y * invZoom + cameraRect.y;
 
-        bool findMouseTile = IsKeyDown(KEY_LEFT_CONTROL);
+        bool findMouseTile = IsKeyDown(KEY_LEFT_ALT);
         Tile *mouseTile = 0;
         if (findMouseTile) {
             mouseTile = tilemap_at_world_try(&tilemap, (int)mousePosWorld.x, (int)mousePosWorld.y);
@@ -613,35 +588,7 @@ int main(void)
         }
 
         {
-            // Sort by y value of bottom of sprite rect
-            //qsort(slimes, sizeof(slimes)/sizeof(*slimes), sizeof(*slimes), SlimeCompareDepth);
-            for (int i = 1; i < MAX_SLIMES; i++) {
-                const int index = slimesByDepth[i];
-                const float groundPosA = slimes[index].body.position.y;
-                int j;
-                for (j = i - 1; j >= 0 && (slimes[slimesByDepth[j]].body.position.y > groundPosA); j--) {
-                    slimesByDepth[j + 1] = slimesByDepth[j];
-                }
-                slimesByDepth[j + 1] = index;
-            }
-
-            // Player shadow
-            // TODO: Shadow size based on height from ground
-            // https://yal.cc/top-down-bouncing-loot-effects/
-            //const float shadowScale = 1.0f + slime->transform.position.z / 20.0f;
-            const Vector2 playerGroundPos = body_ground_position(&charlie.body);
-            DrawShadow((int)playerGroundPos.x, (int)playerGroundPos.y, 16.0f, -6.0f);
-
-            // Slime shadows
-            for (int i = 0; i < MAX_SLIMES; i++) {
-                const Slime *slime = &slimes[i];
-                if (!slime->combat.hitPoints) {
-                    continue;
-                }
-
-                const Vector2 slimeBC = body_ground_position(&slime->body);
-                DrawShadow((int)slimeBC.x, (int)slimeBC.y, 16.0f * slime->sprite.scale, -8.0f * slime->sprite.scale);
-            }
+            draw_commands_enable_culling(cameraRect);
 
             // Queue player for drawing
             player_push(&charlie);
@@ -662,16 +609,6 @@ int main(void)
             draw_commands_flush();
         }
 
-        for (size_t slimeIdx = 0; slimeIdx < MAX_SLIMES; slimeIdx++) {
-            const Slime *slime = &slimes[slimeIdx];
-            if (!slime->combat.hitPoints) {
-                continue;
-            }
-
-            DrawHealthBar(fonts[0], 10, &slime->sprite, &slime->body, slime->combat.hitPoints, slime->combat.maxHitPoints);
-        }
-        DrawHealthBar(fonts[0], 10, &charlie.sprite, &charlie.body, charlie.combat.hitPoints, charlie.combat.maxHitPoints);
-
 #if DEMO_VIEW_CULLING
         DrawRectangleRec(cameraRect, Fade(PINK, 0.5f));
 #endif
@@ -686,19 +623,19 @@ int main(void)
         EndMode2D();
 
         if (findMouseTile && mouseTile) {
-            const int tooltipOffsetX = 10;
-            const int tooltipOffsetY = 10;
-            const int tooltipPad = 4;
+            const float tooltipOffsetX = 10.0f;
+            const float tooltipOffsetY = 10.0f;
+            const float tooltipPad = 4.0f;
 
-            int tooltipX = (int)mousePosScreen.x + tooltipOffsetX;
-            int tooltipY = (int)mousePosScreen.y + tooltipOffsetY;
-            const int tooltipW = 220 + tooltipPad * 2;
-            const int tooltipH = 40  + tooltipPad * 2;
+            float tooltipX = mousePosScreen.x + tooltipOffsetX;
+            float tooltipY = mousePosScreen.y + tooltipOffsetY;
+            const float tooltipW = 220.0f + tooltipPad * 2.0f;
+            const float tooltipH = 40.0f  + tooltipPad * 2.0f;
 
             if (tooltipX + tooltipW > screenWidth ) tooltipX = screenWidth  - tooltipW;
             if (tooltipY + tooltipH > screenHeight) tooltipY = screenHeight - tooltipH;
 
-            Rectangle tooltipRect = (Rectangle){ (float)tooltipX, (float)tooltipY, (float)tooltipW, (float)tooltipH };
+            Rectangle tooltipRect = (Rectangle){ tooltipX, tooltipY, tooltipW, tooltipH };
             DrawRectangleRec(tooltipRect, Fade(RAYWHITE, 0.8f));
             DrawRectangleLinesEx(tooltipRect, 1, Fade(BLACK, 0.8f));
 
@@ -726,7 +663,7 @@ int main(void)
         DrawTexture(minimapTex, minimapTexX, minimapTexY, WHITE);
 
         const char *text = 0;
-        int hudCursorY = 0;
+        float hudCursorY = 0;
 
 #define PUSH_TEXT(text, color) \
     DrawTextFont(fonts[fontIdx], text, margin + pad, hudCursorY, fontHeight, color); \
@@ -738,21 +675,25 @@ int main(void)
 #if SHOW_DEBUG_STATS
             linesOfText += 7;
 #endif
-            const int margin = 6;   // left/top margin
-            const int pad = 4;      // left/top pad
-            const int hudWidth = 200;
-            const int hudHeight = linesOfText * (fontHeight + pad) + pad;
+            const float margin = 6.0f;   // left/top margin
+            const float pad = 4.0f;      // left/top pad
+            const float hudWidth = 200.0f;
+            const float hudHeight = linesOfText * (fontHeight + pad) + pad;
 
             hudCursorY += margin;
 
             const Color darkerGray = (Color){ 40, 40, 40, 255 };
             UNUSED(darkerGray);
-            DrawRectangle(margin, hudCursorY, hudWidth, hudHeight, DARKBLUE);
-            DrawRectangleLines(margin, hudCursorY, hudWidth, hudHeight, BLACK);
+            DrawRectangle((int)margin, (int)hudCursorY, (int)hudWidth, (int)hudHeight, DARKBLUE);
+            DrawRectangleLines((int)margin, (int)hudCursorY, (int)hudWidth, (int)hudHeight, BLACK);
 
             hudCursorY += pad;
 
-            text = TextFormat("%2i fps (%.02f ms)", GetFPS(), GetFrameTime() * 1000.0f);
+            if (gifRecording) {
+                text = TextFormat("GIF RECORDING");
+            } else {
+                text = TextFormat("%2i fps (%.02f ms)", GetFPS(), GetFrameTime() * 1000.0f);
+            }
             PUSH_TEXT(text, WHITE);
             text = TextFormat("Coins: %d", charlie.inventory.slots[PlayerInventorySlot_Coins].stackCount);
             PUSH_TEXT(text, YELLOW);
@@ -793,17 +734,17 @@ int main(void)
         {
             int linesOfText = 1 + (int)server.clientsConnected;
 
-            const int margin = 6;   // left/top margin
-            const int pad = 4;      // left/top pad
-            const int hudWidth = 200;
-            const int hudHeight = linesOfText * (fontHeight + pad) + pad;
+            const float margin = 6.0f;   // left/top margin
+            const float pad = 4.0f;      // left/top pad
+            const float hudWidth = 200.0f;
+            const float hudHeight = linesOfText * (fontHeight + pad) + pad;
 
             hudCursorY += margin;
 
             const Color darkerGray = (Color){ 40, 40, 40, 255 };
             UNUSED(darkerGray);
-            DrawRectangle(margin, hudCursorY, hudWidth, hudHeight, DARKBLUE);
-            DrawRectangleLines(margin, hudCursorY, hudWidth, hudHeight, BLACK);
+            DrawRectangle((int)margin, (int)hudCursorY, (int)hudWidth, (int)hudHeight, DARKBLUE);
+            DrawRectangleLines((int)margin, (int)hudCursorY, (int)hudWidth, (int)hudHeight, BLACK);
 
             hudCursorY += pad;
 
@@ -831,19 +772,19 @@ int main(void)
 
             if (chatVisible) {
                 const int linesOfText = (int)server.packetHistory.count;
-                const int margin = 6;   // left/bottom margin
-                const int pad = 4;      // left/bottom pad
-                const int chatWidth = 320;
-                const int chatHeight = linesOfText * (fontHeight + pad) + pad;
-                const int chatX = margin;
-                const int chatY = screenHeight - margin - chatHeight;
+                const float margin = 6.0f;   // left/bottom margin
+                const float pad = 4.0f;      // left/bottom pad
+                const float chatWidth = 320.0f;
+                const float chatHeight = linesOfText * (fontHeight + pad) + pad;
+                const float chatX = margin;
+                const float chatY = screenHeight - margin - chatHeight;
 
                 // NOTE: The chat history renders from the bottom up (most recent message first)
-                int cursorY = (chatY + chatHeight) - pad - fontHeight;
+                float cursorY = (chatY + chatHeight) - pad - fontHeight;
                 const char *text = 0;
 
-                DrawRectangle(chatX, chatY, chatWidth, chatHeight, Fade(DARKGRAY, 0.8f));
-                DrawRectangleLines(chatX, chatY, chatWidth, chatHeight, Fade(BLACK, 0.8f));
+                DrawRectangle((int)chatX, (int)chatY, (int)chatWidth, (int)chatHeight, Fade(DARKGRAY, 0.8f));
+                DrawRectangleLines((int)chatX, (int)chatY, (int)chatWidth, (int)chatHeight, Fade(BLACK, 0.8f));
 
                 for (int i = (int)server.packetHistory.count - 1; i >= 0; i--) {
                     size_t packetIdx = (server.packetHistory.first + i) & (NETWORK_SERVER_MAX_PACKETS - 1);

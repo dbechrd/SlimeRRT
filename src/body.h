@@ -16,7 +16,6 @@ typedef struct Body3D {
     bool idle;
 } Body3D;
 
-Rectangle body_rect          (const Body3D *body);
-Vector3 body_center          (const Body3D *body);
+Vector2 body_bottom_center   (const Body3D *body);
 Vector2 body_ground_position (const Body3D *body);
 void body_update             (Body3D *body, double now, double dt);

@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#define CULL_ON_PUSH 1
 #define DEMO_VIEW_CULLING 0
 #define DEMO_AI_TRACKING 0
 #define DEMO_BODY_RECT 0
@@ -23,4 +24,4 @@
 #define METERS_TO_PIXELS(meters) ((meters) * 64.0f)
 #define PIXELS_TO_METERS(pixels) ((pixels) / 64.0f)
 
-void DrawTextFont(Font font, const char *text, int posX, int posY, int fontSize, Color color);
+void DrawTextFont(Font font, const char *text, float posX, float posY, int fontSize, Color color);

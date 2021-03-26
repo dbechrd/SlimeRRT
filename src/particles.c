@@ -216,6 +216,20 @@ float particle_depth(const Particle *particle)
     return depth;
 }
 
+bool particle_cull(const Particle *particle, Rectangle cullRect)
+{
+    bool cull = false;
+
+    if (particle->sprite.spriteDef) {
+        cull = sprite_cull_body(&particle->sprite, &particle->body, cullRect);
+    } else {
+        const Vector2 particleBC = body_bottom_center(&particle->body);
+        cull = !CheckCollisionCircleRec(particleBC, particle->sprite.scale, cullRect);
+    }
+
+    return cull;
+}
+
 void particles_push(void)
 {
     assert(particlesActiveCount <= MAX_PARTICLES);
@@ -234,7 +248,7 @@ void particles_push(void)
 void particle_draw(const Particle *particle)
 {
     if (particle->sprite.spriteDef) {
-        sprite_draw_body(&particle->sprite, &particle->body, particle->sprite.scale, particle->color);
+        sprite_draw_body(&particle->sprite, &particle->body, particle->color);
     } else {
         DrawCircle(
             (int)particle->body.position.x,

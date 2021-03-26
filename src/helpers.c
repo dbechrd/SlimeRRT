@@ -10,12 +10,12 @@ Color ShadowColor(const Color color)
     return shadow_color;
 }
 
-void DrawTextFont(Font font, const char *text, int posX, int posY, int fontSize, Color color)
+void DrawTextFont(Font font, const char *text, float posX, float posY, int fontSize, Color color)
 {
     // Check if default font has been loaded
     if (font.texture.id != 0)
     {
-        Vector2 position = { (float)posX, (float)posY };
+        Vector2 position = { posX, posY };
         Vector2 shadowPosition = position;
         shadowPosition.x++;
         shadowPosition.y++;

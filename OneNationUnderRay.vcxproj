@@ -12,6 +12,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\chat.c" />
+    <ClCompile Include="src\healthbar.c" />
     <ClCompile Include="src\helpers.c" />
     <ClCompile Include="src\controller.c" />
     <ClCompile Include="src\item.c" />
@@ -25,6 +26,7 @@
     <ClCompile Include="src\player.c" />
     <ClCompile Include="src\particles.c" />
     <ClCompile Include="src\player_inventory.c" />
+    <ClCompile Include="src\shadow.c" />
     <ClCompile Include="src\sim.c" />
     <ClCompile Include="src\slime.c" />
     <ClCompile Include="src\draw_command.c" />
@@ -42,6 +44,7 @@
     <ClInclude Include="src\chat.h" />
     <ClInclude Include="src\combat.h" />
     <ClInclude Include="src\direction.h" />
+    <ClInclude Include="src\healthbar.h" />
     <ClInclude Include="src\helpers.h" />
     <ClInclude Include="src\controller.h" />
     <ClInclude Include="src\item.h" />
@@ -53,6 +56,7 @@
     <ClInclude Include="src\particle_fx.h" />
     <ClInclude Include="src\player.h" />
     <ClInclude Include="src\player_inventory.h" />
+    <ClInclude Include="src\shadow.h" />
     <ClInclude Include="src\sim.h" />
     <ClInclude Include="src\slime.h" />
     <ClInclude Include="src\draw_command.h" />

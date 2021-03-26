@@ -9,6 +9,8 @@
 static size_t commandCapacity;
 static size_t commandCount;
 static DrawCommand *sortedCommands;
+static bool cullEnabled;
+static Rectangle cullRect;
 
 void draw_commands_init(void)
 {
@@ -44,6 +46,40 @@ static float draw_command_depth(const DrawCommand *cmd)
     return depth;
 }
 
+void draw_commands_enable_culling(const Rectangle rect)
+{
+    cullRect = rect;
+    cullEnabled = true;
+}
+
+void draw_commands_disable_culling(void)
+{
+    cullRect = (Rectangle){ 0 };
+    cullEnabled = false;
+}
+
+static bool draw_command_cull(const DrawCommand *cmd, Rectangle cullRect)
+{
+    bool cull = false;
+
+    switch (cmd->type) {
+        case DrawableType_Particle: {
+            cull = particle_cull(cmd->drawable, cullRect);
+            break;
+        }
+        case DrawableType_Player: {
+            cull = player_cull(cmd->drawable, cullRect);
+            break;
+        }
+        case DrawableType_Slime: {
+            cull = slime_cull(cmd->drawable, cullRect);
+            break;
+        }
+    }
+
+    return cull;
+}
+
 void draw_command_push(DrawableType type, const void *drawable)
 {
     assert(drawable);
@@ -53,14 +89,22 @@ void draw_command_push(DrawableType type, const void *drawable)
     cmd.type = type;
     cmd.drawable = drawable;
 
+#if CULL_ON_PUSH
+    if (cullEnabled && draw_command_cull(&cmd, cullRect)) {
+        return;
+    }
+#endif
+
     // TODO: Implement fixed size grid of 8x8 cells
     // TODO: Only sort items that are in the same broadphase cell
     // TODO: Research quad tree vs. AABB
 
     switch (type) {
+#if 0
         case DrawableType_Particle: {
             sortedCommands[commandCount] = cmd;
         }
+#endif
         default: {
             const float depthA = draw_command_depth(&cmd);
             int j;
@@ -78,6 +122,24 @@ void draw_command_push(DrawableType type, const void *drawable)
     commandCount++;
 }
 
+static void draw_command_draw(const DrawCommand *cmd)
+{
+    switch (cmd->type) {
+        case DrawableType_Particle: {
+            particle_draw(cmd->drawable);
+            break;
+        }
+        case DrawableType_Player: {
+            player_draw(cmd->drawable);
+            break;
+        }
+        case DrawableType_Slime: {
+            slime_draw(cmd->drawable);
+            break;
+        }
+    }
+}
+
 void draw_commands_flush(void)
 {
     if (!commandCount) {
@@ -85,20 +147,14 @@ void draw_commands_flush(void)
     }
 
     for (size_t i = 0; i < commandCount; i++) {
-        switch (sortedCommands[i].type) {
-            case DrawableType_Particle: {
-                particle_draw(sortedCommands[i].drawable);
-                break;
-            }
-            case DrawableType_Player: {
-                player_draw(sortedCommands[i].drawable);
-                break;
-            }
-            case DrawableType_Slime: {
-                slime_draw(sortedCommands[i].drawable);
-                break;
-            }
+        const DrawCommand *cmd = &sortedCommands[i];
+#if !CULL_ON_PUSH
+        if (!cullEnabled || !draw_command_cull(cmd, cullRect)) {
+            draw_command_draw(cmd);
         }
+#else
+        draw_command_draw(cmd);
+#endif
     }
 
     memset(sortedCommands, 0, commandCount * sizeof(*sortedCommands));

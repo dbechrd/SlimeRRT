@@ -47,5 +47,6 @@ bool player_move                (Player *player, double now, double dt, Vector2 
 bool player_attack              (Player *player, double now, double dt);
 void player_update              (Player *player, double now, double dt);
 float player_depth              (const Player *player);
+bool player_cull                (const Player* player, Rectangle cullRect);
 void player_push                (const Player *player);
 void player_draw                (const Player *player);

@@ -4,7 +4,7 @@
 #include "sprite.h"
 #include <stdbool.h>
 
-#define MAX_SLIMES 256
+#define MAX_SLIMES 512
 
 typedef enum SlimeAction {
     SlimeAction_None   = 0,
@@ -26,5 +26,6 @@ bool slime_combine (Slime *slimeA, Slime *slimeB);
 bool slime_attack  (Slime *slime, double now, double dt);
 void slime_update  (Slime *slime, double now, double dt);
 float slime_depth  (const Slime *slime);
+bool slime_cull    (const Slime* slime, Rectangle cullRect);
 void slime_push    (const Slime *slime);
 void slime_draw    (const Slime *slime);

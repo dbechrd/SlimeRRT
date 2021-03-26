@@ -22,6 +22,7 @@ size_t     particles_active (void);
 void       particles_update (double now, double dt);
 void       particles_sort   (void);
 float      particle_depth   (const Particle *particle);
+bool       particle_cull    (const Particle *particle, Rectangle cullRect);
 void       particles_push   (void);
 void       particle_draw    (const Particle *particle);
 

@@ -47,7 +47,7 @@ void sim(double now, double dt, const PlayerControllerState input, Player *playe
         }
     }
 
-    Vector2 moveOffset = v2_round(v2_scale(v2_normalize(moveBuffer), playerSpeed));
+    Vector2 moveOffset = v2_scale(v2_normalize(moveBuffer), METERS_TO_PIXELS(playerSpeed) * (float)dt);
     if (!v2_is_zero(moveOffset)) {
         const Vector2 curPos = body_ground_position(&player->body);
         const Tile *curTile = tilemap_at_world_try(map, (int)curPos.x, (int)curPos.y);
@@ -96,7 +96,7 @@ void sim(double now, double dt, const PlayerControllerState input, Player *playe
         if (player_move(player, now, dt, moveOffset)) {
             static double lastFootstep = 0;
             double timeSinceLastFootstep = now - lastFootstep;
-            if (timeSinceLastFootstep > 1.0 / (double)playerSpeed) {
+            if (timeSinceLastFootstep > 1.0f / playerSpeed) {
                 sound_catalog_play(SoundID_Footstep, 1.0f + dlb_rand32f_variance(0.5f));
                 lastFootstep = now;
             }
