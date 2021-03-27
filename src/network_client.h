@@ -3,6 +3,9 @@
 #include "zed_net.h"
 #include "dlb_types.h"
 
+// must be power of 2 (shift modulus ring buffer)
+#define NETWORK_CLIENT_MAX_PACKETS 256
+
 typedef struct {
     const char *serverHostname;
     zed_net_address_t server;
@@ -49,6 +52,7 @@ int  network_client_init         (NetworkClient *client);
 int  network_client_open_socket  (NetworkClient *client);
 int  network_client_connect      (NetworkClient *client, const char *hostname, unsigned short port);
 int  network_client_send         (const NetworkClient *client, const char *data, size_t len);
+int  network_client_receive       (NetworkClient *client);
 void network_client_disconnect   (const NetworkClient *client);
 void network_client_close_socket (const NetworkClient *client);
 void network_client_free         (NetworkClient *client);

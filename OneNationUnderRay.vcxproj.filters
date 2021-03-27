@@ -28,6 +28,7 @@
     <ClCompile Include="src\chat.c" />
     <ClCompile Include="src\healthbar.c" />
     <ClCompile Include="src\shadow.c" />
+    <ClCompile Include="src\packet.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\tilemap.h" />

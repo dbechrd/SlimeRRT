@@ -18,6 +18,7 @@
 #include "tilemap.h"
 #include "sim.h"
 #include "dlb_rand.h"
+#include "raygui.h"
 #include "raylib.h"
 #include "zed_net.h"
 #include <assert.h>
@@ -119,9 +120,9 @@ int main(void)
         TraceLog(LOG_FATAL, "Failed to initialize chat system.\n");
     }
 
-    SetExitKey(0);  // Disable default Escape exit key, we'll handle escape ourselves
     InitWindow(1600, 900, "Attack the slimes!");
     SetWindowState(FLAG_WINDOW_RESIZABLE);
+    SetExitKey(0);  // Disable default Escape exit key, we'll handle escape ourselves
 
     const int fontHeight = 14;
     Font fonts[3] = {
@@ -133,6 +134,7 @@ int main(void)
         assert(fonts[i].texture.id);
     }
     size_t fontIdx = 1;
+    GuiSetFont(fonts[fontIdx]);
 
     healthbars_set_font(fonts[0]);
 
@@ -284,12 +286,14 @@ int main(void)
     const int targetFPS = 60;
     SetTargetFPS(targetFPS);
     bool gifRecording = false;
+    bool chatActive = false;
     //---------------------------------------------------------------------------------------
 
     // Main game loop
     while (!WindowShouldClose())
     {
         bool escape = IsKeyPressed(KEY_ESCAPE);
+        bool findMouseTile = false;
 
         // NOTE: Limit delta time to 2 frames worth of updates to prevent chaos for large dt (e.g. when debugging)
         const double dtMax = (1.0 / targetFPS) * 2;
@@ -299,11 +303,12 @@ int main(void)
 
         // HACK: No way to check if Raylib is currently recording.. :(
         if (gifRecording) {
-            //dt = 1.0 / 10.0;
+            dt = 1.0 / 10.0;
         }
 
 #if ALPHA_NETWORKING
         network_server_receive(&server);
+        network_client_receive(&client);
 #endif
 
         if (IsWindowResized()) {
@@ -315,76 +320,80 @@ int main(void)
         UpdateMusicStream(mus_background);
         UpdateMusicStream(mus_whistle);
 
-        if (IsKeyPressed(KEY_F11)) {
-            time_t t = time(NULL);
-            struct tm tm = *localtime(&t);
-            char screenshotName[64] = { 0 };
-            int len = snprintf(screenshotName, sizeof(screenshotName),
-                "screenshots/%d-%02d-%02d_%02d-%02d-%02d_screenshot.png",
-                tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
-            assert(len < sizeof(screenshotName));
-            TakeScreenshot(screenshotName);
-        }
+        if (!chatActive) {
+            findMouseTile = IsKeyDown(KEY_LEFT_ALT);
 
-        if (IsKeyPressed(KEY_SEVEN)) {
-            fontIdx++;
-            if (fontIdx >= ARRAY_SIZE(fonts)) {
-                fontIdx = 0;
+            if (IsKeyPressed(KEY_F11)) {
+                time_t t = time(NULL);
+                struct tm tm = *localtime(&t);
+                char screenshotName[64] = { 0 };
+                int len = snprintf(screenshotName, sizeof(screenshotName),
+                    "screenshots/%d-%02d-%02d_%02d-%02d-%02d_screenshot.png",
+                    tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+                assert(len < sizeof(screenshotName));
+                TakeScreenshot(screenshotName);
             }
-        }
+
+            if (IsKeyPressed(KEY_SEVEN)) {
+                fontIdx++;
+                if (fontIdx >= ARRAY_SIZE(fonts)) {
+                    fontIdx = 0;
+                    GuiSetFont(fonts[fontIdx]);
+                }
+            }
 
 #if ALPHA_NETWORKING
-        if (IsKeyPressed(KEY_C)) {
-            network_client_send(&client, CSTR("User pressed the C key."));
-        }
+            if (IsKeyPressed(KEY_C)) {
+                network_client_send(&client, CSTR("User pressed the C key."));
+            }
 #endif
 
-        if (IsKeyPressed(KEY_F)) {
-            cameraFollowPlayer = !cameraFollowPlayer;
-        }
+            if (IsKeyPressed(KEY_F)) {
+                cameraFollowPlayer = !cameraFollowPlayer;
+            }
 
-        // Camera reset (zoom and rotation)
-        if (cameraReset || IsKeyPressed(KEY_R)) {
-            camera.target = (Vector2){ roundf(camera.target.x), roundf(camera.target.y) };
-            camera.offset = (Vector2){ roundf(screenWidth / 2.0f), roundf(screenHeight / 2.0f) };
-            camera.rotation = 0.0f;
-            camera.zoom = 1.0f;
-            cameraReset = 0;
-        }
+            // Camera reset (zoom and rotation)
+            if (cameraReset || IsKeyPressed(KEY_R)) {
+                camera.target = (Vector2){ roundf(camera.target.x), roundf(camera.target.y) };
+                camera.offset = (Vector2){ roundf(screenWidth / 2.0f), roundf(screenHeight / 2.0f) };
+                camera.rotation = 0.0f;
+                camera.zoom = 1.0f;
+                cameraReset = 0;
+            }
 
-        if (cameraFollowPlayer) {
-            PlayerControllerState input = QueryPlayerController();
-            sim(now, dt, input, &charlie, &tilemap, slimes, coinSpriteDef);
+            if (cameraFollowPlayer) {
+                PlayerControllerState input = QueryPlayerController();
+                sim(now, dt, input, &charlie, &tilemap, slimes, coinSpriteDef);
+                camera.target = body_ground_position(&charlie.body);
+            } else {
+                const int cameraSpeed = 5;
+                if (IsKeyDown(KEY_A)) camera.target.x -= cameraSpeed / camera.zoom;
+                if (IsKeyDown(KEY_D)) camera.target.x += cameraSpeed / camera.zoom;
+                if (IsKeyDown(KEY_W)) camera.target.y -= cameraSpeed / camera.zoom;
+                if (IsKeyDown(KEY_S)) camera.target.y += cameraSpeed / camera.zoom;
+            }
 
-            camera.target = body_ground_position(&charlie.body);
-        } else {
-            const int cameraSpeed = 5;
-            if (IsKeyDown(KEY_A)) camera.target.x -= cameraSpeed / camera.zoom;
-            if (IsKeyDown(KEY_D)) camera.target.x += cameraSpeed / camera.zoom;
-            if (IsKeyDown(KEY_W)) camera.target.y -= cameraSpeed / camera.zoom;
-            if (IsKeyDown(KEY_S)) camera.target.y += cameraSpeed / camera.zoom;
-        }
+            // Camera rotation controls
+            //if (IsKeyPressed(KEY_Q)) {
+            //    camera.rotation -= 45.0f;
+            //    if (camera.rotation < 0.0f) camera.rotation += 360.0f;
+            //}
+            //else if (IsKeyPressed(KEY_E)) {
+            //    camera.rotation += 45.0f;
+            //    if (camera.rotation >= 360.0f) camera.rotation -= 360.0f;
+            //}
 
-        // Camera rotation controls
-        //if (IsKeyPressed(KEY_Q)) {
-        //    camera.rotation -= 45.0f;
-        //    if (camera.rotation < 0.0f) camera.rotation += 360.0f;
-        //}
-        //else if (IsKeyPressed(KEY_E)) {
-        //    camera.rotation += 45.0f;
-        //    if (camera.rotation >= 360.0f) camera.rotation -= 360.0f;
-        //}
-
-        // Camera zoom controls
+            // Camera zoom controls
 #if 0
-        camera.zoom += GetMouseWheelMove() * 0.1f * camera.zoom;
+            camera.zoom += GetMouseWheelMove() * 0.1f * camera.zoom;
 #else
-        const float mouseWheelMove = GetMouseWheelMove();
-        if (mouseWheelMove) {
-            //printf("zoom: %f, log: %f\n", camera.zoom, log10f(camera.zoom));
-            camera.zoom *= mouseWheelMove > 0.0f ? 2.0f : 0.5f;
-        }
+            const float mouseWheelMove = GetMouseWheelMove();
+            if (mouseWheelMove) {
+                //printf("zoom: %f, log: %f\n", camera.zoom, log10f(camera.zoom));
+                camera.zoom *= mouseWheelMove > 0.0f ? 2.0f : 0.5f;
+            }
 #endif
+        }
 
 #if 1
         const int negZoomMultiplier = 7; // 7x negative zoom (out)
@@ -571,7 +580,6 @@ int main(void)
         mousePosWorld.x += mousePosScreen.x * invZoom + cameraRect.x;
         mousePosWorld.y += mousePosScreen.y * invZoom + cameraRect.y;
 
-        bool findMouseTile = IsKeyDown(KEY_LEFT_ALT);
         Tile *mouseTile = 0;
         if (findMouseTile) {
             mouseTile = tilemap_at_world_try(&tilemap, (int)mousePosWorld.x, (int)mousePosWorld.y);
@@ -610,7 +618,7 @@ int main(void)
         }
 
 #if DEMO_VIEW_CULLING
-        DrawRectangleRec(cameraRect, Fade(PINK, 0.5f));
+        DrawRectangleLinesEx(cameraRect, 3, Fade(PINK, 0.8f));
 #endif
 
 #if DEMO_AI_TRACKING
@@ -753,7 +761,7 @@ int main(void)
             for (size_t i = 0; i < NETWORK_SERVER_MAX_CLIENTS; i++) {
                 const NetworkServerClient *serverClient = &server.clients[i];
                 if (serverClient->address.host) {
-                    text = TextFormat("%s:%hu", serverClient->hostname, serverClient->address.port);
+                    text = TextFormatIP(serverClient->address);
                     PUSH_TEXT(text, WHITE);
                 }
             }
@@ -761,23 +769,15 @@ int main(void)
 
         // Render chat history
         {
-            static bool chatVisible = false;
-
-            if (!chatVisible && IsKeyDown(KEY_T)) {
-                chatVisible = true;
-            } else if (chatVisible && escape) {
-                chatVisible = false;
-                escape = false;
-            }
-
-            if (chatVisible) {
-                const int linesOfText = (int)server.packetHistory.count;
+            if (chatActive) {
+                const int linesOfText = (int)client.packetHistory.count;
                 const float margin = 6.0f;   // left/bottom margin
                 const float pad = 4.0f;      // left/bottom pad
                 const float chatWidth = 320.0f;
                 const float chatHeight = linesOfText * (fontHeight + pad) + pad;
+                const float inputBoxHeight = fontHeight + pad * 2.0f;
                 const float chatX = margin;
-                const float chatY = screenHeight - margin - chatHeight;
+                const float chatY = screenHeight - margin - inputBoxHeight - chatHeight;
 
                 // NOTE: The chat history renders from the bottom up (most recent message first)
                 float cursorY = (chatY + chatHeight) - pad - fontHeight;
@@ -786,15 +786,34 @@ int main(void)
                 DrawRectangle((int)chatX, (int)chatY, (int)chatWidth, (int)chatHeight, Fade(DARKGRAY, 0.8f));
                 DrawRectangleLines((int)chatX, (int)chatY, (int)chatWidth, (int)chatHeight, Fade(BLACK, 0.8f));
 
-                for (int i = (int)server.packetHistory.count - 1; i >= 0; i--) {
-                    size_t packetIdx = (server.packetHistory.first + i) & (NETWORK_SERVER_MAX_PACKETS - 1);
-                    const Packet *packet = &server.packetHistory.packets[packetIdx];
+                for (int i = (int)client.packetHistory.count - 1; i >= 0; i--) {
+                    size_t packetIdx = (client.packetHistory.first + i) & (NETWORK_CLIENT_MAX_PACKETS - 1);
+                    const Packet *packet = &client.packetHistory.packets[packetIdx];
                     assert(packet->data[0]);
 
-                    text = TextFormat("[%s][%s]: %s", packet->timestampStr, packet->hostname, packet->data);
+                    text = TextFormat("[%s][%s]: %s", packet->timestampStr, TextFormatIP(packet->srcAddress), packet->data);
                     DrawTextFont(fonts[fontIdx], text, margin + pad, cursorY, fontHeight, WHITE);
                     cursorY -= fontHeight + pad;
                 }
+
+                static char chatInputText[MAX_CHAT_MESSAGE_LEN];
+                Rectangle inputBox = { margin, screenHeight - margin - inputBoxHeight, chatWidth, inputBoxHeight };
+                GuiTextBox(inputBox, chatInputText, sizeof(chatInputText), true);
+                if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER)) {
+                    network_client_send(&client, chatInputText, strnlen(chatInputText, sizeof(chatInputText)));
+                    memset(chatInputText, 0, sizeof(chatInputText));
+                }
+
+                if (escape) {
+                    chatActive = false;
+                    escape = false;
+                    memset(chatInputText, 0, sizeof(chatInputText));
+                }
+            }
+
+            // HACK: Check for this *after* rendering chat to avoid pressing "t" causing it to show up in the chat box
+            if (!chatActive && IsKeyDown(KEY_T)) {
+                chatActive = true;
             }
         }
 #endif

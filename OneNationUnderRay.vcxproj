@@ -20,6 +20,7 @@
     <ClCompile Include="src\main.c" />
     <ClCompile Include="src\network_client.c" />
     <ClCompile Include="src\network_server.c" />
+    <ClCompile Include="src\packet.c" />
     <ClCompile Include="src\particle_fx_blood.c" />
     <ClCompile Include="src\particle_fx_gold.c" />
     <ClCompile Include="src\particle_fx_goo.c" />

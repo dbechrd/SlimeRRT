@@ -6,9 +6,6 @@
 #include <string.h>
 #include <time.h>
 
-// must be power of 2 (shift modulus ring buffer)
-#define NETWORK_CLIENT_MAX_PACKETS 256
-
 int network_client_init(NetworkClient *client)
 {
     client->packetHistory.capacity = NETWORK_CLIENT_MAX_PACKETS;
@@ -49,7 +46,7 @@ int network_client_connect(NetworkClient *client, const char *hostname, unsigned
 
     // TODO: Some sort of "hello, i'm here" packet? Should probably request a client id to disambiguate multiple
     // clients connecting from the same NAT address?
-    if (zed_net_udp_socket_send(&client->socket, client->server, CSTR("HELO")) < 0) {
+    if (zed_net_udp_socket_send(&client->socket, client->server, CSTR("LETMEIN")) < 0) {
         const char *err = zed_net_get_error();
         TraceLog(LOG_ERROR, "[NetworkClient] Failed to send connection request. Error: %s", err);
         return 0;
@@ -104,6 +101,7 @@ int network_client_receive(NetworkClient *client)
         }
 
         if (bytes > 0) {
+            packet->srcAddress = sender;
             memset(packet->data + bytes, 0, MAX_PACKET_SIZE_BYTES - (size_t)bytes);
             // NOTE: If packet history already full, we're overwriting the oldest packet, so count stays the same
             if (client->packetHistory.count < client->packetHistory.capacity) {
@@ -117,17 +115,14 @@ int network_client_receive(NetworkClient *client)
                 tm.tm_min, tm.tm_sec);
             assert(len < sizeof(packet->timestampStr));
 
-            const char *host = zed_net_host_to_str(sender.host);
-            if (!host) {
-                TraceLog(LOG_INFO, "[NetworkClient] Unable to convert host [%u] to hostname.\n", sender.host);
-            }
+            const char *senderStr = TextFormatIP(sender);
             if (sender.host != client->server.host || sender.port != client->server.port) {
-                TraceLog(LOG_INFO, "[NetworkClient] STRANGER DANGER! Ingnoring unsolicited packet received from %s:%hu.\n",
-                    host, sender.port);
+                TraceLog(LOG_INFO, "[NetworkClient] STRANGER DANGER! Ingnoring unsolicited packet received from %s.\n",
+                    senderStr);
                 continue;
             }
 
-            TraceLog(LOG_INFO, "[NetworkClient] BROADCAST\n  %s said %s", host, packet->data);
+            TraceLog(LOG_INFO, "[NetworkClient] RECV\n  %s said %s", senderStr, packet->data);
         }
     } while (bytes > 0);
 

@@ -4,7 +4,7 @@
 #include "sprite.h"
 #include <stdbool.h>
 
-#define MAX_SLIMES 512
+#define MAX_SLIMES 256
 
 typedef enum SlimeAction {
     SlimeAction_None   = 0,

@@ -8,7 +8,6 @@
 #define NETWORK_SERVER_MAX_PACKETS 256
 
 typedef struct {
-    char hostname[18];  // buffer size of inet_ntoa()
     zed_net_address_t address;
     // todo: double last_packet_received_at
 } NetworkServerClient;

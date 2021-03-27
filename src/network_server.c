@@ -1,6 +1,8 @@
 #include "network_server.h"
+#include "helpers.h"
 #include "packet.h"
 #include "raylib.h"
+#include "dlb_types.h"
 #include <assert.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -64,6 +66,7 @@ int network_server_receive(NetworkServer *server)
         }
 
         if (bytes > 0) {
+            packet->srcAddress = sender;
             memset(packet->data + bytes, 0, MAX_PACKET_SIZE_BYTES - (size_t)bytes);
             // NOTE: If packet history already full, we're overwriting the oldest packet, so count stays the same
             if (server->packetHistory.count < server->packetHistory.capacity) {
@@ -82,40 +85,53 @@ int network_server_receive(NetworkServer *server)
                 if (!server->clients[i].address.host) {
                     client = &server->clients[i];
                     client->address = sender;
-                    const char *host = zed_net_host_to_str(client->address.host);
-                    if (!host) {
-                        TraceLog(LOG_ERROR, "[NetworkServer] Unable to convert host [%u] to hostname.", sender.host);
-                        continue;
+                    TraceLog(LOG_INFO, "[NetworkServer] RECV %s\n  %s", TextFormatIP(client->address), packet->data);
+
+                    TraceLog(LOG_INFO, "[NetworkServer] Sending WELCOME to %s\n", TextFormatIP(client->address));
+                    if (zed_net_udp_socket_send(&server->socket, client->address, CSTR("WELCOME")) < 0) {
+                        const char *err = zed_net_get_error();
+                        TraceLog(LOG_ERROR, "[NetworkServer] Failed to send network data. Error: %s", err);
                     }
-                    strncpy(client->hostname, host, sizeof(client->hostname));
-                    TraceLog(LOG_INFO, "[NetworkServer] CONNECT %s:%u\n  %s", host, client->address.port, packet->data);
+
                     server->clientsConnected++;
                     break;
                 } else if (server->clients[i].address.host == sender.host) {
                     client = &server->clients[i];
-                    TraceLog(LOG_INFO, "[NetworkServer] RECEIVE %s:%u\n  %s", client->hostname, client->address.port,
+                    TraceLog(LOG_INFO, "[NetworkServer] RECV %s\n  %s", TextFormatIP(client->address),
                         packet->data);
+
+                    TraceLog(LOG_INFO, "[NetworkServer] Sending ACK to %s\n", TextFormatIP(client->address));
+                    if (zed_net_udp_socket_send(&server->socket, client->address, CSTR("ACK")) < 0) {
+                        const char *err = zed_net_get_error();
+                        TraceLog(LOG_ERROR, "[NetworkServer] Failed to send network data. Error: %s", err);
+                    }
+
                     break;
                 }
             }
 
-            if (client) {
-                strncpy(packet->hostname, client->hostname, sizeof(packet->hostname));
-
-                // Broadcast incoming message
-                for (int i = 0; i < NETWORK_SERVER_MAX_CLIENTS; ++i) {
-                    if (client->address.host) {
-                        if (zed_net_udp_socket_send(&server->socket, client->address, packet->data, bytes) < 0) {
-                            const char *err = zed_net_get_error();
-                            TraceLog(LOG_ERROR, "[NetworkServer] Failed to send network data. Error: %s", err);
-                        }
-                    }
+            if (!client) {
+                // Send "server full" response to client
+                if (zed_net_udp_socket_send(&server->socket, sender, CSTR("FULL")) < 0) {
+                    const char *err = zed_net_get_error();
+                    TraceLog(LOG_ERROR, "[NetworkServer] Failed to send network data. Error: %s", err);
                 }
-                TraceLog(LOG_INFO, "[NetworkServer] BROADCAST\n  %s said %s", client->hostname, packet->data);
-            } else {
-                // TODO: Send "server full" response to client
+
                 TraceLog(LOG_INFO, "[NetworkServer] Server full, client denied.");
             }
+
+#if 0
+            // Broadcast incoming message
+            for (int i = 0; i < NETWORK_SERVER_MAX_CLIENTS; ++i) {
+                if (server->clients[i].address.host) {
+                    if (zed_net_udp_socket_send(&server->socket, server->clients[i].address, packet->data, bytes) < 0) {
+                        const char *err = zed_net_get_error();
+                        TraceLog(LOG_ERROR, "[NetworkServer] Failed to send network data. Error: %s", err);
+                    }
+                }
+            }
+            TraceLog(LOG_INFO, "[NetworkServer] BROADCAST\n  %s said %s", client->hostname, packet->data);
+#endif
         }
     } while (bytes > 0);
 

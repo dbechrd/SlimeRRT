@@ -1,7 +1,7 @@
 #include "helpers.h"
 #include "raylib.h"
 
-Color ShadowColor(const Color color)
+static Color ShadowColor(const Color color)
 {
     Color shadow_color = color;
     shadow_color.r = (unsigned char)(color.r * 0.0f);
@@ -31,3 +31,15 @@ void DrawTextFont(Font font, const char *text, float posX, float posY, int fontS
 
 #define DLB_RAND_IMPLEMENTATION
 #include "dlb_rand.h"
+
+#define RAYGUI_IMPLEMENTATION
+#include "raygui.h"
+
+#if 0
+#pragma warning(push)
+#pragma warning(disable: 4244)  // conversion from 'int' to 'float'
+#pragma warning(disable: 4267)  // conversion from 'size_t' to 'int'
+#define GUI_TEXTBOX_EXTENDED_IMPLEMENTATION
+#include "gui_textbox_extended.h"
+#pragma warning(pop)
+#endif

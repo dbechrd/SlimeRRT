@@ -1,4 +1,5 @@
 #pragma once
+#include "zed_net.h"
 
 #define MAX_PACKET_SIZE_BYTES 1024
 
@@ -9,7 +10,7 @@ typedef enum {
 } PacketType;
 
 typedef struct {
-    char hostname[18];     // buffer size of inet_ntoa()
+    zed_net_address_t srcAddress;
     char timestampStr[9];  // hh:mm:ss
     char data[MAX_PACKET_SIZE_BYTES];
 } Packet;
@@ -20,3 +21,5 @@ typedef struct PacketBuffer {
     size_t capacity;  // maximum # of packets in buffer
     Packet *packets;  // array of packets
 } PacketBuffer;
+
+const char *TextFormatIP(zed_net_address_t address);
