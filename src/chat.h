@@ -1,13 +1,23 @@
 #pragma once
+#include "helpers.h"
 #include <stdint.h>
 
-#define MAX_CHAT_MESSAGE_LEN 512
-
-typedef struct {
-    double timestamp;
+typedef struct ChatMessage {
+    // TODO: Send consistent chat timestamp from server
+    //double timestamp;
+    size_t usernameLength;
+    char username[USERNAME_LENGTH_MAX];
     size_t messageLength;
-    const char message[MAX_CHAT_MESSAGE_LEN];
-} chat_message;
+    char message[CHAT_MESSAGE_BUFFER_LEN];
+} ChatMessage;
 
-int  chat_init(void);
-void chat_free(void);
+typedef struct ChatHistory {
+    size_t first;           // index of first message (ring buffer)
+    size_t count;           // current # of message in buffer
+    size_t capacity;        // maximum # of message in buffer (MUST BE POWER OF 2)
+    ChatMessage *messages;  // array of messages
+} ChatHistory;
+
+int           chat_history_init          (ChatHistory *chatHistory);
+ChatMessage * chat_history_message_alloc (ChatHistory *chatHistory);
+void          chat_history_free          (ChatHistory *chatHistory);

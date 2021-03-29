@@ -14,6 +14,7 @@
 #include "sound_catalog.h"
 #include "spritesheet.h"
 #include "spritesheet_catalog.h"
+#include "ta_schema.h"
 #include "tileset.h"
 #include "tilemap.h"
 #include "sim.h"
@@ -54,16 +55,6 @@ Rectangle RectPadXY(const Rectangle rec, float padX, float padY)
     return padded;
 }
 
-void BloodParticlesFollowPlayer(ParticleEffect *effect, void *userData)
-{
-    assert(effect);
-    assert(effect->type == ParticleEffectType_Blood);
-    assert(userData);
-
-    Player *charlie = (Player *)userData;
-    effect->origin = player_get_attach_point(charlie, PlayerAttachPoint_Gut);
-}
-
 #define DLB_RAND_TEST
 #include "dlb_rand.h"
 
@@ -79,6 +70,107 @@ int main(void)
     dlb_rand32_seed(time(NULL));
 
     //dlb_rand_test();
+
+    {
+        uint32_t scratch = 0;
+        uint32_t word = 3;
+        u8 bits = 5;
+        scratch <<= bits;
+        scratch &= ((1 << bits) - 1) & word;
+        fprintf(stdout, "%u", scratch);
+    }
+
+
+    ta_schema_register();
+
+    {
+        NetMessage identMsg = { 0 };
+        identMsg.type = NetMessageType_Identify;
+        identMsg.data.identify.username = "dandymcgee";
+        identMsg.data.identify.usernameLength = strlen(identMsg.data.identify.username);
+
+        ta_schema_print(stdout, TYP_NETMESSAGE, (void *)&identMsg, 0, 0);
+        putchar('\n');
+        ta_schema_print_bytes(stdout, TYP_NETMESSAGE, (void *)&identMsg, 0, 0);
+        putchar('\n');
+    }
+    {
+        NetMessage msgWritten = { 0 };
+        msgWritten.type = NetMessageType_ChatMessage;
+        msgWritten.data.chatMessage.username = "dandymcgee";
+        msgWritten.data.chatMessage.usernameLength = strlen(msgWritten.data.chatMessage.username);
+        msgWritten.data.chatMessage.message = "This is a test message";
+        msgWritten.data.chatMessage.messageLength = strlen(msgWritten.data.chatMessage.message);
+
+        ta_schema_print(stdout, TYP_NETMESSAGE, (void *)&msgWritten, 0, 0);
+        putchar('\n');
+        ta_schema_print_bytes(stdout, TYP_NETMESSAGE, (void *)&msgWritten, 0, 0);
+        putchar('\n');
+
+        char rawPacket[PACKET_SIZE_MAX] = { 0 };
+        BitStream chatWriter = { 0 };
+        assert(PACKET_SIZE_MAX % 4 == 0);
+        chatWriter.buffer = (uint32_t *)rawPacket;
+        ta_schema_write_bit_stream(&chatWriter, TYP_NETMESSAGE, (void *)&msgWritten, 0, 0);
+
+        for (int i = 0; i < chatWriter.word_index; i++) {
+            printf("%x ", chatWriter.buffer[i]);
+        }
+        putchar('\n');
+
+        for (int i = 0; i < chatWriter.word_index * 4; i++) {
+            for (int b = 0; b < 8; b++) {
+                putchar(((rawPacket[i] >> b) & 1) > 0 ? '1' : '0');
+            }
+            putchar(' ');
+        }
+        putchar('\n');
+
+        NetMessage msgRead = { 0 };
+        BitStream chatReader = { 0 };
+        chatReader.buffer = (uint32_t *)rawPacket;
+        chatReader.total_bits = chatWriter.total_bits;
+        ta_schema_read_bit_stream(&chatReader, TYP_NETMESSAGE, (void *)&msgRead, 0, 0);
+
+        putchar('\n');
+    }
+
+    {
+        NetMessage msgWritten = { 0 };
+        msgWritten.type = NetMessageType_ChatMessage;
+        msgWritten.data.chatMessage.username = "dandymcgee";
+        msgWritten.data.chatMessage.usernameLength = strlen(msgWritten.data.chatMessage.username);
+        msgWritten.data.chatMessage.message = "This is a test message";
+        msgWritten.data.chatMessage.messageLength = strlen(msgWritten.data.chatMessage.message);
+
+        char rawPacket[PACKET_SIZE_MAX] = { 0 };
+        BitStream chatWriter = { 0 };
+        assert(PACKET_SIZE_MAX % 4 == 0);
+        chatWriter.buffer = (uint32_t *)rawPacket;
+        ta_schema_write_net_message(&chatWriter, &msgWritten);
+
+        for (int i = 0; i < chatWriter.word_index; i++) {
+            printf("%x ", chatWriter.buffer[i]);
+        }
+        putchar('\n');
+
+        for (int i = 0; i < chatWriter.word_index * 4; i++) {
+            for (int b = 0; b < 8; b++) {
+                putchar(((rawPacket[i] >> b) & 1) > 0 ? '1' : '0');
+            }
+            putchar(' ');
+        }
+        putchar('\n');
+
+        NetMessage msgRead = { 0 };
+        BitStream chatReader = { 0 };
+        chatReader.buffer = (uint32_t *)rawPacket;
+        chatReader.total_bits = chatWriter.total_bits;
+        ta_schema_read_net_message(&chatReader, &msgRead);
+
+        putchar('\n');
+    }
+
 
 #if ALPHA_NETWORKING
     if (zed_net_init() < 0) {
@@ -109,16 +201,12 @@ int main(void)
         exit(-1);
     }
 
-    if (!network_client_connect(&client, "127.0.0.1", 4040)) {
     //if (!network_client_connect(&client, "slime.theprogrammingjunkie.com", 4040)) {
+    if (!network_client_connect(&client, "127.0.0.1", 4040)) {
         // TODO: Handle connection failure.
         TraceLog(LOG_FATAL, "Failed to connect client.\n");
     }
 #endif
-
-    if (!chat_init()) {
-        TraceLog(LOG_FATAL, "Failed to initialize chat system.\n");
-    }
 
     InitWindow(1600, 900, "Attack the slimes!");
     SetWindowState(FLAG_WINDOW_RESIZABLE);
@@ -344,7 +432,7 @@ int main(void)
 
 #if ALPHA_NETWORKING
             if (IsKeyPressed(KEY_C)) {
-                network_client_send(&client, CSTR("User pressed the C key."));
+                network_client_send_chat_message(&client, CSTR("User pressed the C key."));
             }
 #endif
 
@@ -414,107 +502,11 @@ int main(void)
         const float invZoom = 1.0f / camera.zoom;
 #endif
 
-        player_update(&charlie, now, dt);
         if (charlie.body.idle && !IsMusicPlaying(mus_whistle)) {
             PlayMusicStream(mus_whistle);
         } else if (!charlie.body.idle && IsMusicPlaying(mus_whistle)) {
             StopMusicStream(mus_whistle);
         }
-
-        {
-            // TODO: Move these to somewhere
-            const float slimeMoveSpeed = METERS_TO_PIXELS(2.0f);
-            const float slimeAttackReach = METERS_TO_PIXELS(0.5f);
-            const float slimeAttackTrack = METERS_TO_PIXELS(10.0f);
-            const float slimeAttackDamage = 1.0f;
-            const float slimeRadius = METERS_TO_PIXELS(0.5f);
-
-            //static double lastSquish = 0;
-            //double timeSinceLastSquish = now - lastSquish;
-
-            for (size_t slimeIdx = 0; slimeIdx < MAX_SLIMES; slimeIdx++) {
-                Slime *slime = &slimes[slimeIdx];
-                if (!slime->combat.hitPoints)
-                    continue;
-
-                Vector2 slimeToPlayer = v2_sub(body_ground_position(&charlie.body), body_ground_position(&slime->body));
-                const float slimeToPlayerDistSq = v2_length_sq(slimeToPlayer);
-                if (slimeToPlayerDistSq > SQUARED(slimeAttackReach) &&
-                    slimeToPlayerDistSq <= SQUARED(slimeAttackTrack))
-                {
-                    const float slimeToPlayerDist = sqrtf(slimeToPlayerDistSq);
-                    const float moveDist = MIN(slimeToPlayerDist, slimeMoveSpeed * slime->sprite.scale);
-                    // 25% -1.0, 75% +1.0f
-                    const float moveRandMult = dlb_rand32i_range(1, 4) > 1 ? 1.0f : -1.0f;
-                    const Vector2 slimeMoveDir = v2_scale(slimeToPlayer, 1.0f / slimeToPlayerDist);
-                    const Vector2 slimeMove = v2_scale(slimeMoveDir, moveDist * moveRandMult);
-                    const Vector2 slimePos = body_ground_position(&slime->body);
-                    const Vector2 slimePosNew = v2_add(slimePos, slimeMove);
-
-                    int willCollide = 0;
-                    for (size_t collideIdx = 0; collideIdx < MAX_SLIMES; collideIdx++) {
-                        if (collideIdx == slimeIdx)
-                            continue;
-
-                        if (!slimes[collideIdx].combat.hitPoints)
-                            continue;
-
-                        Vector2 otherSlimePos = body_ground_position(&slimes[collideIdx].body);
-                        const float zDist = fabsf(slime->body.position.z - slimes[collideIdx].body.position.z);
-                        const float radiusScaled = slimeRadius * slime->sprite.scale;
-                        if (v2_length_sq(v2_sub(slimePos, otherSlimePos)) < SQUARED(radiusScaled) && zDist < radiusScaled) {
-                            Slime *a = &slimes[slimeIdx];
-                            Slime *b = &slimes[collideIdx];
-                            if (slime_combine(a, b)) {
-                                const Slime *dead = a->combat.hitPoints == 0.0f ? a : b;
-                                const Vector3 slimeBC = sprite_world_center(
-                                    &dead->sprite, dead->body.position, dead->sprite.scale
-                                );
-                                particle_effect_create(ParticleEffectType_Goo, 20, slimeBC, 2.0, now, 0);
-                            }
-                        }
-                        if (v2_length_sq(v2_sub(slimePosNew, otherSlimePos)) < SQUARED(radiusScaled) && zDist < radiusScaled) {
-                            willCollide = 1;
-                        }
-                    }
-
-                    if (!willCollide && slime_move(&slimes[slimeIdx], now, dt, slimeMove)) {
-                        SoundID squish = dlb_rand32i_range(0, 1) ? SoundID_Squish1 : SoundID_Squish2;
-                        sound_catalog_play(squish, 1.0f + dlb_rand32f_variance(0.2f));
-                    }
-                }
-
-                // Allow slime to attack if on the ground and close enough to the player
-                slimeToPlayer = v2_sub(body_ground_position(&charlie.body), body_ground_position(&slime->body));
-                if (v2_length_sq(slimeToPlayer) <= SQUARED(slimeAttackReach)) {
-                    if (slime_attack(&slimes[slimeIdx], now, dt)) {
-                        charlie.combat.hitPoints = MAX(
-                            0.0f,
-                            charlie.combat.hitPoints - (slimeAttackDamage * slime->sprite.scale)
-                        );
-
-                        static double lastBleed = 0;
-                        const double bleedDuration = 3.0;
-
-                        if (now - lastBleed > bleedDuration / 3.0) {
-                            Vector3 playerGut = player_get_attach_point(&charlie, PlayerAttachPoint_Gut);
-                            ParticleEffect *bloodParticles = particle_effect_create(
-                                ParticleEffectType_Blood, 32, playerGut, bleedDuration, now, 0
-                            );
-                            if (bloodParticles) {
-                                bloodParticles->callbacks[ParticleEffectEvent_BeforeUpdate].function = BloodParticlesFollowPlayer;
-                                bloodParticles->callbacks[ParticleEffectEvent_BeforeUpdate].userData = &charlie;
-                            }
-                            lastBleed = now;
-                        }
-                    }
-                }
-
-                slime_update(&slimes[slimeIdx], now, dt);
-            }
-        }
-
-        particles_update(now, dt);
 
         //----------------------------------------------------------------------------------
         // Draw
@@ -630,6 +622,7 @@ int main(void)
 
         EndMode2D();
 
+        // Render mouse tile tooltip
         if (findMouseTile && mouseTile) {
             const float tooltipOffsetX = 10.0f;
             const float tooltipOffsetY = 10.0f;
@@ -659,6 +652,7 @@ int main(void)
             lineOffset += fontHeight;
         }
 
+        // Render minimap
         const int minimapMargin = 6;
         const int minimapBorderWidth = 1;
         const int minimapX = screenWidth - minimapMargin - minimapTex.width - minimapBorderWidth * 2;
@@ -758,7 +752,7 @@ int main(void)
 
             PUSH_TEXT("Connected clients:", WHITE);
 
-            for (size_t i = 0; i < NETWORK_SERVER_MAX_CLIENTS; i++) {
+            for (size_t i = 0; i < NETWORK_SERVER_CLIENTS_MAX; i++) {
                 const NetworkServerClient *serverClient = &server.clients[i];
                 if (serverClient->address.host) {
                     text = TextFormatIP(serverClient->address);
@@ -770,7 +764,7 @@ int main(void)
         // Render chat history
         {
             if (chatActive) {
-                const int linesOfText = (int)client.packetHistory.count;
+                const int linesOfText = (int)client.chatHistory.count;
                 const float margin = 6.0f;   // left/bottom margin
                 const float pad = 4.0f;      // left/bottom pad
                 const float chatWidth = 320.0f;
@@ -786,21 +780,23 @@ int main(void)
                 DrawRectangle((int)chatX, (int)chatY, (int)chatWidth, (int)chatHeight, Fade(DARKGRAY, 0.8f));
                 DrawRectangleLines((int)chatX, (int)chatY, (int)chatWidth, (int)chatHeight, Fade(BLACK, 0.8f));
 
-                for (int i = (int)client.packetHistory.count - 1; i >= 0; i--) {
-                    size_t packetIdx = (client.packetHistory.first + i) & (NETWORK_CLIENT_MAX_PACKETS - 1);
-                    const Packet *packet = &client.packetHistory.packets[packetIdx];
-                    assert(packet->data[0]);
+                for (int i = (int)client.chatHistory.count - 1; i >= 0; i--) {
+                    size_t messageIdx = (client.chatHistory.first + i) % client.chatHistory.capacity;
+                    const ChatMessage *message = &client.chatHistory.messages[messageIdx];
+                    assert(message->messageLength);
 
-                    text = TextFormat("[%s][%s]: %s", packet->timestampStr, TextFormatIP(packet->srcAddress), packet->data);
+                    text = TextFormat("[%s][%s]: %s", "00:00:00", "username", message->message);
                     DrawTextFont(fonts[fontIdx], text, margin + pad, cursorY, fontHeight, WHITE);
                     cursorY -= fontHeight + pad;
                 }
 
-                static char chatInputText[MAX_CHAT_MESSAGE_LEN];
+                static char chatInputText[CHAT_MESSAGE_BUFFER_LEN];
+                assert(CHAT_MESSAGE_LENGTH_MAX < CHAT_MESSAGE_BUFFER_LEN);
+
                 Rectangle inputBox = { margin, screenHeight - margin - inputBoxHeight, chatWidth, inputBoxHeight };
-                GuiTextBox(inputBox, chatInputText, sizeof(chatInputText), true);
+                GuiTextBox(inputBox, chatInputText, CHAT_MESSAGE_LENGTH_MAX, true);
                 if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER)) {
-                    network_client_send(&client, chatInputText, strnlen(chatInputText, sizeof(chatInputText)));
+                    network_client_send_chat_message(&client, chatInputText, strnlen(chatInputText, sizeof(chatInputText)));
                     memset(chatInputText, 0, sizeof(chatInputText));
                 }
 
@@ -836,7 +832,6 @@ int main(void)
     network_server_free(&server);
     zed_net_shutdown();
 #endif
-    chat_free();
     tilemap_free(&tilemap);
     tileset_free(&tileset);
     UnloadTexture(minimapTex);

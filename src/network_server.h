@@ -1,23 +1,28 @@
 #pragma once
 #include "packet.h"
+#include "chat.h"
 #include "zed_net.h"
 #include <stdint.h>
 
-#define NETWORK_SERVER_MAX_CLIENTS 4
+#define NETWORK_SERVER_CLIENTS_MAX 4
 // must be power of 2 (shift modulus ring buffer)
-#define NETWORK_SERVER_MAX_PACKETS 256
+#define NETWORK_SERVER_PACKET_HISTORY_MAX 256
 
 typedef struct {
     zed_net_address_t address;
-    // todo: double last_packet_received_at
+    double last_packet_received_at;
 } NetworkServerClient;
 
 typedef struct {
     unsigned short port;
     zed_net_socket_t socket;
     size_t clientsConnected;
-    NetworkServerClient clients[NETWORK_SERVER_MAX_CLIENTS];
+    NetworkServerClient clients[NETWORK_SERVER_CLIENTS_MAX];
+    // TODO: Could have a packet history by message type? This would allow us to only store history of important
+    // messages, and/or have different buffer sizes for different types of message.
+    //PacketBuffer packetHistory[NetMessageType_Count];
     PacketBuffer packetHistory;
+    ChatHistory chatHistory;
 } NetworkServer;
 
 int  network_server_init         (NetworkServer *server);

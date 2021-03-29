@@ -14,6 +14,16 @@
 #include "dlb_rand.h"
 #include <assert.h>
 
+void BloodParticlesFollowPlayer(ParticleEffect *effect, void *userData)
+{
+    assert(effect);
+    assert(effect->type == ParticleEffectType_Blood);
+    assert(userData);
+
+    Player *player = (Player *)userData;
+    effect->origin = player_get_attach_point(player, PlayerAttachPoint_Gut);
+}
+
 void sim(double now, double dt, const PlayerControllerState input, Player *player, Tilemap *map, Slime *slimes,
     const SpriteDef *coinSpriteDef)
 {
@@ -159,4 +169,101 @@ void sim(double now, double dt, const PlayerControllerState input, Player *playe
             sound_catalog_play(SoundID_Whoosh, 1.0f + dlb_rand32f_variance(0.1f));
         }
     }
+
+    player_update(player, now, dt);
+
+    {
+        // TODO: Move these to somewhere
+        const float slimeMoveSpeed = METERS_TO_PIXELS(2.0f);
+        const float slimeAttackReach = METERS_TO_PIXELS(0.5f);
+        const float slimeAttackTrack = METERS_TO_PIXELS(10.0f);
+        const float slimeAttackDamage = 1.0f;
+        const float slimeRadius = METERS_TO_PIXELS(0.5f);
+
+        //static double lastSquish = 0;
+        //double timeSinceLastSquish = now - lastSquish;
+
+        for (size_t slimeIdx = 0; slimeIdx < MAX_SLIMES; slimeIdx++) {
+            Slime *slime = &slimes[slimeIdx];
+            if (!slime->combat.hitPoints)
+                continue;
+
+            Vector2 slimeToPlayer = v2_sub(body_ground_position(&player->body), body_ground_position(&slime->body));
+            const float slimeToPlayerDistSq = v2_length_sq(slimeToPlayer);
+            if (slimeToPlayerDistSq > SQUARED(slimeAttackReach) &&
+                slimeToPlayerDistSq <= SQUARED(slimeAttackTrack))
+            {
+                const float slimeToPlayerDist = sqrtf(slimeToPlayerDistSq);
+                const float moveDist = MIN(slimeToPlayerDist, slimeMoveSpeed * slime->sprite.scale);
+                // 25% -1.0, 75% +1.0f
+                const float moveRandMult = dlb_rand32i_range(1, 4) > 1 ? 1.0f : -1.0f;
+                const Vector2 slimeMoveDir = v2_scale(slimeToPlayer, 1.0f / slimeToPlayerDist);
+                const Vector2 slimeMove = v2_scale(slimeMoveDir, moveDist * moveRandMult);
+                const Vector2 slimePos = body_ground_position(&slime->body);
+                const Vector2 slimePosNew = v2_add(slimePos, slimeMove);
+
+                int willCollide = 0;
+                for (size_t collideIdx = 0; collideIdx < MAX_SLIMES; collideIdx++) {
+                    if (collideIdx == slimeIdx)
+                        continue;
+
+                    if (!slimes[collideIdx].combat.hitPoints)
+                        continue;
+
+                    Vector2 otherSlimePos = body_ground_position(&slimes[collideIdx].body);
+                    const float zDist = fabsf(slime->body.position.z - slimes[collideIdx].body.position.z);
+                    const float radiusScaled = slimeRadius * slime->sprite.scale;
+                    if (v2_length_sq(v2_sub(slimePos, otherSlimePos)) < SQUARED(radiusScaled) && zDist < radiusScaled) {
+                        Slime *a = &slimes[slimeIdx];
+                        Slime *b = &slimes[collideIdx];
+                        if (slime_combine(a, b)) {
+                            const Slime *dead = a->combat.hitPoints == 0.0f ? a : b;
+                            const Vector3 slimeBC = sprite_world_center(
+                                &dead->sprite, dead->body.position, dead->sprite.scale
+                            );
+                            particle_effect_create(ParticleEffectType_Goo, 20, slimeBC, 2.0, now, 0);
+                        }
+                    }
+                    if (v2_length_sq(v2_sub(slimePosNew, otherSlimePos)) < SQUARED(radiusScaled) && zDist < radiusScaled) {
+                        willCollide = 1;
+                    }
+                }
+
+                if (!willCollide && slime_move(&slimes[slimeIdx], now, dt, slimeMove)) {
+                    SoundID squish = dlb_rand32i_range(0, 1) ? SoundID_Squish1 : SoundID_Squish2;
+                    //sound_catalog_play(squish, 1.0f + dlb_rand32f_variance(0.2f));
+                }
+            }
+
+            // Allow slime to attack if on the ground and close enough to the player
+            slimeToPlayer = v2_sub(body_ground_position(&player->body), body_ground_position(&slime->body));
+            if (v2_length_sq(slimeToPlayer) <= SQUARED(slimeAttackReach)) {
+                if (slime_attack(&slimes[slimeIdx], now, dt)) {
+                    player->combat.hitPoints = MAX(
+                        0.0f,
+                        player->combat.hitPoints - (slimeAttackDamage * slime->sprite.scale)
+                    );
+
+                    static double lastBleed = 0;
+                    const double bleedDuration = 3.0;
+
+                    if (now - lastBleed > bleedDuration / 3.0) {
+                        Vector3 playerGut = player_get_attach_point(player, PlayerAttachPoint_Gut);
+                        ParticleEffect *bloodParticles = particle_effect_create(
+                            ParticleEffectType_Blood, 32, playerGut, bleedDuration, now, 0
+                        );
+                        if (bloodParticles) {
+                            bloodParticles->callbacks[ParticleEffectEvent_BeforeUpdate].function = BloodParticlesFollowPlayer;
+                            bloodParticles->callbacks[ParticleEffectEvent_BeforeUpdate].userData = player;
+                        }
+                        lastBleed = now;
+                    }
+                }
+            }
+
+            slime_update(&slimes[slimeIdx], now, dt);
+        }
+    }
+
+    particles_update(now, dt);
 }
