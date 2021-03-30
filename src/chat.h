@@ -18,6 +18,6 @@ typedef struct ChatHistory {
     ChatMessage *messages;  // array of messages
 } ChatHistory;
 
-int           chat_history_init          (ChatHistory *chatHistory);
-ChatMessage * chat_history_message_alloc (ChatHistory *chatHistory);
-void          chat_history_free          (ChatHistory *chatHistory);
+int  chat_history_init             (ChatHistory *chatHistory);
+void chat_history_push_net_message (ChatHistory *chatHistory, const struct NetMessage_ChatMessage *netChat);
+void chat_history_free             (ChatHistory *chatHistory);

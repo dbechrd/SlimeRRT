@@ -1,4 +1,5 @@
 #include "network_client.h"
+#include "bit_stream.h"
 #include "chat.h"
 #include "raylib.h"
 #include <assert.h>
@@ -6,31 +7,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-
-int network_client_send_chat_message(const NetworkClient *client, const char *message, size_t messageLength)
-{
-    assert(client);
-    assert(client->socket.handle);
-    assert(message);
-    // TODO: Account for header size, determine MTU we want to aim for, and perhaps do auto-segmentation somewhere
-    assert(messageLength <= CHAT_MESSAGE_LENGTH_MAX);
-
-    size_t safeLen = MIN(messageLength, CHAT_MESSAGE_LENGTH_MAX);
-#if 0
-    // TODO: Serialize fields in a smart way..
-    NetMessageType type = NetMessageType_ChatMessage;
-    char rawPacket[PACKET_SIZE_MAX] = { 0 };
-    memcpy(rawPacket + offsetof(NetMessage, type), &type, sizeof(type));
-    memcpy(rawPacket + offsetof(NetMessage, data.chatMessage.messageLength), &safeLen, sizeof(safeLen));
-    memcpy(rawPacket + offsetof(NetMessage, data.chatMessage.message), message, safeLen);
-    size_t rawBytes = offsetof(NetMessage, data.chatMessage.message) + safeLen;
-    assert(rawBytes < PACKET_SIZE_MAX);
-
-    return network_client_send(client, rawPacket, (int)rawBytes);
-#else
-    return 1;
-#endif
-}
 
 int network_client_init(NetworkClient *client)
 {
@@ -76,19 +52,19 @@ int network_client_connect(NetworkClient *client, const char *hostname, unsigned
     assert(client->server.host);
     assert(client->server.port);
 
-#if 1
-    // TODO: Some sort of "hello, i'm here" packet? Should probably request a client id to disambiguate multiple
-    // clients connecting from the same NAT address? Maybe port would do that automatically? Need to test..
-    // TODO: Serialize fields in a smart way..
-    NetMessageType type = NetMessageType_Identify;
-    const char *username = "username";
-    size_t usernameLength = strlen(username);
+    const char *username = "dandy";
+    client->usernameLength = MIN(strlen(username), USERNAME_LENGTH_MAX);
+    memcpy(client->username, username, client->usernameLength);
+
+    NetMessage userIdent = { 0 };
+    userIdent.type = NetMessageType_Identify;
+    userIdent.data.chatMessage.username = client->username;
+    userIdent.data.chatMessage.usernameLength = client->usernameLength;
+
     char rawPacket[PACKET_SIZE_MAX] = { 0 };
-    memcpy(rawPacket + offsetof(NetMessage, type), &type, sizeof(type));
-    memcpy(rawPacket + offsetof(NetMessage, data.identify.usernameLength), &usernameLength, sizeof(usernameLength));
-    memcpy(rawPacket + offsetof(NetMessage, data.identify.username), username, MIN(usernameLength, USERNAME_LENGTH_MAX));
-    size_t rawBytes = offsetof(NetMessage, data.identify.username) + usernameLength;
-    assert(rawBytes < PACKET_SIZE_MAX);
+    BitStream writer = { 0 };
+    bit_stream_writer_init(&writer, (uint32_t *)rawPacket, sizeof(rawPacket));
+    size_t rawBytes = serialize_net_message(&writer, &userIdent);
 
     if (zed_net_udp_socket_send(&client->socket, client->server, rawPacket, (int)rawBytes) < 0) {
         const char *err = zed_net_get_error();
@@ -96,20 +72,19 @@ int network_client_connect(NetworkClient *client, const char *hostname, unsigned
         return 0;
     }
     client->serverHostname = hostname;
-#endif
 
     return 1;
 }
 
-int network_client_send(const NetworkClient *client, const char *data, size_t len)
+static int network_client_send(const NetworkClient *client, const char *data, size_t size)
 {
     assert(client);
     assert(client->socket.handle);
     assert(data);
     // TODO: Account for header size, determine MTU we want to aim for, and perhaps do auto-segmentation somewhere
-    assert(len <= PACKET_SIZE_MAX);
+    assert(size <= PACKET_SIZE_MAX);
 
-    if (zed_net_udp_socket_send(&client->socket, client->server, data, (int)len) < 0) {
+    if (zed_net_udp_socket_send(&client->socket, client->server, data, (int)size) < 0) {
         const char *err = zed_net_get_error();
         TraceLog(LOG_ERROR, "[NetworkClient] Failed to send data. Error: %s", err);
         return 0;
@@ -118,25 +93,53 @@ int network_client_send(const NetworkClient *client, const char *data, size_t le
     return 1;
 }
 
+int network_client_send_chat_message(const NetworkClient *client, const char *message, size_t messageLength)
+{
+    assert(client);
+    assert(client->socket.handle);
+    assert(message);
+
+    // TODO: Account for header size, determine MTU we want to aim for, and perhaps do auto-segmentation somewhere
+    assert(messageLength <= CHAT_MESSAGE_LENGTH_MAX);
+    size_t messageLengthSafe = MIN(messageLength, CHAT_MESSAGE_LENGTH_MAX);
+
+    // If we don't have a username yet (salt, client id, etc.) then we're not connected and can't send chat messages!
+    // This would be weird since if we're not connected how do we see the chat box?
+    assert(client->usernameLength);
+
+    NetMessage chatMessage = { 0 };
+    chatMessage.type = NetMessageType_ChatMessage;
+    chatMessage.data.chatMessage.usernameLength = client->usernameLength;
+    chatMessage.data.chatMessage.username = client->username;
+    chatMessage.data.chatMessage.messageLength = messageLengthSafe;
+    chatMessage.data.chatMessage.message = message;
+
+    char rawPacket[PACKET_SIZE_MAX] = { 0 };
+    BitStream writer = { 0 };
+    bit_stream_writer_init(&writer, (uint32_t *)rawPacket, sizeof(rawPacket));
+    size_t rawBytes = serialize_net_message(&writer, &chatMessage);
+    return network_client_send(client, rawPacket, rawBytes);
+}
+
 static void network_client_process_message(NetworkClient *client, Packet *packet)
 {
-    switch (packet->data.message.type) {
-        case NetMessageType_ChatMessage: {
-            const NetMessage_ChatMessage *netMsg = &packet->data.message.data.chatMessage;
-            ChatMessage *msg = chat_history_message_alloc(&client->chatHistory);
+    BitStream reader = { 0 };
+    bit_stream_reader_init(&reader, (uint32_t *)packet->rawBytes, sizeof(packet->rawBytes));
+    deserialize_net_message(&reader, &packet->message);
 
-            assert(netMsg->usernameLength <= USERNAME_LENGTH_MAX);
-            msg->usernameLength = MIN(netMsg->usernameLength, USERNAME_LENGTH_MAX);
-            memcpy(msg->username, netMsg->username, msg->usernameLength);
-
-            assert(netMsg->messageLength <= CHAT_MESSAGE_LENGTH_MAX);
-            msg->messageLength = MIN(netMsg->messageLength, CHAT_MESSAGE_LENGTH_MAX);
-            memcpy(msg->message, netMsg->message, msg->messageLength);
-
+    switch (packet->message.type) {
+        case NetMessageType_Welcome: {
+            // TODO: Store salt sent from server instead.. handshake stuffs
+            //const char *username = "dandy";
+            //client->usernameLength = MIN(strlen(username), USERNAME_LENGTH_MAX);
+            //memcpy(client->username, username, client->usernameLength);
+            break;
+        } case NetMessageType_ChatMessage: {
+            chat_history_push_net_message(&client->chatHistory, &packet->message.data.chatMessage);
             break;
         }
         default: {
-            TraceLog(LOG_WARNING, "[NetworkClient] Unrecognized message type: %d", packet->data.message.type);
+            TraceLog(LOG_WARNING, "[NetworkClient] Unrecognized message type: %d", packet->message.type);
             break;
         }
     }
@@ -161,7 +164,7 @@ int network_client_receive(NetworkClient *client)
         size_t packetIdx = (client->packetHistory.first + client->packetHistory.count) % client->packetHistory.capacity;
         assert(packetIdx < client->packetHistory.capacity);
         Packet *packet = &client->packetHistory.packets[packetIdx];
-        bytes = zed_net_udp_socket_receive(&client->socket, &sender, packet->data.raw, sizeof(packet->data) - 1);
+        bytes = zed_net_udp_socket_receive(&client->socket, &sender, CSTR0(packet->rawBytes));
         if (bytes < 0) {
             // TODO: Ignore this.. or log it? zed_net doesn't pass through any useful error messages to diagnose this.
             const char *err = zed_net_get_error();
@@ -171,7 +174,9 @@ int network_client_receive(NetworkClient *client)
 
         if (bytes > 0) {
             packet->srcAddress = sender;
-            memset(packet->data.raw + bytes, 0, PACKET_SIZE_MAX - (size_t)bytes);
+            memset(&packet->message, 0, sizeof(packet->message));
+            memset(packet->rawBytes + bytes, 0, PACKET_SIZE_MAX - (size_t)bytes);
+
             // NOTE: If packet history already full, we're overwriting the oldest packet, so count stays the same
             if (client->packetHistory.count < client->packetHistory.capacity) {
                 client->packetHistory.count++;
@@ -192,7 +197,7 @@ int network_client_receive(NetworkClient *client)
             }
 
             network_client_process_message(client, packet);
-            TraceLog(LOG_INFO, "[NetworkClient] RECV\n  %s said %s", senderStr, packet->data.raw);
+            //TraceLog(LOG_INFO, "[NetworkClient] RECV\n  %s said %s", senderStr, packet->rawBytes);
         }
     } while (bytes > 0);
 

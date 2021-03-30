@@ -11,6 +11,8 @@ typedef struct {
     const char *serverHostname;
     zed_net_address_t server;
     zed_net_socket_t socket;
+    size_t usernameLength;
+    char username[USERNAME_LENGTH_MAX];
     PacketBuffer packetHistory;
     ChatHistory chatHistory;
 } NetworkClient;

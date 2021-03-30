@@ -1,4 +1,5 @@
-﻿#include "chat.h"
+﻿#include "bit_stream.h"
+#include "chat.h"
 #include "controller.h"
 #include "draw_command.h"
 #include "healthbar.h"
@@ -14,12 +15,12 @@
 #include "sound_catalog.h"
 #include "spritesheet.h"
 #include "spritesheet_catalog.h"
-#include "ta_schema.h"
 #include "tileset.h"
 #include "tilemap.h"
 #include "sim.h"
 #include "dlb_rand.h"
 #include "raygui.h"
+#include "gui_textbox_extended.h"
 #include "raylib.h"
 #include "zed_net.h"
 #include <assert.h>
@@ -71,70 +72,29 @@ int main(void)
 
     //dlb_rand_test();
 
+#if 0
+    // TODO: bit_stream.h with tests
     {
-        uint32_t scratch = 0;
-        uint32_t word = 3;
-        u8 bits = 5;
-        scratch <<= bits;
-        scratch &= ((1 << bits) - 1) & word;
-        fprintf(stdout, "%u", scratch);
+        bit_stream_write(stream, 0b0, 1);
+        bit_stream_write(stream, 0b11, 2);
+        bit_stream_write(stream, 0b000, 3);
+        bit_stream_write(stream, 0b1111, 4);
+        bit_stream_write(stream, 0b00000, 5);
+        bit_stream_write(stream, 0b111111, 6);
+        bit_stream_write(stream, 0b0000000, 7);
+        bit_stream_write(stream, 0b11111111, 8);
+        bit_stream_flush(stream);
+
+        assert(bit_stream_read(stream, 1) == 0b0       );
+        assert(bit_stream_read(stream, 2) == 0b11      );
+        assert(bit_stream_read(stream, 3) == 0b000     );
+        assert(bit_stream_read(stream, 4) == 0b1111    );
+        assert(bit_stream_read(stream, 5) == 0b00000   );
+        assert(bit_stream_read(stream, 6) == 0b111111  );
+        assert(bit_stream_read(stream, 7) == 0b0000000 );
+        assert(bit_stream_read(stream, 8) == 0b11111111);
     }
-
-
-    ta_schema_register();
-
-    {
-        NetMessage identMsg = { 0 };
-        identMsg.type = NetMessageType_Identify;
-        identMsg.data.identify.username = "dandymcgee";
-        identMsg.data.identify.usernameLength = strlen(identMsg.data.identify.username);
-
-        ta_schema_print(stdout, TYP_NETMESSAGE, (void *)&identMsg, 0, 0);
-        putchar('\n');
-        ta_schema_print_bytes(stdout, TYP_NETMESSAGE, (void *)&identMsg, 0, 0);
-        putchar('\n');
-    }
-    {
-        NetMessage msgWritten = { 0 };
-        msgWritten.type = NetMessageType_ChatMessage;
-        msgWritten.data.chatMessage.username = "dandymcgee";
-        msgWritten.data.chatMessage.usernameLength = strlen(msgWritten.data.chatMessage.username);
-        msgWritten.data.chatMessage.message = "This is a test message";
-        msgWritten.data.chatMessage.messageLength = strlen(msgWritten.data.chatMessage.message);
-
-        ta_schema_print(stdout, TYP_NETMESSAGE, (void *)&msgWritten, 0, 0);
-        putchar('\n');
-        ta_schema_print_bytes(stdout, TYP_NETMESSAGE, (void *)&msgWritten, 0, 0);
-        putchar('\n');
-
-        char rawPacket[PACKET_SIZE_MAX] = { 0 };
-        BitStream chatWriter = { 0 };
-        assert(PACKET_SIZE_MAX % 4 == 0);
-        chatWriter.buffer = (uint32_t *)rawPacket;
-        ta_schema_write_bit_stream(&chatWriter, TYP_NETMESSAGE, (void *)&msgWritten, 0, 0);
-
-        for (int i = 0; i < chatWriter.word_index; i++) {
-            printf("%x ", chatWriter.buffer[i]);
-        }
-        putchar('\n');
-
-        for (int i = 0; i < chatWriter.word_index * 4; i++) {
-            for (int b = 0; b < 8; b++) {
-                putchar(((rawPacket[i] >> b) & 1) > 0 ? '1' : '0');
-            }
-            putchar(' ');
-        }
-        putchar('\n');
-
-        NetMessage msgRead = { 0 };
-        BitStream chatReader = { 0 };
-        chatReader.buffer = (uint32_t *)rawPacket;
-        chatReader.total_bits = chatWriter.total_bits;
-        ta_schema_read_bit_stream(&chatReader, TYP_NETMESSAGE, (void *)&msgRead, 0, 0);
-
-        putchar('\n');
-    }
-
+#endif
     {
         NetMessage msgWritten = { 0 };
         msgWritten.type = NetMessageType_ChatMessage;
@@ -145,30 +105,20 @@ int main(void)
 
         char rawPacket[PACKET_SIZE_MAX] = { 0 };
         BitStream chatWriter = { 0 };
-        assert(PACKET_SIZE_MAX % 4 == 0);
-        chatWriter.buffer = (uint32_t *)rawPacket;
-        ta_schema_write_net_message(&chatWriter, &msgWritten);
-
-        for (int i = 0; i < chatWriter.word_index; i++) {
-            printf("%x ", chatWriter.buffer[i]);
-        }
-        putchar('\n');
-
-        for (int i = 0; i < chatWriter.word_index * 4; i++) {
-            for (int b = 0; b < 8; b++) {
-                putchar(((rawPacket[i] >> b) & 1) > 0 ? '1' : '0');
-            }
-            putchar(' ');
-        }
-        putchar('\n');
+        bit_stream_writer_init(&chatWriter, (uint32_t *)rawPacket, sizeof(rawPacket));
+        serialize_net_message(&chatWriter, &msgWritten);
 
         NetMessage msgRead = { 0 };
         BitStream chatReader = { 0 };
-        chatReader.buffer = (uint32_t *)rawPacket;
-        chatReader.total_bits = chatWriter.total_bits;
-        ta_schema_read_net_message(&chatReader, &msgRead);
+        assert(chatWriter.total_bits % 8 == 0);
+        bit_stream_reader_init(&chatReader, (uint32_t *)rawPacket, chatWriter.total_bits / 8);
+        deserialize_net_message(&chatReader, &msgRead);
 
-        putchar('\n');
+        assert(msgRead.type == msgWritten.type);
+        assert(msgRead.data.chatMessage.usernameLength == msgWritten.data.chatMessage.usernameLength);
+        assert(!strncmp(msgRead.data.chatMessage.username, msgWritten.data.chatMessage.username, msgRead.data.chatMessage.usernameLength));
+        assert(msgRead.data.chatMessage.messageLength == msgWritten.data.chatMessage.messageLength);
+        assert(!strncmp(msgRead.data.chatMessage.message, msgWritten.data.chatMessage.message, msgRead.data.chatMessage.messageLength));
     }
 
 
@@ -238,7 +188,7 @@ int main(void)
         printf("ERROR: Failed to initialized audio device\n");
     }
     // NOTE: Minimum of 0.001 seems reasonable (0.0001 is still audible on max volume)
-    //SetMasterVolume(0.01f);
+    SetMasterVolume(0.01f);
 
     draw_commands_init();
     sound_catalog_init();
@@ -428,6 +378,10 @@ int main(void)
                     fontIdx = 0;
                     GuiSetFont(fonts[fontIdx]);
                 }
+            }
+
+            if (IsKeyPressed(KEY_V)) {
+                IsWindowState(FLAG_VSYNC_HINT) ? ClearWindowState(FLAG_VSYNC_HINT) : SetWindowState(FLAG_VSYNC_HINT);
             }
 
 #if ALPHA_NETWORKING
@@ -767,7 +721,7 @@ int main(void)
                 const int linesOfText = (int)client.chatHistory.count;
                 const float margin = 6.0f;   // left/bottom margin
                 const float pad = 4.0f;      // left/bottom pad
-                const float chatWidth = 320.0f;
+                const float chatWidth = 420.0f;
                 const float chatHeight = linesOfText * (fontHeight + pad) + pad;
                 const float inputBoxHeight = fontHeight + pad * 2.0f;
                 const float chatX = margin;
@@ -785,25 +739,34 @@ int main(void)
                     const ChatMessage *message = &client.chatHistory.messages[messageIdx];
                     assert(message->messageLength);
 
-                    text = TextFormat("[%s][%s]: %s", "00:00:00", "username", message->message);
+                    text = TextFormat("[%s][%.*s]: %.*s", "00:00:00", message->usernameLength, message->username,
+                        message->messageLength, message->message);
                     DrawTextFont(fonts[fontIdx], text, margin + pad, cursorY, fontHeight, WHITE);
                     cursorY -= fontHeight + pad;
                 }
 
+                static int chatInputTextLen = 0;
                 static char chatInputText[CHAT_MESSAGE_BUFFER_LEN];
                 assert(CHAT_MESSAGE_LENGTH_MAX < CHAT_MESSAGE_BUFFER_LEN);
 
                 Rectangle inputBox = { margin, screenHeight - margin - inputBoxHeight, chatWidth, inputBoxHeight };
-                GuiTextBox(inputBox, chatInputText, CHAT_MESSAGE_LENGTH_MAX, true);
+                //GuiTextBox(inputBox, chatInputText, CHAT_MESSAGE_LENGTH_MAX, true);
+                //GuiTextBoxEx(inputBox, chatInputText, CHAT_MESSAGE_LENGTH_MAX, true);
+                GuiTextBoxAdvanced(inputBox, chatInputText, &chatInputTextLen, CHAT_MESSAGE_LENGTH_MAX, true);
                 if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER)) {
-                    network_client_send_chat_message(&client, chatInputText, strnlen(chatInputText, sizeof(chatInputText)));
-                    memset(chatInputText, 0, sizeof(chatInputText));
+                    size_t messageLength = chatInputTextLen;
+                    if (messageLength) {
+                        network_client_send_chat_message(&client, chatInputText, messageLength);
+                        memset(chatInputText, 0, sizeof(chatInputText));
+                        chatInputTextLen = 0;
+                    }
                 }
 
                 if (escape) {
                     chatActive = false;
                     escape = false;
                     memset(chatInputText, 0, sizeof(chatInputText));
+                    chatInputTextLen = 0;
                 }
             }
 

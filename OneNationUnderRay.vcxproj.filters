@@ -29,7 +29,7 @@
     <ClCompile Include="src\healthbar.c" />
     <ClCompile Include="src\shadow.c" />
     <ClCompile Include="src\packet.c" />
-    <ClCompile Include="src\ta_schema.c" />
+    <ClCompile Include="src\bit_stream.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\tilemap.h" />
@@ -61,6 +61,6 @@
     <ClInclude Include="src\chat.h" />
     <ClInclude Include="src\healthbar.h" />
     <ClInclude Include="src\shadow.h" />
-    <ClInclude Include="src\ta_schema.h" />
+    <ClInclude Include="src\bit_stream.h" />
   </ItemGroup>
 </Project>

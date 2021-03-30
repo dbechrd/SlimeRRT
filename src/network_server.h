@@ -11,6 +11,8 @@
 typedef struct {
     zed_net_address_t address;
     double last_packet_received_at;
+    size_t usernameLength;
+    char username[USERNAME_LENGTH_MAX];
 } NetworkServerClient;
 
 typedef struct {

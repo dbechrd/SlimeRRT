@@ -1,4 +1,5 @@
 #include "chat.h"
+#include "packet.h"
 #include "raylib.h"
 #include <assert.h>
 #include <stdlib.h>
@@ -6,26 +7,41 @@
 
 int chat_history_init(ChatHistory *chatHistory)
 {
-    chatHistory->messages = calloc(CHAT_MESSAGE_HISTORY, sizeof(*chatHistory));
+    size_t capacity = CHAT_MESSAGE_HISTORY;
+    chatHistory->messages = calloc(capacity, sizeof(*chatHistory->messages));
     if (!chatHistory) {
         TraceLog(LOG_FATAL, "[Chat] Failed to chat history buffer.\n");
         return 0;
     }
-    chatHistory->capacity = CHAT_MESSAGE_HISTORY;
+    chatHistory->capacity = capacity;
     return 1;
 }
 
-ChatMessage *chat_history_message_alloc(ChatHistory *chatHistory)
+static ChatMessage *chat_history_message_alloc(ChatHistory *chatHistory)
 {
-    size_t messageIdx = (chatHistory->first + chatHistory->count) % CHAT_MESSAGE_HISTORY;
-    assert(messageIdx < CHAT_MESSAGE_HISTORY);
+    size_t messageIdx = (chatHistory->first + chatHistory->count) % chatHistory->capacity;
+    assert(messageIdx < chatHistory->capacity);
     ChatMessage *message = &chatHistory->messages[messageIdx];
     if (chatHistory->count < chatHistory->capacity) {
         chatHistory->count++;
     } else {
+        chatHistory->first = (chatHistory->first + 1) % chatHistory->capacity;
         memset(message, 0, sizeof(*message));
     }
     return message;
+}
+
+void chat_history_push_net_message(ChatHistory *chatHistory, const NetMessage_ChatMessage *netChat)
+{
+    ChatMessage *chat = chat_history_message_alloc(chatHistory);
+
+    assert(netChat->usernameLength <= USERNAME_LENGTH_MAX);
+    chat->usernameLength = MIN(netChat->usernameLength, USERNAME_LENGTH_MAX);
+    memcpy(chat->username, netChat->username, chat->usernameLength);
+
+    assert(netChat->messageLength <= CHAT_MESSAGE_LENGTH_MAX);
+    chat->messageLength = MIN(netChat->messageLength, CHAT_MESSAGE_LENGTH_MAX);
+    memcpy(chat->message, netChat->message, chat->messageLength);
 }
 
 void chat_history_free(ChatHistory *chatHistory)

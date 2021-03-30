@@ -35,6 +35,9 @@ void DrawTextFont(Font font, const char *text, float posX, float posY, int fontS
 #define RAYGUI_IMPLEMENTATION
 #include "raygui.h"
 
+#define GUI_TEXTBOX_EXTENDED_IMPLEMENTATION
+#include "gui_textbox_extended.h"
+
 #if 0
 #pragma warning(push)
 #pragma warning(disable: 4244)  // conversion from 'int' to 'float'

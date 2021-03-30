@@ -450,6 +450,7 @@ RAYGUIDEF bool GuiDropdownBox(Rectangle bounds, const char *text, int *active, b
 RAYGUIDEF bool GuiSpinner(Rectangle bounds, const char *text, int *value, int minValue, int maxValue, bool editMode);     // Spinner control, returns selected value
 RAYGUIDEF bool GuiValueBox(Rectangle bounds, const char *text, int *value, int minValue, int maxValue, bool editMode);    // Value Box control, updates input text with numbers
 RAYGUIDEF bool GuiTextBox(Rectangle bounds, char *text, int textSize, bool editMode);                   // Text Box control, updates input text
+RAYGUIDEF bool GuiTextBoxAdvanced(Rectangle bounds, char *text, int *textSize, int textCapacity, bool editMode);
 RAYGUIDEF bool GuiTextBoxMulti(Rectangle bounds, char *text, int textSize, bool editMode);              // Text Box control with multiple lines
 RAYGUIDEF float GuiSlider(Rectangle bounds, const char *textLeft, const char *textRight, float value, float minValue, float maxValue);       // Slider control, returns selected value
 RAYGUIDEF float GuiSliderBar(Rectangle bounds, const char *textLeft, const char *textRight, float value, float minValue, float maxValue);    // Slider Bar control, returns selected value
@@ -502,6 +503,11 @@ RAYGUIDEF bool GuiCheckIconPixel(int iconId, int x, int y);     // Check icon pi
 *
 ************************************************************************************/
 
+#ifdef __INTELLISENSE__
+/* This makes MSVC intellisense work. */
+#define RAYGUI_IMPLEMENTATION
+#endif
+
 #if defined(RAYGUI_IMPLEMENTATION)
 
 #if defined(RAYGUI_SUPPORT_ICONS)
@@ -522,6 +528,147 @@ RAYGUIDEF bool GuiCheckIconPixel(int iconId, int x, int y);     // Check icon pi
 #else
     #define RAYGUI_CLITERAL(name) (name)
 #endif
+
+//----------------------------------------------------------------------------------
+// stb_textedit configuration and type definitions
+//----------------------------------------------------------------------------------
+// Symbols that must be the same in header-file and implementation mode:
+//
+//     STB_TEXTEDIT_CHARTYPE             the character type
+//     STB_TEXTEDIT_POSITIONTYPE         small type that is a valid cursor position
+//     STB_TEXTEDIT_UNDOSTATECOUNT       the number of undo states to allow
+//     STB_TEXTEDIT_UNDOCHARCOUNT        the number of characters to store in the undo buffer
+//
+//----------------------------------------------------------------------------------
+
+// NOTE(dbechard): It may not be safe to use anything other than "int". These defines were added
+// to stb_textedit after-the-fact and there are a few places that e.g. STB_TEXTEDIT_POSITIONTYPE
+// interacts with ints in a hard-coded way, which is why I've let these default to int instead of
+// specifying a shorter type here (which would reduce the memory overhead of the undo stack).
+#if 0
+#define STB_TEXTEDIT_CHARTYPE       int
+#define STB_TEXTEDIT_KEYTYPE        int
+#define STB_TEXTEDIT_POSITIONTYPE   int
+#endif
+
+// NOTE(dbechrd): These should be user-defined per textbox (requires stb_textedit refactor and
+// dynamic allocation for undo stack).
+#define STB_TEXTEDIT_UNDOSTATECOUNT 32
+#define STB_TEXTEDIT_UNDOCHARCOUNT  512
+
+//----------------------------------------------------------------------------------
+// Symbols you must define for implementation mode:
+//
+//    STB_TEXTEDIT_STRING               the type of object representing a string being edited,
+//                                      typically this is a wrapper object with other data you need
+//
+//    STB_TEXTEDIT_STRINGLEN(obj)       the length of the string (ideally O(1))
+//    STB_TEXTEDIT_LAYOUTROW(&r,obj,n)  returns the results of laying out a line of characters
+//                                        starting from character #n (see discussion below)
+//    STB_TEXTEDIT_GETWIDTH(obj,n,i)    returns the pixel delta from the xpos of the i'th character
+//                                        to the xpos of the i+1'th char for a line of characters
+//                                        starting at character #n (i.e. accounts for kerning
+//                                        with previous char)
+//    STB_TEXTEDIT_KEYTOTEXT(k)         maps a keyboard input to an insertable character
+//                                        (return type is int, -1 means not valid to insert)
+//    STB_TEXTEDIT_GETCHAR(obj,i)       returns the i'th character of obj, 0-based
+//    STB_TEXTEDIT_NEWLINE              the character returned by _GETCHAR() we recognize
+//                                        as manually wordwrapping for end-of-line positioning
+//
+//    STB_TEXTEDIT_DELETECHARS(obj,i,n)      delete n characters starting at i
+//    STB_TEXTEDIT_INSERTCHARS(obj,i,c*,n)   insert n characters at i (pointed to by STB_TEXTEDIT_CHARTYPE*)
+//
+//----------------------------------------------------------------------------------
+#define STB_TEXTEDIT_STRING                                 rstb_String
+#define STB_TEXTEDIT_STRINGLEN(str)                         rstb_StringLen(str)
+#define STB_TEXTEDIT_LAYOUTROW(row, str, start)             rstb_LayoutRow(row, str, start)
+#define STB_TEXTEDIT_GETWIDTH(str, start, offset)           rstb_GetWidth(str, start + offset)
+#define STB_TEXTEDIT_KEYTOTEXT(keycode)                         rstb_KeyToText(keycode)
+#define STB_TEXTEDIT_GETCHAR(str, index)                    rstb_GetChar(str, index)
+#define STB_TEXTEDIT_NEWLINE                                ((int)'\n')
+#define STB_TEXTEDIT_DELETECHARS(str, start, count)         rstb_DeleteChars(str, start, count)
+#define STB_TEXTEDIT_INSERTCHARS(str, start, chars, count)  rstb_InsertChars(str, start, chars, count)
+#define STB_TEXTEDIT_IS_SPACE(c)                            rstb_IsSpace(c)
+
+//----------------------------------------------------------------------------------
+//
+//    STB_TEXTEDIT_K_SHIFT       a power of two that is or'd in to a keyboard input to represent the shift keycode
+//
+//    STB_TEXTEDIT_K_LEFT        keyboard input to move cursor left
+//    STB_TEXTEDIT_K_RIGHT       keyboard input to move cursor right
+//    STB_TEXTEDIT_K_UP          keyboard input to move cursor up
+//    STB_TEXTEDIT_K_DOWN        keyboard input to move cursor down
+//    STB_TEXTEDIT_K_LINESTART   keyboard input to move cursor to start of line  // e.g. HOME
+//    STB_TEXTEDIT_K_LINEEND     keyboard input to move cursor to end of line    // e.g. END
+//    STB_TEXTEDIT_K_TEXTSTART   keyboard input to move cursor to start of text  // e.g. ctrl-HOME
+//    STB_TEXTEDIT_K_TEXTEND     keyboard input to move cursor to end of text    // e.g. ctrl-END
+//    STB_TEXTEDIT_K_DELETE      keyboard input to delete selection or character under cursor
+//    STB_TEXTEDIT_K_BACKSPACE   keyboard input to delete selection or character left of cursor
+//    STB_TEXTEDIT_K_UNDO        keyboard input to perform undo
+//    STB_TEXTEDIT_K_REDO        keyboard input to perform redo
+//
+//----------------------------------------------------------------------------------
+#define KMOD_SHIFT                 (1 << 10)  // 1024, bit flag to represent shift modifier
+#define KMOD_CTRL                  (1 << 11)  // 2048, bit flag to represent control modifier
+
+#define STB_TEXTEDIT_K_SHIFT       KMOD_SHIFT
+#define STB_TEXTEDIT_K_LEFT        KEY_LEFT
+#define STB_TEXTEDIT_K_RIGHT       KEY_RIGHT
+#define STB_TEXTEDIT_K_UP          KEY_UP
+#define STB_TEXTEDIT_K_DOWN        KEY_DOWN
+#define STB_TEXTEDIT_K_LINESTART   KEY_HOME
+#define STB_TEXTEDIT_K_LINEEND     KEY_END
+#define STB_TEXTEDIT_K_TEXTSTART   (KMOD_CTRL | KEY_HOME)
+#define STB_TEXTEDIT_K_TEXTEND     (KMOD_CTRL | KEY_END)
+#define STB_TEXTEDIT_K_DELETE      KEY_DELETE
+#define STB_TEXTEDIT_K_BACKSPACE   KEY_BACKSPACE
+#define STB_TEXTEDIT_K_UNDO        (KMOD_CTRL | KEY_Z)
+#define STB_TEXTEDIT_K_REDO        (KMOD_CTRL | KMOD_SHIFT | KEY_Z)
+
+//----------------------------------------------------------------------------------
+// Optional:
+//    STB_TEXTEDIT_K_INSERT              keyboard input to toggle insert mode
+//    STB_TEXTEDIT_IS_SPACE(ch)          true if character is whitespace (e.g. 'isspace'),
+//                                          required for default WORDLEFT/WORDRIGHT handlers
+//    STB_TEXTEDIT_MOVEWORDLEFT(obj,i)   custom handler for WORDLEFT, returns index to move cursor to
+//    STB_TEXTEDIT_MOVEWORDRIGHT(obj,i)  custom handler for WORDRIGHT, returns index to move cursor to
+//    STB_TEXTEDIT_K_WORDLEFT            keyboard input to move cursor left one word // e.g. ctrl-LEFT
+//    STB_TEXTEDIT_K_WORDRIGHT           keyboard input to move cursor right one word // e.g. ctrl-RIGHT
+//    STB_TEXTEDIT_K_LINESTART2          secondary keyboard input to move cursor to start of line
+//    STB_TEXTEDIT_K_LINEEND2            secondary keyboard input to move cursor to end of line
+//    STB_TEXTEDIT_K_TEXTSTART2          secondary keyboard input to move cursor to start of text
+//    STB_TEXTEDIT_K_TEXTEND2            secondary keyboard input to move cursor to end of text
+//----------------------------------------------------------------------------------
+//#define STB_TEXTEDIT_K_INSERT         KEY_INSERT  // who actually uses insert mode..? disabled for now
+//#define STB_TEXTEDIT_MOVEWORDLEFT     <default>   // see: stb_textedit_move_to_word_previous
+//#define STB_TEXTEDIT_MOVEWORDRIGHT    <default>   // see: stb_textedit_move_to_word_next
+#define STB_TEXTEDIT_K_WORDLEFT         (KMOD_CTRL | KEY_LEFT)
+#define STB_TEXTEDIT_K_WORDRIGHT        (KMOD_CTRL | KEY_RIGHT)
+//#define STB_TEXTEDIT_K_LINESTART2     <not used>
+//#define STB_TEXTEDIT_K_LINEEND2       <not used>
+//#define STB_TEXTEDIT_K_TEXTSTART2     <not used>
+//#define STB_TEXTEDIT_K_TEXTEND2       <not used>
+
+typedef struct {
+    char *buffer;  // text edit buffer
+    // TODO(dbechrd): Characters, not bytes, need to handle this correctly for Unicode
+    int used;      // # of characters in use
+    int capacity;  // size of buffer in bytes, last byte reserverd for nil terminator
+} rstb_String;
+
+#include "stb_textedit.h"
+
+int   rstb_StringLen    (rstb_String *str);
+void  rstb_LayoutRow    (StbTexteditRow *row, rstb_String *str, int start);
+float rstb_GetWidth     (rstb_String *str, int index);
+int   rstb_KeyToText    (int key);;
+int   rstb_GetChar      (rstb_String *str, int index);
+void  rstb_DeleteChars  (rstb_String *str, int start, int count);
+int   rstb_InsertChars  (rstb_String *str, int start, int *chars, int count);
+int   rstb_IsSpace      (int c);
+
+#define STB_TEXTEDIT_IMPLEMENTATION
+#include "stb_textedit.h"
 
 //----------------------------------------------------------------------------------
 // Defines and Macros
@@ -551,6 +698,161 @@ static unsigned int guiStyle[NUM_CONTROLS*(NUM_PROPS_DEFAULT + NUM_PROPS_EXTENDE
 static bool guiStyleLoaded = false;     // Style loaded flag for lazy style initialization
 
 //----------------------------------------------------------------------------------
+// stb_textedit function implementations
+//----------------------------------------------------------------------------------
+#include <assert.h>
+
+static int rstb_StringLen(rstb_String *str) {
+    return str->used;
+    //return (int)strnlen(str, str->textSize);
+}
+
+static void rstb_LayoutRow(StbTexteditRow *row, rstb_String *str, int start)
+{
+    // float x0,x1;             // starting x location, end x location (allows for align=right, etc)
+    // float baseline_y_delta;  // position of baseline relative to previous row's baseline
+    // float ymin,ymax;         // height of row above and below baseline
+    // int num_chars;
+
+    // HACK(dbechrd): Assuming single-line mode
+    UNUSED(start);
+    assert(start == 0);
+
+    Vector2 textSize = MeasureTextEx(guiFont, str->buffer, (float)GuiGetStyle(DEFAULT, TEXT_SIZE), (float)GuiGetStyle(DEFAULT, TEXT_SPACING));
+    row->x0 = 0.0f;
+    row->x1 = textSize.x;
+    row->baseline_y_delta = (float)guiFont.baseSize;
+    // TODO(dbechrd): Not sure what STB's coordinate system is here... might need to swap these or make one negative
+    // for multi-line mode to work properly.
+    row->ymin = 0.0f;
+    row->ymax = (float)guiFont.baseSize;
+    row->num_chars = str->used;
+}
+
+static float rstb_GetWidth(rstb_String *str, int index)
+{
+    // Get next codepoint from byte string and glyph index in font
+    assert(index < str->used);
+
+    int codepointByteCount = 0;
+    int codepoint = GetNextCodepoint(&str->buffer[index], &codepointByteCount);
+    int glpyhIndex = GetGlyphIndex(guiFont, codepoint);
+
+    // TODO: scaleFactor and spacing should probably be configurable?
+    float scaleFactor = 1.0f;
+    float spacing = 1.0f;
+    float glyphWidth = (float)guiFont.chars[glpyhIndex].advanceX*scaleFactor + spacing;
+    return glyphWidth;
+}
+
+int rstb_KeyToText(int key)
+{
+    // Clear modifier keycode flags
+    int c = key & ~(KMOD_CTRL | KMOD_SHIFT);
+
+    // TODO(dbechrd): What should the filter be?
+    if (c < 32 || c >= 128)
+    {
+        c = -1;  // not valid to insert
+    }
+    return c;
+}
+
+int rstb_GetChar(rstb_String *str, int index)
+{
+    assert(index >= 0);
+    assert(index < str->used);
+
+    // TODO: Unicode (requires O(n) traversal)
+    int c = (int)str->buffer[index];
+    return c;
+}
+
+void rstb_DeleteChars(rstb_String *str, int start, int count)
+{
+    assert(start >= 0);
+    assert(count > 0);
+    assert(start + count <= str->used);
+
+    // TODO(dbechrd): "start" and "count" are probably meant to be Unicode character indices, not byte indices
+
+    // NOTE: If moveBytes is 0, we're deleting from end of string and don't need to shift anything left
+    int moveBytes = str->used - (start + count);
+    if (moveBytes > 0)
+    {
+        // Shift tail of string left to overwrite deleted section
+        char *dst = str->buffer + start;
+        char *src = str->buffer + start + count;
+        for (int i = 0; i < moveBytes; i++)
+        {
+            *dst = *src;
+            dst++;
+            src++;
+        }
+    }
+    str->used -= count;
+
+    // Clear deleted/shifted characters at end of string
+    assert(str->used + count < str->capacity);
+    memset(str->buffer + str->used, 0, count);
+}
+
+int rstb_InsertChars(rstb_String *str, int start, int *chars, int count)
+{
+    assert(start >= 0);
+    assert(count > 0);
+    assert(str->used + count < str->capacity);
+
+    int success = 0;
+    // TODO(dbechrd): Unicode support, currently assumes ASCII
+    if (count + str->used < str->capacity)
+    {
+        if (start == str->used)
+        {
+            // Inserting at end of string is easy, just append
+            for (int i = 0; i < count; i++)
+            {
+                assert(chars[i] >= 32);
+                assert(chars[i] < 128);
+                str->buffer[str->used] = (char)chars[i];
+            }
+        }
+        else
+        {
+            // Shift text at insertion location to the right
+            char *dst = str->buffer + str->used + count - 1;
+            char *src = str->buffer + str->used + count - 2;
+            int moveBytes = str->used - (start + count - 1);
+            for (int i = moveBytes; i > 0; i--)
+            {
+                *dst = *src;
+                dst--;
+                src--;
+            }
+
+            // Copy new text into the gap we just created
+            memcpy(str->buffer + start, chars, count);
+        }
+        success = 1;
+    }
+
+    str->used += count;
+    assert(str->used < str->capacity);
+    return success;
+}
+
+int rstb_IsSpace(int c)
+{
+    int isSpace = 0;
+    switch (c)
+    {
+        case ' ': case '\t': case '\r': case '\n':
+            isSpace = 1;
+    }
+    return isSpace;
+}
+
+//----------------------------------------------------------------------------------
 // Standalone Mode Functions Declaration
 //
 // NOTE: raygui depend on some raylib input and drawing functions
@@ -575,8 +877,8 @@ static bool IsMouseButtonDown(int button);
 static bool IsMouseButtonPressed(int button);
 static bool IsMouseButtonReleased(int button);
 
-static bool IsKeyDown(int key);
-static bool IsKeyPressed(int key);
+static bool IsKeyDown(int keycode);
+static bool IsKeyPressed(int keycode);
 static int GetCharPressed(void);         // -- GuiTextBox(), GuiTextBoxMulti(), GuiValueBox()
 //-------------------------------------------------------------------------------
 
@@ -1473,6 +1775,323 @@ bool GuiTextBox(Rectangle bounds, char *text, int textSize, bool editMode)
     return pressed;
 }
 
+static int GetTextSubstringWidth(STB_TexteditState *stb_state, rstb_String *str, int start, int length)
+{
+    assert(start >= 0);
+    assert(length >= 0);
+    assert(start + length <= str->used);
+
+    if (length == 0)
+    {
+        return 0;
+    }
+
+    // HACK(dbechrd): Save character at cursor so that we can replace it with nil and call GetTextWidth() to
+    //   get the width of a partial string
+    // TODO: Implement MeasureTextSubstring() that takes a starting index and offset, and only measures the
+    //   substring (should it return early if it encounters '\0'? .. probably)
+    char charAtCursor = 0;
+    int end = start + length;
+    if (end < str->used)
+    {
+        charAtCursor = str->buffer[end];
+        str->buffer[end] = '\0';
+    }
+
+    int width = GetTextWidth(str->buffer + start);
+
+    if (end < str->capacity)
+    {
+        str->buffer[end] = charAtCursor;
+    }
+
+    return width;
+}
+
+// Text Box control, updates input text
+// NOTE 1: Requires static variables: framesCounter
+// NOTE 2: Returns if KEY_ENTER pressed (useful for data validation)
+bool GuiTextBoxAdvanced(Rectangle bounds, char *text, int *textSize, int textCapacity, bool editMode)
+{
+    assert(text);
+    assert(textSize && *textSize >= 0);
+    assert(textCapacity > 0);
+    assert(*textSize < textCapacity);
+
+    static int framesCounter = 0;           // Required for blinking cursor
+    static double lastKeyPress = 0;
+    static int keyRepeat = 0;
+
+    // TODO: This has to be per-textbox, but storing it here during prototyping to keep dependency internal to raygui
+    static STB_TexteditState stb_state;
+    if (!stb_state.initialized || *textSize == 0)
+    {
+        stb_textedit_initialize_state(&stb_state, 1);
+    }
+
+    rstb_String str = { 0 };
+    str.buffer = text;
+    str.used = *textSize;
+    str.capacity = textCapacity;
+
+    GuiControlState state = guiState;
+    bool pressed = false;
+
+    Rectangle textBounds = GetTextBounds(TEXTBOX, bounds);
+
+#if 0
+    Rectangle cursor = {
+        bounds.x + GuiGetStyle(TEXTBOX, TEXT_PADDING) + GetTextWidth(text) + 2,
+        bounds.y + GuiGetStyle(DEFAULT, TEXT_SIZE),
+        1,
+        (float)GuiGetStyle(DEFAULT, TEXT_SIZE)*1.5f
+    };
+#endif
+
+    // Update control
+    //--------------------------------------------------------------------
+    if ((state != GUI_STATE_DISABLED) && !guiLocked)
+    {
+        Vector2 mousePoint = GetMousePosition();
+
+        if (editMode)
+        {
+            state = GUI_STATE_PRESSED;
+            framesCounter++;
+
+#if 0
+            int keyCount = (int)strlen(text);
+
+            // Only allow keys in range [32..125]
+            if (keyCount < (textSize - 1))
+            {
+                float maxWidth = (bounds.width - (GuiGetStyle(TEXTBOX, TEXT_INNER_PADDING)*2));
+
+                if ((GetTextWidth(text) < (maxWidth - GuiGetStyle(DEFAULT, TEXT_SIZE))) && (keycode >= 32))
+                {
+                    int byteLength = 0;
+                    const char *textUtf8 = CodepointToUtf8(keycode, &byteLength);
+
+                    for (int i = 0; i < byteLength; i++)
+                    {
+                        text[keyCount] = textUtf8[i];
+                        keyCount++;
+                    }
+
+                    text[keyCount] = '\0';
+                }
+            }
+
+            // Delete text
+            if (keyCount > 0)
+            {
+                if (IsKeyPressed(KEY_BACKSPACE))
+                {
+                    keyCount--;
+                    text[keyCount] = '\0';
+                    framesCounter = 0;
+                    if (keyCount < 0) keyCount = 0;
+                }
+                else if (IsKeyDown(KEY_BACKSPACE))
+                {
+                    if ((framesCounter > TEXTEDIT_CURSOR_BLINK_FRAMES) && (framesCounter%2) == 0) keyCount--;
+                    text[keyCount] = '\0';
+                    if (keyCount < 0) keyCount = 0;
+                }
+            }
+#else
+            int ctrlDown = IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL);
+            int shiftDown = IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT);
+            int keyMods = (ctrlDown > 0 ? KMOD_CTRL : 0) | (shiftDown > 0 ? KMOD_SHIFT : 0);
+
+            int codepoint = GetCharPressed();  // Returns codepoint as Unicode
+            while (codepoint)
+            {
+                // TODO(dbechrd): What is max value returned by GetCharPressed()? Are these bits safe to overwrite?
+                assert(codepoint < KMOD_CTRL);
+                assert(codepoint < KMOD_SHIFT);
+                stb_textedit_key(&str, &stb_state, codepoint | keyMods);
+                codepoint = GetCharPressed();
+            }
+
+            bool left = IsKeyDown(KEY_LEFT);
+            bool right = IsKeyDown(KEY_RIGHT);
+            if (left && right)
+            {
+                left = false;
+                right = false;
+            }
+
+            bool up = IsKeyDown(KEY_UP);
+            bool down = IsKeyDown(KEY_DOWN);
+            if (up && down)
+            {
+                up = false;
+                down = false;
+            }
+
+            bool home = IsKeyDown(KEY_HOME);
+            bool end = IsKeyDown(KEY_END);
+            if (home && end)
+            {
+                home = false;
+                end = false;
+            }
+
+            bool del = IsKeyDown(KEY_DELETE);
+            bool backspace = IsKeyDown(KEY_BACKSPACE);
+            if (del && backspace)
+            {
+                del = false;
+                backspace = false;
+            }
+
+            bool z = IsKeyDown(KEY_Z);
+            bool insert = IsKeyDown(KEY_INSERT);
+
+            bool any = left || right || up || down || home || end || del || backspace || z || insert;
+            if (any)
+            {
+                const double delayBeforeRepeat = 0.15;
+                const double delayDuringRepeat = 0.03;
+
+                const double timeSinceLastKeyPress = GetTime() - lastKeyPress;
+                //if (timeSinceLastKeyPress > delayBeforeRepeat * 2)
+                //{
+                //    keyRepeat = 0;
+                //}
+
+                double keyRepeatDelay = 0;
+                if (keyRepeat > 1)
+                {
+                    keyRepeatDelay = delayDuringRepeat;
+                }
+                else if (keyRepeat == 1)
+                {
+                    keyRepeatDelay = delayBeforeRepeat;
+                }
+
+                if (timeSinceLastKeyPress > keyRepeatDelay)
+                {
+                    if (left)       stb_textedit_key(&str, &stb_state, keyMods | KEY_LEFT);
+                    if (right)      stb_textedit_key(&str, &stb_state, keyMods | KEY_RIGHT);
+                    if (up)         stb_textedit_key(&str, &stb_state, keyMods | KEY_UP);
+                    if (down)       stb_textedit_key(&str, &stb_state, keyMods | KEY_DOWN);
+                    if (home)       stb_textedit_key(&str, &stb_state, keyMods | KEY_HOME);
+                    if (end)        stb_textedit_key(&str, &stb_state, keyMods | KEY_END);
+                    if (del)        stb_textedit_key(&str, &stb_state, keyMods | KEY_DELETE);
+                    if (backspace)  stb_textedit_key(&str, &stb_state, keyMods | KEY_BACKSPACE);
+                    if (z)          stb_textedit_key(&str, &stb_state, keyMods | KEY_INSERT);
+                    if (insert)     stb_textedit_key(&str, &stb_state, keyMods | KEY_Z);
+                    keyRepeat++;
+                    lastKeyPress = GetTime();
+                }
+                framesCounter = 0;
+            }
+            else
+            {
+                keyRepeat = 0;
+            }
+
+            if (ctrlDown && IsKeyPressed(KEY_A)) {
+                stb_state.select_start = 0;
+                stb_state.select_end = str.used;
+            }
+
+            if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON))
+            {
+                stb_textedit_click(&str, &stb_state, (float)GetMouseX() - textBounds.x, (float)GetMouseY() - textBounds.y);
+            }
+            else if (IsMouseButtonDown(MOUSE_LEFT_BUTTON))
+            {
+                stb_textedit_drag(&str, &stb_state, (float)GetMouseX() - textBounds.x, (float)GetMouseY() - textBounds.y);
+            }
+#endif
+
+            if (IsKeyPressed(KEY_ENTER) || (!CheckCollisionPointRec(mousePoint, bounds) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON))) pressed = true;
+
+#if 0
+            // Check text alignment to position cursor properly
+            int textAlignment = GuiGetStyle(TEXTBOX, TEXT_ALIGNMENT);
+            if (textAlignment == GUI_TEXT_ALIGN_CENTER) cursor.x = bounds.x + GetTextWidth(text)/2 + bounds.width/2 + 1;
+            else if (textAlignment == GUI_TEXT_ALIGN_RIGHT) cursor.x = bounds.x + bounds.width - GuiGetStyle(TEXTBOX, TEXT_INNER_PADDING);
+#else
+            // TODO: Check text alignment to position cursor properly
+#endif
+        }
+        else
+        {
+            if (CheckCollisionPointRec(mousePoint, bounds))
+            {
+                state = GUI_STATE_FOCUSED;
+                if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) pressed = true;
+            }
+        }
+
+        if (pressed) framesCounter = 0;
+    }
+    //--------------------------------------------------------------------
+
+    assert(str.used < str.capacity);
+    text[str.used] = '\0';
+
+    // Draw control
+    //--------------------------------------------------------------------
+    int selectionStart = min(stb_state.select_start, stb_state.select_end);
+    int selectionLength = abs(stb_state.select_end - stb_state.select_start);
+
+    if (state == GUI_STATE_PRESSED)
+    {
+        GuiDrawRectangle(bounds, GuiGetStyle(TEXTBOX, BORDER_WIDTH), Fade(GetColor(GuiGetStyle(TEXTBOX, BORDER + (state*3))), guiAlpha), Fade(GetColor(GuiGetStyle(TEXTBOX, BASE_COLOR_PRESSED)), guiAlpha));
+
+        if (selectionLength)
+        {
+            Color selectedHighlight = ORANGE; //(Color){ 52, 105, 218, 255 };
+            int selectionOffsetX = GetTextSubstringWidth(&stb_state, &str, 0, selectionStart);
+            int selectionWidth = GetTextSubstringWidth(&stb_state, &str, selectionStart, selectionLength);
+            Rectangle cursor = (Rectangle){
+                bounds.x + GuiGetStyle(TEXTBOX, TEXT_PADDING) + selectionOffsetX + 2,
+                bounds.y + bounds.height/2 - GuiGetStyle(DEFAULT, TEXT_SIZE) + GuiGetStyle(TEXTBOX, TEXT_PADDING),
+                (float)selectionWidth,
+                (float)GuiGetStyle(DEFAULT, TEXT_SIZE) + GuiGetStyle(TEXTBOX, TEXT_PADDING)/2
+            };
+
+            GuiDrawRectangle(cursor, 0, BLANK, Fade(selectedHighlight, guiAlpha));
+        }
+        else
+        {
+            // Draw blinking cursor
+            int cursorOffetX = GetTextSubstringWidth(&stb_state, &str, 0, stb_state.cursor);
+            Rectangle cursor = {
+                bounds.x + GuiGetStyle(TEXTBOX, TEXT_PADDING) + cursorOffetX + 2,
+                bounds.y + bounds.height/2 - GuiGetStyle(DEFAULT, TEXT_SIZE) + GuiGetStyle(TEXTBOX, TEXT_PADDING),
+                1,
+                (float)GuiGetStyle(DEFAULT, TEXT_SIZE) + GuiGetStyle(TEXTBOX, TEXT_PADDING)/2
+            };
+
+            if (editMode && ((framesCounter/20)%2 == 0)) GuiDrawRectangle(cursor, 0, BLANK, Fade(GetColor(GuiGetStyle(TEXTBOX, BORDER_COLOR_PRESSED)), guiAlpha));
+            //if (editMode && ((framesCounter/20)%2 == 0)) GuiDrawRectangle(cursor, 0, BLANK, Fade(DARKGRAY, guiAlpha));
+        }
+    }
+    else if (state == GUI_STATE_DISABLED)
+    {
+        GuiDrawRectangle(bounds, GuiGetStyle(TEXTBOX, BORDER_WIDTH), Fade(GetColor(GuiGetStyle(TEXTBOX, BORDER + (state*3))), guiAlpha), Fade(GetColor(GuiGetStyle(TEXTBOX, BASE_COLOR_DISABLED)), guiAlpha));
+    }
+    else GuiDrawRectangle(bounds, 1, Fade(GetColor(GuiGetStyle(TEXTBOX, BORDER + (state*3))), guiAlpha), BLANK);
+
+    Color textColor = GetColor(GuiGetStyle(TEXTBOX, TEXT + (state*3)));
+    if (selectionLength)
+    {
+        //textColor = RAYWHITE;
+    }
+    GuiDrawText(text, textBounds, GuiGetStyle(TEXTBOX, TEXT_ALIGNMENT), Fade(textColor, guiAlpha));
+    //--------------------------------------------------------------------
+
+    *textSize = str.used;
+    return pressed;
+}
+
+
 // Spinner control, returns selected value
 bool GuiSpinner(Rectangle bounds, const char *text, int *value, int minValue, int maxValue, bool editMode)
 {
@@ -1653,7 +2272,7 @@ bool GuiValueBox(Rectangle bounds, const char *text, int *value, int minValue, i
 
     // WARNING: BLANK color does not work properly with Fade()
     GuiDrawRectangle(bounds, GuiGetStyle(VALUEBOX, BORDER_WIDTH), Fade(GetColor(GuiGetStyle(VALUEBOX, BORDER + (state*3))), guiAlpha), baseColor);
-    GuiDrawText(textValue, GetTextBounds(VALUEBOX, bounds), GUI_TEXT_ALIGN_CENTER, Fade(GetColor(GuiGetStyle(VALUEBOX, TEXT + (state*3))), guiAlpha));
+    GuiDrawText(textValue, textBounds, GUI_TEXT_ALIGN_CENTER, Fade(GetColor(GuiGetStyle(VALUEBOX, TEXT + (state*3))), guiAlpha));
 
     // Draw blinking cursor
     if ((state == GUI_STATE_PRESSED) && (editMode && ((framesCounter/20)%2 == 0)))

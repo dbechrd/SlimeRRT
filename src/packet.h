@@ -84,10 +84,8 @@ typedef struct NetMessage {
 typedef struct Packet {
     zed_net_address_t srcAddress;
     char timestampStr[12];  // hh:MM:SS AM
-    union {
-        char raw[PACKET_SIZE_MAX];
-        NetMessage message;
-    } data;
+    char rawBytes[PACKET_SIZE_MAX];
+    NetMessage message;
 } Packet;
 
 typedef struct PacketBuffer {
