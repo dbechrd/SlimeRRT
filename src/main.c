@@ -322,7 +322,8 @@ int main(void)
     double frameStart = GetTime();
     double dt = 0;
     const int targetFPS = 60;
-    SetTargetFPS(targetFPS);
+    //SetTargetFPS(targetFPS);
+    SetWindowState(FLAG_VSYNC_HINT);
     bool gifRecording = false;
     bool chatActive = false;
     //---------------------------------------------------------------------------------------
@@ -718,9 +719,64 @@ int main(void)
         // Render chat history
         {
             if (chatActive) {
-                const int linesOfText = (int)client.chatHistory.count;
                 const float margin = 6.0f;   // left/bottom margin
                 const float pad = 4.0f;      // left/bottom pad
+
+                {
+                    static bool dialog = true;
+                    dialog = dialog || IsKeyPressed(KEY_GRAVE);
+
+                    if (dialog) {
+                        static float loginBoxW = 230.0f;
+                        static float loginBoxH = 105.0f;
+
+                        float mouseWheelMove = GetMouseWheelMove();
+                        float *scrollFloat = IsKeyDown(KEY_LEFT_SHIFT) ? &loginBoxW : &loginBoxH;
+                        if (mouseWheelMove > 0.0f) {
+                            *scrollFloat += 25.0f;
+                        } else if (mouseWheelMove < 0.0f) {
+                            *scrollFloat = MAX(scrollFloat == &loginBoxH ? 104.0f : 223.0f, *scrollFloat - 25.0f);
+                        }
+
+                        Rectangle loginBoxRect = {
+                            screenWidth/2.0f - loginBoxW/2.0f,
+                            screenHeight/2.0f - loginBoxH/2.0f,
+                            loginBoxW,
+                            loginBoxH
+                        };
+
+                        static int loginBoxTextLen = 0;
+                        static char loginBoxText[USERNAME_LENGTH_MAX + 1];
+                        static GuiTextBoxAdvancedState loginBoxState;
+
+                        int button = GuiTextInputBoxAdvanced(&loginBoxState, loginBoxRect, "Log In",
+                            "Please enter your username:", "Login;Cancel", 1, loginBoxText, &loginBoxTextLen,
+                            sizeof(loginBoxText), false);
+                        switch (button) {
+                            case 0: { // [X]
+                                dialog = false;
+                                break;
+                            }
+                            case 1: { // Login
+                                if (loginBoxTextLen) {
+                                    network_client_send_chat_message(&client, loginBoxText, loginBoxTextLen);
+                                }
+                                break;
+                            }
+                            case 2: { // Cancel
+                                dialog = false;
+                                break;
+                            }
+                        }
+
+                        if (escape || button >= 0) {
+                            memset(loginBoxText, 0, sizeof(loginBoxText));
+                            loginBoxTextLen = 0;
+                        }
+                    }
+                }
+
+                const int linesOfText = (int)client.chatHistory.count;
                 const float chatWidth = 420.0f;
                 const float chatHeight = linesOfText * (fontHeight + pad) + pad;
                 const float inputBoxHeight = fontHeight + pad * 2.0f;
@@ -749,11 +805,11 @@ int main(void)
                 static char chatInputText[CHAT_MESSAGE_BUFFER_LEN];
                 assert(CHAT_MESSAGE_LENGTH_MAX < CHAT_MESSAGE_BUFFER_LEN);
 
-                Rectangle inputBox = { margin, screenHeight - margin - inputBoxHeight, chatWidth, inputBoxHeight };
+                Rectangle chatInputRect = { margin, screenHeight - margin - inputBoxHeight, chatWidth, inputBoxHeight };
+                static GuiTextBoxAdvancedState chatInputState;
                 //GuiTextBox(inputBox, chatInputText, CHAT_MESSAGE_LENGTH_MAX, true);
                 //GuiTextBoxEx(inputBox, chatInputText, CHAT_MESSAGE_LENGTH_MAX, true);
-                GuiTextBoxAdvanced(inputBox, chatInputText, &chatInputTextLen, CHAT_MESSAGE_LENGTH_MAX, true);
-                if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_KP_ENTER)) {
+                if (GuiTextBoxAdvanced(&chatInputState, chatInputRect, chatInputText, &chatInputTextLen, CHAT_MESSAGE_LENGTH_MAX, false)) {
                     size_t messageLength = chatInputTextLen;
                     if (messageLength) {
                         network_client_send_chat_message(&client, chatInputText, messageLength);
