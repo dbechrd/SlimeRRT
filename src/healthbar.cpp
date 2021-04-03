@@ -1,5 +1,5 @@
 #include "healthbar.h"
-#include <math.h>
+#include <cmath>
 
 static Font healthbarFont;
 

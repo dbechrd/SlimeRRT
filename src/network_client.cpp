@@ -2,16 +2,16 @@
 #include "bit_stream.h"
 #include "chat.h"
 #include "raylib.h"
-#include <assert.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
+#include <cassert>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <ctime>
 
 int network_client_init(NetworkClient *client)
 {
     client->packetHistory.capacity = NETWORK_CLIENT_PACKET_HISTORY_MAX;
-    client->packetHistory.packets = calloc(client->packetHistory.capacity, sizeof(*client->packetHistory.packets));
+    client->packetHistory.packets = (Packet *)calloc(client->packetHistory.capacity, sizeof(*client->packetHistory.packets));
     if (!client->packetHistory.packets) {
         TraceLog(LOG_FATAL, "[NetworkClient] Failed to allocate packet history buffer.");
         return 0;

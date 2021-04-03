@@ -1,14 +1,14 @@
 #include "chat.h"
 #include "packet.h"
 #include "raylib.h"
-#include <assert.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cassert>
+#include <cstdlib>
+#include <cstring>
 
 int chat_history_init(ChatHistory *chatHistory)
 {
     size_t capacity = CHAT_MESSAGE_HISTORY;
-    chatHistory->messages = calloc(capacity, sizeof(*chatHistory->messages));
+    chatHistory->messages = (ChatMessage *)calloc(capacity, sizeof(*chatHistory->messages));
     if (!chatHistory) {
         TraceLog(LOG_FATAL, "[Chat] Failed to chat history buffer.\n");
         return 0;

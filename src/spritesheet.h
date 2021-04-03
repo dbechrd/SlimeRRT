@@ -35,7 +35,7 @@ typedef struct Spritesheet {
     int spriteCount;         // # of sprites
     SpriteDef *sprites;      // array of sprites definitions
     unsigned int bufLength;  // length of file buffer in memory
-    unsigned char *buf;      // file buffer (needs to be freed with UnloadFileData())
+    char *buf;               // file buffer (needs to be freed with UnloadFileData())
 } Spritesheet;
 
 void              spritesheet_init        (Spritesheet *spritesheet, const char *fileName);

@@ -2,11 +2,10 @@
 #include "body.h"
 #include "helpers.h"
 #include "raylib.h"
-#include <assert.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cassert>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 
 #define ALPHA_LOWER \
     case 'a': case 'b': case 'c': case 'd': case 'e': case 'f': case 'g': case 'h': case 'i': case 'j': \
@@ -70,7 +69,7 @@ typedef struct Scanner {
     const char *fileName;
     size_t cursor;
     size_t length;
-    const unsigned char *text;
+    const char *text;
 } Scanner;
 
 static bool DiscardChar(Scanner *scanner, char c)
@@ -315,7 +314,7 @@ static Token ParseIdentifier(Scanner *scanner)
 {
     assert(scanner);
 
-    Token tok = { 0 };
+    Token tok{};
     tok.token = ConsumeString_Alpha(scanner);
     tok.type = GetIdentifierType(scanner, tok.token);
     if (tok.type == TOK_UNKNOWN) {
@@ -376,21 +375,21 @@ static bool ParseHeader(Scanner *scanner, Spritesheet *spritesheet)
     // Initialization, not parsing.. but it seems appropriate for it to live here?
     //--------------------------------------------------------------------------------
     // Allocate memory for frames
-    spritesheet->frames = calloc(spritesheet->frameCount, sizeof(*spritesheet->frames));
+    spritesheet->frames = (SpriteFrame *)calloc(spritesheet->frameCount, sizeof(*spritesheet->frames));
     if (!spritesheet->frames) {
         TraceLog(LOG_ERROR, "'%s': Failed to allocate memory for %d frames in spritesheet.\n", scanner->fileName, spritesheet->frameCount);
         return false;
     }
 
     // Allocate memory for animations
-    spritesheet->animations = calloc(spritesheet->animationCount, sizeof(*spritesheet->animations));
+    spritesheet->animations = (SpriteAnim *)calloc(spritesheet->animationCount, sizeof(*spritesheet->animations));
     if (!spritesheet->animations) {
         TraceLog(LOG_ERROR, "'%s': Failed to allocate memory for %d sprites in spritesheet.\n", scanner->fileName, spritesheet->animationCount);
         return false;
     }
 
     // Allocate memory for sprites
-    spritesheet->sprites = calloc(spritesheet->spriteCount, sizeof(*spritesheet->sprites));
+    spritesheet->sprites = (SpriteDef *)calloc(spritesheet->spriteCount, sizeof(*spritesheet->sprites));
     if (!spritesheet->sprites) {
         TraceLog(LOG_ERROR, "'%s': Failed to allocate memory for %d sprites in spritesheet.\n", scanner->fileName, spritesheet->spriteCount);
         return false;
@@ -634,7 +633,7 @@ static bool ParseSpritesheet(Scanner *scanner, Spritesheet *spritesheet)
 void spritesheet_init(Spritesheet *spritesheet, const char *fileName)
 {
     unsigned int dataLength = 0;
-    unsigned char *data = LoadFileData(fileName, &dataLength);
+    char *data = (char *)LoadFileData(fileName, &dataLength);
     if (!data) {
         return;
     }
@@ -668,6 +667,6 @@ void spritesheet_free(Spritesheet *spritesheet)
     free(spritesheet->animations);
     free(spritesheet->sprites);
     UnloadTexture(spritesheet->texture);
-    UnloadFileData(spritesheet->buf);
+    UnloadFileData((unsigned char *)spritesheet->buf);
     memset(spritesheet, 0, sizeof(*spritesheet));
 }

@@ -1,7 +1,7 @@
 #include "sprite.h"
 #include "spritesheet.h"
 #include "body.h"
-#include <assert.h>
+#include <cassert>
 
 const SpriteAnim *sprite_anim(const Sprite *sprite)
 {
@@ -134,7 +134,7 @@ static void sprite_draw(const Sprite *sprite, Rectangle dest, Color color)
         const Rectangle rect = sprite_frame_rect(sprite);
 #endif
         // Draw textured sprite
-        DrawTextureTiled(sprite->spriteDef->spritesheet->texture, rect, dest, (Vector2){ 0.0f, 0.0f }, 0.0f,
+        DrawTextureTiled(sprite->spriteDef->spritesheet->texture, rect, dest, { 0.0f, 0.0f }, 0.0f,
             sprite->scale, color);
     } else {
         // Draw magenta rectangle

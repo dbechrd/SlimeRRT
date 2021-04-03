@@ -9,7 +9,7 @@
 //-- header --------------------------------------------------------------------
 
 //-- dlb_rand.h ----------------------------------------------------------------
-#include <inttypes.h>
+#include <cinttypes>
 
 struct pcg_state_setseq_64 {    // Internals are *Private*.
     uint64_t state;             // RNG state.  All values are possible.
@@ -241,8 +241,8 @@ uint32_t pcg32_boundedrand(uint32_t bound)
 
 //-- dlb_rand.c ----------------------------------------------------------------
 
-#include <limits.h>
-#include <math.h>
+#include <climits>
+#include <cmath>
 
 // Seed RNG state. Sequence should be unique for each RNG.
 void dlb_rand32_seed_r(dlb_rand32_t *rng, uint64_t seed, uint64_t sequence)
@@ -359,11 +359,11 @@ float dlb_rand32f_variance(float variance)
 //-- tests ---------------------------------------------------------------------
 #ifdef DLB_RAND_TEST
 
-#include <stdio.h>
-#include <assert.h>
-#include <inttypes.h>
-#include <time.h>
-#include <float.h>
+#include <cstdio>
+#include <cassert>
+#include <cinttypes>
+#include <ctime>
+#include <cfloat>
 
 void dlb_rand_test(void)
 {

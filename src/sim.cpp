@@ -12,7 +12,7 @@
 #include "spritesheet_catalog.h"
 #include "tilemap.h"
 #include "dlb_rand.h"
-#include <assert.h>
+#include <cassert>
 
 void BloodParticlesFollowPlayer(ParticleEffect *effect, void *userData)
 {
@@ -45,14 +45,14 @@ void sim(double now, double dt, const PlayerControllerState input, Player *playe
 
     if (input.moveState) {
         switch (input.direction) {
-            case Direction_North     : moveBuffer = (Vector2) { 0.0f,-1.0f }; break;
-            case Direction_East      : moveBuffer = (Vector2) { 1.0f, 0.0f }; break;
-            case Direction_South     : moveBuffer = (Vector2) { 0.0f, 1.0f }; break;
-            case Direction_West      : moveBuffer = (Vector2) {-1.0f, 0.0f }; break;
-            case Direction_NorthEast : moveBuffer = (Vector2) { 1.0f,-1.0f }; break;
-            case Direction_SouthEast : moveBuffer = (Vector2) { 1.0f, 1.0f }; break;
-            case Direction_SouthWest : moveBuffer = (Vector2) {-1.0f, 1.0f }; break;
-            case Direction_NorthWest : moveBuffer = (Vector2) {-1.0f,-1.0f }; break;
+            case Direction_North     : moveBuffer = { 0.0f,-1.0f }; break;
+            case Direction_East      : moveBuffer = { 1.0f, 0.0f }; break;
+            case Direction_South     : moveBuffer = { 0.0f, 1.0f }; break;
+            case Direction_West      : moveBuffer = {-1.0f, 0.0f }; break;
+            case Direction_NorthEast : moveBuffer = { 1.0f,-1.0f }; break;
+            case Direction_SouthEast : moveBuffer = { 1.0f, 1.0f }; break;
+            case Direction_SouthWest : moveBuffer = {-1.0f, 1.0f }; break;
+            case Direction_NorthWest : moveBuffer = {-1.0f,-1.0f }; break;
             default: assert(!"Invalid direction");
         }
     }

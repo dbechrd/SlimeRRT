@@ -2,7 +2,6 @@
 #include "direction.h"
 #include "spritesheet.h"
 #include "raylib.h"
-#include <stdbool.h>
 
 typedef struct Sprite {
     const SpriteDef *spriteDef;

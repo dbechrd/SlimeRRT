@@ -6,7 +6,7 @@
 #include "shadow.h"
 #include "spritesheet.h"
 #include "dlb_rand.h"
-#include <assert.h>
+#include <cassert>
 #include "particles.h"
 
 #define SLIME_MAX_SCALE 3.0f

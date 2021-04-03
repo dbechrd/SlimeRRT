@@ -122,10 +122,10 @@ typedef enum {
 static Rectangle guiTextBoxActive = { 0 };      // Area of the currently active textbox
 
 static GuiTextBoxState guiTextBoxState = {      // Keeps state of the active textbox
-    .cursor = -1,
-    .start = 0,
-    .index = 0,
-    .select = -1
+    /*.cursor =*/ -1,
+    /*.start  =*/ 0,
+    /*.index  =*/ 0,
+    /*.select =*/ -1
 };
 
 //----------------------------------------------------------------------------------
@@ -153,7 +153,7 @@ static int EncodeCodepoint(unsigned int c, char out[5]);
 RAYGUIDEF void GuiTextBoxSetActive(Rectangle bounds)
 {
     guiTextBoxActive = bounds;
-    guiTextBoxState = (GuiTextBoxState){ .cursor = -1, .start = 0, .index = 0, .select = -1 };
+    guiTextBoxState = { -1, 0, 0, -1 };
 }
 
 // Gets bounds of active textbox

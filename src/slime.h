@@ -2,7 +2,6 @@
 #include "body.h"
 #include "combat.h"
 #include "sprite.h"
-#include <stdbool.h>
 
 #define MAX_SLIMES 256
 

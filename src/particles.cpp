@@ -5,9 +5,9 @@
 #include "helpers.h"
 #include "draw_command.h"
 #include "dlb_rand.h"
-#include <assert.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cassert>
+#include <cstdlib>
+#include <cstring>
 
 #define MAX_EFFECTS   32
 
@@ -24,8 +24,8 @@ void particles_init(void)
     assert(MAX_EFFECTS);
 
     // Allocate pools
-    particles = calloc(MAX_PARTICLES, sizeof(*particles));
-    effects = calloc(MAX_EFFECTS, sizeof(*effects));
+    particles = (Particle *)calloc(MAX_PARTICLES, sizeof(*particles));
+    effects = (ParticleEffect *)calloc(MAX_EFFECTS, sizeof(*effects));
     if (!particles || !effects) {
         TraceLog(LOG_FATAL, "Failed to allocate memory for particles\n");
         exit(-1);
@@ -116,11 +116,10 @@ ParticleEffect *particle_effect_create(ParticleEffectType type, size_t particleC
     effect->duration = duration;
     effect->startedAt = now;
 
-    static ParticleDef particle_fx_defs[ParticleEffectType_Count] = {
-        [ParticleEffectType_Blood] = { particle_fx_blood_init, particle_fx_blood_update },
-        [ParticleEffectType_Gold ] = { particle_fx_gold_init, particle_fx_gold_update },
-        [ParticleEffectType_Goo  ] = { particle_fx_goo_init, particle_fx_goo_update },
-    };
+    static ParticleDef particle_fx_defs[ParticleEffectType_Count]{};
+    particle_fx_defs[ParticleEffectType_Blood] = { particle_fx_blood_init, particle_fx_blood_update };
+    particle_fx_defs[ParticleEffectType_Gold ] = { particle_fx_gold_init, particle_fx_gold_update };
+    particle_fx_defs[ParticleEffectType_Goo  ] = { particle_fx_goo_init, particle_fx_goo_update };
     effect->def = &particle_fx_defs[effect->type];
 
     generate_effect_particles(effect, particleCount, spriteDef);

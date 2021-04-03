@@ -1,35 +1,36 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="src\main.c" />
-    <ClCompile Include="src\tilemap.c" />
-    <ClCompile Include="src\tileset.c" />
-    <ClCompile Include="src\particles.c" />
-    <ClCompile Include="src\player.c" />
-    <ClCompile Include="src\spritesheet.c" />
-    <ClCompile Include="src\slime.c" />
-    <ClCompile Include="src\body.c" />
-    <ClCompile Include="src\network_server.c" />
-    <ClCompile Include="src\helpers.c" />
-    <ClCompile Include="src\network_client.c" />
-    <ClCompile Include="src\zed_net.c" />
-    <ClCompile Include="src\sim.c" />
-    <ClCompile Include="src\player_inventory.c" />
-    <ClCompile Include="src\item.c" />
-    <ClCompile Include="src\controller.c" />
-    <ClCompile Include="src\sound_catalog.c" />
-    <ClCompile Include="src\item_catalog.c" />
-    <ClCompile Include="src\spritesheet_catalog.c" />
-    <ClCompile Include="src\particle_fx_blood.c" />
-    <ClCompile Include="src\particle_fx_gold.c" />
-    <ClCompile Include="src\particle_fx_goo.c" />
-    <ClCompile Include="src\sprite.c" />
-    <ClCompile Include="src\draw_command.c" />
-    <ClCompile Include="src\chat.c" />
-    <ClCompile Include="src\healthbar.c" />
-    <ClCompile Include="src\shadow.c" />
-    <ClCompile Include="src\packet.c" />
-    <ClCompile Include="src\bit_stream.c" />
+    <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\tilemap.cpp" />
+    <ClCompile Include="src\tileset.cpp" />
+    <ClCompile Include="src\particles.cpp" />
+    <ClCompile Include="src\player.cpp" />
+    <ClCompile Include="src\spritesheet.cpp" />
+    <ClCompile Include="src\slime.cpp" />
+    <ClCompile Include="src\body.cpp" />
+    <ClCompile Include="src\network_server.cpp" />
+    <ClCompile Include="src\helpers.cpp" />
+    <ClCompile Include="src\network_client.cpp" />
+    <ClCompile Include="src\zed_net.cpp" />
+    <ClCompile Include="src\sim.cpp" />
+    <ClCompile Include="src\player_inventory.cpp" />
+    <ClCompile Include="src\item.cpp" />
+    <ClCompile Include="src\controller.cpp" />
+    <ClCompile Include="src\sound_catalog.cpp" />
+    <ClCompile Include="src\item_catalog.cpp" />
+    <ClCompile Include="src\spritesheet_catalog.cpp" />
+    <ClCompile Include="src\particle_fx_blood.cpp" />
+    <ClCompile Include="src\particle_fx_gold.cpp" />
+    <ClCompile Include="src\particle_fx_goo.cpp" />
+    <ClCompile Include="src\sprite.cpp" />
+    <ClCompile Include="src\draw_command.cpp" />
+    <ClCompile Include="src\chat.cpp" />
+    <ClCompile Include="src\healthbar.cpp" />
+    <ClCompile Include="src\shadow.cpp" />
+    <ClCompile Include="src\packet.cpp" />
+    <ClCompile Include="src\bit_stream.cpp" />
+    <ClCompile Include="src\world.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\tilemap.h" />
@@ -62,5 +63,6 @@
     <ClInclude Include="src\healthbar.h" />
     <ClInclude Include="src\shadow.h" />
     <ClInclude Include="src\bit_stream.h" />
+    <ClInclude Include="src\world.h" />
   </ItemGroup>
 </Project>

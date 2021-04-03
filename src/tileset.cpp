@@ -15,7 +15,7 @@ void tileset_init(Tileset *tileset)
     assert(tileset->texture->width % (int)tileset->tileWidth == 0);
     tileset->tilesPerRow = tileset->texture->width / tileset->tileWidth;
 
-    tileset->textureRects = calloc(tileset->tileCount, sizeof(*tileset->textureRects));
+    tileset->textureRects = (Rectangle *)calloc(tileset->tileCount, sizeof(*tileset->textureRects));
     assert(tileset->textureRects);
 
     for (size_t i = 0; i < tileset->tileCount; i++) {

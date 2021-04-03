@@ -3,7 +3,6 @@
 #include "combat.h"
 #include "sprite.h"
 #include "player_inventory.h"
-#include <stdbool.h>
 
 typedef enum PlayerMoveState {
     PlayerMoveState_Idle      = 0,

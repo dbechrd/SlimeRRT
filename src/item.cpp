@@ -1,5 +1,5 @@
 #include "item.h"
 #include "helpers.h"
-#include <assert.h>
+#include <cassert>
 
 void item_unused(){}

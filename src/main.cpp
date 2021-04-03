@@ -23,11 +23,11 @@
 #include "gui_textbox_extended.h"
 #include "raylib.h"
 #include "zed_net.h"
-#include <assert.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
+#include <cassert>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <ctime>
 
 static FILE *logFile;
 
@@ -46,13 +46,13 @@ void traceLogCallback(int logType, const char *text, va_list args)
 
 Rectangle RectPad(const Rectangle rec, float pad)
 {
-    Rectangle padded = (Rectangle){ rec.x - pad, rec.y - pad, rec.width + pad * 2.0f, rec.height + pad * 2.0f };
+    Rectangle padded = { rec.x - pad, rec.y - pad, rec.width + pad * 2.0f, rec.height + pad * 2.0f };
     return padded;
 }
 
 Rectangle RectPadXY(const Rectangle rec, float padX, float padY)
 {
-    Rectangle padded = (Rectangle){ rec.x - padX, rec.y - padY, rec.width + padX * 2.0f, rec.height + padY * 2.0f };
+    Rectangle padded = { rec.x - padX, rec.y - padY, rec.width + padX * 2.0f, rec.height + padY * 2.0f };
     return padded;
 }
 
@@ -96,7 +96,7 @@ int main(void)
     }
 #endif
     {
-        NetMessage msgWritten = { 0 };
+        NetMessage msgWritten = {};
         msgWritten.type = NetMessageType_ChatMessage;
         msgWritten.data.chatMessage.username = "dandymcgee";
         msgWritten.data.chatMessage.usernameLength = strlen(msgWritten.data.chatMessage.username);
@@ -104,12 +104,12 @@ int main(void)
         msgWritten.data.chatMessage.messageLength = strlen(msgWritten.data.chatMessage.message);
 
         char rawPacket[PACKET_SIZE_MAX] = { 0 };
-        BitStream chatWriter = { 0 };
+        BitStream chatWriter = {};
         bit_stream_writer_init(&chatWriter, (uint32_t *)rawPacket, sizeof(rawPacket));
         serialize_net_message(&chatWriter, &msgWritten);
 
-        NetMessage msgRead = { 0 };
-        BitStream chatReader = { 0 };
+        NetMessage msgRead = {};
+        BitStream chatReader = {};
         assert(chatWriter.total_bits % 8 == 0);
         bit_stream_reader_init(&chatReader, (uint32_t *)rawPacket, chatWriter.total_bits / 8);
         deserialize_net_message(&chatReader, &msgRead);
@@ -232,18 +232,17 @@ int main(void)
         minimapImg.data = calloc((size_t)minimapImg.width * minimapImg.height, sizeof(Color));
         assert(minimapImg.data);
 
-        Color tileColors[TileType_Count] = {
-            [TileType_Grass   ] = GREEN,
-            [TileType_Water   ] = SKYBLUE,
-            [TileType_Forest  ] = DARKGREEN,
-            [TileType_Wood    ] = BROWN,
-            [TileType_Concrete] = GRAY
-        };
+        Color tileColors[TileType_Count]{};
+        tileColors[TileType_Grass   ] = GREEN;
+        tileColors[TileType_Water   ] = SKYBLUE;
+        tileColors[TileType_Forest  ] = DARKGREEN;
+        tileColors[TileType_Wood    ] = BROWN;
+        tileColors[TileType_Concrete] = GRAY;
 
         const size_t heightTiles = tilemap.heightTiles;
         const size_t widthTiles = tilemap.widthTiles;
 
-        Color *minimapPixel = minimapImg.data;
+        Color *minimapPixel = (Color *)minimapImg.data;
         for (size_t y = 0; y < heightTiles; y += 1) {
             for (size_t x = 0; x < widthTiles; x += 1) {
                 const Tile *tile = &tilemap.tiles[y * tilemap.widthTiles + x];
@@ -259,7 +258,7 @@ int main(void)
         free(minimapImg.data);
     }
 
-    const Vector3 worldSpawn = (Vector3){
+    const Vector3 worldSpawn = {
         (float)tilemap.widthTiles / 2.0f * tilemap.tileset->tileWidth,
         (float)tilemap.heightTiles / 2.0f * tilemap.tileset->tileHeight,
         0.0f
@@ -270,12 +269,13 @@ int main(void)
     //    (float)tilemap.widthTiles / 2.0f * tilemap.tileset->tileWidth,
     //    (float)tilemap.heightTiles / 2.0f * tilemap.tileset->tileHeight
     //};
-    camera.offset = (Vector2){ screenWidth / 2.0f, screenHeight / 2.0f };
+    camera.offset.x = screenWidth / 2.0f;
+    camera.offset.y = screenHeight / 2.0f;
     camera.rotation = 0.0f;
     camera.zoom = 1.0f;
 
-    int cameraReset = 0;
-    int cameraFollowPlayer = 1;
+    bool cameraReset = false;
+    bool cameraFollowPlayer = true;
 
     // TODO: Move sprite loading to somewhere more sane
     const Spritesheet *charlieSpritesheet = spritesheet_catalog_find(SpritesheetID_Charlie);
@@ -397,8 +397,8 @@ int main(void)
 
             // Camera reset (zoom and rotation)
             if (cameraReset || IsKeyPressed(KEY_R)) {
-                camera.target = (Vector2){ roundf(camera.target.x), roundf(camera.target.y) };
-                camera.offset = (Vector2){ roundf(screenWidth / 2.0f), roundf(screenHeight / 2.0f) };
+                camera.target = Vector2 { roundf(camera.target.x), roundf(camera.target.y) };
+                camera.offset = Vector2 { roundf(screenWidth / 2.0f), roundf(screenHeight / 2.0f) };
                 camera.rotation = 0.0f;
                 camera.zoom = 1.0f;
                 cameraReset = 0;
@@ -532,7 +532,7 @@ int main(void)
             mouseTile = tilemap_at_world_try(&tilemap, (int)mousePosWorld.x, (int)mousePosWorld.y);
             if (mouseTile) {
                 // Draw red outline on hovered tile
-                Rectangle mouseTileRect = (Rectangle){
+                Rectangle mouseTileRect {
                     mouseTile->position.x,
                     mouseTile->position.y,
                     (float)tilemap.tileset->tileWidth  * zoomMipLevel,
@@ -591,7 +591,7 @@ int main(void)
             if (tooltipX + tooltipW > screenWidth ) tooltipX = screenWidth  - tooltipW;
             if (tooltipY + tooltipH > screenHeight) tooltipY = screenHeight - tooltipH;
 
-            Rectangle tooltipRect = (Rectangle){ tooltipX, tooltipY, tooltipW, tooltipH };
+            Rectangle tooltipRect{ tooltipX, tooltipY, tooltipW, tooltipH };
             DrawRectangleRec(tooltipRect, Fade(RAYWHITE, 0.8f));
             DrawRectangleLinesEx(tooltipRect, 1, Fade(BLACK, 0.8f));
 
@@ -639,7 +639,7 @@ int main(void)
 
             hudCursorY += margin;
 
-            const Color darkerGray = (Color){ 40, 40, 40, 255 };
+            const Color darkerGray{ 40, 40, 40, 255 };
             UNUSED(darkerGray);
             DrawRectangle((int)margin, (int)hudCursorY, (int)hudWidth, (int)hudHeight, DARKBLUE);
             DrawRectangleLines((int)margin, (int)hudCursorY, (int)hudWidth, (int)hudHeight, BLACK);
@@ -698,7 +698,7 @@ int main(void)
 
             hudCursorY += margin;
 
-            const Color darkerGray = (Color){ 40, 40, 40, 255 };
+            const Color darkerGray{ 40, 40, 40, 255 };
             UNUSED(darkerGray);
             DrawRectangle((int)margin, (int)hudCursorY, (int)hudWidth, (int)hudHeight, DARKBLUE);
             DrawRectangleLines((int)margin, (int)hudCursorY, (int)hudWidth, (int)hudHeight, BLACK);

@@ -4,8 +4,8 @@
 //------------------------------------------------------------------------------
 // Basic type redefinitions
 //------------------------------------------------------------------------------
-#include <stdint.h>
-#include <limits.h>
+#include <cstdint>
+#include <climits>
 //#include <stdbool.h>
 //#include <assert.h>
 //#include <float.h>
@@ -34,11 +34,6 @@ typedef u64     uint64;
 typedef r32     real32;
 typedef r64     real64;
 //typedef u32     bool32;
-
-//#define bool s32
-#define bool _Bool
-#define true 1
-#define false 0
 
 // NOTE: internal and global are relative to translation unit
 #if 0

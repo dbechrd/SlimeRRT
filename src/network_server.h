@@ -2,7 +2,7 @@
 #include "packet.h"
 #include "chat.h"
 #include "zed_net.h"
-#include <stdint.h>
+#include <cstdint>
 
 #define NETWORK_SERVER_CLIENTS_MAX 4
 // must be power of 2 (shift modulus ring buffer)

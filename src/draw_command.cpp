@@ -2,9 +2,9 @@
 #include "particles.h"
 #include "player.h"
 #include "slime.h"
-#include <assert.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cassert>
+#include <cstdlib>
+#include <cstring>
 
 static size_t commandCapacity;
 static size_t commandCount;
@@ -18,7 +18,7 @@ void draw_commands_init(void)
     // TODO: dynamically grow command list
     const size_t MAX_PLAYERS = 1;
     commandCapacity = MAX_PARTICLES + MAX_SLIMES + MAX_PLAYERS;
-    sortedCommands = calloc(commandCapacity, sizeof(*sortedCommands));
+    sortedCommands = (DrawCommand *)calloc(commandCapacity, sizeof(*sortedCommands));
 }
 
 void draw_commands_free(void)
@@ -31,15 +31,15 @@ static float draw_command_depth(const DrawCommand *cmd)
     float depth = 0.0f;
     switch (cmd->type) {
         case DrawableType_Particle: {
-            depth = particle_depth(cmd->drawable);
+            depth = particle_depth((const Particle *)cmd->drawable);
             break;
         }
         case DrawableType_Player: {
-            depth = player_depth(cmd->drawable);
+            depth = player_depth((const Player *)cmd->drawable);
             break;
         }
         case DrawableType_Slime: {
-            depth = slime_depth(cmd->drawable);
+            depth = slime_depth((const Slime *)cmd->drawable);
             break;
         }
     }
@@ -54,7 +54,8 @@ void draw_commands_enable_culling(const Rectangle rect)
 
 void draw_commands_disable_culling(void)
 {
-    cullRect = (Rectangle){ 0 };
+    cullRect = {};
+    assert(cullRect.width == 0);
     cullEnabled = false;
 }
 
@@ -64,15 +65,15 @@ static bool draw_command_cull(const DrawCommand *cmd, Rectangle cullRect)
 
     switch (cmd->type) {
         case DrawableType_Particle: {
-            cull = particle_cull(cmd->drawable, cullRect);
+            cull = particle_cull((const Particle *)cmd->drawable, cullRect);
             break;
         }
         case DrawableType_Player: {
-            cull = player_cull(cmd->drawable, cullRect);
+            cull = player_cull((const Player *)cmd->drawable, cullRect);
             break;
         }
         case DrawableType_Slime: {
-            cull = slime_cull(cmd->drawable, cullRect);
+            cull = slime_cull((const Slime *)cmd->drawable, cullRect);
             break;
         }
     }
@@ -85,7 +86,7 @@ void draw_command_push(DrawableType type, const void *drawable)
     assert(drawable);
     assert(commandCount < commandCapacity);
 
-    DrawCommand cmd = { 0 };
+    DrawCommand cmd = {};
     cmd.type = type;
     cmd.drawable = drawable;
 
@@ -100,11 +101,11 @@ void draw_command_push(DrawableType type, const void *drawable)
     // TODO: Research quad tree vs. AABB
 
     switch (type) {
-#if 0
         case DrawableType_Particle: {
+#if 0
             sortedCommands[commandCount] = cmd;
-        }
 #endif
+        }
         default: {
             const float depthA = draw_command_depth(&cmd);
             int j;
@@ -126,15 +127,15 @@ static void draw_command_draw(const DrawCommand *cmd)
 {
     switch (cmd->type) {
         case DrawableType_Particle: {
-            particle_draw(cmd->drawable);
+            particle_draw((const Particle *)cmd->drawable);
             break;
         }
         case DrawableType_Player: {
-            player_draw(cmd->drawable);
+            player_draw((const Player *)cmd->drawable);
             break;
         }
         case DrawableType_Slime: {
-            slime_draw(cmd->drawable);
+            slime_draw((const Slime *)cmd->drawable);
             break;
         }
     }

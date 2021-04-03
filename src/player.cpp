@@ -6,7 +6,7 @@
 #include "shadow.h"
 #include "sprite.h"
 #include "spritesheet.h"
-#include <assert.h>
+#include <cassert>
 
 void player_init(Player *player, const char *name, const struct SpriteDef *spriteDef)
 {
@@ -29,8 +29,8 @@ void player_init(Player *player, const char *name, const struct SpriteDef *sprit
     player->inventory.selectedSlot = PlayerInventorySlot_1;
 
     // TODO: Load inventory from save file / server
-    player->inventory.slots[PlayerInventorySlot_1    ] = (ItemStack){ ItemID_Weapon_Sword       ,  1 };
-    player->inventory.slots[PlayerInventorySlot_Coins] = (ItemStack){ ItemID_Currency_Coin      ,  0 };
+    player->inventory.slots[PlayerInventorySlot_1    ] = { ItemID_Weapon_Sword ,  1 };
+    player->inventory.slots[PlayerInventorySlot_Coins] = { ItemID_Currency_Coin,  0 };
 
     // TODO: Load stats from save file / server
     //player->stats.coinsCollected = 33;
@@ -43,7 +43,7 @@ Vector3 player_get_attach_point(const Player *player, PlayerAttachPoint attachPo
     switch (attachPoint) {
         case PlayerAttachPoint_Gut: {
             Vector3 playerC = sprite_world_center(&player->sprite, player->body.position, player->sprite.scale);
-            attach = v3_add(playerC, (Vector3){ 0.0f, 0.0f, -10.0f });
+            attach = v3_add(playerC, { 0.0f, 0.0f, -10.0f });
             break;
         } default: {
             assert(!"That's not a valid attachment point identifier");

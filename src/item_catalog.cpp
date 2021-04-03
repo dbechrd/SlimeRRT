@@ -1,16 +1,16 @@
 #include "item_catalog.h"
 #include "item.h"
 #include "dlb_types.h"
-#include <assert.h>
+#include <cassert>
 
 static Item itemCatalog[ItemID_Count];
 
 void item_catalog_init()
 {
     // TODO: Load items from file
-    itemCatalog[ItemID_Empty              ] = (Item){ ItemID_Empty              ,   1, ItemType_Empty    };
-    itemCatalog[ItemID_Currency_Coin      ] = (Item){ ItemID_Currency_Coin      , 999, ItemType_Currency };
-    itemCatalog[ItemID_Weapon_Sword       ] = (Item){ ItemID_Weapon_Sword       ,   1, ItemType_Weapon   };
+    itemCatalog[ItemID_Empty              ] = { ItemID_Empty              ,   1, ItemType_Empty    };
+    itemCatalog[ItemID_Currency_Coin      ] = { ItemID_Currency_Coin      , 999, ItemType_Currency };
+    itemCatalog[ItemID_Weapon_Sword       ] = { ItemID_Weapon_Sword       ,   1, ItemType_Weapon   };
     itemCatalog[ItemID_Weapon_Sword       ].data.weapon.damage = 5.0f;
 }
 

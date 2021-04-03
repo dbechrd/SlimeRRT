@@ -1,7 +1,7 @@
 #include "sound_catalog.h"
 #include "helpers.h"
 #include "raylib.h"
-#include <assert.h>
+#include <cassert>
 
 static Sound soundCatalog[SoundID_Count];
 

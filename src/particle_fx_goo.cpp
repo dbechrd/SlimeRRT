@@ -1,12 +1,12 @@
 #include "particles.h"
 #include "particle_fx.h"
 #include "dlb_rand.h"
-#include <assert.h>
+#include <cassert>
 
-PARTICLE_FX_INIT(gold)
+PARTICLE_FX_INIT(goo)
 {
-    // Spawn randomly during first 5% of duration
-    particle->spawnAt = duration * dlb_rand32f_variance(0.05f);
+    // Spawn randomly during first 25% of duration
+    particle->spawnAt = duration * dlb_rand32f_variance(0.25f);
 
     // Die randomly during last 15% of animation
     particle->dieAt = duration - (duration * dlb_rand32f_variance(0.15f));
@@ -15,9 +15,8 @@ PARTICLE_FX_INIT(gold)
 #if 1
     float randX = dlb_rand32f_variance(METERS_TO_PIXELS(1.0f));
     float randY = dlb_rand32f_variance(METERS_TO_PIXELS(1.0f));
-    float randZ = dlb_rand32f_range(0.0f, METERS_TO_PIXELS(4.0f));
-    particle->body.velocity = (Vector3){ randX, randY, randZ };
-    particle->body.restitution = 0.8f;
+    float randZ = dlb_rand32f_range(0.0f, METERS_TO_PIXELS(2.0f));
+    particle->body.velocity = { randX, randY, randZ };
     particle->body.friction = 0.5f;
 #else
     const float direction = 1.0f;
@@ -26,11 +25,12 @@ PARTICLE_FX_INIT(gold)
 #endif
     //particle->position = (Vector2){ 0.0f, 0.0f };
     particle->sprite.scale = 1.0f;
-    particle->color = WHITE;
+    particle->color = { 154, 219, 63, 178 };  // Slime lime
 }
 
-PARTICLE_FX_UPDATE(gold)
+PARTICLE_FX_UPDATE(goo)
 {
-    UNUSED(particle);
-    UNUSED(alpha);
+    const float radius = 5.0f;
+    // radius * 1.0 -> 0.2
+    particle->sprite.scale = radius * (1.0f - alpha * 0.8f);
 }

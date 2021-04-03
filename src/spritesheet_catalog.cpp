@@ -1,7 +1,7 @@
 #include "spritesheet_catalog.h"
 #include "spritesheet.h"
 #include "dlb_types.h"
-#include <assert.h>
+#include <cassert>
 
 static Spritesheet spritesheetCatalog[SpritesheetID_Count];
 

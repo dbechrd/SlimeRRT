@@ -1,6 +1,6 @@
 #pragma once
 #include "helpers.h"
-#include <stdint.h>
+#include <cstdint>
 
 typedef struct ChatMessage {
     // TODO: Send consistent chat timestamp from server

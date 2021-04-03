@@ -645,9 +645,9 @@ RAYGUIDEF bool GuiCheckIconPixel(int iconId, int x, int y);     // Check icon pi
     #include "ricons.h"         // Required for: raygui icons data
 #endif
 
-#include <stdio.h>              // Required for: FILE, fopen(), fclose(), fprintf(), feof(), fscanf(), vsprintf()
-#include <string.h>             // Required for: strlen() on GuiTextBox()
-#include <math.h>               // Required for: roundf() on GuiColorPicker()
+#include <cstdio>              // Required for: FILE, fopen(), fclose(), fprintf(), feof(), fscanf(), vsprintf()
+#include <cstring>             // Required for: strlen() on GuiTextBox()
+#include <cmath>               // Required for: roundf() on GuiColorPicker()
 
 #if defined(RAYGUI_STANDALONE)
     #include <stdarg.h>         // Required for: va_list, va_start(), vfprintf(), va_end()
@@ -710,7 +710,7 @@ static GuiTextBoxAdvancedState *guiActiveTextbox = 0;
 //----------------------------------------------------------------------------------
 // stb_textedit function implementations
 //----------------------------------------------------------------------------------
-#include <assert.h>
+#include <cassert>
 
 static int rstb_StringLen(rstb_String *str) {
     return str->used;
@@ -2025,8 +2025,8 @@ bool GuiTextBoxAdvanced(GuiTextBoxAdvancedState *textboxState, Rectangle bounds,
 
     // Draw control
     //--------------------------------------------------------------------
-    int selectionStart = min(textboxState->stb_state.select_start, textboxState->stb_state.select_end);
-    int selectionLength = abs(textboxState->stb_state.select_end - textboxState->stb_state.select_start);
+    int selectionStart = MIN(textboxState->stb_state.select_start, textboxState->stb_state.select_end);
+    int selectionLength = ABS(textboxState->stb_state.select_end - textboxState->stb_state.select_start);
 
     GuiControlProperty baseColorProperty = BASE_COLOR_NORMAL;
     switch (state)
@@ -2049,7 +2049,7 @@ bool GuiTextBoxAdvanced(GuiTextBoxAdvancedState *textboxState, Rectangle bounds,
             Color selectedHighlight = ORANGE; //(Color){ 52, 105, 218, 255 };
             int selectionOffsetX = GetTextSubstringWidth(&textboxState->stb_state, &str, 0, selectionStart);
             int selectionWidth = GetTextSubstringWidth(&textboxState->stb_state, &str, selectionStart, selectionLength);
-            Rectangle cursor = (Rectangle){
+            Rectangle cursor = {
                 bounds.x + GuiGetStyle(TEXTBOX, TEXT_PADDING) + selectionOffsetX + 2,
                 bounds.y + bounds.height/2 - GuiGetStyle(DEFAULT, TEXT_SIZE) + GuiGetStyle(TEXTBOX, TEXT_PADDING),
                 (float)selectionWidth,

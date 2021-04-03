@@ -1,6 +1,6 @@
 #include "bit_stream.h"
 #include "packet.h"
-#include <assert.h>
+#include <cassert>
 
 void bit_stream_writer_init(BitStream *stream, uint32_t *buffer, size_t bufferSize)
 {
@@ -14,7 +14,7 @@ void bit_stream_writer_init(BitStream *stream, uint32_t *buffer, size_t bufferSi
 void bit_stream_reader_init(BitStream *stream, uint32_t *buffer, size_t bytes)
 {
     stream->buffer = buffer;
-    stream->total_bits = (int)bytes * 8;
+    stream->total_bits = bytes * 8;
 }
 
 static void bit_stream_flush(BitStream *stream)
@@ -32,7 +32,7 @@ static void bit_stream_write(BitStream *stream, uint32_t word, uint8_t bits)
     assert(stream->buffer);
     assert(bits);
 
-    uint64_t maskedWord = ((1 << bits) - 1) & word;
+    uint64_t maskedWord = (((uint64_t)1 << bits) - 1) & word;
     stream->scratch |= maskedWord << stream->scratch_bits;
     stream->scratch_bits += bits;
     stream->total_bits += bits;
@@ -51,12 +51,12 @@ static uint32_t bit_stream_read(BitStream *stream, uint8_t bits)
     assert(stream->num_bits_read + bits <= stream->total_bits);
 
     if (bits > stream->scratch_bits) {
-        stream->scratch |= stream->buffer[stream->word_index] << stream->scratch_bits;
+        stream->scratch |= (uint64_t)stream->buffer[stream->word_index] << stream->scratch_bits;
         stream->word_index++;
         stream->scratch_bits += 32;
     }
 
-    uint32_t word = ((1 << bits) - 1) & stream->scratch;
+    uint32_t word = (((uint64_t)1 << bits) - 1) & stream->scratch;
     stream->scratch >>= bits;
     stream->scratch_bits -= bits;
     stream->num_bits_read += bits;
@@ -95,7 +95,7 @@ static void write_net_message_identify(BitStream *stream, const NetMessage_Ident
 
     bit_stream_write(stream, (uint32_t)identify->usernameLength, 5);
     bit_stream_write_align(stream);
-    for (int i = 0; i < identify->usernameLength; i++) {
+    for (size_t i = 0; i < identify->usernameLength; i++) {
         bit_stream_write(stream, identify->username[i], 8);
     }
 }
@@ -115,13 +115,13 @@ static void write_net_message_chat_message(BitStream *stream, const NetMessage_C
 
     bit_stream_write(stream, (uint32_t)chatMessage->usernameLength, 5);
     bit_stream_write_align(stream);
-    for (int i = 0; i < chatMessage->usernameLength; i++) {
+    for (size_t i = 0; i < chatMessage->usernameLength; i++) {
         bit_stream_write(stream, chatMessage->username[i], 8);
     }
 
     bit_stream_write(stream, (uint32_t)chatMessage->messageLength, 9);
     bit_stream_write_align(stream);
-    for (int i = 0; i < chatMessage->messageLength; i++) {
+    for (size_t i = 0; i < chatMessage->messageLength; i++) {
         bit_stream_write(stream, chatMessage->message[i], 8);
     }
 }
@@ -157,7 +157,7 @@ static void read_net_message_identify(BitStream *stream, NetMessage_Identify *id
     bit_stream_read_align(stream);
     assert(stream->num_bits_read % 8 == 0);
     identify->username = (char *)stream->buffer + stream->num_bits_read / 8;
-    for (int i = 0; i < identify->usernameLength; i++) {
+    for (size_t i = 0; i < identify->usernameLength; i++) {
         bit_stream_read(stream, 8);
     }
 }
@@ -178,7 +178,7 @@ static void read_net_message_chat_message(BitStream *stream, NetMessage_ChatMess
     bit_stream_read_align(stream);
     assert(stream->num_bits_read % 8 == 0);
     chatMessage->username = (char *)stream->buffer + stream->num_bits_read / 8;
-    for (int i = 0; i < chatMessage->usernameLength; i++) {
+    for (size_t i = 0; i < chatMessage->usernameLength; i++) {
         bit_stream_read(stream, 8);
     }
 
@@ -187,14 +187,15 @@ static void read_net_message_chat_message(BitStream *stream, NetMessage_ChatMess
     bit_stream_read_align(stream);
     assert(stream->num_bits_read % 8 == 0);
     chatMessage->message = (char *)stream->buffer + stream->num_bits_read / 8;
-    for (int i = 0; i < chatMessage->messageLength; i++) {
+    for (size_t i = 0; i < chatMessage->messageLength; i++) {
         bit_stream_read(stream, 8);
     }
 }
 
 void deserialize_net_message(BitStream *stream, NetMessage *message)
 {
-    message->type = bit_stream_read(stream, 2);
+    // TODO: Validate that this is a valid enum value
+    message->type = (NetMessageType)bit_stream_read(stream, 2);
     switch (message->type) {
         case NetMessageType_Identify: {
             read_net_message_identify(stream, &message->data.identify);

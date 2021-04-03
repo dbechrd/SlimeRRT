@@ -2,8 +2,8 @@
 #include "helpers.h"
 #include "maths.h"
 #include "spritesheet.h"
-#include <assert.h>
-#include <math.h>
+#include <cassert>
+#include <cmath>
 
 #define VELOCITY_EPSILON 0.001f
 #define IDLE_THRESHOLD_SECONDS 6.0

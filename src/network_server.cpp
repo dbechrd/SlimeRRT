@@ -4,19 +4,18 @@
 #include "packet.h"
 #include "raylib.h"
 #include "dlb_types.h"
-#include <assert.h>
-#include <stdbool.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <time.h>
+#include <cassert>
+#include <cstdlib>
+#include <cstdio>
+#include <cstring>
+#include <ctime>
 
 int network_server_init(NetworkServer *server)
 {
     assert(server);
 
     server->packetHistory.capacity = NETWORK_SERVER_PACKET_HISTORY_MAX;
-    server->packetHistory.packets = calloc(server->packetHistory.capacity, sizeof(*server->packetHistory.packets));
+    server->packetHistory.packets = (Packet *)calloc(server->packetHistory.capacity, sizeof(*server->packetHistory.packets));
     if (!server->packetHistory.packets) {
         TraceLog(LOG_FATAL, "[NetworkServer] Failed to allocate packet history buffer.");
         return 0;
@@ -82,11 +81,11 @@ static int network_server_send_welcome_basket(const NetworkServer *server, Netwo
     // - player list
 
     {
-        NetMessage userJoinedNotification = { 0 };
+        NetMessage userJoinedNotification {};
         userJoinedNotification.type = NetMessageType_Welcome;
 
         char rawPacket[PACKET_SIZE_MAX] = { 0 };
-        BitStream writer = { 0 };
+        BitStream writer{};
         bit_stream_writer_init(&writer, (uint32_t *)rawPacket, sizeof(rawPacket));
         size_t rawBytes = serialize_net_message(&writer, &userJoinedNotification);
 
@@ -101,15 +100,15 @@ static int network_server_send_welcome_basket(const NetworkServer *server, Netwo
         const char *message = TextFormat("%.*s joined the game.", usernameLength, username);
         size_t messageLength = strlen(message);
 
-        NetMessage userJoinedNotification = { 0 };
+        NetMessage userJoinedNotification{};
         userJoinedNotification.type = NetMessageType_ChatMessage;
         userJoinedNotification.data.chatMessage.username = "SERVER";
         userJoinedNotification.data.chatMessage.usernameLength = sizeof("SERVER") - 1;
         userJoinedNotification.data.chatMessage.messageLength = messageLength;
         userJoinedNotification.data.chatMessage.message = message;
 
-        char rawPacket[PACKET_SIZE_MAX] = { 0 };
-        BitStream writer = { 0 };
+        char rawPacket[PACKET_SIZE_MAX]{};
+        BitStream writer{};
         bit_stream_writer_init(&writer, (uint32_t *)rawPacket, sizeof(rawPacket));
         size_t rawBytes = serialize_net_message(&writer, &userJoinedNotification);
         network_server_broadcast(server, rawPacket, rawBytes);
@@ -120,7 +119,7 @@ static int network_server_send_welcome_basket(const NetworkServer *server, Netwo
 
 static void network_server_process_message(NetworkServer *server, NetworkServerClient *client, Packet *packet)
 {
-    BitStream reader = { 0 };
+    BitStream reader{};
     bit_stream_reader_init(&reader, (uint32_t *)packet->rawBytes, sizeof(packet->rawBytes));
     deserialize_net_message(&reader, &packet->message);
 
@@ -166,7 +165,7 @@ int network_server_receive(NetworkServer *server)
     // the data but don't do anything with it)?
     int bytes = 0;
     do {
-        zed_net_address_t sender = { 0 };
+        zed_net_address_t sender{};
         size_t packetIdx = (server->packetHistory.first + server->packetHistory.count) % server->packetHistory.capacity;
         assert(packetIdx < server->packetHistory.capacity);
         Packet *packet = &server->packetHistory.packets[packetIdx];

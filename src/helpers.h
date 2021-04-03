@@ -1,8 +1,8 @@
 #pragma once
 #include "raylib.h"
 #include "dlb_types.h"
-#include <stdint.h>
-#include <stdbool.h>
+#include <cstdint>
+//#include <cstdbool>
 
 //------------------------------------------------------------------------------
 // Feature flags

@@ -26,7 +26,7 @@ void tilemap_generate(Tilemap *map)
     assert(map->tileset->tileCount);
 
     map->tileCount = map->widthTiles * map->heightTiles;
-    map->tiles = calloc(map->widthTiles * map->heightTiles, sizeof(*map->tiles));
+    map->tiles = (Tile *)calloc(map->widthTiles * map->heightTiles, sizeof(*map->tiles));
 
     const size_t tileWidth = map->tileset->tileWidth;
     const size_t tileHeight = map->tileset->tileHeight;
@@ -160,14 +160,14 @@ static void rrt_build(Tilemap *map, Vector2 qinit, size_t numVertices, float max
     float maxGrowthDistSq = maxGrowthDist * maxGrowthDist;
 
     map->rrt.vertexCount = numVertices;
-    map->rrt.vertices = calloc(map->rrt.vertexCount, sizeof(*map->rrt.vertices));
+    map->rrt.vertices = (RRTVertex *)calloc(map->rrt.vertexCount, sizeof(*map->rrt.vertices));
     assert(map->rrt.vertices);
 
     const int tileMin = 0;
     const int tileMax = (int)map->tileset->tileCount - 2;
 
     RRTVertex *vertex = map->rrt.vertices;
-    vertex->tileType = dlb_rand32i_range(tileMin, tileMax);
+    vertex->tileType = (TileType)dlb_rand32i_range(tileMin, tileMax);
     vertex->position = qinit;
     vertex++;
 
@@ -197,7 +197,7 @@ static void rrt_build(Tilemap *map, Vector2 qinit, size_t numVertices, float max
 #endif
         qnew = v2_add(qnew, qnear);
         if (tileIdx < randTiles) {
-            vertex->tileType = dlb_rand32i_range(tileMin, tileMax);
+            vertex->tileType = (TileType)dlb_rand32i_range(tileMin, tileMax);
         } else {
             vertex->tileType = map->rrt.vertices[nearestIdx].tileType;
         }
