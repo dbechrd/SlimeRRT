@@ -8,6 +8,7 @@
 // Feature flags
 //------------------------------------------------------------------------------
 #define CULL_ON_PUSH 1
+#define DEMO_VIEW_RSTAR 1
 #define DEMO_VIEW_CULLING 0
 #define DEMO_AI_TRACKING 0
 #define DEMO_BODY_RECT 0

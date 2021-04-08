@@ -1,4 +1,12 @@
-﻿#include "bit_stream.h"
+﻿#include <cassert>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <ctime>
+
+#include <array>
+
+#include "bit_stream.h"
 #include "chat.h"
 #include "controller.h"
 #include "draw_command.h"
@@ -17,17 +25,14 @@
 #include "spritesheet_catalog.h"
 #include "tileset.h"
 #include "tilemap.h"
+#include "rstar.h"
 #include "sim.h"
+
 #include "dlb_rand.h"
 #include "raygui.h"
 #include "gui_textbox_extended.h"
 #include "raylib.h"
 #include "zed_net.h"
-#include <cassert>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <ctime>
 
 static FILE *logFile;
 
@@ -263,6 +268,21 @@ int main(void)
         (float)tilemap.heightTiles / 2.0f * tilemap.tileset->tileHeight,
         0.0f
     };
+
+#if DEMO_VIEW_RSTAR
+    std::array<Rectangle, 100> rects;
+    std::array<bool, 100> drawn{};
+    RStar::RStarTree<int> tree{};
+
+    dlb_rand32_t rstar_rand{};
+    dlb_rand32_seed_r(&rstar_rand, 42, 42);
+    for (size_t i = 0; i < rects.size(); i++) {
+        rects[i].x = worldSpawn.x + dlb_rand32f_variance_r(&rstar_rand, 400.0f);
+        rects[i].y = worldSpawn.y + dlb_rand32f_variance_r(&rstar_rand, 400.0f);
+        rects[i].width  = dlb_rand32f_range_r(&rstar_rand, 10.0f, 50.0f);
+        rects[i].height = dlb_rand32f_range_r(&rstar_rand, 10.0f, 50.0f);
+    }
+#endif
 
     Camera2D camera = { 0 };
     //camera.target = (Vector2){
@@ -563,6 +583,49 @@ int main(void)
 
             draw_commands_flush();
         }
+
+#if DEMO_VIEW_RSTAR
+        RStar::AABB<float> searchAABB = {
+            mousePosWorld.x - 50,
+            mousePosWorld.y - 50,
+            mousePosWorld.x + 50,
+            mousePosWorld.y + 50
+        };
+
+#if 0
+        std::vector<int> matches = tree.Search(searchAABB);
+#else
+        Rectangle searchRect {
+            searchAABB.min.x,
+            searchAABB.min.y,
+            searchAABB.max.x - searchAABB.min.x,
+            searchAABB.max.y - searchAABB.min.y
+        };
+
+        static std::vector<int> matches;
+        matches.clear();
+        for (int i = 0; i < rects.size(); i++) {
+            if (CheckCollisionRecs(rects[i], searchRect)) {
+                matches.push_back(i);
+            }
+        }
+#endif
+
+        for (const int i : matches) {
+            DrawRectangleRec(rects[i], RED);
+            drawn[i] = true;
+        }
+
+        for (size_t i = 0; i < drawn.size(); i++) {
+            if (!drawn[i]) {
+                DrawRectangleLinesEx(rects[i], 2, WHITE);
+            } else {
+                drawn[i] = false;
+            }
+        }
+
+        DrawRectangleLinesEx(searchRect, 2, YELLOW);
+#endif
 
 #if DEMO_VIEW_CULLING
         DrawRectangleLinesEx(cameraRect, 3, Fade(PINK, 0.8f));
