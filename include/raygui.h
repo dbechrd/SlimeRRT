@@ -525,8 +525,6 @@ typedef enum {
     HUEBAR_SELECTOR_OVERFLOW       // Right hue bar selector overflow
 } GuiColorPickerProperty;
 
-
-
 typedef struct {
     STB_TexteditState stb_state;
     bool focused;
@@ -540,6 +538,8 @@ typedef struct {
 //----------------------------------------------------------------------------------
 // Module Functions Declaration
 //----------------------------------------------------------------------------------
+
+RAYGUIDEF void GuiSetActiveTextbox(GuiTextBoxAdvancedState *textbox);
 
 // State modification functions
 RAYGUIDEF void GuiEnable(void);                                         // Enable gui controls (global state)
@@ -1013,6 +1013,11 @@ int GuiGetStyle(int control, int property)
 {
     if (!guiStyleLoaded) GuiLoadStyleDefault();
     return guiStyle[control*(NUM_PROPS_DEFAULT + NUM_PROPS_EXTENDED) + property];
+}
+
+void GuiSetActiveTextbox(GuiTextBoxAdvancedState *textbox)
+{
+    guiActiveTextbox = textbox;
 }
 
 //----------------------------------------------------------------------------------

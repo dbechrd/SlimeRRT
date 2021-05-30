@@ -33,7 +33,7 @@ int network_server_open_socket(NetworkServer *server, unsigned short port)
 {
     assert(server);
 
-    if (zed_net_udp_socket_open(&server->socket, port, 1) < 0) {
+    if (zed_net_udp_socket_open(&server->socket, port, 0) < 0) {
         const char *err = zed_net_get_error();
         TraceLog(LOG_ERROR, "[NetworkServer] Failed to start server on port %hu. Error: %s", server->port, err);
         return 0;

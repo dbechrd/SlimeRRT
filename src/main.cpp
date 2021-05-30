@@ -5,6 +5,7 @@
 #include <ctime>
 
 #include <array>
+#include <thread>
 
 #include "bit_stream.h"
 #include "chat.h"
@@ -43,7 +44,7 @@ void traceLogCallback(int logType, const char *text, va_list args)
     vfprintf(stdout, text, args);
     fputs("\n", stdout);
     fflush(logFile);
-    if (logType == LOG_FATAL) {
+    if (logType >= LOG_WARNING) {
         assert(!"Catch in debugger");
         exit(-1);
     }
@@ -63,6 +64,25 @@ Rectangle RectPadXY(const Rectangle rec, float padX, float padY)
 
 #define DLB_RAND_TEST
 #include "dlb_rand.h"
+
+static NetworkServer server = { 0 };
+void network_server_thread()
+{
+    if (!network_server_init(&server)) {
+        TraceLog(LOG_FATAL, "Failed to initialize network server system.\n");
+    }
+
+    const unsigned int SERVER_PORT = 4040;
+    if (!network_server_open_socket(&server, SERVER_PORT)) {
+        TraceLog(LOG_ERROR, "Failed to open server socket on port %hu.\n", SERVER_PORT);
+        // TODO: Handle gracefully if local server to allow singleplayer mode
+        exit(-1);
+    }
+
+    network_server_receive(&server);
+
+    network_server_free(&server);
+}
 
 int main(void)
 {
@@ -126,6 +146,11 @@ int main(void)
         assert(!strncmp(msgRead.data.chatMessage.message, msgWritten.data.chatMessage.message, msgRead.data.chatMessage.messageLength));
     }
 
+    ////////////////////////////////////////////////////////////////////////////
+
+    InitWindow(1600, 900, "Attack the slimes!");
+    SetWindowState(FLAG_WINDOW_RESIZABLE);
+    SetExitKey(0);  // Disable default Escape exit key, we'll handle escape ourselves
 
 #if ALPHA_NETWORKING
     if (zed_net_init() < 0) {
@@ -133,17 +158,7 @@ int main(void)
         TraceLog(LOG_FATAL, "Failed to initialize network utilities. Error: %s\n", err);
     }
 
-    NetworkServer server = { 0 };
-    if (!network_server_init(&server)) {
-        TraceLog(LOG_FATAL, "Failed to initialize network server system.\n");
-    }
-
-    const unsigned int SERVER_PORT = 4040;
-    if (!network_server_open_socket(&server, SERVER_PORT)) {
-        TraceLog(LOG_ERROR, "Failed to open server socket on port %hu.\n", SERVER_PORT);
-        // TODO: Handle gracefully if local server to allow singleplayer mode
-        exit(-1);
-    }
+    std::thread server_thread = std::thread(network_server_thread);
 
     NetworkClient client = { 0 };
     if (!network_client_init(&client)) {
@@ -162,10 +177,6 @@ int main(void)
         TraceLog(LOG_FATAL, "Failed to connect client.\n");
     }
 #endif
-
-    InitWindow(1600, 900, "Attack the slimes!");
-    SetWindowState(FLAG_WINDOW_RESIZABLE);
-    SetExitKey(0);  // Disable default Escape exit key, we'll handle escape ourselves
 
     const int fontHeight = 14;
     Font fonts[3] = {
@@ -366,7 +377,6 @@ int main(void)
         }
 
 #if ALPHA_NETWORKING
-        network_server_receive(&server);
         network_client_receive(&client);
 #endif
 
@@ -751,6 +761,7 @@ int main(void)
 
 #if ALPHA_NETWORKING
         // Render connected clients
+#if 0
         {
             int linesOfText = 1 + (int)server.clientsConnected;
 
@@ -778,13 +789,17 @@ int main(void)
                 }
             }
         }
+#endif
 
         // Render chat history
         {
+            static GuiTextBoxAdvancedState chatInputState;
+
             if (chatActive) {
                 const float margin = 6.0f;   // left/bottom margin
                 const float pad = 4.0f;      // left/bottom pad
 
+#if 0
                 {
                     static bool dialog = true;
                     dialog = dialog || IsKeyPressed(KEY_GRAVE);
@@ -838,6 +853,7 @@ int main(void)
                         }
                     }
                 }
+#endif
 
                 const int linesOfText = (int)client.chatHistory.count;
                 const float chatWidth = 420.0f;
@@ -869,7 +885,6 @@ int main(void)
                 assert(CHAT_MESSAGE_LENGTH_MAX < CHAT_MESSAGE_BUFFER_LEN);
 
                 Rectangle chatInputRect = { margin, screenHeight - margin - inputBoxHeight, chatWidth, inputBoxHeight };
-                static GuiTextBoxAdvancedState chatInputState;
                 //GuiTextBox(inputBox, chatInputText, CHAT_MESSAGE_LENGTH_MAX, true);
                 //GuiTextBoxEx(inputBox, chatInputText, CHAT_MESSAGE_LENGTH_MAX, true);
                 if (GuiTextBoxAdvanced(&chatInputState, chatInputRect, chatInputText, &chatInputTextLen, CHAT_MESSAGE_LENGTH_MAX, false)) {
@@ -892,6 +907,7 @@ int main(void)
             // HACK: Check for this *after* rendering chat to avoid pressing "t" causing it to show up in the chat box
             if (!chatActive && IsKeyDown(KEY_T)) {
                 chatActive = true;
+                GuiSetActiveTextbox(&chatInputState);
             }
         }
 #endif
@@ -910,8 +926,10 @@ int main(void)
     // Clean up
     //--------------------------------------------------------------------------------------
 #if ALPHA_NETWORKING
+    network_client_close_socket(&client);
     network_client_free(&client);
-    network_server_free(&server);
+    network_server_close_socket(&server);
+    server_thread.join();
     zed_net_shutdown();
 #endif
     tilemap_free(&tilemap);

@@ -2,7 +2,7 @@
 
 PlayerControllerState QueryPlayerController()
 {
-    PlayerControllerState input = { 0 };
+    PlayerControllerState input = {};
 
     bool north = IsKeyDown(KEY_W);
     bool east  = IsKeyDown(KEY_D);
