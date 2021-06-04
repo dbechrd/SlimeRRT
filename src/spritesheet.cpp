@@ -51,26 +51,26 @@
     FILENAME
 
 
-typedef enum TokenType {
+enum TokenType {
     TOK_UNKNOWN,
     TOK_ANIMATION,
     TOK_DIRSPRITE,
     TOK_FRAME,
     TOK_SPRITESHEET,
     TOK_SPRITE,
-} TokenType;
+};
 
-typedef struct Token {
+struct Token {
     TokenType type;
     StringView token;
-} Token;
+};
 
-typedef struct Scanner {
+struct Scanner {
     const char *fileName;
     size_t cursor;
     size_t length;
     const char *text;
-} Scanner;
+};
 
 static bool DiscardChar(Scanner *scanner, char c)
 {
@@ -152,7 +152,7 @@ static StringView ConsumeString_Alpha(Scanner *scanner)
 {
     assert(scanner);
 
-    StringView view = { 0 };
+    StringView view = {};
     view.text = scanner->text + scanner->cursor;
 
     char c = PeekChar(scanner);
@@ -176,7 +176,7 @@ static StringView ConsumeString_Name(Scanner *scanner)
 {
     assert(scanner);
 
-    StringView view = { 0 };
+    StringView view = {};
     view.text = scanner->text + scanner->cursor;
 
     char c = PeekChar(scanner);
@@ -365,7 +365,7 @@ static bool ParseHeader(Scanner *scanner, Spritesheet *spritesheet)
 
     // texture path
     DiscardWhitespaceNewlinesComments(scanner);
-    char texturePath[256] = { 0 };
+    char texturePath[256] = {};
     if (!ConsumeString_Path(scanner, texturePath, sizeof(texturePath) - 1)) {
         TraceLog(LOG_ERROR, "'%s': Expected texture_path. " USAGE "\n", scanner->fileName);
         return false;
@@ -640,7 +640,7 @@ void spritesheet_init(Spritesheet *spritesheet, const char *fileName)
     spritesheet->buf = data;
     spritesheet->bufLength = dataLength;
 
-    Scanner scanner = { 0 };
+    Scanner scanner = {};
     scanner.fileName = fileName;
     scanner.text = spritesheet->buf;
     scanner.length = spritesheet->bufLength;

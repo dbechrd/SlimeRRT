@@ -6,7 +6,7 @@
 
 static inline Vector2 v2_init(float x, float y)
 {
-    Vector2 result = { 0 };
+    Vector2 result = {};
     result.x = x;
     result.y = y;
     return result;
@@ -25,7 +25,7 @@ static inline int v2_is_tiny(const Vector2 v, float epsilon)
 
 static inline Vector2 v2_negate(const Vector2 v)
 {
-    Vector2 result = { 0 };
+    Vector2 result = {};
     result.x = -v.x;
     result.y = -v.y;
     return result;
@@ -39,7 +39,7 @@ static inline int v2_equal(const Vector2 a, const Vector2 b)
 
 static inline Vector2 v2_add(const Vector2 a, const Vector2 b)
 {
-    Vector2 result = { 0 };
+    Vector2 result = {};
     result.x = a.x + b.x;
     result.y = a.y + b.y;
     return result;
@@ -47,7 +47,7 @@ static inline Vector2 v2_add(const Vector2 a, const Vector2 b)
 
 static inline Vector2 v2_sub(const Vector2 a, const Vector2 b)
 {
-    Vector2 result = { 0 };
+    Vector2 result = {};
     result.x = a.x - b.x;
     result.y = a.y - b.y;
     return result;
@@ -80,7 +80,7 @@ static inline Vector2 v2_normalize(const Vector2 v)
     }
 
     const float length = v2_length(v);
-    Vector2 result = { 0 };
+    Vector2 result = {};
     result.x = v.x / length;
     result.y = v.y / length;
     return result;
@@ -108,7 +108,7 @@ static inline float v2_distance(const Vector2 a, const Vector2 b)
 
 static inline Vector2 v2_round(const Vector2 v)
 {
-    Vector2 result = { 0 };
+    Vector2 result = {};
     result.x = roundf(v.x);
     result.y = roundf(v.y);
     return result;
@@ -118,7 +118,7 @@ static inline Vector2 v2_round(const Vector2 v)
 
 static inline Vector3 v3_init(float x, float y, float z)
 {
-    Vector3 result = { 0 };
+    Vector3 result = {};
     result.x = x;
     result.y = y;
     result.z = z;
@@ -138,7 +138,7 @@ static inline int v3_is_tiny(const Vector3 v, float epsilon)
 
 static inline Vector3 v3_negate(const Vector3 v)
 {
-    Vector3 result = { 0 };
+    Vector3 result = {};
     result.x = -v.x;
     result.y = -v.y;
     result.z = -v.z;
@@ -153,7 +153,7 @@ static inline int v3_equal(const Vector3 a, const Vector3 b)
 
 static inline Vector3 v3_add(const Vector3 a, const Vector3 b)
 {
-    Vector3 result = { 0 };
+    Vector3 result = {};
     result.x = a.x + b.x;
     result.y = a.y + b.y;
     result.z = a.z + b.z;
@@ -162,7 +162,7 @@ static inline Vector3 v3_add(const Vector3 a, const Vector3 b)
 
 static inline Vector3 v3_sub(const Vector3 a, const Vector3 b)
 {
-    Vector3 result = { 0 };
+    Vector3 result = {};
     result.x = a.x - b.x;
     result.y = a.y - b.y;
     result.z = a.z - b.z;
@@ -197,7 +197,7 @@ static inline Vector3 v3_normalize(const Vector3 v)
     }
 
     const float length = v3_length(v);
-    Vector3 result = { 0 };
+    Vector3 result = {};
     result.x = v.x / length;
     result.y = v.y / length;
     result.z = v.z / length;
@@ -227,7 +227,7 @@ static inline float v3_distance(const Vector3 a, const Vector3 b)
 
 static inline Vector3 v3_round(const Vector3 v)
 {
-    Vector3 result = { 0 };
+    Vector3 result = {};
     result.x = roundf(v.x);
     result.y = roundf(v.y);
     result.z = roundf(v.z);

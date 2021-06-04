@@ -28,6 +28,7 @@
 #include "tilemap.h"
 #include "rstar.h"
 #include "sim.h"
+#include "world.h"
 
 #include "dlb_rand.h"
 #include "raygui.h"
@@ -65,7 +66,7 @@ Rectangle RectPadXY(const Rectangle rec, float padX, float padY)
 #define DLB_RAND_TEST
 #include "dlb_rand.h"
 
-static NetworkServer server = { 0 };
+static NetworkServer server = {};
 void network_server_thread()
 {
     if (!network_server_init(&server)) {
@@ -84,16 +85,37 @@ void network_server_thread()
     network_server_free(&server);
 }
 
-int main(void)
+struct Args {
+    bool server;
+};
+
+void parse_args(Args &args, int argc, char *argv[])
 {
+    for (int i = 0; i < argc; i++) {
+        printf("args[%d] = '%s'\n", i, argv[i]);
+
+        if (!strcmp(argv[i], "-s")) {
+            args.server = true;
+            // TODO: Check if next arg is a port
+        }
+    }
+}
+
+int main(int argc, char *argv[])
+{
+    Args args = {};
+    parse_args(args, argc, argv);
+
     //--------------------------------------------------------------------------------------
     // Initialization
     //--------------------------------------------------------------------------------------
     logFile = fopen("log.txt", "w");
     SetTraceLogCallback(traceLogCallback);
 
-    //dlb_rand32_seed(42);
-    dlb_rand32_seed(time(NULL));
+    World world = {};
+
+    world.rtt_seed = time(NULL);
+    dlb_rand32_seed_r(&world.rtt_rand, world.rtt_seed, world.rtt_seed);
 
     //dlb_rand_test();
 
@@ -128,7 +150,7 @@ int main(void)
         msgWritten.data.chatMessage.message = "This is a test message";
         msgWritten.data.chatMessage.messageLength = strlen(msgWritten.data.chatMessage.message);
 
-        char rawPacket[PACKET_SIZE_MAX] = { 0 };
+        char rawPacket[PACKET_SIZE_MAX] = {};
         BitStream chatWriter = {};
         bit_stream_writer_init(&chatWriter, (uint32_t *)rawPacket, sizeof(rawPacket));
         serialize_net_message(&chatWriter, &msgWritten);
@@ -148,7 +170,11 @@ int main(void)
 
     ////////////////////////////////////////////////////////////////////////////
 
-    InitWindow(1600, 900, "Attack the slimes!");
+    const char *title = "Attack the slimes!";
+    if (args.server) {
+        title = "[Server] Attack the slimes!";
+    }
+    InitWindow(1600, 900, title);
     SetWindowState(FLAG_WINDOW_RESIZABLE);
     SetExitKey(0);  // Disable default Escape exit key, we'll handle escape ourselves
 
@@ -158,9 +184,12 @@ int main(void)
         TraceLog(LOG_FATAL, "Failed to initialize network utilities. Error: %s\n", err);
     }
 
-    std::thread server_thread = std::thread(network_server_thread);
+    std::thread server_thread = {};
+    if (args.server) {
+        server_thread = std::thread(network_server_thread);
+    }
 
-    NetworkClient client = { 0 };
+    NetworkClient client = {};
     if (!network_client_init(&client)) {
         TraceLog(LOG_FATAL, "Failed to initialize network client system.\n");
     }
@@ -229,17 +258,17 @@ int main(void)
     Texture tilesetTex = LoadTexture("resources/tiles32.png");
     assert(tilesetTex.width);
 
-    Tileset tileset = { 0 };
+    Tileset tileset = {};
     tileset_init_ex(&tileset, &tilesetTex, 32, 32, TileType_Count);
 
-    Tilemap tilemap = { 0 };
+    Tilemap tilemap = {};
     //tilemap_generate_ex(&tilemap, 128, 128, &tileset);
     tilemap_generate_ex(&tilemap, 256, 256, &tileset);
     //tilemap_generate_ex(&tilemap, 512, 512, &tileset);
 
-    Texture minimapTex = { 0 };
+    Texture minimapTex = {};
     {
-        Image minimapImg = { 0 };
+        Image minimapImg = {};
         minimapImg.width = (int)tilemap.widthTiles;
         minimapImg.height = (int)tilemap.heightTiles;
         minimapImg.mipmaps = 1;
@@ -295,7 +324,7 @@ int main(void)
     }
 #endif
 
-    Camera2D camera = { 0 };
+    Camera2D camera = {};
     //camera.target = (Vector2){
     //    (float)tilemap.widthTiles / 2.0f * tilemap.tileset->tileWidth,
     //    (float)tilemap.heightTiles / 2.0f * tilemap.tileset->tileHeight
@@ -318,11 +347,11 @@ int main(void)
     const Spritesheet *coinSpritesheet = spritesheet_catalog_find(SpritesheetID_Coin);
     const SpriteDef *coinSpriteDef = spritesheet_find_sprite(coinSpritesheet, "coin");
 
-    Player charlie = { 0 };
+    Player charlie = {};
     player_init(&charlie, "Charlie", charlieSpriteDef);
     charlie.body.position = worldSpawn;
 
-    Slime slimes[MAX_SLIMES] = { 0 };
+    Slime slimes[MAX_SLIMES] = {};
 
     {
         // TODO: Slime radius should probably be determined base on largest frame, no an arbitrary frame. Or, it could
@@ -395,7 +424,7 @@ int main(void)
             if (IsKeyPressed(KEY_F11)) {
                 time_t t = time(NULL);
                 struct tm tm = *localtime(&t);
-                char screenshotName[64] = { 0 };
+                char screenshotName[64] = {};
                 int len = snprintf(screenshotName, sizeof(screenshotName),
                     "screenshots/%d-%02d-%02d_%02d-%02d-%02d_screenshot.png",
                     tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
@@ -501,7 +530,7 @@ int main(void)
         ClearBackground(ORANGE);
         DrawTexture(checkboardTexture, 0, 0, WHITE);
 
-        Rectangle cameraRect = { 0 };
+        Rectangle cameraRect = {};
         cameraRect.x = camera.target.x - camera.offset.x * invZoom;
         cameraRect.y = camera.target.y - camera.offset.y * invZoom;
         cameraRect.width  = camera.offset.x * 2.0f * invZoom;
@@ -553,7 +582,7 @@ int main(void)
         //DrawRectangleRec(cameraRect, Fade(PINK, 0.5f));
 
         const Vector2 mousePosScreen = GetMousePosition();
-        Vector2 mousePosWorld = { 0 };
+        Vector2 mousePosWorld = {};
         mousePosWorld.x += mousePosScreen.x * invZoom + cameraRect.x;
         mousePosWorld.y += mousePosScreen.y * invZoom + cameraRect.y;
 
@@ -761,8 +790,7 @@ int main(void)
 
 #if ALPHA_NETWORKING
         // Render connected clients
-#if 0
-        {
+        if (args.server) {
             int linesOfText = 1 + (int)server.clientsConnected;
 
             const float margin = 6.0f;   // left/top margin
@@ -789,7 +817,6 @@ int main(void)
                 }
             }
         }
-#endif
 
         // Render chat history
         {
@@ -928,8 +955,10 @@ int main(void)
 #if ALPHA_NETWORKING
     network_client_close_socket(&client);
     network_client_free(&client);
-    network_server_close_socket(&server);
-    server_thread.join();
+    if (args.server) {
+        network_server_close_socket(&server);
+        server_thread.join();
+    }
     zed_net_shutdown();
 #endif
     tilemap_free(&tilemap);

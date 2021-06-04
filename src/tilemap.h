@@ -2,40 +2,40 @@
 #include "tileset.h"
 #include "math.h"
 
-typedef enum TileType {
+enum TileType {
     TileType_Grass,
     TileType_Water,
     TileType_Forest,
     TileType_Wood,
     TileType_Concrete,
     TileType_Count
-} TileType;
+};
 
 // TODO: Refactor RRT logic out into standalone file
-typedef struct RRTVertex {
+struct RRTVertex {
     TileType tileType;
     Vector2 position;
     Rectangle textureRect;
-} RRTVertex;
+};
 
-typedef struct RRT {
+struct RRT {
     size_t vertexCount;
     RRTVertex *vertices;
-} RRT;
+};
 
-typedef struct Tile {
+struct Tile {
     TileType tileType;
     Vector2 position;
-} Tile;
+};
 
-typedef struct Tilemap {
+struct Tilemap {
     size_t widthTiles;   // width of map in tiles
     size_t heightTiles;  // height of map in tiles
     size_t tileCount;    // number of tiles in the map (widthTiles * heightTiles)
     Tile *tiles;         // array of tile data
     Tileset *tileset;    // tileset to use for rendering
     RRT rrt;             // "Rapidly-exploring Random Tree" data struture (used for procedural generation)
-} Tilemap;
+};
 
 bool tile_is_walkable       (const Tile *tile);   // Return true if player can walk on the tile (false if tile is null)
 

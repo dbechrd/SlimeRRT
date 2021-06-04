@@ -38,7 +38,7 @@ void sim(double now, double dt, const PlayerControllerState input, Player *playe
     }
 
     float playerSpeed = 4.0f;
-    Vector2 moveBuffer = { 0 };
+    Vector2 moveBuffer = {};
     if (input.moveState == PlayerMoveState_Running) {
         playerSpeed += 2.0f;
     }

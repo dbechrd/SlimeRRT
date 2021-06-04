@@ -1,7 +1,5 @@
 #pragma once
 
-typedef struct Particle Particle;
-
 #define PARTICLE_FX_INIT(name) \
     void particle_fx_##name##_init   (Particle *particle, double duration)
 

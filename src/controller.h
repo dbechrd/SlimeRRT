@@ -2,11 +2,11 @@
 #include "direction.h"
 #include "player.h"
 
-typedef struct PlayerControllerState {
+struct PlayerControllerState {
     PlayerMoveState moveState;
     Direction direction;
     PlayerActionState actionState;
     PlayerInventorySlot selectSlot;
-} PlayerControllerState;
+};
 
 PlayerControllerState QueryPlayerController();

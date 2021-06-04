@@ -3,13 +3,13 @@
 #include "spritesheet.h"
 #include "raylib.h"
 
-typedef struct Sprite {
+struct Sprite {
     const SpriteDef *spriteDef;
     float scale;
     Direction direction;
     size_t animFrameIdx;
     double lastAnimFrameStarted;
-} Sprite;
+};
 
 const SpriteAnim  * sprite_anim             (const Sprite *sprite);
 const SpriteFrame * sprite_frame            (const Sprite *sprite);

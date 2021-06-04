@@ -84,7 +84,7 @@ static int network_server_send_welcome_basket(const NetworkServer *server, Netwo
         NetMessage userJoinedNotification {};
         userJoinedNotification.type = NetMessageType_Welcome;
 
-        char rawPacket[PACKET_SIZE_MAX] = { 0 };
+        char rawPacket[PACKET_SIZE_MAX] = {};
         BitStream writer{};
         bit_stream_writer_init(&writer, (uint32_t *)rawPacket, sizeof(rawPacket));
         size_t rawBytes = serialize_net_message(&writer, &userJoinedNotification);
@@ -137,8 +137,8 @@ static void network_server_process_message(NetworkServer *server, NetworkServerC
 
             // TODO(security): This is currently rebroadcasting user input to all other clients.. ripe for abuse
             // Broadcast chat message
-            char rawPacket[PACKET_SIZE_MAX] = { 0 };
-            BitStream writer = { 0 };
+            char rawPacket[PACKET_SIZE_MAX] = {};
+            BitStream writer = {};
             bit_stream_writer_init(&writer, (uint32_t *)rawPacket, sizeof(rawPacket));
             size_t rawBytes = serialize_net_message(&writer, &packet->message);
             network_server_broadcast(server, rawPacket, rawBytes);
@@ -197,7 +197,7 @@ int network_server_receive(NetworkServer *server)
                     client = &server->clients[i];
                     client->address = sender;
                     break;
-                } else if (server->clients[i].address.host == sender.host) {
+                } else if (server->clients[i].address.host == sender.host && server->clients[i].address.port == sender.port) {
                     client = &server->clients[i];
                     break;
                 }

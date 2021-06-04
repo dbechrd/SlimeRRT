@@ -1,17 +1,17 @@
 #pragma once
 #include "raylib.h"
 
-typedef enum DrawableType {
+enum DrawableType {
     DrawableType_Particle,
     DrawableType_Player,
     DrawableType_Slime,
     DrawableType_Count
-} DrawableType;
+};
 
-typedef struct DrawCommand {
+struct DrawCommand {
     DrawableType type;
     const void *drawable;
-} DrawCommand;
+};
 
 void draw_commands_init             (void);
 void draw_commands_free             (void);

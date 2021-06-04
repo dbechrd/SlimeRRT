@@ -18,14 +18,14 @@ void healthbar_draw(int fontSize, const Sprite *sprite, const Body3D *body, floa
     const float hpPercent = hitPoints / maxHitPoints;
     const char *hpText = TextFormat("HP: %.02f / %.02f", hitPoints, maxHitPoints);
 
-    Rectangle hpRect = { 0 };
+    Rectangle hpRect = {};
     hpRect.width = (float)MeasureText(hpText, fontSize);
     hpRect.height = (float)fontSize;
     hpRect.x = x - ceilf(hpRect.width / 2.0f);
     hpRect.y = y - fontSize;
 
     Vector2 pad = { 4.0f, 2.0f };
-    Rectangle bgRect = { 0 };
+    Rectangle bgRect = {};
     bgRect.x = hpRect.x - pad.x;
     bgRect.y = hpRect.y - pad.y;
     bgRect.width  = hpRect.width  + pad.x * 2.0f;

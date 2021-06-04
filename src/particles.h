@@ -6,7 +6,7 @@
 
 #define MAX_PARTICLES 16384
 
-typedef struct Particle {
+struct Particle {
     struct ParticleEffect *effect; // parent effect, 0 = dead
     struct Particle *next;         // when alive, next particle in effect. when dead, intrusive free list.
     Body3D body;                   // physics body
@@ -14,7 +14,7 @@ typedef struct Particle {
     Color color;                   // particle color (tint if particle also has sprite)
     double spawnAt;                // time to spawn (relative to effect->startedAt)
     double dieAt;                  // time to die   (relative to effect->startedAt)
-} Particle;
+};
 
 void       particles_init   (void);
 void       particles_free   (void);
@@ -28,36 +28,36 @@ void       particle_draw    (const Particle *particle);
 
 //-----------------------------------------------------------------------------
 
-typedef enum ParticleEffectType {
+enum ParticleEffectType {
     ParticleEffectType_Dead,
     ParticleEffectType_Blood,
     ParticleEffectType_Gold,
     ParticleEffectType_Goo,
     ParticleEffectType_Count
-} ParticleEffectType;
+};
 
-typedef enum ParticleEffectEventType {
+enum ParticleEffectEventType {
     ParticleEffectEvent_BeforeUpdate,
     ParticleEffectEvent_Dying,
     ParticleEffectEvent_Count
-} ParticleEffectEventType;
+};
 
 typedef void (*ParticleInitFn  )(Particle *particle, double duration);
 typedef void (*ParticleUpdateFn)(Particle *particle, float alpha);
 
-typedef struct ParticleDef {
+struct ParticleDef {
     ParticleInitFn   init;
     ParticleUpdateFn update;
-} ParticleDef;
+};
 
 typedef void (*ParticeEffectEventCallbackFn)(struct ParticleEffect *effect, void *userData);
 
-typedef struct ParticeEffectEventCallback {
+struct ParticeEffectEventCallback {
     ParticeEffectEventCallbackFn function;
     void *userData;
-} ParticeEffectEventCallback;
+};
 
-typedef struct ParticleEffect {
+struct ParticleEffect {
     ParticleEffectType type;      // type of particle effect (or Dead)
     size_t particlesLeft;         // number of particles that are pending or alive (i.e. not dead)
     Vector3 origin;               // origin of particle effect
@@ -67,7 +67,7 @@ typedef struct ParticleEffect {
     struct ParticleEffect *next;  // when dead, intrusive free list
     ParticleDef *def;
     ParticeEffectEventCallback callbacks[ParticleEffectEvent_Count];
-} ParticleEffect;
+};
 
 ParticleEffect *particle_effect_create(ParticleEffectType type, size_t particleCount, Vector3 origin, double duration,
                                        double now, const SpriteDef *spriteDef);

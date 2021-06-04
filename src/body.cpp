@@ -21,7 +21,7 @@ Vector2 body_ground_position(const Body3D *body)
 {
     assert(body);
 
-    Vector2 groundPosition = { 0 };
+    Vector2 groundPosition = {};
     groundPosition.x = body->position.x;
     groundPosition.y = body->position.y;
     return groundPosition;

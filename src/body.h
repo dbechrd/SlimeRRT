@@ -2,7 +2,7 @@
 #include "helpers.h"
 #include "raylib.h"
 
-typedef struct Body3D {
+struct Body3D {
     Vector3 acceleration;
     Vector3 velocity;
     Vector3 position;
@@ -14,7 +14,7 @@ typedef struct Body3D {
     double lastMoved;
     bool landed;
     bool idle;
-} Body3D;
+};
 
 Vector2 body_bottom_center   (const Body3D *body);
 Vector2 body_ground_position (const Body3D *body);

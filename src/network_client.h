@@ -7,7 +7,7 @@
 // must be power of 2 (shift modulus ring buffer)
 #define NETWORK_CLIENT_PACKET_HISTORY_MAX 256
 
-typedef struct {
+struct NetworkClient {
     const char *serverHostname;
     zed_net_address_t server;
     zed_net_socket_t socket;
@@ -15,7 +15,7 @@ typedef struct {
     char username[USERNAME_LENGTH_MAX];
     PacketBuffer packetHistory;
     ChatHistory chatHistory;
-} NetworkClient;
+};
 
 // TODO: This should be abstracted out into a messaging system the serializes everything and sends the raw packet
 // to network_client_send which handles the actual sending

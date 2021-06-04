@@ -1,7 +1,7 @@
 #pragma once
 #include "helpers.h"
 
-typedef enum SoundID {
+enum SoundID {
     SoundID_Empty,
     SoundID_Footstep,
     SoundID_Gold,
@@ -11,7 +11,7 @@ typedef enum SoundID {
     SoundID_Squish2,
     SoundID_Whoosh,
     SoundID_Count
-} SoundID;
+};
 
 void sound_catalog_init();
 void sound_catalog_play(SoundID id, float pitch);

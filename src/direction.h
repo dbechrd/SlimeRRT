@@ -1,6 +1,6 @@
 #pragma once
 
-typedef enum Direction {
+enum Direction {
     Direction_North     = 0,  // 000
     Direction_East      = 1,  // 001
     Direction_South     = 2,  // 010
@@ -10,4 +10,4 @@ typedef enum Direction {
     Direction_SouthWest = 6,  // 110
     Direction_NorthWest = 7,  // 111
     Direction_Count
-} Direction;
+};

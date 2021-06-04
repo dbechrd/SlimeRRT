@@ -173,7 +173,7 @@ static void rrt_build(Tilemap *map, Vector2 qinit, size_t numVertices, float max
 
     size_t randTiles = numVertices / 8;
 
-    Vector2 qrand = { 0 };
+    Vector2 qrand = {};
     for (size_t tileIdx = 1; tileIdx < map->rrt.vertexCount; tileIdx++) {
 #if 1
         qrand.x = (float)dlb_rand32i_range(0, (int)(map->widthTiles * map->tileset->tileWidth));

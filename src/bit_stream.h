@@ -2,7 +2,7 @@
 #include <cstdint>
 
 // https://gafferongames.com/post/reading_and_writing_packets/
-typedef struct BitStream {
+struct BitStream {
     // For read & write
     uint64_t scratch;   // temporary scratch buffer to hold bits until we fill a 32-bit word
     size_t scratch_bits;   // number of bits in scratch that are in use (i.e. not yet written / read)
@@ -14,7 +14,7 @@ typedef struct BitStream {
     // For read only
     size_t total_bits;     // size of packet in bytes * 8
     size_t num_bits_read;  // number of bits we've read so far
-} BitStream;
+};
 
 void bit_stream_writer_init(BitStream *stream, uint32_t *buffer, size_t bufferSize);
 void bit_stream_reader_init(BitStream *stream, uint32_t *buffer, size_t bytes);

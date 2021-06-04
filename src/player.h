@@ -4,31 +4,31 @@
 #include "sprite.h"
 #include "player_inventory.h"
 
-typedef enum PlayerMoveState {
+enum PlayerMoveState {
     PlayerMoveState_Idle      = 0,
     PlayerMoveState_Walking   = 1,
     PlayerMoveState_Running   = 2,
-} PlayerMoveState;
+};
 
-typedef enum PlayerActionState {
+enum PlayerActionState {
     PlayerActionState_None      = 0,
     PlayerActionState_Attacking = 1,
-} PlayerActionState;
+};
 
-typedef enum PlayerAttachPoint {
+enum PlayerAttachPoint {
     PlayerAttachPoint_Gut
-} PlayerAttachPoint;
+};
 
-typedef struct PlayerStats {
+struct PlayerStats {
     unsigned int coinsCollected;
     float damageDealt;
     float kmWalked;
     unsigned int slimesSlain;
     unsigned int timesFistSwung;
     unsigned int timesSwordSwung;
-} PlayerStats;
+};
 
-typedef struct Player {
+struct Player {
     const char *name;
     PlayerActionState actionState;
     PlayerMoveState moveState;
@@ -37,7 +37,7 @@ typedef struct Player {
     Sprite sprite;
     PlayerInventory inventory;
     PlayerStats stats;
-} Player;
+};
 
 void player_init                (Player *player, const char *name, const struct SpriteDef *spriteDef);
 Vector3 player_get_attach_point (const Player *player, PlayerAttachPoint attachPoint);

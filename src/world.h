@@ -4,9 +4,11 @@
 #include "slime.h"
 //#include <array>
 
-typedef struct World {
+struct World {
     Player *player;
     Tilemap *map;
     Slime *slimes;
     //std::array<Slime, 100> slimess;
-} World;
+    uint64_t rtt_seed;
+    dlb_rand32_t rtt_rand;
+};

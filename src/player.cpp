@@ -39,7 +39,7 @@ void player_init(Player *player, const char *name, const struct SpriteDef *sprit
 
 Vector3 player_get_attach_point(const Player *player, PlayerAttachPoint attachPoint)
 {
-    Vector3 attach = { 0 };
+    Vector3 attach = {};
     switch (attachPoint) {
         case PlayerAttachPoint_Gut: {
             Vector3 playerC = sprite_world_center(&player->sprite, player->body.position, player->sprite.scale);

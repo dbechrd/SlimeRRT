@@ -5,19 +5,19 @@
 
 #define MAX_SLIMES 256
 
-typedef enum SlimeAction {
+enum SlimeAction {
     SlimeAction_None   = 0,
     SlimeAction_Attack = 1,
-} SlimeAction;
+};
 
-typedef struct Slime {
+struct Slime {
     const char *name;
     Body3D body;
     Combat combat;
     Sprite sprite;
     SlimeAction action;
     double randJumpIdle;
-} Slime;
+};
 
 void slime_init    (Slime *slime, const char *name, const struct SpriteDef *spriteDef);
 bool slime_move    (Slime *slime, double now, double dt, Vector2 offset);

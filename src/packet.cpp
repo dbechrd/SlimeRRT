@@ -3,7 +3,7 @@
 
 const char *TextFormatIP(zed_net_address_t address)
 {
-    unsigned char bytes[4] = { 0 };
+    unsigned char bytes[4] = {};
     bytes[0] = address.host & 0xFF;
     bytes[1] = (address.host >> 8) & 0xFF;
     bytes[2] = (address.host >> 16) & 0xFF;

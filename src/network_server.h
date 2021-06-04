@@ -8,14 +8,14 @@
 // must be power of 2 (shift modulus ring buffer)
 #define NETWORK_SERVER_PACKET_HISTORY_MAX 256
 
-typedef struct {
+struct NetworkServerClient {
     zed_net_address_t address;
     double last_packet_received_at;
     size_t usernameLength;
     char username[USERNAME_LENGTH_MAX];
-} NetworkServerClient;
+};
 
-typedef struct {
+struct NetworkServer {
     unsigned short port;
     zed_net_socket_t socket;
     size_t clientsConnected;
@@ -25,7 +25,7 @@ typedef struct {
     //PacketBuffer packetHistory[NetMessageType_Count];
     PacketBuffer packetHistory;
     ChatHistory chatHistory;
-} NetworkServer;
+};
 
 int  network_server_init         (NetworkServer *server);
 int  network_server_open_socket  (NetworkServer *server, unsigned short port);

@@ -40,7 +40,7 @@ Rectangle sprite_frame_rect(const Sprite *sprite)
     assert(sprite);
 
     const SpriteFrame *frame = sprite_frame(sprite);
-    Rectangle rect = { 0 };
+    Rectangle rect = {};
     rect.x = (float)frame->x;
     rect.y = (float)frame->y;
     rect.width = (float)frame->width;
@@ -53,7 +53,7 @@ Rectangle sprite_world_rect(const Sprite *sprite, Vector3 position, float scale)
     assert(sprite);
 
     Rectangle frameRect = sprite_frame_rect(sprite);
-    Rectangle rect = { 0 };
+    Rectangle rect = {};
     rect.x = position.x - frameRect.width / 2.0f * scale;
     rect.y = position.y - frameRect.height * scale - position.z;
     rect.width = frameRect.width * scale;
@@ -66,7 +66,7 @@ Vector3 sprite_world_top_center(const Sprite *sprite, Vector3 position, float sc
     assert(sprite);
 
     Rectangle frameRect = sprite_frame_rect(sprite);
-    Vector3 center = { 0 };
+    Vector3 center = {};
     center.x = position.x;
     center.y = position.y;
     center.z = position.z + frameRect.height * scale;
@@ -78,7 +78,7 @@ Vector3 sprite_world_center(const Sprite *sprite, Vector3 position, float scale)
     assert(sprite);
 
     Rectangle frameRect = sprite_frame_rect(sprite);
-    Vector3 center = { 0 };
+    Vector3 center = {};
     center.x = position.x;
     center.y = position.y;
     center.z = position.z + frameRect.height / 2.0f * scale;

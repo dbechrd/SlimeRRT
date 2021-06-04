@@ -14,7 +14,7 @@ PARTICLE_FX_INIT(blood)
     assert(particle->dieAt > particle->spawnAt);
 
 #if 1
-    Vector2 randXY = { 0 };
+    Vector2 randXY = {};
     randXY.x = dlb_rand32f_variance(1.0f);
     randXY.y = dlb_rand32f_variance(1.0f);
     randXY = v2_scale(v2_normalize(randXY), METERS_TO_PIXELS(1.0f) * dlb_rand32f_range(0.0f, 1.2f));

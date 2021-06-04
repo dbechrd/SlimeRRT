@@ -1,7 +1,7 @@
 #pragma once
 #include "item.h"
 
-typedef enum {
+enum PlayerInventorySlot {
     PlayerInventorySlot_None  = 0,
     PlayerInventorySlot_1     = 1,
     PlayerInventorySlot_2     = 2,
@@ -11,9 +11,9 @@ typedef enum {
     PlayerInventorySlot_6     = 6,
     PlayerInventorySlot_Coins = 7,
     PlayerInventorySlot_Count
-} PlayerInventorySlot;
+};
 
-typedef struct {
+struct PlayerInventory {
     PlayerInventorySlot selectedSlot;
     ItemStack slots[PlayerInventorySlot_Count];
-} PlayerInventory;
+};

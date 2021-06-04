@@ -56,13 +56,13 @@ int network_client_connect(NetworkClient *client, const char *hostname, unsigned
     client->usernameLength = MIN(strlen(username), USERNAME_LENGTH_MAX);
     memcpy(client->username, username, client->usernameLength);
 
-    NetMessage userIdent = { 0 };
+    NetMessage userIdent = {};
     userIdent.type = NetMessageType_Identify;
     userIdent.data.chatMessage.username = client->username;
     userIdent.data.chatMessage.usernameLength = client->usernameLength;
 
-    char rawPacket[PACKET_SIZE_MAX] = { 0 };
-    BitStream writer = { 0 };
+    char rawPacket[PACKET_SIZE_MAX] = {};
+    BitStream writer = {};
     bit_stream_writer_init(&writer, (uint32_t *)rawPacket, sizeof(rawPacket));
     size_t rawBytes = serialize_net_message(&writer, &userIdent);
 
@@ -107,15 +107,15 @@ int network_client_send_chat_message(const NetworkClient *client, const char *me
     // This would be weird since if we're not connected how do we see the chat box?
     assert(client->usernameLength);
 
-    NetMessage chatMessage = { 0 };
+    NetMessage chatMessage = {};
     chatMessage.type = NetMessageType_ChatMessage;
     chatMessage.data.chatMessage.usernameLength = client->usernameLength;
     chatMessage.data.chatMessage.username = client->username;
     chatMessage.data.chatMessage.messageLength = messageLengthSafe;
     chatMessage.data.chatMessage.message = message;
 
-    char rawPacket[PACKET_SIZE_MAX] = { 0 };
-    BitStream writer = { 0 };
+    char rawPacket[PACKET_SIZE_MAX] = {};
+    BitStream writer = {};
     bit_stream_writer_init(&writer, (uint32_t *)rawPacket, sizeof(rawPacket));
     size_t rawBytes = serialize_net_message(&writer, &chatMessage);
     return network_client_send(client, rawPacket, rawBytes);
@@ -123,7 +123,7 @@ int network_client_send_chat_message(const NetworkClient *client, const char *me
 
 static void network_client_process_message(NetworkClient *client, Packet *packet)
 {
-    BitStream reader = { 0 };
+    BitStream reader = {};
     bit_stream_reader_init(&reader, (uint32_t *)packet->rawBytes, sizeof(packet->rawBytes));
     deserialize_net_message(&reader, &packet->message);
 
@@ -160,7 +160,7 @@ int network_client_receive(NetworkClient *client)
     // the data but don't do anything with it)?
     int bytes = 0;
     do {
-        zed_net_address_t sender = { 0 };
+        zed_net_address_t sender = {};
         size_t packetIdx = (client->packetHistory.first + client->packetHistory.count) % client->packetHistory.capacity;
         assert(packetIdx < client->packetHistory.capacity);
         Packet *packet = &client->packetHistory.packets[packetIdx];
