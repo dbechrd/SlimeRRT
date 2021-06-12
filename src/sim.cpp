@@ -31,30 +31,37 @@ void sim(double now, double dt, const PlayerControllerState input, Player *playe
     assert(map);
     assert(slimes);
 
-    if (input.selectSlot) {
-        assert(input.selectSlot >= PlayerInventorySlot_1);
-        assert(input.selectSlot <= PlayerInventorySlot_6);
-        player->inventory.selectedSlot = input.selectSlot;
+    for (int i = 0; i < PlayerInventorySlot_Count; i++) {
+        if (input.selectSlot[i]) {
+            player->inventory.selectedSlot = (PlayerInventorySlot)i;
+            break;
+        }
     }
 
     float playerSpeed = 4.0f;
     Vector2 moveBuffer = {};
-    if (input.moveState == PlayerMoveState_Running) {
-        playerSpeed += 2.0f;
-    }
 
-    if (input.moveState) {
-        switch (input.direction) {
-            case Direction_North     : moveBuffer = { 0.0f,-1.0f }; break;
-            case Direction_East      : moveBuffer = { 1.0f, 0.0f }; break;
-            case Direction_South     : moveBuffer = { 0.0f, 1.0f }; break;
-            case Direction_West      : moveBuffer = {-1.0f, 0.0f }; break;
-            case Direction_NorthEast : moveBuffer = { 1.0f,-1.0f }; break;
-            case Direction_SouthEast : moveBuffer = { 1.0f, 1.0f }; break;
-            case Direction_SouthWest : moveBuffer = {-1.0f, 1.0f }; break;
-            case Direction_NorthWest : moveBuffer = {-1.0f,-1.0f }; break;
-            default: assert(!"Invalid direction");
+    if (input.walkNorth || input.walkEast || input.walkSouth || input.walkWest) {
+        if (input.walkNorth) {
+            moveBuffer.y -= 1.0f;
         }
+        if (input.walkEast) {
+            moveBuffer.x += 1.0f;
+        }
+        if (input.walkSouth) {
+            moveBuffer.y += 1.0f;
+        }
+        if (input.walkWest) {
+            moveBuffer.x -= 1.0f;
+        }
+        if (input.run) {
+            player->moveState = PlayerMoveState_Running;
+            playerSpeed += 2.0f;
+        } else {
+            player->moveState = PlayerMoveState_Walking;
+        }
+    } else {
+        player->moveState = PlayerMoveState_Idle;
     }
 
     Vector2 moveOffset = v2_scale(v2_normalize(moveBuffer), METERS_TO_PIXELS(playerSpeed) * (float)dt);
@@ -113,7 +120,7 @@ void sim(double now, double dt, const PlayerControllerState input, Player *playe
         }
     }
 
-    if (input.actionState == PlayerActionState_Attacking) {
+    if (input.attack) {
         const float playerAttackReach = METERS_TO_PIXELS(1.0f);
 
         if (player_attack(player, now, dt)) {

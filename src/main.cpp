@@ -310,7 +310,7 @@ int main(int argc, char *argv[])
     };
 
 #if DEMO_VIEW_RSTAR
-    std::array<Rectangle, 100> rects;
+    std::array<Rectangle, 100> rects{};
     std::array<bool, 100> drawn{};
     RStar::RStarTree<int> tree{};
 
@@ -464,7 +464,8 @@ int main(int argc, char *argv[])
             }
 
             if (cameraFollowPlayer) {
-                PlayerControllerState input = QueryPlayerController();
+                PlayerControllerState input{};
+                QueryPlayerController(input);
                 sim(now, dt, input, &charlie, &tilemap, slimes, coinSpriteDef);
                 camera.target = body_ground_position(&charlie.body);
             } else {
@@ -624,16 +625,12 @@ int main(int argc, char *argv[])
         }
 
 #if DEMO_VIEW_RSTAR
-        RStar::AABB<float> searchAABB = {
+        AABB searchAABB = {
             mousePosWorld.x - 50,
             mousePosWorld.y - 50,
             mousePosWorld.x + 50,
             mousePosWorld.y + 50
         };
-
-#if 0
-        std::vector<int> matches = tree.Search(searchAABB);
-#else
         Rectangle searchRect {
             searchAABB.min.x,
             searchAABB.min.y,
@@ -641,6 +638,10 @@ int main(int argc, char *argv[])
             searchAABB.max.y - searchAABB.min.y
         };
 
+#if 1
+        std::vector<int> matches{};
+        tree.Search(searchAABB, matches);
+#else
         static std::vector<int> matches;
         matches.clear();
         for (int i = 0; i < rects.size(); i++) {

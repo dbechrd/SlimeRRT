@@ -1,50 +1,30 @@
 #pragma once
+#include "maths.h"
 #include <array>
 #include <variant>
 #include <vector>
 
 namespace RStar {
     template <typename T>
-    struct Vector2 {
-        T x;
-        T y;
+    struct RTreeNode;
+
+    template <typename T>
+    struct RTreeNodeEntry {
+        AABB bounds;
+        union {
+            RTreeNode<T> *child;  // Inner nodes
+            T value;              // Leaf nodes
+        };
     };
 
     template <typename T>
-    struct AABB {
-        Vector2<T> min;
-        Vector2<T> max;
-
-        bool intersects(const AABB &other) const {
-            return max.x > other.min.x &&
-                   min.x < other.max.x &&
-                   max.y > other.min.y &&
-                   min.y > other.max.y;
-        }
-    };
-
-    template <typename ValueType, size_t Max>
     struct RTreeNode {
-        struct NodeEntry {
-            AABB<float> bounds;
-            RTreeNode *child;
-        };
-        struct ValueEntry {
-            AABB<float> bounds;
-            ValueType value;
-        };
+        enum {
+            RTreeNodeInner,  // has children nodes
+            RTreeNodeLeaf    // has values
+        } type;
 
-        using NodeArray  = std::array<NodeEntry, Max>;
-        using ValueArray = std::array<ValueEntry, Max>;
-
-        std::variant<
-            std::array<NodeEntry, Max>,  // Inner nodes
-            std::array<ValueEntry, Max>  // Leaf nodes
-        > entries;
-
-        //std::array<AABB<float>, Max> bounds;
-        ////std::variant<NodeArrayType, LeafArrayType> children;
-        //std::array<std::variant<InnerNode *, LeafNode *>, Max> children;
+        std::vector<RTreeNodeEntry<T>> entries;
     };
 
     // "R-Trees - A Dynamic Index Structure for Spatial Searching"
@@ -55,41 +35,38 @@ namespace RStar {
     //  (5) The root node has at least two children unless it is a leaf
     //  (6) All leaves appear on the same level
     //
-    template <typename ValueType, size_t Max = 30, size_t Min = Max / 3>
+    template <typename T>
     class RStarTree {
     public:
-        using NodeType   = RTreeNode<ValueType, Max>;
-        using NodeEntry  = typename NodeType::NodeEntry;
-        using ValueEntry = typename NodeType::ValueEntry;
-        using NodeArray  = typename NodeType::NodeArray;
-        using ValueArray = typename NodeType::ValueArray;
+        using Node = RTreeNode<T>;
 
-        std::vector<ValueType> Search(const AABB<float> &aabb) const {
-            std::vector<ValueType> matches{};
-            Search(aabb, &root, matches);
-            return matches;
+        void Search(const AABB &aabb, std::vector<T> &matches) const {
+            SearchNode(aabb, &root, matches);
         }
 
     private:
-        void Search(const AABB<float> &aabb, const NodeType *node, std::vector<ValueType> &matches) const {
-            if (std::holds_alternative<NodeType::NodeArray>(node->entries)) {
-                const NodeArray &entries = std::get<NodeType::NodeArray>(node->entries);
-                for (const NodeEntry &entry : entries) {
-                    if (entry.bounds.intersects(aabb)) {
-                        Search(aabb, entry.child, matches);
-                    }
-                }
-            } else if (std::holds_alternative<NodeType::ValueArray>(node->entries)) {
-                const ValueArray &entries = std::get<NodeType::ValueArray>(node->entries);
-                for (const ValueEntry &entry : entries) {
-                    if (entry.bounds.intersects(aabb)) {
-                        matches.push_back(entry.value);
-                    }
-                }
-            } else assert(!"Uh oh, unhandled variant type");
-        }
+        Node root;
 
-        size_t min = Min;
-        NodeType root;
+        void SearchNode(const AABB &aabb, const Node *node, std::vector<T> &matches) const {
+            switch (node->type) {
+                case RTreeNode<T>::RTreeNodeInner:
+                    for (const auto &entry : node->entries) {
+                        if (entry.bounds.intersects(aabb)) {
+                            SearchNode(aabb, entry.child, matches);
+                        }
+                    }
+                    break;
+                case RTreeNode<T>::RTreeNodeLeaf:
+                    for (const auto &entry : node->entries) {
+                        if (entry.bounds.intersects(aabb)) {
+                            matches.push_back(entry.value);
+                        }
+                    }
+                    break;
+                default:
+                    assert(!"Uh oh, unhandled variant type");
+                    break;
+            }
+        }
     };
 }

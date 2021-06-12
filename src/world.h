@@ -2,6 +2,7 @@
 #include "player.h"
 #include "tilemap.h"
 #include "slime.h"
+#include "dlb_rand.h"
 //#include <array>
 
 struct World {

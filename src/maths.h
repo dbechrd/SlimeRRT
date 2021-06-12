@@ -2,6 +2,20 @@
 #include "raylib.h"
 #include <cmath>
 
+/// AABB ///////////////////////////////////////////////////////////////////////
+
+struct AABB {
+    Vector2 min;
+    Vector2 max;
+
+    bool intersects(const AABB &other) const {
+        return max.x > other.min.x &&
+            min.x < other.max.x &&
+            max.y > other.min.y &&
+            min.y > other.max.y;
+    }
+};
+
 /// Vector2 ////////////////////////////////////////////////////////////////////
 
 static inline Vector2 v2_init(float x, float y)
