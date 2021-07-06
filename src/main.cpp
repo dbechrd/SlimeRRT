@@ -312,7 +312,7 @@ int main(int argc, char *argv[])
 #if DEMO_VIEW_RSTAR
     std::array<Rectangle, 100> rects{};
     std::array<bool, 100> drawn{};
-    RStar::RStarTree<int> tree{};
+    RStar::RStarTree tree{};
 
     dlb_rand32_t rstar_rand{};
     dlb_rand32_seed_r(&rstar_rand, 42, 42);
@@ -321,6 +321,12 @@ int main(int argc, char *argv[])
         rects[i].y = worldSpawn.y + dlb_rand32f_variance_r(&rstar_rand, 400.0f);
         rects[i].width  = dlb_rand32f_range_r(&rstar_rand, 10.0f, 50.0f);
         rects[i].height = dlb_rand32f_range_r(&rstar_rand, 10.0f, 50.0f);
+        AABB aabb{};
+        aabb.min.x = rects[i].x;
+        aabb.min.y = rects[i].y;
+        aabb.max.x = rects[i].x + rects[i].width;
+        aabb.max.y = rects[i].y + rects[i].height;
+        tree.Insert(aabb, (void *)i);
     }
 #endif
 
@@ -639,19 +645,20 @@ int main(int argc, char *argv[])
         };
 
 #if 1
-        std::vector<int> matches{};
+        std::vector<void *> matches{};
         tree.Search(searchAABB, matches);
 #else
-        static std::vector<int> matches;
+        static std::vector<void *> matches;
         matches.clear();
-        for (int i = 0; i < rects.size(); i++) {
+        for (size_t i = 0; i < rects.size(); i++) {
             if (CheckCollisionRecs(rects[i], searchRect)) {
-                matches.push_back(i);
+                matches.push_back((void *)i);
             }
         }
 #endif
 
-        for (const int i : matches) {
+        for (const void *value : matches) {
+            size_t i = (size_t)value;
             DrawRectangleRec(rects[i], RED);
             drawn[i] = true;
         }

@@ -100,7 +100,28 @@ static void write_net_message_identify(BitStream *stream, const NetMessage_Ident
     }
 }
 
+static void read_net_message_identify(BitStream *stream, NetMessage_Identify *identify)
+{
+    assert(stream);
+    assert(identify);
+
+    identify->usernameLength = bit_stream_read(stream, 5);
+    assert(identify->usernameLength <= USERNAME_LENGTH_MAX);
+    bit_stream_read_align(stream);
+    assert(stream->num_bits_read % 8 == 0);
+    identify->username = (char *)stream->buffer + stream->num_bits_read / 8;
+    for (size_t i = 0; i < identify->usernameLength; i++) {
+        bit_stream_read(stream, 8);
+    }
+}
+
 static void write_net_message_welcome(BitStream *stream, const NetMessage_Welcome *welcome)
+{
+    UNUSED(stream);
+    UNUSED(welcome);
+}
+
+static void read_net_message_welcome(BitStream *stream, NetMessage_Welcome *welcome)
 {
     UNUSED(stream);
     UNUSED(welcome);
@@ -126,48 +147,6 @@ static void write_net_message_chat_message(BitStream *stream, const NetMessage_C
     }
 }
 
-size_t serialize_net_message(BitStream *stream, const NetMessage *message)
-{
-    bit_stream_write(stream, message->type, 2);
-    switch (message->type) {
-        case NetMessageType_Identify: {
-            write_net_message_identify(stream, &message->data.identify);
-            break;
-        } case NetMessageType_Welcome: {
-            write_net_message_welcome(stream, &message->data.welcome);
-            break;
-        } case NetMessageType_ChatMessage: {
-            write_net_message_chat_message(stream, &message->data.chatMessage);
-            break;
-        }
-    }
-    if (stream->scratch_bits) {
-        bit_stream_flush(stream);
-    }
-    return stream->total_bits / 8 + (stream->total_bits % 8 > 0);
-}
-
-static void read_net_message_identify(BitStream *stream, NetMessage_Identify *identify)
-{
-    assert(stream);
-    assert(identify);
-
-    identify->usernameLength = bit_stream_read(stream, 5);
-    assert(identify->usernameLength <= USERNAME_LENGTH_MAX);
-    bit_stream_read_align(stream);
-    assert(stream->num_bits_read % 8 == 0);
-    identify->username = (char *)stream->buffer + stream->num_bits_read / 8;
-    for (size_t i = 0; i < identify->usernameLength; i++) {
-        bit_stream_read(stream, 8);
-    }
-}
-
-static void read_net_message_welcome(BitStream *stream, NetMessage_Welcome *welcome)
-{
-    UNUSED(stream);
-    UNUSED(welcome);
-}
-
 static void read_net_message_chat_message(BitStream *stream, NetMessage_ChatMessage *chatMessage)
 {
     assert(stream);
@@ -190,6 +169,27 @@ static void read_net_message_chat_message(BitStream *stream, NetMessage_ChatMess
     for (size_t i = 0; i < chatMessage->messageLength; i++) {
         bit_stream_read(stream, 8);
     }
+}
+
+size_t serialize_net_message(BitStream *stream, const NetMessage *message)
+{
+    bit_stream_write(stream, message->type, 2);
+    switch (message->type) {
+        case NetMessageType_Identify: {
+            write_net_message_identify(stream, &message->data.identify);
+            break;
+        } case NetMessageType_Welcome: {
+            write_net_message_welcome(stream, &message->data.welcome);
+            break;
+        } case NetMessageType_ChatMessage: {
+            write_net_message_chat_message(stream, &message->data.chatMessage);
+            break;
+        }
+    }
+    if (stream->scratch_bits) {
+        bit_stream_flush(stream);
+    }
+    return stream->total_bits / 8 + (stream->total_bits % 8 > 0);
 }
 
 void deserialize_net_message(BitStream *stream, NetMessage *message)
