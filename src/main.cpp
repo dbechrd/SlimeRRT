@@ -326,7 +326,10 @@ int main(int argc, char *argv[])
         aabb.min.y = rects[i].y;
         aabb.max.x = rects[i].x + rects[i].width;
         aabb.max.y = rects[i].y + rects[i].height;
-        tree.Insert(aabb, (void *)i);
+        RStar::RStarTree::Entry entry{};
+        entry.bounds = aabb;
+        entry.udata = (void *)i;
+        tree.Insert(entry);
     }
 #endif
 
@@ -646,7 +649,7 @@ int main(int argc, char *argv[])
 
 #if 1
         std::vector<void *> matches{};
-        tree.Search(searchAABB, matches);
+        tree.Search(searchAABB, matches, RStar::RStarTree::CompareMode_Overlap);
 #else
         static std::vector<void *> matches;
         matches.clear();
