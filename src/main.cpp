@@ -326,10 +326,7 @@ int main(int argc, char *argv[])
         aabb.min.y = rects[i].y;
         aabb.max.x = rects[i].x + rects[i].width;
         aabb.max.y = rects[i].y + rects[i].height;
-        RStar::RStarTree::Entry entry{};
-        entry.bounds = aabb;
-        entry.udata = (void *)i;
-        tree.Insert(entry);
+        tree.Insert(aabb, (void *)i);
     }
 #endif
 
@@ -671,6 +668,27 @@ int main(int argc, char *argv[])
                 DrawRectangleLinesEx(rects[i], 2, WHITE);
             } else {
                 drawn[i] = false;
+            }
+        }
+
+        {
+            // NOTE: This is going to break in 3.. 2.. 1..
+            RStar::RStarTree::Node *root = tree.root;
+            DrawRectangleLinesEx(root->bounds.toRect(), 8, Fade(RED, 0.5f));
+            for (size_t i = 0; i < root->count; i++) {
+                assert(root->type == RStar::RStarTree::NodeType_Directory);
+                RStar::RStarTree::Node *child = root->children[i];
+                DrawRectangleLinesEx(child->bounds.toRect(), 6, Fade(GREEN, 0.5f));
+                for (size_t j = 0; j < child->count; j++) {
+                    assert(child->type == RStar::RStarTree::NodeType_Directory);
+                    RStar::RStarTree::Node *child2 = child->children[i];
+                    DrawRectangleLinesEx(child2->bounds.toRect(), 4, Fade(DARKBLUE, 0.5f));
+                    for (size_t k = 0; k < child2->count; k++) {
+                        assert(child2->type == RStar::RStarTree::NodeType_Leaf);
+                        RStar::RStarTree::Entry *entry = child2->entries[k];
+                        DrawRectangleLinesEx(entry->bounds.toRect(), 2, Fade(ORANGE, 0.5f));
+                    }
+                }
             }
         }
 

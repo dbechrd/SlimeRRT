@@ -1,5 +1,6 @@
 #pragma once
 #include "raylib.h"
+#include "dlb_types.h"
 #include <cmath>
 
 /// AABB ///////////////////////////////////////////////////////////////////////
@@ -12,7 +13,23 @@ struct AABB {
         return max.x > other.min.x &&
             min.x < other.max.x &&
             max.y > other.min.y &&
-            min.y > other.max.y;
+            min.y < other.max.y;
+    }
+
+    void growToContain(const AABB &other) {
+        min.x = MIN(min.x, other.min.x);
+        min.y = MIN(min.y, other.min.y);
+        max.x = MAX(max.x, other.max.x);
+        max.y = MAX(max.y, other.max.y);
+    }
+
+    Rectangle toRect() const {
+        Rectangle rect{};
+        rect.x = min.x;
+        rect.y = min.y;
+        rect.width = max.x - min.x;
+        rect.height = max.y - min.y;
+        return rect;
     }
 };
 
