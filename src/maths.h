@@ -16,6 +16,28 @@ struct AABB {
             min.y < other.max.y;
     }
 
+    float calcArea() const {
+        float area = max.x - min.x * max.y - min.y;
+        return area;
+    }
+
+    AABB calcUnion(const AABB &other) const {
+        AABB u{};
+        u.min.x = MIN(min.x, other.min.x);
+        u.min.y = MIN(min.y, other.min.y);
+        u.max.x = MAX(max.x, other.max.x);
+        u.max.y = MAX(max.y, other.max.y);
+        return u;
+    }
+
+    float calcAreaIncrease(const AABB &other) const {
+        float area = calcArea();
+        AABB newAABB = calcUnion(other);
+        float newArea = newAABB.calcArea();
+        float areaIncrease = newArea - area;
+        return areaIncrease;
+    }
+
     void growToContain(const AABB &other) {
         min.x = MIN(min.x, other.min.x);
         min.y = MIN(min.y, other.min.y);
