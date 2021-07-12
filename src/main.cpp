@@ -101,6 +101,25 @@ void parse_args(Args &args, int argc, char *argv[])
     }
 }
 
+void DrawNode(RStar::RStarTree::Node *node) {
+    switch (node->type) {
+        case RStar::RStarTree::NodeType_Directory: {
+            for (size_t i = 0; i < node->count; i++) {
+                DrawNode(node->children[i]);
+            }
+            break;
+        }
+        case RStar::RStarTree::NodeType_Leaf: {
+            for (size_t i = 0; i < node->count; i++) {
+                RStar::RStarTree::Entry *entry = node->entries[i];
+                DrawRectangleLinesEx(entry->bounds.toRect(), 3, Fade(VIOLET, 1.0f));
+            }
+            break;
+        }
+    }
+    DrawRectangleLinesEx(node->bounds.toRect(), 3, Fade(GREEN, 0.3f));
+}
+
 int main(int argc, char *argv[])
 {
     Args args = {};
@@ -114,7 +133,7 @@ int main(int argc, char *argv[])
 
     World world = {};
 
-    world.rtt_seed = time(NULL);
+    world.rtt_seed = 16; //time(NULL);
     dlb_rand32_seed_r(&world.rtt_rand, world.rtt_seed, world.rtt_seed);
 
     //dlb_rand_test();
@@ -261,16 +280,19 @@ int main(int argc, char *argv[])
     Tileset tileset = {};
     tileset_init_ex(&tileset, &tilesetTex, 32, 32, TileType_Count);
 
-    Tilemap tilemap = {};
+    {
+        Tilemap tilemap = {};
+        world.map = &tilemap;
+    }
     //tilemap_generate_ex(&tilemap, 128, 128, &tileset);
-    tilemap_generate_ex(&tilemap, 256, 256, &tileset);
+    tilemap_generate_ex(world.map, &world.rtt_rand, 256, 256, &tileset);
     //tilemap_generate_ex(&tilemap, 512, 512, &tileset);
 
     Texture minimapTex = {};
     {
         Image minimapImg = {};
-        minimapImg.width = (int)tilemap.widthTiles;
-        minimapImg.height = (int)tilemap.heightTiles;
+        minimapImg.width = (int)world.map->widthTiles;
+        minimapImg.height = (int)world.map->heightTiles;
         minimapImg.mipmaps = 1;
         minimapImg.format = UNCOMPRESSED_R8G8B8A8;
         assert(sizeof(Color) == 4);
@@ -284,13 +306,13 @@ int main(int argc, char *argv[])
         tileColors[TileType_Wood    ] = BROWN;
         tileColors[TileType_Concrete] = GRAY;
 
-        const size_t heightTiles = tilemap.heightTiles;
-        const size_t widthTiles = tilemap.widthTiles;
+        const size_t heightTiles = world.map->heightTiles;
+        const size_t widthTiles = world.map->widthTiles;
 
         Color *minimapPixel = (Color *)minimapImg.data;
         for (size_t y = 0; y < heightTiles; y += 1) {
             for (size_t x = 0; x < widthTiles; x += 1) {
-                const Tile *tile = &tilemap.tiles[y * tilemap.widthTiles + x];
+                const Tile *tile = &world.map->tiles[y * world.map->widthTiles + x];
                 // Draw all tiles as different colored pixels
                 assert(tile->tileType >= 0);
                 assert(tile->tileType < TileType_Count);
@@ -304,8 +326,8 @@ int main(int argc, char *argv[])
     }
 
     const Vector3 worldSpawn = {
-        (float)tilemap.widthTiles / 2.0f * tilemap.tileset->tileWidth,
-        (float)tilemap.heightTiles / 2.0f * tilemap.tileset->tileHeight,
+        (float)world.map->widthTiles / 2.0f * world.map->tileset->tileWidth,
+        (float)world.map->heightTiles / 2.0f * world.map->tileset->tileHeight,
         0.0f
     };
 
@@ -374,8 +396,8 @@ int main(int argc, char *argv[])
         SpriteFrame *firstFrame = &slimeSpritesheet->frames[firstFrameIdx];
         const float slimeRadiusX = firstFrame->width / 2.0f;
         const float slimeRadiusY = firstFrame->height / 2.0f;
-        const size_t mapPixelsX = tilemap.widthTiles * tilemap.tileset->tileWidth;
-        const size_t mapPixelsY = tilemap.heightTiles * tilemap.tileset->tileHeight;
+        const size_t mapPixelsX = world.map->widthTiles  * world.map->tileset->tileWidth;
+        const size_t mapPixelsY = world.map->heightTiles * world.map->tileset->tileHeight;
         const float maxX = mapPixelsX - slimeRadiusX;
         const float maxY = mapPixelsY - slimeRadiusY;
         for (int i = 0; i < MAX_SLIMES; i++) {
@@ -472,7 +494,7 @@ int main(int argc, char *argv[])
             if (cameraFollowPlayer) {
                 PlayerControllerState input{};
                 QueryPlayerController(input);
-                sim(now, dt, input, &charlie, &tilemap, slimes, coinSpriteDef);
+                sim(now, dt, input, &charlie, world.map, slimes, coinSpriteDef);
                 camera.target = body_ground_position(&charlie.body);
             } else {
                 const int cameraSpeed = 5;
@@ -559,11 +581,11 @@ int main(int argc, char *argv[])
         size_t tilesDrawn = 0;
 
         {
-            const float tileWidthMip  = (float)(tilemap.tileset->tileWidth * zoomMipLevel);
-            const float tileHeightMip = (float)(tilemap.tileset->tileHeight * zoomMipLevel);
-            const size_t heightTiles = tilemap.heightTiles;
-            const size_t widthTiles = tilemap.widthTiles;
-            const Rectangle *tileRects = tilemap.tileset->textureRects;
+            const float tileWidthMip  = (float)(world.map->tileset->tileWidth * zoomMipLevel);
+            const float tileHeightMip = (float)(world.map->tileset->tileHeight * zoomMipLevel);
+            const size_t heightTiles = world.map->heightTiles;
+            const size_t widthTiles  = world.map->widthTiles;
+            const Rectangle *tileRects = world.map->tileset->textureRects;
             const float camLeft   = cameraRect.x;
             const float camTop    = cameraRect.y;
             const float camRight  = cameraRect.x + cameraRect.width;
@@ -571,7 +593,7 @@ int main(int argc, char *argv[])
 
             for (size_t y = 0; y < heightTiles; y += zoomMipLevel) {
                 for (size_t x = 0; x < widthTiles; x += zoomMipLevel) {
-                    const Tile *tile = &tilemap.tiles[y * tilemap.widthTiles + x];
+                    const Tile *tile = &world.map->tiles[y * world.map->widthTiles + x];
                     const Vector2 tilePos = tile->position;
                     if (tilePos.x + tileWidthMip >= camLeft &&
                         tilePos.y + tileHeightMip >= camTop &&
@@ -580,7 +602,7 @@ int main(int argc, char *argv[])
                     {
                         // Draw all tiles as textured rects (looks best, performs worst)
                         Rectangle textureRect = tileRects[tile->tileType];
-                        DrawTextureRec(*tilemap.tileset->texture, textureRect, tile->position, WHITE);
+                        DrawTextureRec(*world.map->tileset->texture, textureRect, tile->position, WHITE);
                         tilesDrawn++;
                     }
                 }
@@ -595,14 +617,14 @@ int main(int argc, char *argv[])
 
         Tile *mouseTile = 0;
         if (findMouseTile) {
-            mouseTile = tilemap_at_world_try(&tilemap, (int)mousePosWorld.x, (int)mousePosWorld.y);
+            mouseTile = tilemap_at_world_try(world.map, (int)mousePosWorld.x, (int)mousePosWorld.y);
             if (mouseTile) {
                 // Draw red outline on hovered tile
                 Rectangle mouseTileRect {
                     mouseTile->position.x,
                     mouseTile->position.y,
-                    (float)tilemap.tileset->tileWidth  * zoomMipLevel,
-                    (float)tilemap.tileset->tileHeight * zoomMipLevel
+                    (float)world.map->tileset->tileWidth  * zoomMipLevel,
+                    (float)world.map->tileset->tileHeight * zoomMipLevel
                 };
                 DrawRectangleLinesEx(mouseTileRect, 1 * (int)invZoom, RED);
             }
@@ -671,27 +693,7 @@ int main(int argc, char *argv[])
             }
         }
 
-        {
-            // NOTE: This is going to break in 3.. 2.. 1..
-            RStar::RStarTree::Node *root = tree.root;
-            DrawRectangleLinesEx(root->bounds.toRect(), 8, Fade(RED, 0.5f));
-            for (size_t i = 0; i < root->count; i++) {
-                assert(root->type == RStar::RStarTree::NodeType_Directory);
-                RStar::RStarTree::Node *child = root->children[i];
-                DrawRectangleLinesEx(child->bounds.toRect(), 6, Fade(GREEN, 0.5f));
-                for (size_t j = 0; j < child->count; j++) {
-                    assert(child->type == RStar::RStarTree::NodeType_Directory);
-                    RStar::RStarTree::Node *child2 = child->children[i];
-                    DrawRectangleLinesEx(child2->bounds.toRect(), 4, Fade(DARKBLUE, 0.5f));
-                    for (size_t k = 0; k < child2->count; k++) {
-                        assert(child2->type == RStar::RStarTree::NodeType_Leaf);
-                        RStar::RStarTree::Entry *entry = child2->entries[k];
-                        DrawRectangleLinesEx(entry->bounds.toRect(), 2, Fade(ORANGE, 0.5f));
-                    }
-                }
-            }
-        }
-
+        DrawNode(tree.root);
         DrawRectangleLinesEx(searchRect, 2, YELLOW);
 #endif
 
@@ -730,7 +732,7 @@ int main(int argc, char *argv[])
             DrawTextFont(fonts[fontIdx], TextFormat("tilePos : %.02f, %.02f", mouseTile->position.x, mouseTile->position.y),
                 tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, fontHeight, BLACK);
             lineOffset += fontHeight;
-            DrawTextFont(fonts[fontIdx], TextFormat("tileSize: %zu, %zu", tilemap.tileset->tileWidth, tilemap.tileset->tileHeight),
+            DrawTextFont(fonts[fontIdx], TextFormat("tileSize: %zu, %zu", world.map->tileset->tileWidth, world.map->tileset->tileHeight),
                 tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, fontHeight, BLACK);
             lineOffset += fontHeight;
             DrawTextFont(fonts[fontIdx], TextFormat("tileType: %d", mouseTile->tileType),
@@ -990,7 +992,7 @@ int main(int argc, char *argv[])
     }
     zed_net_shutdown();
 #endif
-    tilemap_free(&tilemap);
+    tilemap_free(world.map);
     tileset_free(&tileset);
     UnloadTexture(minimapTex);
     UnloadTexture(tilesetTex);

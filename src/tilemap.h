@@ -1,6 +1,7 @@
 #pragma once
 #include "tileset.h"
 #include "math.h"
+#include "dlb_rand.h"
 
 enum TileType {
     TileType_Grass,
@@ -39,8 +40,8 @@ struct Tilemap {
 
 bool tile_is_walkable       (const Tile *tile);   // Return true if player can walk on the tile (false if tile is null)
 
-void tilemap_generate       (Tilemap *map);
-void tilemap_generate_ex    (Tilemap *map, size_t width, size_t height, Tileset *tileset);
+void tilemap_generate       (Tilemap *map, dlb_rand32_t *rng);
+void tilemap_generate_ex    (Tilemap *map, dlb_rand32_t *rng, size_t width, size_t height, Tileset *tileset);
 void tilemap_free           (Tilemap *map);
 Tile *tilemap_at            (Tilemap *map, int tileX, int tileY);  // Return tile at grid position x,y, assert on failure
 Tile *tilemap_at_try        (Tilemap *map, int tileX, int tileY);  // Return tile at grid position x,y, if it exists

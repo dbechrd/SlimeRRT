@@ -7,7 +7,7 @@
 #include <float.h>
 #include <stdlib.h>
 
-static void rrt_build(Tilemap *map, Vector2 qinit, size_t numVertices, float maxGrowthDist);
+static void rrt_build(Tilemap *map, dlb_rand32_t *rng, Vector2 qinit, size_t numVertices, float maxGrowthDist);
 static size_t rrt_nearest_idx(Tilemap *map, Vector2 p);
 
 bool tile_is_walkable(const Tile *tile)
@@ -15,7 +15,7 @@ bool tile_is_walkable(const Tile *tile)
     return tile && tile->tileType != TileType_Water;
 }
 
-void tilemap_generate(Tilemap *map)
+void tilemap_generate(Tilemap *map, dlb_rand32_t *rng)
 {
     assert(map);
     assert(map->widthTiles);
@@ -35,7 +35,7 @@ void tilemap_generate(Tilemap *map)
     const Vector2 middle = v2_init(map->widthTiles * tileWidth / 2.0f, map->heightTiles * tileHeight / 2.0f);
     const size_t rrtSamples = 512;
     const float maxGrowthDistance = map->widthTiles * tileWidth / 4.0f;
-    rrt_build(map, middle, rrtSamples, maxGrowthDistance);
+    rrt_build(map, rng, middle, rrtSamples, maxGrowthDistance);
 
     const Vector2 tileCenterOffset = v2_init(tileWidth / 2.0f, tileHeight / 2.0f);
     for (int y = 0; y < map->heightTiles; y++) {
@@ -93,7 +93,7 @@ void tilemap_generate(Tilemap *map)
     }
 }
 
-void tilemap_generate_ex(Tilemap *map, size_t width, size_t height, Tileset *tileset)
+void tilemap_generate_ex(Tilemap *map, dlb_rand32_t *rng, size_t width, size_t height, Tileset *tileset)
 {
     assert(map);
     assert(width);
@@ -103,7 +103,7 @@ void tilemap_generate_ex(Tilemap *map, size_t width, size_t height, Tileset *til
     map->widthTiles = width;
     map->heightTiles = height;
     map->tileset = tileset;
-    tilemap_generate(map);
+    tilemap_generate(map, rng);
 }
 
 void tilemap_free(Tilemap *map)
@@ -155,7 +155,7 @@ Tile *tilemap_at_world_try(Tilemap *map, int x, int y)
     return tilemap_at_try(map, tileX, tileY);
 }
 
-static void rrt_build(Tilemap *map, Vector2 qinit, size_t numVertices, float maxGrowthDist)
+static void rrt_build(Tilemap *map, dlb_rand32_t *rng, Vector2 qinit, size_t numVertices, float maxGrowthDist)
 {
     float maxGrowthDistSq = maxGrowthDist * maxGrowthDist;
 
@@ -167,7 +167,7 @@ static void rrt_build(Tilemap *map, Vector2 qinit, size_t numVertices, float max
     const int tileMax = (int)map->tileset->tileCount - 2;
 
     RRTVertex *vertex = map->rrt.vertices;
-    vertex->tileType = (TileType)dlb_rand32i_range(tileMin, tileMax);
+    vertex->tileType = (TileType)dlb_rand32i_range_r(rng, tileMin, tileMax);
     vertex->position = qinit;
     vertex++;
 
@@ -176,8 +176,8 @@ static void rrt_build(Tilemap *map, Vector2 qinit, size_t numVertices, float max
     Vector2 qrand = {};
     for (size_t tileIdx = 1; tileIdx < map->rrt.vertexCount; tileIdx++) {
 #if 1
-        qrand.x = (float)dlb_rand32i_range(0, (int)(map->widthTiles * map->tileset->tileWidth));
-        qrand.y = (float)dlb_rand32i_range(0, (int)(map->heightTiles * map->tileset->tileHeight));
+        qrand.x = (float)dlb_rand32i_range_r(rng, 0, (int)(map->widthTiles * map->tileset->tileWidth));
+        qrand.y = (float)dlb_rand32i_range_r(rng, 0, (int)(map->heightTiles * map->tileset->tileHeight));
 #else
         // TODO: Try tile coords instead of pixels
         qrand.tileX = (float)GetRandomValue(0, map->widthTiles);
@@ -197,7 +197,7 @@ static void rrt_build(Tilemap *map, Vector2 qinit, size_t numVertices, float max
 #endif
         qnew = v2_add(qnew, qnear);
         if (tileIdx < randTiles) {
-            vertex->tileType = (TileType)dlb_rand32i_range(tileMin, tileMax);
+            vertex->tileType = (TileType)dlb_rand32i_range_r(rng, tileMin, tileMax);
         } else {
             vertex->tileType = map->rrt.vertices[nearestIdx].tileType;
         }
