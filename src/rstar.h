@@ -5,8 +5,8 @@
 #include <vector>
 #include <bitset>
 
-#define RSTAR_MIN_ENTRIES 8
-#define RSTAR_MAX_ENTRIES 16
+#define RSTAR_MIN_ENTRIES 2
+#define RSTAR_MAX_ENTRIES 8
 
 namespace RStar {
     template<typename T, size_t ChunkSize>
@@ -214,9 +214,9 @@ namespace RStar {
                 Node *bestChild = 0;
                 float minEnlargementArea = FLT_MAX;
                 for (size_t i = 0; i < node->count; i++) {
-                    // TODO: Calculate enlargement and break ties
-                    float enlargmentArea = 1.0f;
-                    if (bestChild == nullptr || enlargmentArea < minEnlargementArea) {
+                    float enlargmentArea = node->children[i]->bounds.calcAreaIncrease(entry.bounds);
+                    if (enlargmentArea < minEnlargementArea) {
+                        minEnlargementArea = enlargmentArea;
                         bestChild = node->children[i];
                     }
                 }
@@ -231,9 +231,29 @@ namespace RStar {
         {
             assert(node->count == RSTAR_MAX_ENTRIES);
 
-            Node &newNode = *nodes.Alloc();
-            newNode.type = node->type;
-            newNode.parent = node->parent;
+#if 0
+            Node *newNode = nodes.Alloc();
+            newNode->type = node->type;
+            newNode->parent = node->parent;
+
+            // TODO: Implement an actual split algorithm. Currently, we are just moving the second
+            // half of the entries to a new node arbitrarily.
+            size_t half = node->count / 2;
+            for (size_t i = 0; i < half; i++) {
+                newNode->entries[i] = node->entries[half + i];
+                node->entries[half + i] = {};
+            }
+            newNode->count = half;
+            node->count = half;
+
+            // TODO: Put the new entry somewhere intelligent as well. For now, just add to first node's
+            // entry list arbitrarily.
+            node->entries[node->count] = &entry;
+            node->count++;
+#elif 0
+            Node *newNode = nodes.Alloc();
+            newNode->type = node->type;
+            newNode->parent = node->parent;
 
             float avg_x = 0.0f;
             for (size_t i = 0; i < node->count; i++) {
@@ -242,17 +262,6 @@ namespace RStar {
             avg_x += entry.bounds.min.x;
             avg_x /= node->count + 1.0f;
 
-#if 0
-            // TODO: Implement an actual split algorithm. Currently, we are just moving the second
-            // half of the entries to a new node arbitrarily.
-            size_t half = node->count / 2;
-            for (size_t i = 0; i < half; i++) {
-                newNode.entries[i] = node->entries[half + i];
-                node->entries[half + i] = {};
-            }
-            newNode.count = half;
-            node->count = half;
-#else
             size_t entry_count = node->count;
             node->count = 0;
             for (size_t i = 0; i < entry_count; i++) {
@@ -261,55 +270,262 @@ namespace RStar {
                     if (i > node->count) node->entries[i] = {};
                     node->count++;
                 } else {
-                    newNode.entries[newNode.count] = node->entries[i];
+                    newNode->entries[newNode->count] = node->entries[i];
                     node->entries[i] = {};
-                    newNode.count++;
+                    newNode->count++;
                 }
             }
-#endif
 
-#if 0
-            // TODO: Put the new entry somewhere intelligent as well. For now, just add to first node's
-            // entry list arbitrarily.
-            node->entries[node->count] = &entry;
-            node->count++;
-#else
             if (entry.bounds.min.x < avg_x && node->count < RSTAR_MAX_ENTRIES) {
                 node->entries[node->count] = &entry;
                 node->count++;
             } else {
-                newNode.entries[newNode.count] = &entry;
-                newNode.count++;
+                newNode->entries[newNode->count] = &entry;
+                newNode->count++;
             }
+#else
+            Node temp{};
+            Node *nodeA = &temp;
+            Node *nodeB = nodes.Alloc();
+            nodeA->type = node->type;
+            nodeB->type = node->type;
+            nodeA->parent = node->parent;
+            nodeB->parent = node->parent;
+
+            {
+                // PickSeeds - Find the two entries that would create the most wasted space if put into the same group
+                size_t E1;
+                size_t E2;
+
+                float maxD = 0.0f;
+                for (size_t i = 0; i < node->count; i++) {
+                    for (size_t j = i + 1; j < node->count; j++) {
+                        AABB *R1 = node->aabbs[i];
+                        AABB *R2 = node->aabbs[j];
+                        AABB R = R1->calcUnion(*R2);
+                        float d = R.calcArea() - R1->calcArea() - R2->calcArea();
+                        if (d > maxD) {
+                            maxD = d;
+                            E1 = i;
+                            E2 = j;
+                        }
+                    }
+                }
+
+                nodeA->entries[nodeA->count] = node->entries[E1];
+                nodeB->entries[nodeB->count] = node->entries[E2];
+                nodeA->count++;
+                nodeB->count++;
+                nodeA->bounds = node->entries[E1]->bounds;
+                nodeB->bounds = node->entries[E2]->bounds;
+                node->entries[E1] = 0;
+                node->entries[E2] = 0;
+            }
+
+            {
+                // PickNext
+                size_t ENext = node->count;
+                Node *addToNode;
+
+                for (;;) {
+                    addToNode = 0;
+
+                    float maxIncreaseDelta = 0.0f;
+                    for (size_t i = 0; i < node->count; i++) {
+                        if (!node->entries[i]) {
+                            continue;
+                        }
+
+                        float increase1 = nodeA->bounds.calcAreaIncrease(*node->aabbs[i]);
+                        float increase2 = nodeB->bounds.calcAreaIncrease(*node->aabbs[i]);
+                        float increaseDelta = fabsf(increase1 - increase2);
+                        if (increaseDelta > maxIncreaseDelta) {
+                            maxIncreaseDelta = increaseDelta;
+                            ENext = i;
+                            addToNode = (increase1 <= increase2) ? nodeA : nodeB;
+                        }
+                    }
+
+                    if (!addToNode) {
+                        break;
+                    }
+
+                    assert(ENext < node->count);
+                    addToNode->entries[addToNode->count] = node->entries[ENext];
+                    addToNode->count++;
+                    addToNode->bounds.growToContain(node->entries[ENext]->bounds);
+                    node->entries[ENext] = 0;
+
+                    if (nodeA->count > (RSTAR_MAX_ENTRIES - RSTAR_MIN_ENTRIES + 1) ||
+                        nodeB->count > (RSTAR_MAX_ENTRIES - RSTAR_MIN_ENTRIES + 1))
+                    {
+                        break;
+                    }
+                }
+
+                if (nodeA->count + nodeB->count < node->count) {
+                    // Add remaining entries to least occupied node to meet minimum fill requirement
+                    // TODO: Smarter distribution of entries (R*-Tree recommends forced re-insertion)
+                    addToNode = (nodeA->count < nodeB->count) ? nodeA : nodeB;
+                    for (size_t i = 0; i < node->count; i++) {
+                        if (!node->entries[i]) {
+                            continue;
+                        }
+                        addToNode->entries[addToNode->count] = node->entries[i];
+                        addToNode->count++;
+                        addToNode->bounds.growToContain(node->entries[i]->bounds);
+                        //node->entries[i] = 0;
+                    }
+                }
+            }
+
+
 #endif
 
-            return &newNode;
+            *node = temp;
+            return nodeB;
         }
 
         Node *SplitDirectory(Node *node, Node *child)
         {
             assert(node->count == RSTAR_MAX_ENTRIES);
 
-            Node &newNode = *nodes.Alloc();
-            newNode.type = node->type;
-            newNode.parent = node->parent;
+#if 0
+            Node *newNode = nodes.Alloc();
+            newNode->type = node->type;
+            newNode->parent = node->parent;
 
             // TODO: Implement an actual split algorithm. Currently, we are just moving the second
             // half of the entries to a new node arbitrarily.
             size_t half = node->count / 2;
             for (size_t i = 0; i < half; i++) {
-                newNode.children[i] = node->children[half + i];
+                newNode->children[i] = node->children[half + i];
+                newNode->children[i]->parent = newNode;
                 node->children[half + i] = {};
             }
-            newNode.count = half;
+            newNode->count = half;
             node->count = half;
 
             // TODO: Put the new entry somewhere intelligent as well. For now, just add to first node's
             // entry list arbitrarily.
             node->children[node->count] = child;
+            node->children[node->count]->parent = node;
             node->count++;
 
-            return &newNode;
+            return newNode;
+#else
+            Node temp{};
+            Node *nodeA = &temp;
+            Node *nodeB = nodes.Alloc();
+            nodeA->type = node->type;
+            nodeB->type = node->type;
+            nodeA->parent = node->parent;
+            nodeB->parent = node->parent;
+
+            {
+                // PickSeeds - Find the two children that would create the most wasted space if put into the same group
+                size_t E1;
+                size_t E2;
+
+                float maxD = 0.0f;
+                for (size_t i = 0; i < node->count; i++) {
+                    for (size_t j = i + 1; j < node->count; j++) {
+                        AABB *R1 = node->aabbs[i];
+                        AABB *R2 = node->aabbs[j];
+                        AABB R = R1->calcUnion(*R2);
+                        float d = R.calcArea() - R1->calcArea() - R2->calcArea();
+                        if (d > maxD) {
+                            maxD = d;
+                            E1 = i;
+                            E2 = j;
+                        }
+                    }
+                }
+
+                nodeA->children[nodeA->count] = node->children[E1];
+                nodeB->children[nodeB->count] = node->children[E2];
+                nodeA->count++;
+                nodeB->count++;
+                nodeA->bounds = node->children[E1]->bounds;
+                nodeB->bounds = node->children[E2]->bounds;
+                node->children[E1] = 0;
+                node->children[E2] = 0;
+            }
+
+            {
+                // PickNext
+                size_t ENext = node->count;
+                Node *addToNode;
+
+                for (;;) {
+                    addToNode = 0;
+
+                    float maxIncreaseDelta = 0.0f;
+                    for (size_t i = 0; i < node->count; i++) {
+                        if (!node->children[i]) {
+                            continue;
+                        }
+
+                        float increase1 = nodeA->bounds.calcAreaIncrease(*node->aabbs[i]);
+                        float increase2 = nodeB->bounds.calcAreaIncrease(*node->aabbs[i]);
+                        float increaseDelta = fabsf(increase1 - increase2);
+                        if (increaseDelta > maxIncreaseDelta) {
+                            maxIncreaseDelta = increaseDelta;
+                            ENext = i;
+                            addToNode = (increase1 <= increase2) ? nodeA : nodeB;
+                        }
+                    }
+
+                    if (!addToNode) {
+                        break;
+                    }
+
+                    assert(ENext < node->count);
+                    addToNode->children[addToNode->count] = node->children[ENext];
+                    addToNode->count++;
+                    addToNode->bounds.growToContain(node->children[ENext]->bounds);
+                    node->children[ENext] = 0;
+
+                    if (nodeA->count > (RSTAR_MAX_ENTRIES - RSTAR_MIN_ENTRIES + 1) ||
+                        nodeB->count > (RSTAR_MAX_ENTRIES - RSTAR_MIN_ENTRIES + 1))
+                    {
+                        break;
+                    }
+                }
+
+                if (nodeA->count + nodeB->count < node->count) {
+                    // Add remaining children to least occupied node to meet minimum fill requirement
+                    // TODO: Smarter distribution of children (R*-Tree recommends forced re-insertion)
+                    addToNode = (nodeA->count < nodeB->count) ? nodeA : nodeB;
+                    for (size_t i = 0; i < node->count; i++) {
+                        if (!node->children[i]) {
+                            continue;
+                        }
+                        addToNode->children[addToNode->count] = node->children[i];
+                        addToNode->count++;
+                        addToNode->bounds.growToContain(node->children[i]->bounds);
+                        //node->children[i] = 0;
+                    }
+                }
+            }
+
+            *node = temp;
+            return nodeB;
+#endif
+        }
+
+        void RecalcNodeBounds(Node *node)
+        {
+            assert(node);
+            assert(node->count);
+
+            AABB temp = node->bounds;
+            node->bounds = *node->aabbs[0];
+            for (size_t i = 1; i < node->count; i++) {
+                node->bounds.growToContain(*node->aabbs[i]);
+            }
+
+            assert(temp.min.x != 6.2349234f);
         }
 
         void AdjustTree(Node *node, Node *splitNode)
@@ -318,50 +534,37 @@ namespace RStar {
             Node *N = node;
             Node *NN = splitNode;
 
-            // Recalculate bounds
-            N->bounds = *N->aabbs[0];
-            for (size_t i = 1; i < N->count; i++) {
-                N->bounds.growToContain(*N->aabbs[i]);
-            }
-
+            RecalcNodeBounds(N);
             if (NN) {
-                NN->bounds = *NN->aabbs[0];
-                for (size_t i = 1; i < NN->count; i++) {
-                    NN->bounds.growToContain(*NN->aabbs[i]);
-                }
+                RecalcNodeBounds(NN);
             }
 
             while (N->parent) {
                 Node *P = N->parent;
-
-                // Recalculate parent bounds
-                P->bounds = *N->aabbs[0];
-                for (size_t i = 1; i < N->count; i++) {
-                    P->bounds.growToContain(*N->aabbs[i]);
-                }
+                RecalcNodeBounds(P);
 
                 if (NN) {
                     Node *PP = NN->parent;
+                    Node *PPP = 0;
 
                     bool split = false;
                     if (PP->count < RSTAR_MAX_ENTRIES) {
                         PP->children[P->count] = NN;
                         PP->count++;
                     } else {
-                        PP = SplitDirectory(PP, NN);
-                        split = true;
+                        PPP = SplitDirectory(PP, NN);
+                        RecalcNodeBounds(PPP);
                     }
 
                     // Recalculate split node parent's bounds
-                    PP->bounds = *NN->aabbs[0];
-                    for (size_t i = 1; i < NN->count; i++) {
-                        PP->bounds.growToContain(*NN->aabbs[i]);
-                    }
+                    RecalcNodeBounds(PP);
 
-                    NN = split ? PP : 0;
+                    NN = PPP;
                 }
                 N = P;
             }
+
+            RecalcNodeBounds(N);
 
             // We're at root now, if there's an NN, then the root node was split. Make new root.
             if (NN) {
@@ -375,7 +578,9 @@ namespace RStar {
                 newRoot->children[1] = NN;
                 newRoot->children[1]->parent = newRoot;
                 root = newRoot;
+                RecalcNodeBounds(root);
             }
+
         }
 
         // TODO: Rename to FindEntry

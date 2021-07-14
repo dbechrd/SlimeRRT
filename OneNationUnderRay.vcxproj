@@ -41,6 +41,7 @@
     <ClCompile Include="src\tileset.cpp" />
     <ClCompile Include="src\world.cpp" />
     <ClCompile Include="src\zed_net.cpp" />
+    <ClCompile Include="test\maths_test.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\bit_stream.h" />
@@ -74,6 +75,7 @@
     <ClInclude Include="src\tilemap.h" />
     <ClInclude Include="src\tileset.h" />
     <ClInclude Include="src\world.h" />
+    <ClInclude Include="test\maths_test.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

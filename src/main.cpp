@@ -29,6 +29,7 @@
 #include "rstar.h"
 #include "sim.h"
 #include "world.h"
+#include "../test/maths_test.h"
 
 #include "dlb_rand.h"
 #include "raygui.h"
@@ -101,29 +102,40 @@ void parse_args(Args &args, int argc, char *argv[])
     }
 }
 
-void DrawNode(RStar::RStarTree::Node *node) {
+void DrawNode(RStar::RStarTree::Node *node, int level) {
+    static Color colors[] = {
+        Color{ 255,   0,   0, 255 },
+        Color{   0, 255,   0, 255 },
+        Color{   0,   0, 255, 255 },
+        PINK,
+        LIME,
+        SKYBLUE
+    };
+    assert(level < ARRAY_SIZE(colors));
     switch (node->type) {
         case RStar::RStarTree::NodeType_Directory: {
             for (size_t i = 0; i < node->count; i++) {
-                DrawNode(node->children[i]);
+                DrawNode(node->children[i], level + 1);
             }
             break;
         }
         case RStar::RStarTree::NodeType_Leaf: {
             for (size_t i = 0; i < node->count; i++) {
                 RStar::RStarTree::Entry *entry = node->entries[i];
-                DrawRectangleLinesEx(entry->bounds.toRect(), 3, Fade(VIOLET, 1.0f));
+                DrawRectangleLinesEx(entry->bounds.toRect(), level + 4, WHITE);
             }
             break;
         }
     }
-    DrawRectangleLinesEx(node->bounds.toRect(), 3, Fade(GREEN, 0.3f));
+    DrawRectangleLinesEx(node->bounds.toRect(), level + 3, colors[level]);
 }
 
 int main(int argc, char *argv[])
 {
     Args args = {};
     parse_args(args, argc, argv);
+
+    maths_test();
 
     //--------------------------------------------------------------------------------------
     // Initialization
@@ -332,23 +344,27 @@ int main(int argc, char *argv[])
     };
 
 #if DEMO_VIEW_RSTAR
-    std::array<Rectangle, 100> rects{};
-    std::array<bool, 100> drawn{};
+    const int RECT_COUNT = 42;
+    std::array<Rectangle, RECT_COUNT> rects{};
+    std::array<bool, RECT_COUNT> drawn{};
     RStar::RStarTree tree{};
 
     dlb_rand32_t rstar_rand{};
-    dlb_rand32_seed_r(&rstar_rand, 42, 42);
+    dlb_rand32_seed_r(&rstar_rand, 3, 3);
+    size_t next_rect_to_add = RECT_COUNT;
     for (size_t i = 0; i < rects.size(); i++) {
-        rects[i].x = worldSpawn.x + dlb_rand32f_variance_r(&rstar_rand, 400.0f);
-        rects[i].y = worldSpawn.y + dlb_rand32f_variance_r(&rstar_rand, 400.0f);
-        rects[i].width  = dlb_rand32f_range_r(&rstar_rand, 10.0f, 50.0f);
-        rects[i].height = dlb_rand32f_range_r(&rstar_rand, 10.0f, 50.0f);
-        AABB aabb{};
-        aabb.min.x = rects[i].x;
-        aabb.min.y = rects[i].y;
-        aabb.max.x = rects[i].x + rects[i].width;
-        aabb.max.y = rects[i].y + rects[i].height;
-        tree.Insert(aabb, (void *)i);
+        rects[i].x = worldSpawn.x + dlb_rand32f_variance_r(&rstar_rand, 600.0f);
+        rects[i].y = worldSpawn.y + dlb_rand32f_variance_r(&rstar_rand, 300.0f);
+        rects[i].width  = dlb_rand32f_range_r(&rstar_rand, 50.0f, 100.0f);
+        rects[i].height = dlb_rand32f_range_r(&rstar_rand, 50.0f, 100.0f);
+        if (i < next_rect_to_add) {
+            AABB aabb{};
+            aabb.min.x = rects[i].x;
+            aabb.min.y = rects[i].y;
+            aabb.max.x = rects[i].x + rects[i].width;
+            aabb.max.y = rects[i].y + rects[i].height;
+            tree.Insert(aabb, (void *)i);
+        }
     }
 #endif
 
@@ -480,6 +496,16 @@ int main(int argc, char *argv[])
 
             if (IsKeyPressed(KEY_F)) {
                 cameraFollowPlayer = !cameraFollowPlayer;
+            }
+
+            if (IsKeyPressed(KEY_N) && next_rect_to_add < RECT_COUNT) {
+                AABB aabb{};
+                aabb.min.x = floorf(rects[next_rect_to_add].x);
+                aabb.min.y = floorf(rects[next_rect_to_add].y);
+                aabb.max.x = floorf(rects[next_rect_to_add].x + rects[next_rect_to_add].width);
+                aabb.max.y = floorf(rects[next_rect_to_add].y + rects[next_rect_to_add].height);
+                tree.Insert(aabb, (void *)next_rect_to_add);
+                next_rect_to_add++;
             }
 
             // Camera reset (zoom and rotation)
@@ -681,19 +707,19 @@ int main(int argc, char *argv[])
 
         for (const void *value : matches) {
             size_t i = (size_t)value;
-            DrawRectangleRec(rects[i], RED);
+            DrawRectangleRec(rects[i], Fade(RED, 0.6f));
             drawn[i] = true;
         }
 
-        for (size_t i = 0; i < drawn.size(); i++) {
-            if (!drawn[i]) {
-                DrawRectangleLinesEx(rects[i], 2, WHITE);
-            } else {
-                drawn[i] = false;
-            }
-        }
+        //for (size_t i = 0; i < drawn.size(); i++) {
+        //    if (!drawn[i]) {
+        //        DrawRectangleLinesEx(rects[i], 2, WHITE);
+        //    } else {
+        //        drawn[i] = false;
+        //    }
+        //}
 
-        DrawNode(tree.root);
+        DrawNode(tree.root, 0);
         DrawRectangleLinesEx(searchRect, 2, YELLOW);
 #endif
 

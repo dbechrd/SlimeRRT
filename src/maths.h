@@ -17,7 +17,7 @@ struct AABB {
     }
 
     float calcArea() const {
-        float area = max.x - min.x * max.y - min.y;
+        float area = (max.x - min.x) * (max.y - min.y);
         return area;
     }
 
@@ -34,7 +34,7 @@ struct AABB {
         float area = calcArea();
         AABB newAABB = calcUnion(other);
         float newArea = newAABB.calcArea();
-        float areaIncrease = newArea - area;
+        float areaIncrease = (newArea > area) * (newArea - area);
         return areaIncrease;
     }
 
