@@ -26,7 +26,7 @@
 #include "spritesheet_catalog.h"
 #include "tileset.h"
 #include "tilemap.h"
-#include "rstar.h"
+#include "rtree.h"
 #include "sim.h"
 #include "world.h"
 #include "../test/maths_test.h"
@@ -102,7 +102,7 @@ void parse_args(Args &args, int argc, char *argv[])
     }
 }
 
-void DrawNode(RStar::RStarTree::Node *node, int level) {
+void DrawNode(RTree::RTree::Node *node, int level) {
     static Color colors[] = {
         Color{ 255,   0,   0, 255 },
         Color{   0, 255,   0, 255 },
@@ -113,15 +113,15 @@ void DrawNode(RStar::RStarTree::Node *node, int level) {
     };
     assert(level < ARRAY_SIZE(colors));
     switch (node->type) {
-        case RStar::RStarTree::NodeType_Directory: {
+        case RTree::RTree::NodeType_Directory: {
             for (size_t i = 0; i < node->count; i++) {
                 DrawNode(node->children[i], level + 1);
             }
             break;
         }
-        case RStar::RStarTree::NodeType_Leaf: {
+        case RTree::RTree::NodeType_Leaf: {
             for (size_t i = 0; i < node->count; i++) {
-                RStar::RStarTree::Entry *entry = node->entries[i];
+                RTree::RTree::Entry *entry = node->entries[i];
                 DrawRectangleLinesEx(entry->bounds.toRect(), level + 4, WHITE);
             }
             break;
@@ -343,11 +343,11 @@ int main(int argc, char *argv[])
         0.0f
     };
 
-#if DEMO_VIEW_RSTAR
+#if DEMO_VIEW_RTREE
     const int RECT_COUNT = 42;
     std::array<Rectangle, RECT_COUNT> rects{};
     std::array<bool, RECT_COUNT> drawn{};
-    RStar::RStarTree tree{};
+    RTree::RTree tree{};
 
     dlb_rand32_t rstar_rand{};
     dlb_rand32_seed_r(&rstar_rand, 3, 3);
@@ -678,7 +678,7 @@ int main(int argc, char *argv[])
             draw_commands_flush();
         }
 
-#if DEMO_VIEW_RSTAR
+#if DEMO_VIEW_RTREE
         AABB searchAABB = {
             mousePosWorld.x - 50,
             mousePosWorld.y - 50,
@@ -694,7 +694,7 @@ int main(int argc, char *argv[])
 
 #if 1
         std::vector<void *> matches{};
-        tree.Search(searchAABB, matches, RStar::RStarTree::CompareMode_Overlap);
+        tree.Search(searchAABB, matches, RTree::RTree::CompareMode_Overlap);
 #else
         static std::vector<void *> matches;
         matches.clear();

@@ -53,7 +53,7 @@
     <ClInclude Include="src\particles.h" />
     <ClInclude Include="src\player.h" />
     <ClInclude Include="src\player_inventory.h" />
-    <ClInclude Include="src\rstar.h" />
+    <ClInclude Include="src\rtree.h" />
     <ClInclude Include="src\shadow.h" />
     <ClInclude Include="src\sim.h" />
     <ClInclude Include="src\slime.h" />

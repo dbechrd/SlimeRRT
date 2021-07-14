@@ -1,20 +1,22 @@
 #pragma once
 #include "maths.h"
 #include <array>
-#include <variant>
 #include <vector>
 #include <bitset>
 
-#define RSTAR_MIN_ENTRIES 2
-#define RSTAR_MAX_ENTRIES 8
+#define RTREE_MIN_ENTRIES 2
+#define RTREE_MAX_ENTRIES 8
 
-namespace RStar {
+namespace RTree {
     template<typename T, size_t ChunkSize>
     class ChunkAllocator {
     public:
         T *Alloc()
         {
-            Chunk *chunk = &head;
+            if (!head) {
+                head = new Chunk{};
+            }
+            Chunk *chunk = head;
 
             // Find first chunk with a free slot
             while (chunk && chunk->next && chunk->in_use.all()) {
@@ -35,25 +37,63 @@ namespace RStar {
 
             // Set in_use bit and return pointer to slot
             chunk->in_use.set(slot);
-            return &chunk->data[slot];
+            chunk->entries[slot].metadata.chunk = chunk;
+            return &chunk->entries[slot].data;
         }
 
         void Free(T *ptr)
         {
-            // TODO: Determine which chunk ptr is in somehow..
-            // TODO: Zero the memory
-            // TODO: Clear bitset flag
-            // TODO: If bitset.none(), delete chunk and update linked list
-            assert(!"Fuck");
+            ChunkEntry *entry = (ChunkEntry *)ptr;
+            Chunk *findChunk = entry->metadata.chunk;
+
+            // Find the chunk containing this entry
+            Chunk *chunk = head;
+            Chunk *prev = 0;
+            while (chunk && chunk != findChunk) {
+                prev = chunk;
+                chunk = chunk->next;
+            }
+            assert(chunk);
+
+            // Find the slot in the chunk containing this entry
+            size_t slot = 0;
+            while (slot < chunk->in_use.size() && (!chunk->in_use[slot] || &chunk->entries[slot] != entry)) {
+                slot++;
+            }
+            assert(slot < chunk->in_use.size());
+            assert(&chunk->entries[slot] == entry);
+
+            // Zero the memory
+            entry = {};
+
+            // Clear bitset flag
+            chunk->in_use.reset(slot);
+
+            // If chunk is empty, delete chunk and update linked list
+            if (chunk->in_use.none()) {
+                if (prev) {
+                    prev->next = chunk->next;
+                } else {
+                    head = chunk->next;
+                }
+                delete chunk;
+            }
         }
 
     private:
+        struct ChunkMetadata {
+            struct Chunk *chunk;
+        };
+        struct ChunkEntry {
+            T data;
+            ChunkMetadata metadata;
+        };
         struct Chunk {
-            T data[ChunkSize];
+            ChunkEntry entries[ChunkSize];
             std::bitset<ChunkSize> in_use;
             Chunk *next;
         };
-        Chunk head{};
+        Chunk *head{};
     };
 
     // "R-Trees - A Dynamic Index Structure for Spatial Searching"
@@ -64,7 +104,7 @@ namespace RStar {
     //  (5) The root node has at least two children unless it is a leaf
     //  (6) All leaves appear on the same level
     //
-    class RStarTree {
+    class RTree {
     public:
         enum NodeType {
             NodeType_Directory, // has children nodes
@@ -92,9 +132,9 @@ namespace RStar {
             NodeType type;
             size_t count;
             union {
-                AABB *aabbs[RSTAR_MAX_ENTRIES];
-                Node *children[RSTAR_MAX_ENTRIES];
-                Entry *entries[RSTAR_MAX_ENTRIES];
+                AABB *aabbs[RTREE_MAX_ENTRIES];
+                Node *children[RTREE_MAX_ENTRIES];
+                Entry *entries[RTREE_MAX_ENTRIES];
             };
             Node *parent;
         };
@@ -107,7 +147,7 @@ namespace RStar {
             CompareMode_Overlap
         };
 
-        RStarTree()
+        RTree()
         {
             root = nodes.Alloc();
             root->type = NodeType_Leaf;
@@ -124,7 +164,7 @@ namespace RStar {
 
             Node *leaf = ChooseLeaf(*entry);
             Node *newLeaf = 0;
-            if (leaf->count < RSTAR_MAX_ENTRIES) {
+            if (leaf->count < RTREE_MAX_ENTRIES) {
                 leaf->entries[leaf->count] = entry;
                 leaf->count++;
             } else {
@@ -169,7 +209,12 @@ namespace RStar {
             if (root->count == 1) {
                 Node *oldRoot = root;
                 root = root->children[0];
-                // TODO: [!!! FIX MEMORY LEAK !!!] nodes.Free(oldRoot);
+                if (oldRoot->type == NodeType_Leaf) {
+                    for (size_t i = 0; i < oldRoot->count; i++) {
+                        entries.Free(oldRoot->entries[i]);
+                    }
+                }
+                nodes.Free(oldRoot);
             }
 
             return true;
@@ -229,7 +274,7 @@ namespace RStar {
         // second new node will be created and a pointer to it will be returned
         Node *SplitLeaf(Node *node, Entry &entry)
         {
-            assert(node->count == RSTAR_MAX_ENTRIES);
+            assert(node->count == RTREE_MAX_ENTRIES);
 
 #if 0
             Node *newNode = nodes.Alloc();
@@ -276,7 +321,7 @@ namespace RStar {
                 }
             }
 
-            if (entry.bounds.min.x < avg_x && node->count < RSTAR_MAX_ENTRIES) {
+            if (entry.bounds.min.x < avg_x && node->count < RTREE_MAX_ENTRIES) {
                 node->entries[node->count] = &entry;
                 node->count++;
             } else {
@@ -356,8 +401,8 @@ namespace RStar {
                     addToNode->bounds.growToContain(node->entries[ENext]->bounds);
                     node->entries[ENext] = 0;
 
-                    if (nodeA->count > (RSTAR_MAX_ENTRIES - RSTAR_MIN_ENTRIES + 1) ||
-                        nodeB->count > (RSTAR_MAX_ENTRIES - RSTAR_MIN_ENTRIES + 1))
+                    if (nodeA->count > (RTREE_MAX_ENTRIES - RTREE_MIN_ENTRIES + 1) ||
+                        nodeB->count > (RTREE_MAX_ENTRIES - RTREE_MIN_ENTRIES + 1))
                     {
                         break;
                     }
@@ -388,7 +433,7 @@ namespace RStar {
 
         Node *SplitDirectory(Node *node, Node *child)
         {
-            assert(node->count == RSTAR_MAX_ENTRIES);
+            assert(node->count == RTREE_MAX_ENTRIES);
 
 #if 0
             Node *newNode = nodes.Alloc();
@@ -486,8 +531,8 @@ namespace RStar {
                     addToNode->bounds.growToContain(node->children[ENext]->bounds);
                     node->children[ENext] = 0;
 
-                    if (nodeA->count > (RSTAR_MAX_ENTRIES - RSTAR_MIN_ENTRIES + 1) ||
-                        nodeB->count > (RSTAR_MAX_ENTRIES - RSTAR_MIN_ENTRIES + 1))
+                    if (nodeA->count > (RTREE_MAX_ENTRIES - RTREE_MIN_ENTRIES + 1) ||
+                        nodeB->count > (RTREE_MAX_ENTRIES - RTREE_MIN_ENTRIES + 1))
                     {
                         break;
                     }
@@ -548,7 +593,7 @@ namespace RStar {
                     Node *PPP = 0;
 
                     bool split = false;
-                    if (PP->count < RSTAR_MAX_ENTRIES) {
+                    if (PP->count < RTREE_MAX_ENTRIES) {
                         PP->children[P->count] = NN;
                         PP->count++;
                     } else {
