@@ -238,7 +238,7 @@ void sim(double now, double dt, const PlayerControllerState input, Player *playe
 
                 if (!willCollide && slime_move(&slimes[slimeIdx], now, dt, slimeMove)) {
                     SoundID squish = dlb_rand32i_range(0, 1) ? SoundID_Squish1 : SoundID_Squish2;
-                    //sound_catalog_play(squish, 1.0f + dlb_rand32f_variance(0.2f));
+                    sound_catalog_play(squish, 1.0f + dlb_rand32f_variance(0.2f));
                 }
             }
 

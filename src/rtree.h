@@ -168,11 +168,10 @@ namespace RTree {
                 leaf->entries[leaf->count] = entry;
                 leaf->count++;
             } else {
-                newLeaf = SplitLeaf(leaf, *entry);
+                newLeaf = SplitLeaf(leaf, entry);
                 assert(newLeaf);
             }
             AdjustTree(leaf, newLeaf);
-            // if root split, create new root
         }
         bool Delete(const AABB &aabb, void *udata)
         {
@@ -203,15 +202,15 @@ namespace RTree {
             //memset(leaf->entries[leaf->count], 0, sizeof(*leaf->entries));
             assert(leaf->entries[leaf->count]->udata == 0);
 
-            CondenseTree(*root);
+            CondenseTree(*leaf);
 
             // if root has one child, make child the new root
             if (root->count == 1) {
                 Node *oldRoot = root;
                 root = root->children[0];
                 if (oldRoot->type == NodeType_Leaf) {
-                    for (size_t i = 0; i < oldRoot->count; i++) {
-                        entries.Free(oldRoot->entries[i]);
+                    for (size_t j = 0; j < oldRoot->count; j++) {
+                        entries.Free(oldRoot->entries[j]);
                     }
                 }
                 nodes.Free(oldRoot);
@@ -272,291 +271,223 @@ namespace RTree {
 
         // node will be split into two nodes. the first new node will overwrite node in-place; the
         // second new node will be created and a pointer to it will be returned
-        Node *SplitLeaf(Node *node, Entry &entry)
+        Node *SplitLeaf(Node *node, Entry *entry)
         {
+            assert(node->type == NodeType_Leaf);
             assert(node->count == RTREE_MAX_ENTRIES);
 
-#if 0
-            Node *newNode = nodes.Alloc();
-            newNode->type = node->type;
-            newNode->parent = node->parent;
+            Entry *remainingEntries[RTREE_MAX_ENTRIES + 1] = {};
+            memcpy(remainingEntries, node->entries, sizeof(node->entries));
+            remainingEntries[RTREE_MAX_ENTRIES] = entry;
 
-            // TODO: Implement an actual split algorithm. Currently, we are just moving the second
-            // half of the entries to a new node arbitrarily.
-            size_t half = node->count / 2;
-            for (size_t i = 0; i < half; i++) {
-                newNode->entries[i] = node->entries[half + i];
-                node->entries[half + i] = {};
-            }
-            newNode->count = half;
-            node->count = half;
-
-            // TODO: Put the new entry somewhere intelligent as well. For now, just add to first node's
-            // entry list arbitrarily.
-            node->entries[node->count] = &entry;
-            node->count++;
-#elif 0
-            Node *newNode = nodes.Alloc();
-            newNode->type = node->type;
-            newNode->parent = node->parent;
-
-            float avg_x = 0.0f;
-            for (size_t i = 0; i < node->count; i++) {
-                avg_x += node->aabbs[i]->min.x;
-            }
-            avg_x += entry.bounds.min.x;
-            avg_x /= node->count + 1.0f;
-
-            size_t entry_count = node->count;
+            memset(node->entries, 0, sizeof(node->entries));
             node->count = 0;
-            for (size_t i = 0; i < entry_count; i++) {
-                if (node->aabbs[i]->min.x < avg_x) {
-                    node->entries[node->count] = node->entries[i];
-                    if (i > node->count) node->entries[i] = {};
-                    node->count++;
-                } else {
-                    newNode->entries[newNode->count] = node->entries[i];
-                    node->entries[i] = {};
-                    newNode->count++;
-                }
-            }
 
-            if (entry.bounds.min.x < avg_x && node->count < RTREE_MAX_ENTRIES) {
-                node->entries[node->count] = &entry;
-                node->count++;
-            } else {
-                newNode->entries[newNode->count] = &entry;
-                newNode->count++;
-            }
-#else
-            Node temp{};
-            Node *nodeA = &temp;
             Node *nodeB = nodes.Alloc();
-            nodeA->type = node->type;
             nodeB->type = node->type;
-            nodeA->parent = node->parent;
             nodeB->parent = node->parent;
 
             {
                 // PickSeeds - Find the two entries that would create the most wasted space if put into the same group
-                size_t E1;
-                size_t E2;
+                size_t E1 = ARRAY_SIZE(remainingEntries);
+                size_t E2 = ARRAY_SIZE(remainingEntries);
 
-                float maxD = 0.0f;
-                for (size_t i = 0; i < node->count; i++) {
-                    for (size_t j = i + 1; j < node->count; j++) {
-                        AABB *R1 = node->aabbs[i];
-                        AABB *R2 = node->aabbs[j];
-                        AABB R = R1->calcUnion(*R2);
-                        float d = R.calcArea() - R1->calcArea() - R2->calcArea();
-                        if (d > maxD) {
-                            maxD = d;
+                float maxWastedSpace = 0.0f;
+                for (size_t i = 0; i < ARRAY_SIZE(remainingEntries); i++) {
+                    for (size_t j = i + 1; j < ARRAY_SIZE(remainingEntries); j++) {
+                        AABB *R1 = &remainingEntries[i]->bounds;
+                        AABB *R2 = &remainingEntries[j]->bounds;
+                        float wastedSpace = AABB::wastedSpace(*R1, *R2);
+                        if (wastedSpace > maxWastedSpace) {
+                            maxWastedSpace = wastedSpace;
                             E1 = i;
                             E2 = j;
                         }
                     }
                 }
 
-                nodeA->entries[nodeA->count] = node->entries[E1];
-                nodeB->entries[nodeB->count] = node->entries[E2];
-                nodeA->count++;
+                assert(E1 < ARRAY_SIZE(remainingEntries));
+                assert(E2 < ARRAY_SIZE(remainingEntries));
+
+                node->entries[node->count] = remainingEntries[E1];
+                nodeB->entries[nodeB->count] = remainingEntries[E2];
+                node->count++;
                 nodeB->count++;
-                nodeA->bounds = node->entries[E1]->bounds;
-                nodeB->bounds = node->entries[E2]->bounds;
-                node->entries[E1] = 0;
-                node->entries[E2] = 0;
+                node->bounds = remainingEntries[E1]->bounds;
+                nodeB->bounds = remainingEntries[E2]->bounds;
+                remainingEntries[E1] = 0;
+                remainingEntries[E2] = 0;
             }
 
             {
                 // PickNext
-                size_t ENext = node->count;
+                size_t ENext = ARRAY_SIZE(remainingEntries);
                 Node *addToNode;
 
                 for (;;) {
                     addToNode = 0;
 
                     float maxIncreaseDelta = 0.0f;
-                    for (size_t i = 0; i < node->count; i++) {
-                        if (!node->entries[i]) {
+                    for (size_t i = 0; i < ARRAY_SIZE(remainingEntries); i++) {
+                        if (!remainingEntries[i]) {
                             continue;
                         }
-
-                        float increase1 = nodeA->bounds.calcAreaIncrease(*node->aabbs[i]);
-                        float increase2 = nodeB->bounds.calcAreaIncrease(*node->aabbs[i]);
+                        float increase1 = node->bounds.calcAreaIncrease(remainingEntries[i]->bounds);
+                        float increase2 = nodeB->bounds.calcAreaIncrease(remainingEntries[i]->bounds);
                         float increaseDelta = fabsf(increase1 - increase2);
                         if (increaseDelta > maxIncreaseDelta) {
                             maxIncreaseDelta = increaseDelta;
                             ENext = i;
-                            addToNode = (increase1 <= increase2) ? nodeA : nodeB;
+                            addToNode = (increase1 <= increase2) ? node : nodeB;
                         }
                     }
 
                     if (!addToNode) {
+                        assert(node->count + nodeB->count == ARRAY_SIZE(remainingEntries));
                         break;
                     }
 
-                    assert(ENext < node->count);
-                    addToNode->entries[addToNode->count] = node->entries[ENext];
+                    assert(ENext < ARRAY_SIZE(remainingEntries));
+                    addToNode->entries[addToNode->count] = remainingEntries[ENext];
                     addToNode->count++;
-                    addToNode->bounds.growToContain(node->entries[ENext]->bounds);
-                    node->entries[ENext] = 0;
+                    addToNode->bounds.growToContain(remainingEntries[ENext]->bounds);
+                    remainingEntries[ENext] = 0;
 
-                    if (nodeA->count > (RTREE_MAX_ENTRIES - RTREE_MIN_ENTRIES + 1) ||
-                        nodeB->count > (RTREE_MAX_ENTRIES - RTREE_MIN_ENTRIES + 1))
+                    if (node->count == (RTREE_MAX_ENTRIES - RTREE_MIN_ENTRIES + 1) ||
+                        nodeB->count == (RTREE_MAX_ENTRIES - RTREE_MIN_ENTRIES + 1))
                     {
                         break;
                     }
                 }
 
-                if (nodeA->count + nodeB->count < node->count) {
+                if (node->count + nodeB->count < ARRAY_SIZE(remainingEntries)) {
                     // Add remaining entries to least occupied node to meet minimum fill requirement
                     // TODO: Smarter distribution of entries (R*-Tree recommends forced re-insertion)
-                    addToNode = (nodeA->count < nodeB->count) ? nodeA : nodeB;
-                    for (size_t i = 0; i < node->count; i++) {
-                        if (!node->entries[i]) {
+                    addToNode = (node->count < nodeB->count) ? node : nodeB;
+                    for (size_t i = 0; i < ARRAY_SIZE(remainingEntries); i++) {
+                        if (!remainingEntries[i]) {
                             continue;
                         }
-                        addToNode->entries[addToNode->count] = node->entries[i];
+                        addToNode->entries[addToNode->count] = remainingEntries[i];
                         addToNode->count++;
-                        addToNode->bounds.growToContain(node->entries[i]->bounds);
-                        //node->entries[i] = 0;
+                        addToNode->bounds.growToContain(remainingEntries[i]->bounds);
+                        remainingEntries[i] = 0;
                     }
                 }
+
+                assert(node->count >= RTREE_MIN_ENTRIES);
+                assert(nodeB->count >= RTREE_MIN_ENTRIES);
             }
 
-
-#endif
-
-            *node = temp;
             return nodeB;
         }
 
         Node *SplitDirectory(Node *node, Node *child)
         {
+            assert(node->type == NodeType_Directory);
             assert(node->count == RTREE_MAX_ENTRIES);
 
-#if 0
-            Node *newNode = nodes.Alloc();
-            newNode->type = node->type;
-            newNode->parent = node->parent;
+            Node *remainingChildren[RTREE_MAX_ENTRIES + 1] = {};
+            memcpy(remainingChildren, node->children, sizeof(node->children));
+            remainingChildren[RTREE_MAX_ENTRIES] = child;
 
-            // TODO: Implement an actual split algorithm. Currently, we are just moving the second
-            // half of the entries to a new node arbitrarily.
-            size_t half = node->count / 2;
-            for (size_t i = 0; i < half; i++) {
-                newNode->children[i] = node->children[half + i];
-                newNode->children[i]->parent = newNode;
-                node->children[half + i] = {};
-            }
-            newNode->count = half;
-            node->count = half;
+            memset(node->children, 0, sizeof(node->children));
+            node->count = 0;
 
-            // TODO: Put the new entry somewhere intelligent as well. For now, just add to first node's
-            // entry list arbitrarily.
-            node->children[node->count] = child;
-            node->children[node->count]->parent = node;
-            node->count++;
-
-            return newNode;
-#else
-            Node temp{};
-            Node *nodeA = &temp;
             Node *nodeB = nodes.Alloc();
-            nodeA->type = node->type;
             nodeB->type = node->type;
-            nodeA->parent = node->parent;
             nodeB->parent = node->parent;
 
             {
                 // PickSeeds - Find the two children that would create the most wasted space if put into the same group
-                size_t E1;
-                size_t E2;
+                size_t E1 = ARRAY_SIZE(remainingChildren);
+                size_t E2 = ARRAY_SIZE(remainingChildren);
 
-                float maxD = 0.0f;
-                for (size_t i = 0; i < node->count; i++) {
-                    for (size_t j = i + 1; j < node->count; j++) {
-                        AABB *R1 = node->aabbs[i];
-                        AABB *R2 = node->aabbs[j];
-                        AABB R = R1->calcUnion(*R2);
-                        float d = R.calcArea() - R1->calcArea() - R2->calcArea();
-                        if (d > maxD) {
-                            maxD = d;
+                float maxWastedSpace = 0.0f;
+                for (size_t i = 0; i < ARRAY_SIZE(remainingChildren); i++) {
+                    for (size_t j = i + 1; j < ARRAY_SIZE(remainingChildren); j++) {
+                        AABB *R1 = &remainingChildren[i]->bounds;
+                        AABB *R2 = &remainingChildren[j]->bounds;
+                        float wastedSpace = AABB::wastedSpace(*R1, *R2);
+                        if (wastedSpace > maxWastedSpace) {
+                            maxWastedSpace = wastedSpace;
                             E1 = i;
                             E2 = j;
                         }
                     }
                 }
 
-                nodeA->children[nodeA->count] = node->children[E1];
-                nodeB->children[nodeB->count] = node->children[E2];
-                nodeA->count++;
+                assert(E1 < ARRAY_SIZE(remainingChildren));
+                assert(E2 < ARRAY_SIZE(remainingChildren));
+
+                node->children[node->count] = remainingChildren[E1];
+                nodeB->children[nodeB->count] = remainingChildren[E2];
+                node->count++;
                 nodeB->count++;
-                nodeA->bounds = node->children[E1]->bounds;
-                nodeB->bounds = node->children[E2]->bounds;
-                node->children[E1] = 0;
-                node->children[E2] = 0;
+                node->bounds = remainingChildren[E1]->bounds;
+                nodeB->bounds = remainingChildren[E2]->bounds;
+                remainingChildren[E1] = 0;
+                remainingChildren[E2] = 0;
             }
 
             {
                 // PickNext
-                size_t ENext = node->count;
+                size_t ENext = ARRAY_SIZE(remainingChildren);
                 Node *addToNode;
 
                 for (;;) {
                     addToNode = 0;
 
                     float maxIncreaseDelta = 0.0f;
-                    for (size_t i = 0; i < node->count; i++) {
-                        if (!node->children[i]) {
+                    for (size_t i = 0; i < ARRAY_SIZE(remainingChildren); i++) {
+                        if (!remainingChildren[i]) {
                             continue;
                         }
-
-                        float increase1 = nodeA->bounds.calcAreaIncrease(*node->aabbs[i]);
-                        float increase2 = nodeB->bounds.calcAreaIncrease(*node->aabbs[i]);
+                        float increase1 = node->bounds.calcAreaIncrease(remainingChildren[i]->bounds);
+                        float increase2 = nodeB->bounds.calcAreaIncrease(remainingChildren[i]->bounds);
                         float increaseDelta = fabsf(increase1 - increase2);
                         if (increaseDelta > maxIncreaseDelta) {
                             maxIncreaseDelta = increaseDelta;
                             ENext = i;
-                            addToNode = (increase1 <= increase2) ? nodeA : nodeB;
+                            addToNode = (increase1 <= increase2) ? node : nodeB;
                         }
                     }
 
                     if (!addToNode) {
+                        assert(node->count + nodeB->count == ARRAY_SIZE(remainingChildren));
                         break;
                     }
 
-                    assert(ENext < node->count);
-                    addToNode->children[addToNode->count] = node->children[ENext];
+                    assert(ENext < ARRAY_SIZE(remainingChildren));
+                    addToNode->children[addToNode->count] = remainingChildren[ENext];
                     addToNode->count++;
-                    addToNode->bounds.growToContain(node->children[ENext]->bounds);
-                    node->children[ENext] = 0;
+                    addToNode->bounds.growToContain(remainingChildren[ENext]->bounds);
+                    remainingChildren[ENext] = 0;
 
-                    if (nodeA->count > (RTREE_MAX_ENTRIES - RTREE_MIN_ENTRIES + 1) ||
+                    if (node->count > (RTREE_MAX_ENTRIES - RTREE_MIN_ENTRIES + 1) ||
                         nodeB->count > (RTREE_MAX_ENTRIES - RTREE_MIN_ENTRIES + 1))
                     {
                         break;
                     }
                 }
 
-                if (nodeA->count + nodeB->count < node->count) {
+                if (node->count + nodeB->count < ARRAY_SIZE(remainingChildren)) {
                     // Add remaining children to least occupied node to meet minimum fill requirement
                     // TODO: Smarter distribution of children (R*-Tree recommends forced re-insertion)
-                    addToNode = (nodeA->count < nodeB->count) ? nodeA : nodeB;
-                    for (size_t i = 0; i < node->count; i++) {
-                        if (!node->children[i]) {
+                    addToNode = (node->count < nodeB->count) ? node : nodeB;
+                    for (size_t i = 0; i < ARRAY_SIZE(remainingChildren); i++) {
+                        if (!remainingChildren[i]) {
                             continue;
                         }
-                        addToNode->children[addToNode->count] = node->children[i];
+                        addToNode->children[addToNode->count] = remainingChildren[i];
                         addToNode->count++;
-                        addToNode->bounds.growToContain(node->children[i]->bounds);
-                        //node->children[i] = 0;
+                        addToNode->bounds.growToContain(remainingChildren[i]->bounds);
+                        remainingChildren[i] = 0;
                     }
                 }
             }
 
-            *node = temp;
             return nodeB;
-#endif
         }
 
         void RecalcNodeBounds(Node *node)
@@ -592,7 +523,6 @@ namespace RTree {
                     Node *PP = NN->parent;
                     Node *PPP = 0;
 
-                    bool split = false;
                     if (PP->count < RTREE_MAX_ENTRIES) {
                         PP->children[P->count] = NN;
                         PP->count++;
@@ -628,7 +558,6 @@ namespace RTree {
 
         }
 
-        // TODO: Rename to FindEntry
         Node *FindLeaf(Node &node, const AABB &aabb, void *udata)
         {
             switch (node.type) {
@@ -652,11 +581,13 @@ namespace RTree {
                     break;
                 }
             }
+            return NULL;
         }
 
         void CondenseTree(Node &node)
         {
             // TODO: "Re-insert orphaned entries from eliminated leaf nodes"
+            UNUSED(node);
         }
     };
 }

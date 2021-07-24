@@ -9,6 +9,12 @@ struct AABB {
     Vector2 min;
     Vector2 max;
 
+    static float wastedSpace(const AABB &a, const AABB &b) {
+        AABB u = a.calcUnion(b);
+        float wastedSpace = u.calcArea() - (a.calcArea() + b.calcArea());
+        return wastedSpace;
+    }
+
     bool intersects(const AABB &other) const {
         return max.x > other.min.x &&
             min.x < other.max.x &&

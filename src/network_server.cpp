@@ -185,11 +185,11 @@ int network_server_receive(NetworkServer *server)
             if (server->packetHistory.count < server->packetHistory.capacity) {
                 server->packetHistory.count++;
             }
-
+#if 0
             time_t t = time(NULL);
             const struct tm *utc = gmtime(&t);
             size_t timeBytes = strftime(CSTR0(packet->timestampStr), "%I:%M:%S %p", utc); // 02:15:42 PM
-
+#endif
             NetworkServerClient *client = 0;
             for (int i = 0; i < NETWORK_SERVER_CLIENTS_MAX; ++i) {
                 // NOTE: Must be tightly packed array (assumes client not already connected when empty slot found)
@@ -220,9 +220,9 @@ int network_server_receive(NetworkServer *server)
             }
             client->last_packet_received_at = GetTime();
 
+#if 0
             const char *senderStr = TextFormatIP(sender);
             //TraceLog(LOG_INFO, "[NetworkServer] RECV %s\n  %s", senderStr, packet->rawBytes);
-#if 0
             TraceLog(LOG_INFO, "[NetworkServer] Sending ACK to %s\n", senderStr);
             if (zed_net_udp_socket_send(&server->socket, client->address, CSTR("ACK")) < 0) {
                 const char *err = zed_net_get_error();

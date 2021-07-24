@@ -66,7 +66,7 @@ static uint32_t bit_stream_read(BitStream *stream, uint8_t bits)
 // https://gafferongames.com/post/serialization_strategies/
 static void bit_stream_write_align(BitStream *stream)
 {
-    const int remainderBits = stream->total_bits % 8;
+    const uint8_t remainderBits = stream->total_bits % 8;
     if (remainderBits) {
         uint32_t zero = 0;
         bit_stream_write(stream, zero, 8 - remainderBits);
@@ -76,7 +76,7 @@ static void bit_stream_write_align(BitStream *stream)
 
 static void bit_stream_read_align(BitStream *stream)
 {
-    const int remainderBits = stream->num_bits_read % 8;
+    const uint8_t remainderBits = stream->num_bits_read % 8;
     if (remainderBits) {
         uint32_t value = bit_stream_read(stream, 8 - remainderBits);
         assert(stream->scratch_bits % 8 == 0);

@@ -95,6 +95,9 @@ static void update_direction(Player *player, Vector2 offset)
 
 bool player_move(Player *player, double now, double dt, Vector2 offset)
 {
+    UNUSED(now);
+    UNUSED(dt);  // offset is already in time slice space
+
     assert(player);
     if (v2_is_zero(offset))
         return false;
@@ -114,6 +117,8 @@ bool player_move(Player *player, double now, double dt, Vector2 offset)
 
 bool player_attack(Player *player, double now, double dt)
 {
+    UNUSED(dt);
+
     if (player->actionState == PlayerActionState_None) {
         player->actionState = PlayerActionState_Attacking;
         player->body.lastUpdated = now;

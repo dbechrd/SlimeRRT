@@ -344,14 +344,15 @@ int main(int argc, char *argv[])
     };
 
 #if DEMO_VIEW_RTREE
-    const int RECT_COUNT = 42;
+    const int RECT_COUNT = 100;
     std::array<Rectangle, RECT_COUNT> rects{};
     std::array<bool, RECT_COUNT> drawn{};
     RTree::RTree tree{};
 
     dlb_rand32_t rstar_rand{};
-    dlb_rand32_seed_r(&rstar_rand, 3, 3);
-    size_t next_rect_to_add = RECT_COUNT;
+    dlb_rand32_seed_r(&rstar_rand, 0, 0);
+    size_t next_rect_to_add = 0; //RECT_COUNT;
+    double lastRectAddedAt = GetTime();
     for (size_t i = 0; i < rects.size(); i++) {
         rects[i].x = worldSpawn.x + dlb_rand32f_variance_r(&rstar_rand, 600.0f);
         rects[i].y = worldSpawn.y + dlb_rand32f_variance_r(&rstar_rand, 300.0f);
@@ -498,14 +499,19 @@ int main(int argc, char *argv[])
                 cameraFollowPlayer = !cameraFollowPlayer;
             }
 
-            if (IsKeyPressed(KEY_N) && next_rect_to_add < RECT_COUNT) {
-                AABB aabb{};
-                aabb.min.x = floorf(rects[next_rect_to_add].x);
-                aabb.min.y = floorf(rects[next_rect_to_add].y);
-                aabb.max.x = floorf(rects[next_rect_to_add].x + rects[next_rect_to_add].width);
-                aabb.max.y = floorf(rects[next_rect_to_add].y + rects[next_rect_to_add].height);
-                tree.Insert(aabb, (void *)next_rect_to_add);
-                next_rect_to_add++;
+            if (IsKeyDown(KEY_N)) {
+                if (next_rect_to_add < RECT_COUNT && (GetTime() - lastRectAddedAt > 0.1)) {
+                    AABB aabb{};
+                    aabb.min.x = floorf(rects[next_rect_to_add].x);
+                    aabb.min.y = floorf(rects[next_rect_to_add].y);
+                    aabb.max.x = floorf(rects[next_rect_to_add].x + rects[next_rect_to_add].width);
+                    aabb.max.y = floorf(rects[next_rect_to_add].y + rects[next_rect_to_add].height);
+                    tree.Insert(aabb, (void *)next_rect_to_add);
+                    next_rect_to_add++;
+                    lastRectAddedAt = GetTime();
+                }
+            } else {
+                lastRectAddedAt = 0;
             }
 
             // Camera reset (zoom and rotation)
@@ -948,7 +954,7 @@ int main(int argc, char *argv[])
 
                 // NOTE: The chat history renders from the bottom up (most recent message first)
                 float cursorY = (chatY + chatHeight) - pad - fontHeight;
-                const char *text = 0;
+                const char *chatText = 0;
 
                 DrawRectangle((int)chatX, (int)chatY, (int)chatWidth, (int)chatHeight, Fade(DARKGRAY, 0.8f));
                 DrawRectangleLines((int)chatX, (int)chatY, (int)chatWidth, (int)chatHeight, Fade(BLACK, 0.8f));
@@ -958,7 +964,7 @@ int main(int argc, char *argv[])
                     const ChatMessage *message = &client.chatHistory.messages[messageIdx];
                     assert(message->messageLength);
 
-                    text = TextFormat("[%s][%.*s]: %.*s", "00:00:00", message->usernameLength, message->username,
+                    chatText = TextFormat("[%s][%.*s]: %.*s", "00:00:00", message->usernameLength, message->username,
                         message->messageLength, message->message);
                     DrawTextFont(fonts[fontIdx], text, margin + pad, cursorY, fontHeight, WHITE);
                     cursorY -= fontHeight + pad;
