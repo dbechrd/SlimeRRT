@@ -129,8 +129,9 @@ static void network_server_process_message(NetworkServer *server, NetworkServerC
             memcpy(client->username, packet->message.data.identify.username, client->usernameLength);
             break;
         } case NetMessageType_ChatMessage: {
-            assert(packet->message.data.chatMessage.usernameLength == client->usernameLength);
-            assert(!strncmp(packet->message.data.chatMessage.username, client->username, client->usernameLength));
+            // TODO(security): Validate some session token that's not known to other people to prevent impersonation
+            //assert(packet->message.data.chatMessage.usernameLength == client->usernameLength);
+            //assert(!strncmp(packet->message.data.chatMessage.username, client->username, client->usernameLength));
 
             // Store chat message in chat history
             chat_history_push_net_message(&server->chatHistory, &packet->message.data.chatMessage);

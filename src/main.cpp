@@ -86,10 +86,6 @@ void network_server_thread()
     network_server_free(&server);
 }
 
-struct Args {
-    bool server;
-};
-
 void parse_args(Args &args, int argc, char *argv[])
 {
     for (int i = 0; i < argc; i++) {
@@ -132,8 +128,7 @@ void DrawNode(RTree::RTree::Node *node, int level) {
 
 int main(int argc, char *argv[])
 {
-    Args args = {};
-    parse_args(args, argc, argv);
+    parse_args(g_world.args, argc, argv);
 
     maths_test();
 
@@ -143,10 +138,8 @@ int main(int argc, char *argv[])
     logFile = fopen("log.txt", "w");
     SetTraceLogCallback(traceLogCallback);
 
-    World world = {};
-
-    world.rtt_seed = 16; //time(NULL);
-    dlb_rand32_seed_r(&world.rtt_rand, world.rtt_seed, world.rtt_seed);
+    g_world.rtt_seed = 16; //time(NULL);
+    dlb_rand32_seed_r(&g_world.rtt_rand, g_world.rtt_seed, g_world.rtt_seed);
 
     //dlb_rand_test();
 
@@ -176,7 +169,7 @@ int main(int argc, char *argv[])
     {
         NetMessage msgWritten = {};
         msgWritten.type = NetMessageType_ChatMessage;
-        msgWritten.data.chatMessage.username = "dandymcgee";
+        msgWritten.data.chatMessage.username = "test username";
         msgWritten.data.chatMessage.usernameLength = strlen(msgWritten.data.chatMessage.username);
         msgWritten.data.chatMessage.message = "This is a test message";
         msgWritten.data.chatMessage.messageLength = strlen(msgWritten.data.chatMessage.message);
@@ -202,7 +195,7 @@ int main(int argc, char *argv[])
     ////////////////////////////////////////////////////////////////////////////
 
     const char *title = "Attack the slimes!";
-    if (args.server) {
+    if (g_world.args.server) {
         title = "[Server] Attack the slimes!";
     }
     InitWindow(1600, 900, title);
@@ -216,7 +209,7 @@ int main(int argc, char *argv[])
     }
 
     std::thread server_thread = {};
-    if (args.server) {
+    if (g_world.args.server) {
         server_thread = std::thread(network_server_thread);
     }
 
@@ -294,17 +287,17 @@ int main(int argc, char *argv[])
 
     {
         Tilemap tilemap = {};
-        world.map = &tilemap;
+        g_world.map = &tilemap;
     }
     //tilemap_generate_ex(&tilemap, 128, 128, &tileset);
-    tilemap_generate_ex(world.map, &world.rtt_rand, 256, 256, &tileset);
+    tilemap_generate_ex(g_world.map, &g_world.rtt_rand, 256, 256, &tileset);
     //tilemap_generate_ex(&tilemap, 512, 512, &tileset);
 
     Texture minimapTex = {};
     {
         Image minimapImg = {};
-        minimapImg.width = (int)world.map->widthTiles;
-        minimapImg.height = (int)world.map->heightTiles;
+        minimapImg.width = (int)g_world.map->widthTiles;
+        minimapImg.height = (int)g_world.map->heightTiles;
         minimapImg.mipmaps = 1;
         minimapImg.format = UNCOMPRESSED_R8G8B8A8;
         assert(sizeof(Color) == 4);
@@ -318,13 +311,13 @@ int main(int argc, char *argv[])
         tileColors[TileType_Wood    ] = BROWN;
         tileColors[TileType_Concrete] = GRAY;
 
-        const size_t heightTiles = world.map->heightTiles;
-        const size_t widthTiles = world.map->widthTiles;
+        const size_t heightTiles = g_world.map->heightTiles;
+        const size_t widthTiles = g_world.map->widthTiles;
 
         Color *minimapPixel = (Color *)minimapImg.data;
         for (size_t y = 0; y < heightTiles; y += 1) {
             for (size_t x = 0; x < widthTiles; x += 1) {
-                const Tile *tile = &world.map->tiles[y * world.map->widthTiles + x];
+                const Tile *tile = &g_world.map->tiles[y * g_world.map->widthTiles + x];
                 // Draw all tiles as different colored pixels
                 assert(tile->tileType >= 0);
                 assert(tile->tileType < TileType_Count);
@@ -338,8 +331,8 @@ int main(int argc, char *argv[])
     }
 
     const Vector3 worldSpawn = {
-        (float)world.map->widthTiles / 2.0f * world.map->tileset->tileWidth,
-        (float)world.map->heightTiles / 2.0f * world.map->tileset->tileHeight,
+        (float)g_world.map->widthTiles / 2.0f * g_world.map->tileset->tileWidth,
+        (float)g_world.map->heightTiles / 2.0f * g_world.map->tileset->tileHeight,
         0.0f
     };
 
@@ -413,8 +406,8 @@ int main(int argc, char *argv[])
         SpriteFrame *firstFrame = &slimeSpritesheet->frames[firstFrameIdx];
         const float slimeRadiusX = firstFrame->width / 2.0f;
         const float slimeRadiusY = firstFrame->height / 2.0f;
-        const size_t mapPixelsX = world.map->widthTiles  * world.map->tileset->tileWidth;
-        const size_t mapPixelsY = world.map->heightTiles * world.map->tileset->tileHeight;
+        const size_t mapPixelsX = g_world.map->widthTiles  * g_world.map->tileset->tileWidth;
+        const size_t mapPixelsY = g_world.map->heightTiles * g_world.map->tileset->tileHeight;
         const float maxX = mapPixelsX - slimeRadiusX;
         const float maxY = mapPixelsY - slimeRadiusY;
         for (int i = 0; i < MAX_SLIMES; i++) {
@@ -526,7 +519,7 @@ int main(int argc, char *argv[])
             if (cameraFollowPlayer) {
                 PlayerControllerState input{};
                 QueryPlayerController(input);
-                sim(now, dt, input, &charlie, world.map, slimes, coinSpriteDef);
+                sim(now, dt, input, &charlie, g_world.map, slimes, coinSpriteDef);
                 camera.target = body_ground_position(&charlie.body);
             } else {
                 const int cameraSpeed = 5;
@@ -613,11 +606,11 @@ int main(int argc, char *argv[])
         size_t tilesDrawn = 0;
 
         {
-            const float tileWidthMip  = (float)(world.map->tileset->tileWidth * zoomMipLevel);
-            const float tileHeightMip = (float)(world.map->tileset->tileHeight * zoomMipLevel);
-            const size_t heightTiles = world.map->heightTiles;
-            const size_t widthTiles  = world.map->widthTiles;
-            const Rectangle *tileRects = world.map->tileset->textureRects;
+            const float tileWidthMip  = (float)(g_world.map->tileset->tileWidth * zoomMipLevel);
+            const float tileHeightMip = (float)(g_world.map->tileset->tileHeight * zoomMipLevel);
+            const size_t heightTiles = g_world.map->heightTiles;
+            const size_t widthTiles  = g_world.map->widthTiles;
+            const Rectangle *tileRects = g_world.map->tileset->textureRects;
             const float camLeft   = cameraRect.x;
             const float camTop    = cameraRect.y;
             const float camRight  = cameraRect.x + cameraRect.width;
@@ -625,7 +618,7 @@ int main(int argc, char *argv[])
 
             for (size_t y = 0; y < heightTiles; y += zoomMipLevel) {
                 for (size_t x = 0; x < widthTiles; x += zoomMipLevel) {
-                    const Tile *tile = &world.map->tiles[y * world.map->widthTiles + x];
+                    const Tile *tile = &g_world.map->tiles[y * g_world.map->widthTiles + x];
                     const Vector2 tilePos = tile->position;
                     if (tilePos.x + tileWidthMip >= camLeft &&
                         tilePos.y + tileHeightMip >= camTop &&
@@ -634,7 +627,7 @@ int main(int argc, char *argv[])
                     {
                         // Draw all tiles as textured rects (looks best, performs worst)
                         Rectangle textureRect = tileRects[tile->tileType];
-                        DrawTextureRec(*world.map->tileset->texture, textureRect, tile->position, WHITE);
+                        DrawTextureRec(*g_world.map->tileset->texture, textureRect, tile->position, WHITE);
                         tilesDrawn++;
                     }
                 }
@@ -649,14 +642,14 @@ int main(int argc, char *argv[])
 
         Tile *mouseTile = 0;
         if (findMouseTile) {
-            mouseTile = tilemap_at_world_try(world.map, (int)mousePosWorld.x, (int)mousePosWorld.y);
+            mouseTile = tilemap_at_world_try(g_world.map, (int)mousePosWorld.x, (int)mousePosWorld.y);
             if (mouseTile) {
                 // Draw red outline on hovered tile
                 Rectangle mouseTileRect {
                     mouseTile->position.x,
                     mouseTile->position.y,
-                    (float)world.map->tileset->tileWidth  * zoomMipLevel,
-                    (float)world.map->tileset->tileHeight * zoomMipLevel
+                    (float)g_world.map->tileset->tileWidth  * zoomMipLevel,
+                    (float)g_world.map->tileset->tileHeight * zoomMipLevel
                 };
                 DrawRectangleLinesEx(mouseTileRect, 1 * (int)invZoom, RED);
             }
@@ -764,7 +757,7 @@ int main(int argc, char *argv[])
             DrawTextFont(fonts[fontIdx], TextFormat("tilePos : %.02f, %.02f", mouseTile->position.x, mouseTile->position.y),
                 tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, fontHeight, BLACK);
             lineOffset += fontHeight;
-            DrawTextFont(fonts[fontIdx], TextFormat("tileSize: %zu, %zu", world.map->tileset->tileWidth, world.map->tileset->tileHeight),
+            DrawTextFont(fonts[fontIdx], TextFormat("tileSize: %zu, %zu", g_world.map->tileset->tileWidth, g_world.map->tileset->tileHeight),
                 tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, fontHeight, BLACK);
             lineOffset += fontHeight;
             DrawTextFont(fonts[fontIdx], TextFormat("tileType: %d", mouseTile->tileType),
@@ -853,7 +846,7 @@ int main(int argc, char *argv[])
 
 #if ALPHA_NETWORKING
         // Render connected clients
-        if (args.server) {
+        if (g_world.args.server) {
             int linesOfText = 1 + (int)server.clientsConnected;
 
             const float margin = 6.0f;   // left/top margin
@@ -889,7 +882,7 @@ int main(int argc, char *argv[])
                 const float margin = 6.0f;   // left/bottom margin
                 const float pad = 4.0f;      // left/bottom pad
 
-#if 0
+#if 1
                 {
                     static bool dialog = true;
                     dialog = dialog || IsKeyPressed(KEY_GRAVE);
@@ -927,7 +920,9 @@ int main(int argc, char *argv[])
                             }
                             case 1: { // Login
                                 if (loginBoxTextLen) {
-                                    network_client_send_chat_message(&client, loginBoxText, loginBoxTextLen);
+                                    client.usernameLength = MIN(ARRAY_SIZE(client.username), loginBoxTextLen);
+                                    strncpy(client.username, loginBoxText, client.usernameLength);
+                                    network_client_send_chat_message(&client, CSTR("Auth!"));
                                 }
                                 break;
                             }
@@ -955,6 +950,7 @@ int main(int argc, char *argv[])
                 // NOTE: The chat history renders from the bottom up (most recent message first)
                 float cursorY = (chatY + chatHeight) - pad - fontHeight;
                 const char *chatText = 0;
+                Color chatColor = WHITE;
 
                 DrawRectangle((int)chatX, (int)chatY, (int)chatWidth, (int)chatHeight, Fade(DARKGRAY, 0.8f));
                 DrawRectangleLines((int)chatX, (int)chatY, (int)chatWidth, (int)chatHeight, Fade(BLACK, 0.8f));
@@ -964,9 +960,15 @@ int main(int argc, char *argv[])
                     const ChatMessage *message = &client.chatHistory.messages[messageIdx];
                     assert(message->messageLength);
 
-                    chatText = TextFormat("[%s][%.*s]: %.*s", "00:00:00", message->usernameLength, message->username,
-                        message->messageLength, message->message);
-                    DrawTextFont(fonts[fontIdx], text, margin + pad, cursorY, fontHeight, WHITE);
+                    if (message->usernameLength == 6 && !strncmp(message->username, "SERVER", ARRAY_SIZE(message->username))) {
+                        chatText = TextFormat("[%s]<SERVER>: %.*s", "00:00:00", message->messageLength, message->message);
+                        chatColor = RED;
+                    } else {
+                        chatText = TextFormat("[%s][%.*s]: %.*s", "00:00:00", message->usernameLength, message->username,
+                            message->messageLength, message->message);
+                        chatColor = WHITE;
+                    }
+                    DrawTextFont(fonts[fontIdx], chatText, margin + pad, cursorY, fontHeight, chatColor);
                     cursorY -= fontHeight + pad;
                 }
 
@@ -1018,13 +1020,13 @@ int main(int argc, char *argv[])
 #if ALPHA_NETWORKING
     network_client_close_socket(&client);
     network_client_free(&client);
-    if (args.server) {
+    if (g_world.args.server) {
         network_server_close_socket(&server);
         server_thread.join();
     }
     zed_net_shutdown();
 #endif
-    tilemap_free(world.map);
+    tilemap_free(g_world.map);
     tileset_free(&tileset);
     UnloadTexture(minimapTex);
     UnloadTexture(tilesetTex);

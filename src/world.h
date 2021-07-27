@@ -5,7 +5,12 @@
 #include "dlb_rand.h"
 //#include <array>
 
+struct Args {
+    bool server;
+};
+
 struct World {
+    Args args;
     Player *player;
     Tilemap *map;
     Slime *slimes;
@@ -13,3 +18,4 @@ struct World {
     uint64_t rtt_seed;
     dlb_rand32_t rtt_rand;
 };
+extern World g_world;

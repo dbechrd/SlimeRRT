@@ -1,6 +1,7 @@
 #include "network_client.h"
 #include "bit_stream.h"
 #include "chat.h"
+#include "world.h"
 #include "raylib.h"
 #include <cassert>
 #include <cstdio>
@@ -52,7 +53,7 @@ int network_client_connect(NetworkClient *client, const char *hostname, unsigned
     assert(client->server.host);
     assert(client->server.port);
 
-    const char *username = "dandy";
+    const char *username = g_world.args.server ? "SERVER" : "anonymous";
     client->usernameLength = MIN(strlen(username), USERNAME_LENGTH_MAX);
     memcpy(client->username, username, client->usernameLength);
 
@@ -76,7 +77,7 @@ int network_client_connect(NetworkClient *client, const char *hostname, unsigned
     return 1;
 }
 
-static int network_client_send(const NetworkClient *client, const char *data, size_t size)
+int network_client_send(const NetworkClient *client, const char *data, size_t size)
 {
     assert(client);
     assert(client->socket.handle);
@@ -130,7 +131,7 @@ static void network_client_process_message(NetworkClient *client, Packet *packet
     switch (packet->message.type) {
         case NetMessageType_Welcome: {
             // TODO: Store salt sent from server instead.. handshake stuffs
-            //const char *username = "dandy";
+            //const char *username = "user";
             //client->usernameLength = MIN(strlen(username), USERNAME_LENGTH_MAX);
             //memcpy(client->username, username, client->usernameLength);
             break;
