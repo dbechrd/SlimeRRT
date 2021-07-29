@@ -1,16 +1,8 @@
-﻿#include <cassert>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <ctime>
-
-#include <array>
-#include <thread>
-
-#include "bit_stream.h"
+﻿#include "bit_stream.h"
 #include "chat.h"
 #include "controller.h"
 #include "draw_command.h"
+#include "error.h"
 #include "healthbar.h"
 #include "helpers.h"
 #include "item_catalog.h"
@@ -32,59 +24,22 @@
 #include "../test/maths_test.h"
 
 #include "dlb_rand.h"
+#include "raylib.h"
 #include "raygui.h"
 #include "gui_textbox_extended.h"
-#include "raylib.h"
 #include "zed_net.h"
 
-static FILE *logFile;
+#include <cassert>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <ctime>
 
-void traceLogCallback(int logType, const char *text, va_list args)
-{
-    vfprintf(logFile, text, args);
-    fputs("\n", logFile);
-    vfprintf(stdout, text, args);
-    fputs("\n", stdout);
-    fflush(logFile);
-    if (logType >= LOG_WARNING) {
-        assert(!"Catch in debugger");
-        exit(-1);
-    }
-}
-
-Rectangle RectPad(const Rectangle rec, float pad)
-{
-    Rectangle padded = { rec.x - pad, rec.y - pad, rec.width + pad * 2.0f, rec.height + pad * 2.0f };
-    return padded;
-}
-
-Rectangle RectPadXY(const Rectangle rec, float padX, float padY)
-{
-    Rectangle padded = { rec.x - padX, rec.y - padY, rec.width + padX * 2.0f, rec.height + padY * 2.0f };
-    return padded;
-}
+#include <array>
+#include <thread>
 
 #define DLB_RAND_TEST
 #include "dlb_rand.h"
-
-static NetworkServer server = {};
-void network_server_thread()
-{
-    if (!network_server_init(&server)) {
-        TraceLog(LOG_FATAL, "Failed to initialize network server system.\n");
-    }
-
-    const unsigned int SERVER_PORT = 4040;
-    if (!network_server_open_socket(&server, SERVER_PORT)) {
-        TraceLog(LOG_ERROR, "Failed to open server socket on port %hu.\n", SERVER_PORT);
-        // TODO: Handle gracefully if local server to allow singleplayer mode
-        exit(-1);
-    }
-
-    network_server_receive(&server);
-
-    network_server_free(&server);
-}
 
 void parse_args(Args &args, int argc, char *argv[])
 {
@@ -129,14 +84,14 @@ void DrawNode(RTree::RTree::Node *node, int level) {
 int main(int argc, char *argv[])
 {
     parse_args(g_world.args, argc, argv);
+    //g_world.args.server = true;
 
     maths_test();
 
     //--------------------------------------------------------------------------------------
     // Initialization
     //--------------------------------------------------------------------------------------
-    logFile = fopen("log.txt", "w");
-    SetTraceLogCallback(traceLogCallback);
+    error_init();
 
     g_world.rtt_seed = 16; //time(NULL);
     dlb_rand32_seed_r(&g_world.rtt_rand, g_world.rtt_seed, g_world.rtt_seed);
@@ -847,7 +802,7 @@ int main(int argc, char *argv[])
 #if ALPHA_NETWORKING
         // Render connected clients
         if (g_world.args.server) {
-            int linesOfText = 1 + (int)server.clientsConnected;
+            int linesOfText = 1 + (int)g_server.clientsConnected;
 
             const float margin = 6.0f;   // left/top margin
             const float pad = 4.0f;      // left/top pad
@@ -866,7 +821,7 @@ int main(int argc, char *argv[])
             PUSH_TEXT("Connected clients:", WHITE);
 
             for (size_t i = 0; i < NETWORK_SERVER_CLIENTS_MAX; i++) {
-                const NetworkServerClient *serverClient = &server.clients[i];
+                const NetworkServerClient *serverClient = &g_server.clients[i];
                 if (serverClient->address.host) {
                     text = TextFormatIP(serverClient->address);
                     PUSH_TEXT(text, WHITE);
@@ -960,7 +915,7 @@ int main(int argc, char *argv[])
                     const ChatMessage *message = &client.chatHistory.messages[messageIdx];
                     assert(message->messageLength);
 
-                    if (message->usernameLength == 6 && !strncmp(message->username, "SERVER", ARRAY_SIZE(message->username))) {
+                    if (message->usernameLength == 6 && !strncmp(message->username, "SERVER", message->usernameLength)) {
                         chatText = TextFormat("[%s]<SERVER>: %.*s", "00:00:00", message->messageLength, message->message);
                         chatColor = RED;
                     } else {
@@ -1021,7 +976,7 @@ int main(int argc, char *argv[])
     network_client_close_socket(&client);
     network_client_free(&client);
     if (g_world.args.server) {
-        network_server_close_socket(&server);
+        network_server_close_socket(&g_server);
         server_thread.join();
     }
     zed_net_shutdown();
@@ -1043,6 +998,5 @@ int main(int argc, char *argv[])
         UnloadFont(fonts[i]);
     }
 
-    fclose(logFile);
     return 0;
 }

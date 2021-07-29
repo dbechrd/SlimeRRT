@@ -32,6 +32,8 @@
     <ClCompile Include="src\world.cpp" />
     <ClCompile Include="src\zed_net.cpp" />
     <ClCompile Include="test\maths_test.cpp" />
+    <ClCompile Include="src\error.cpp" />
+    <ClCompile Include="src\maths.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\bit_stream.h" />
@@ -66,5 +68,6 @@
     <ClInclude Include="src\tileset.h" />
     <ClInclude Include="src\world.h" />
     <ClInclude Include="test\maths_test.h" />
+    <ClInclude Include="src\error.h" />
   </ItemGroup>
 </Project>

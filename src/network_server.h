@@ -27,9 +27,12 @@ struct NetworkServer {
     ChatHistory chatHistory;
 };
 
+extern NetworkServer g_server;
+
+int  network_server_thread       ();
 int  network_server_init         (NetworkServer *server);
 int  network_server_open_socket  (NetworkServer *server, unsigned short port);
-int  network_server_receive      (NetworkServer *server);
+int  network_server_listen       (NetworkServer *server);
 void network_server_close_socket (NetworkServer *server);
 void network_server_free         (NetworkServer *server);
 

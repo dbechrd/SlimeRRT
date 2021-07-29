@@ -2,6 +2,7 @@
 #include "bit_stream.h"
 #include "helpers.h"
 #include "packet.h"
+#include "error.h"
 #include "raylib.h"
 #include "dlb_types.h"
 #include <cassert>
@@ -10,38 +11,47 @@
 #include <cstring>
 #include <ctime>
 
+static const char *LOG_SRC = "NetworkServer";
+
+NetworkServer g_server;
+static const unsigned int SERVER_PORT = 4040;
+
+int network_server_thread()
+{
+E_START
+    E_CHECK(network_server_init(&g_server));
+    E_CHECK(network_server_open_socket(&g_server, SERVER_PORT));  // TODO: Handle gracefully if local server to allow singleplayer mode
+    E_CHECK(network_server_listen(&g_server));
+E_CLEANUP
+    network_server_free(&g_server);
+E_END
+}
+
 int network_server_init(NetworkServer *server)
 {
+E_START
     assert(server);
 
     server->packetHistory.capacity = NETWORK_SERVER_PACKET_HISTORY_MAX;
     server->packetHistory.packets = (Packet *)calloc(server->packetHistory.capacity, sizeof(*server->packetHistory.packets));
-    if (!server->packetHistory.packets) {
-        TraceLog(LOG_FATAL, "[NetworkServer] Failed to allocate packet history buffer.");
-        return 0;
-    }
-
-    if (!chat_history_init(&server->chatHistory)) {
-        TraceLog(LOG_FATAL, "[NetworkServer] Failed to initialize chat system.\n");
-        return 0;
-    }
-
-    return 1;
+    E_CHECK_ALLOC(server->packetHistory.packets, "Failed to allocate packet history buffer");
+    E_CHECK(chat_history_init(&server->chatHistory));
+E_CLEAN_END
 }
 
 int network_server_open_socket(NetworkServer *server, unsigned short port)
 {
+E_START
     assert(server);
 
     if (zed_net_udp_socket_open(&server->socket, port, 0) < 0) {
         const char *err = zed_net_get_error();
-        TraceLog(LOG_ERROR, "[NetworkServer] Failed to start server on port %hu. Error: %s", server->port, err);
-        return 0;
+        E_FATAL(E_NET_PORT_IN_USE, "Failed to open socket on port %hu. Error: %s", server->port, err);
     }
 
     assert(server->socket.handle);
     server->port = port;
-    return 1;
+E_CLEAN_END
 }
 
 static int network_server_send(const NetworkServer *server, const NetworkServerClient *client, const char *data, size_t size)
@@ -151,7 +161,7 @@ static void network_server_process_message(NetworkServer *server, NetworkServerC
     }
 }
 
-int network_server_receive(NetworkServer *server)
+int network_server_listen(NetworkServer *server)
 {
     assert(server);
 

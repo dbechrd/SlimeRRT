@@ -1,5 +1,6 @@
 #pragma once
 #include "maths.h"
+#include <cassert>
 #include <array>
 #include <vector>
 #include <bitset>

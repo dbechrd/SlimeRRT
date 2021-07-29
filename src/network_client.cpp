@@ -18,7 +18,7 @@ int network_client_init(NetworkClient *client)
         return 0;
     }
 
-    if (!chat_history_init(&client->chatHistory)) {
+    if (chat_history_init(&client->chatHistory)) {
         TraceLog(LOG_FATAL, "[NetworkClient] Failed to initialize chat system.\n");
         return 0;
     }

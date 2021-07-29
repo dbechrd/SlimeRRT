@@ -3,6 +3,11 @@
 #include "dlb_types.h"
 #include <cmath>
 
+/// Rect ///////////////////////////////////////////////////////////////////////
+
+Rectangle RectPad(const Rectangle rec, float pad);
+Rectangle RectPadXY(const Rectangle rec, float padX, float padY);
+
 /// AABB ///////////////////////////////////////////////////////////////////////
 
 struct AABB {

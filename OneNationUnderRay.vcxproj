@@ -16,11 +16,13 @@
     <ClCompile Include="src\chat.cpp" />
     <ClCompile Include="src\controller.cpp" />
     <ClCompile Include="src\draw_command.cpp" />
+    <ClCompile Include="src\error.cpp" />
     <ClCompile Include="src\healthbar.cpp" />
     <ClCompile Include="src\helpers.cpp" />
     <ClCompile Include="src\item.cpp" />
     <ClCompile Include="src\item_catalog.cpp" />
     <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\maths.cpp" />
     <ClCompile Include="src\network_client.cpp" />
     <ClCompile Include="src\network_server.cpp" />
     <ClCompile Include="src\packet.cpp" />
@@ -51,6 +53,7 @@
     <ClInclude Include="src\controller.h" />
     <ClInclude Include="src\direction.h" />
     <ClInclude Include="src\draw_command.h" />
+    <ClInclude Include="src\error.h" />
     <ClInclude Include="src\healthbar.h" />
     <ClInclude Include="src\helpers.h" />
     <ClInclude Include="src\item.h" />

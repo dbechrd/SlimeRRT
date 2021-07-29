@@ -1,20 +1,21 @@
 #include "chat.h"
+#include "error.h"
 #include "packet.h"
 #include "raylib.h"
 #include <cassert>
 #include <cstdlib>
 #include <cstring>
 
+static const char *LOG_SRC = "Chat";
+
 int chat_history_init(ChatHistory *chatHistory)
 {
+E_START
     size_t capacity = CHAT_MESSAGE_HISTORY;
     chatHistory->messages = (ChatMessage *)calloc(capacity, sizeof(*chatHistory->messages));
-    if (!chatHistory) {
-        TraceLog(LOG_FATAL, "[Chat] Failed to chat history buffer.\n");
-        return 0;
-    }
+    E_CHECK_ALLOC(chatHistory->messages, "Failed to allocate chat message history buffer");
     chatHistory->capacity = capacity;
-    return 1;
+E_CLEAN_END
 }
 
 static ChatMessage *chat_history_message_alloc(ChatHistory *chatHistory)
