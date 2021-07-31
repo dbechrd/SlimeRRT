@@ -87,6 +87,7 @@ Vector3 sprite_world_center(const Sprite *sprite, Vector3 position, float scale)
 
 void sprite_update(Sprite *sprite, double now, double dt)
 {
+    UNUSED(dt);
     assert(sprite);
     if (!sprite->spriteDef) return;
 
@@ -103,19 +104,13 @@ void sprite_update(Sprite *sprite, double now, double dt)
     }
 }
 
-static bool sprite_cull(const Sprite *sprite, Rectangle dest, Rectangle cullRect)
-{
-    bool cull = !CheckCollisionRecs(dest, cullRect);
-    return cull;
-}
-
 bool sprite_cull_body(const Sprite *sprite, const struct Body3D *body, Rectangle cullRect)
 {
     assert(sprite);
     assert(body);
 
     const Rectangle bodyRect = sprite_world_rect(sprite, body->position, sprite->scale);
-    bool cull = sprite_cull(sprite, bodyRect, cullRect);
+    bool cull = !CheckCollisionRecs(bodyRect, cullRect);
     return cull;
 }
 

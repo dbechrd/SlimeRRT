@@ -59,7 +59,7 @@ void draw_commands_disable_culling(void)
     cullEnabled = false;
 }
 
-static bool draw_command_cull(const DrawCommand *cmd, Rectangle cullRect)
+static bool draw_command_cull(const DrawCommand *cmd)
 {
     bool cull = false;
 
@@ -91,7 +91,7 @@ void draw_command_push(DrawableType type, const void *drawable)
     cmd.drawable = drawable;
 
 #if CULL_ON_PUSH
-    if (cullEnabled && draw_command_cull(&cmd, cullRect)) {
+    if (cullEnabled && draw_command_cull(&cmd)) {
         return;
     }
 #endif
@@ -150,7 +150,7 @@ void draw_commands_flush(void)
     for (size_t i = 0; i < commandCount; i++) {
         const DrawCommand *cmd = &sortedCommands[i];
 #if !CULL_ON_PUSH
-        if (!cullEnabled || !draw_command_cull(cmd, cullRect)) {
+        if (!cullEnabled || !draw_command_cull(cmd)) {
             draw_command_draw(cmd);
         }
 #else

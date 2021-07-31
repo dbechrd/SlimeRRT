@@ -666,14 +666,14 @@ typedef struct {
     int capacity;  // size of buffer in bytes, last byte reserverd for nil terminator
 } rstb_String;
 
-int   rstb_StringLen    (rstb_String *str);
-void  rstb_LayoutRow    (StbTexteditRow *row, rstb_String *str, int start);
-float rstb_GetWidth     (rstb_String *str, int index);
-int   rstb_KeyToText    (int key);;
-int   rstb_GetChar      (rstb_String *str, int index);
-void  rstb_DeleteChars  (rstb_String *str, int start, int count);
-int   rstb_InsertChars  (rstb_String *str, int start, int *chars, int count);
-int   rstb_IsSpace      (int c);
+static int   rstb_StringLen    (rstb_String *str);
+static void  rstb_LayoutRow    (StbTexteditRow *row, rstb_String *str, int start);
+static float rstb_GetWidth     (rstb_String *str, int index);
+static int   rstb_KeyToText    (int key);;
+static int   rstb_GetChar      (rstb_String *str, int index);
+static void  rstb_DeleteChars  (rstb_String *str, int start, int count);
+static int   rstb_InsertChars  (rstb_String *str, int start, int *chars, int count);
+static int   rstb_IsSpace      (int c);
 
 #define STB_TEXTEDIT_IMPLEMENTATION
 #include "stb_textedit.h"
@@ -1460,7 +1460,7 @@ bool GuiCheckBox(Rectangle bounds, const char *text, bool checked)
         textBounds.width = (float)GetTextWidth(text);
         textBounds.height = (float)GuiGetStyle(DEFAULT, TEXT_SIZE);
         textBounds.x = bounds.x + bounds.width + GuiGetStyle(CHECKBOX, TEXT_PADDING);
-        textBounds.y = bounds.y + bounds.height/2 - GuiGetStyle(DEFAULT, TEXT_SIZE)/2;
+        textBounds.y = bounds.y + bounds.height/2 - GuiGetStyle(DEFAULT, TEXT_SIZE)/2.0f;
         if (GuiGetStyle(CHECKBOX, TEXT_ALIGNMENT) == GUI_TEXT_ALIGN_LEFT) textBounds.x = bounds.x - textBounds.width - GuiGetStyle(CHECKBOX, TEXT_PADDING);
     }
 
@@ -1756,7 +1756,7 @@ bool GuiTextBox(Rectangle bounds, char *text, int textSize, bool editMode)
 
             // Check text alignment to position cursor properly
             int textAlignment = GuiGetStyle(TEXTBOX, TEXT_ALIGNMENT);
-            if (textAlignment == GUI_TEXT_ALIGN_CENTER) cursor.x = bounds.x + GetTextWidth(text)/2 + bounds.width/2 + 1;
+            if (textAlignment == GUI_TEXT_ALIGN_CENTER) cursor.x = bounds.x + GetTextWidth(text)/2.0f + bounds.width/2 + 1;
             else if (textAlignment == GUI_TEXT_ALIGN_RIGHT) cursor.x = bounds.x + bounds.width - GuiGetStyle(TEXTBOX, TEXT_INNER_PADDING);
         }
         else
@@ -1793,7 +1793,7 @@ bool GuiTextBox(Rectangle bounds, char *text, int textSize, bool editMode)
     return pressed;
 }
 
-static int GetTextSubstringWidth(STB_TexteditState *stb_state, rstb_String *str, int start, int length)
+static int GetTextSubstringWidth(rstb_String *str, int start, int length)
 {
     assert(start >= 0);
     assert(length >= 0);
@@ -2052,8 +2052,8 @@ bool GuiTextBoxAdvanced(GuiTextBoxAdvancedState *textboxState, Rectangle bounds,
         {
             // Draw selection highlight
             Color selectedHighlight = ORANGE; //(Color){ 52, 105, 218, 255 };
-            int selectionOffsetX = GetTextSubstringWidth(&textboxState->stb_state, &str, 0, selectionStart);
-            int selectionWidth = GetTextSubstringWidth(&textboxState->stb_state, &str, selectionStart, selectionLength);
+            int selectionOffsetX = GetTextSubstringWidth(&str, 0, selectionStart);
+            int selectionWidth = GetTextSubstringWidth(&str, selectionStart, selectionLength);
             Rectangle cursor = {
                 bounds.x + GuiGetStyle(TEXTBOX, TEXT_PADDING) + selectionOffsetX + 2,
                 bounds.y + bounds.height/2 - GuiGetStyle(DEFAULT, TEXT_SIZE) + GuiGetStyle(TEXTBOX, TEXT_PADDING),
@@ -2066,7 +2066,7 @@ bool GuiTextBoxAdvanced(GuiTextBoxAdvancedState *textboxState, Rectangle bounds,
         else
         {
             // Draw blinking cursor
-            int cursorOffetX = GetTextSubstringWidth(&textboxState->stb_state, &str, 0, textboxState->stb_state.cursor);
+            int cursorOffetX = GetTextSubstringWidth(&str, 0, textboxState->stb_state.cursor);
             Rectangle cursor = {
                 bounds.x + GuiGetStyle(TEXTBOX, TEXT_PADDING) + cursorOffetX + 2,
                 bounds.y + bounds.height/2 - GuiGetStyle(DEFAULT, TEXT_SIZE) + GuiGetStyle(TEXTBOX, TEXT_PADDING),
@@ -2114,7 +2114,7 @@ bool GuiSpinner(Rectangle bounds, const char *text, int *value, int minValue, in
         textBounds.width = (float)GetTextWidth(text);
         textBounds.height = (float)GuiGetStyle(DEFAULT, TEXT_SIZE);
         textBounds.x = bounds.x + bounds.width + GuiGetStyle(SPINNER, TEXT_PADDING);
-        textBounds.y = bounds.y + bounds.height/2 - GuiGetStyle(DEFAULT, TEXT_SIZE)/2;
+        textBounds.y = bounds.y + bounds.height/2 - GuiGetStyle(DEFAULT, TEXT_SIZE)/2.0f;
         if (GuiGetStyle(SPINNER, TEXT_ALIGNMENT) == GUI_TEXT_ALIGN_LEFT) textBounds.x = bounds.x - textBounds.width - GuiGetStyle(SPINNER, TEXT_PADDING);
     }
 
@@ -2192,7 +2192,7 @@ bool GuiValueBox(Rectangle bounds, const char *text, int *value, int minValue, i
         textBounds.width = (float)GetTextWidth(text);
         textBounds.height = (float)GuiGetStyle(DEFAULT, TEXT_SIZE);
         textBounds.x = bounds.x + bounds.width + GuiGetStyle(VALUEBOX, TEXT_PADDING);
-        textBounds.y = bounds.y + bounds.height/2 - GuiGetStyle(DEFAULT, TEXT_SIZE)/2;
+        textBounds.y = bounds.y + bounds.height/2 - GuiGetStyle(DEFAULT, TEXT_SIZE)/2.0f;
         if (GuiGetStyle(VALUEBOX, TEXT_ALIGNMENT) == GUI_TEXT_ALIGN_LEFT) textBounds.x = bounds.x - textBounds.width - GuiGetStyle(VALUEBOX, TEXT_PADDING);
     }
 
@@ -2330,9 +2330,9 @@ bool GuiTextBoxMulti(Rectangle bounds, char *text, int textSize, bool editMode)
             // Introduce characters
             if (keyCount < (textSize - 1))
             {
-                Vector2 textSize = MeasureTextEx(guiFont, text, (float)GuiGetStyle(DEFAULT, TEXT_SIZE), (float)GuiGetStyle(DEFAULT, TEXT_SPACING));
+                Vector2 measuredSize = MeasureTextEx(guiFont, text, (float)GuiGetStyle(DEFAULT, TEXT_SIZE), (float)GuiGetStyle(DEFAULT, TEXT_SPACING));
 
-                if (textSize.y < (textAreaBounds.height - GuiGetStyle(DEFAULT, TEXT_SIZE)))
+                if (measuredSize.y < (textAreaBounds.height - GuiGetStyle(DEFAULT, TEXT_SIZE)))
                 {
                     if (IsKeyPressed(KEY_ENTER))
                     {
@@ -2391,7 +2391,7 @@ bool GuiTextBoxMulti(Rectangle bounds, char *text, int textSize, bool editMode)
             }
 
             cursor.x = bounds.x + GuiGetStyle(TEXTBOX, BORDER_WIDTH) + GuiGetStyle(TEXTBOX, TEXT_INNER_PADDING) + textWidth - GuiGetStyle(DEFAULT, TEXT_SPACING);
-            cursor.y = bounds.y + GuiGetStyle(TEXTBOX, BORDER_WIDTH) + GuiGetStyle(TEXTBOX, TEXT_INNER_PADDING)/2 + ((GuiGetStyle(DEFAULT, TEXT_SIZE) + GuiGetStyle(TEXTBOX, TEXT_INNER_PADDING))*currentLine);
+            cursor.y = bounds.y + GuiGetStyle(TEXTBOX, BORDER_WIDTH) + GuiGetStyle(TEXTBOX, TEXT_INNER_PADDING)/2.0f + ((GuiGetStyle(DEFAULT, TEXT_SIZE) + GuiGetStyle(TEXTBOX, TEXT_INNER_PADDING))*currentLine);
 
             // Exit edit mode
             if (!CheckCollisionPointRec(mousePoint, bounds) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) pressed = true;
@@ -2443,7 +2443,7 @@ float GuiSliderPro(Rectangle bounds, const char *textLeft, const char *textRight
 
     if (sliderWidth > 0)        // Slider
     {
-        slider.x += (sliderValue - sliderWidth/2);
+        slider.x += (sliderValue - sliderWidth/2.0f);
         slider.width = (float)sliderWidth;
     }
     else if (sliderWidth == 0)  // SliderBar
@@ -2465,7 +2465,7 @@ float GuiSliderPro(Rectangle bounds, const char *textLeft, const char *textRight
                 state = GUI_STATE_PRESSED;
 
                 // Get equivalent value and slider position from mousePoint.x
-                value = ((maxValue - minValue)*(mousePoint.x - (float)(bounds.x + sliderWidth/2)))/(float)(bounds.width - sliderWidth) + minValue;
+                value = ((maxValue - minValue)*(mousePoint.x - (float)(bounds.x + sliderWidth/2.0f)))/(float)(bounds.width - sliderWidth) + minValue;
 
                 if (sliderWidth > 0) slider.x = mousePoint.x - slider.width/2;  // Slider
                 else if (sliderWidth == 0) slider.width = (float)sliderValue;          // SliderBar
@@ -2504,7 +2504,7 @@ float GuiSliderPro(Rectangle bounds, const char *textLeft, const char *textRight
         textBounds.width = (float)GetTextWidth(textLeft);  // TODO: Consider text icon
         textBounds.height = (float)GuiGetStyle(DEFAULT, TEXT_SIZE);
         textBounds.x = bounds.x - textBounds.width - GuiGetStyle(SLIDER, TEXT_PADDING);
-        textBounds.y = bounds.y + bounds.height/2 - GuiGetStyle(DEFAULT, TEXT_SIZE)/2;
+        textBounds.y = bounds.y + bounds.height/2 - GuiGetStyle(DEFAULT, TEXT_SIZE)/2.0f;
 
         GuiDrawText(textLeft, textBounds, GUI_TEXT_ALIGN_RIGHT, Fade(GetColor(GuiGetStyle(SLIDER, TEXT + (state*3))), guiAlpha));
     }
@@ -2515,7 +2515,7 @@ float GuiSliderPro(Rectangle bounds, const char *textLeft, const char *textRight
         textBounds.width = (float)GetTextWidth(textRight);  // TODO: Consider text icon
         textBounds.height = (float)GuiGetStyle(DEFAULT, TEXT_SIZE);
         textBounds.x = bounds.x + bounds.width + GuiGetStyle(SLIDER, TEXT_PADDING);
-        textBounds.y = bounds.y + bounds.height/2 - GuiGetStyle(DEFAULT, TEXT_SIZE)/2;
+        textBounds.y = bounds.y + bounds.height/2 - GuiGetStyle(DEFAULT, TEXT_SIZE)/2.0f;
 
         GuiDrawText(textRight, textBounds, GUI_TEXT_ALIGN_LEFT, Fade(GetColor(GuiGetStyle(SLIDER, TEXT + (state*3))), guiAlpha));
     }
@@ -2565,7 +2565,7 @@ float GuiProgressBar(Rectangle bounds, const char *textLeft, const char *textRig
         textBounds.width = (float)GetTextWidth(textLeft);  // TODO: Consider text icon
         textBounds.height = (float)GuiGetStyle(DEFAULT, TEXT_SIZE);
         textBounds.x = bounds.x - textBounds.width - GuiGetStyle(PROGRESSBAR, TEXT_PADDING);
-        textBounds.y = bounds.y + bounds.height/2 - GuiGetStyle(DEFAULT, TEXT_SIZE)/2;
+        textBounds.y = bounds.y + bounds.height/2 - GuiGetStyle(DEFAULT, TEXT_SIZE)/2.0f;
 
         GuiDrawText(textLeft, textBounds, GUI_TEXT_ALIGN_RIGHT, Fade(GetColor(GuiGetStyle(PROGRESSBAR, TEXT + (state*3))), guiAlpha));
     }
@@ -2576,7 +2576,7 @@ float GuiProgressBar(Rectangle bounds, const char *textLeft, const char *textRig
         textBounds.width = (float)GetTextWidth(textRight);  // TODO: Consider text icon
         textBounds.height = (float)GuiGetStyle(DEFAULT, TEXT_SIZE);
         textBounds.x = bounds.x + bounds.width + GuiGetStyle(PROGRESSBAR, TEXT_PADDING);
-        textBounds.y = bounds.y + bounds.height/2 - GuiGetStyle(DEFAULT, TEXT_SIZE)/2;
+        textBounds.y = bounds.y + bounds.height/2 - GuiGetStyle(DEFAULT, TEXT_SIZE)/2.0f;
 
         GuiDrawText(textRight, textBounds, GUI_TEXT_ALIGN_LEFT, Fade(GetColor(GuiGetStyle(PROGRESSBAR, TEXT + (state*3))), guiAlpha));
     }
@@ -3237,7 +3237,7 @@ int GuiTextInputBox(Rectangle bounds, const char *title, const char *message, co
         Vector2 textSize = MeasureTextEx(guiFont, message, (float)GuiGetStyle(DEFAULT, TEXT_SIZE), 1);
 
         textBounds.x = bounds.x + bounds.width/2 - textSize.x/2;
-        textBounds.y = bounds.y + WINDOW_STATUSBAR_HEIGHT + messageInputHeight/4 - textSize.y/2;
+        textBounds.y = bounds.y + WINDOW_STATUSBAR_HEIGHT + messageInputHeight/4.0f - textSize.y/2;
         textBounds.width = textSize.x;
         textBounds.height = textSize.y;
     }
@@ -3245,8 +3245,8 @@ int GuiTextInputBox(Rectangle bounds, const char *title, const char *message, co
     Rectangle textBoxBounds = { 0 };
     textBoxBounds.x = bounds.x + TEXTINPUTBOX_BUTTON_PADDING;
     textBoxBounds.y = bounds.y + WINDOW_STATUSBAR_HEIGHT - TEXTINPUTBOX_HEIGHT/2;
-    if (message == NULL) textBoxBounds.y += messageInputHeight/2;
-    else textBoxBounds.y += (messageInputHeight/2 + messageInputHeight/4);
+    if (message == NULL) textBoxBounds.y += messageInputHeight/2.0f;
+    else textBoxBounds.y += (messageInputHeight/2.0f + messageInputHeight/4.0f);
     textBoxBounds.width = bounds.width - TEXTINPUTBOX_BUTTON_PADDING*2;
     textBoxBounds.height = TEXTINPUTBOX_HEIGHT;
 
@@ -3327,7 +3327,7 @@ int GuiTextInputBoxAdvanced(GuiTextBoxAdvancedState *textboxState, Rectangle bou
     Rectangle messageBounds = { 0 };
     if (message != NULL)
     {
-        Vector2 messageSize = MeasureTextEx(guiFont, message, fontSize, 1);
+        messageSize = MeasureTextEx(guiFont, message, fontSize, 1);
         messageBounds.x = contextX;
         messageBounds.y = contentY;
         messageBounds.width = messageWidth;
@@ -3571,7 +3571,11 @@ void GuiLoadStyle(const char *fileName)
                     // NOTE: All DEFAULT properties should be defined first in the file
                     GuiSetStyle(0, (int)propertyId, propertyValue);
 
-                    if (propertyId < NUM_PROPS_DEFAULT) for (int i = 1; i < NUM_CONTROLS; i++) GuiSetStyle(i, (int)propertyId, propertyValue);
+                    if (propertyId < NUM_PROPS_DEFAULT) {
+                        for (int j = 1; j < NUM_CONTROLS; j++) {
+                            GuiSetStyle(j, (int)propertyId, propertyValue);
+                        }
+                    }
                 }
                 else GuiSetStyle((int)controlId, (int)propertyId, propertyValue);
             }
@@ -3747,6 +3751,8 @@ const char *GuiIconText(int iconId, const char *text)
 
     return buffer;
 #else
+    (void)(iconId);
+    (void)(text);
     return NULL;
 #endif
 }
@@ -3970,6 +3976,8 @@ static const char *GetTextIcon(const char *text, int *iconId)
             if (*iconId >= 0) text += (pos + 1);
         }
     }
+#else
+    (void)(iconId);
 #endif
 
     return text;
@@ -4010,17 +4018,17 @@ static void GuiDrawText(const char *text, Rectangle bounds, int alignment, Color
             case GUI_TEXT_ALIGN_LEFT:
             {
                 position.x = bounds.x;
-                position.y = bounds.y + bounds.height/2 - textHeight/2 + TEXT_VALIGN_PIXEL_OFFSET(bounds.height);
+                position.y = bounds.y + bounds.height/2 - textHeight/2.0f + TEXT_VALIGN_PIXEL_OFFSET(bounds.height);
             } break;
             case GUI_TEXT_ALIGN_CENTER:
             {
-                position.x = bounds.x + bounds.width/2 - textWidth/2;
-                position.y = bounds.y + bounds.height/2 - textHeight/2 + TEXT_VALIGN_PIXEL_OFFSET(bounds.height);
+                position.x = bounds.x + bounds.width/2 - textWidth/2.0f;
+                position.y = bounds.y + bounds.height/2 - textHeight/2.0f + TEXT_VALIGN_PIXEL_OFFSET(bounds.height);
             } break;
             case GUI_TEXT_ALIGN_RIGHT:
             {
                 position.x = bounds.x + bounds.width - textWidth;
-                position.y = bounds.y + bounds.height/2 - textHeight/2 + TEXT_VALIGN_PIXEL_OFFSET(bounds.height);
+                position.y = bounds.y + bounds.height/2 - textHeight/2.0f + TEXT_VALIGN_PIXEL_OFFSET(bounds.height);
             } break;
             default: break;
         }

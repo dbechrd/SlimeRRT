@@ -20,7 +20,7 @@ int network_server_thread()
 {
 E_START
     E_CHECK(network_server_init(&g_server));
-    E_CHECK(network_server_open_socket(&g_server, SERVER_PORT));  // TODO: Handle gracefully if local server to allow singleplayer mode
+    E_CHECK(network_server_open_socket(&g_server, SERVER_PORT));
     E_CHECK(network_server_listen(&g_server));
 E_CLEANUP
     network_server_free(&g_server);
@@ -56,6 +56,7 @@ E_CLEAN_END
 
 static int network_server_send(const NetworkServer *server, const NetworkServerClient *client, const char *data, size_t size)
 {
+E_START
     assert(client);
     assert(client->address.host);
     assert(data);
@@ -64,11 +65,9 @@ static int network_server_send(const NetworkServer *server, const NetworkServerC
 
     if (zed_net_udp_socket_send(&server->socket, client->address, data, (int)size) < 0) {
         const char *err = zed_net_get_error();
-        TraceLog(LOG_ERROR, "[NetworkServer] Failed to send data. Error: %s", err);
-        return 0;
+        E_ERROR(E_SOCK_SEND_FAILED, "Failed to send data. Error: %s", err);
     }
-
-    return 1;
+E_CLEAN_END
 }
 
 static void network_server_broadcast(const NetworkServer *server, const char *data, size_t size)
@@ -76,7 +75,7 @@ static void network_server_broadcast(const NetworkServer *server, const char *da
     // Broadcast message to all connected clients
     for (int i = 0; i < NETWORK_SERVER_CLIENTS_MAX; ++i) {
         if (server->clients[i].address.host) {
-            if (!network_server_send(server, &server->clients[i], data, size)) {
+            if (network_server_send(server, &server->clients[i], data, size) != E_SUCCESS) {
                 // TODO: Handle error somehow? Retry queue.. or..? Idk.. This seems fatal. Look up why Win32 might fail
             }
         }
@@ -163,12 +162,9 @@ static void network_server_process_message(NetworkServer *server, NetworkServerC
 
 int network_server_listen(NetworkServer *server)
 {
+E_START
     assert(server);
-
-    if (!server->socket.handle) {
-        TraceLog(LOG_FATAL, "[NetworkServer] Server socket handle invalid. Cannot processing incoming packets.");
-        return 0;
-    }
+    assert(server->socket.handle);
 
     // TODO: Do I need to limit the amount of network data processed each "frame" to prevent the simulation from
     // falling behind? How easy is it to overload the server in this manner? Limiting it just seems like it would
@@ -184,8 +180,7 @@ int network_server_listen(NetworkServer *server)
         if (bytes < 0) {
             // TODO: Ignore this.. or log it? zed_net doesn't pass through any useful error messages to diagnose this.
             const char *err = zed_net_get_error();
-            TraceLog(LOG_ERROR, "[NetworkServer] Failed to receive network data. Error: %s", err);
-            return 0;
+            E_FATAL(E_SOCK_RECV_FAILED, "Failed to receive network data. Error: %s", err);
         }
 
         if (bytes > 0) {
@@ -216,7 +211,7 @@ int network_server_listen(NetworkServer *server)
 
             if (!client) {
                 // Send "server full" response to sender
-                if (zed_net_udp_socket_send(&server->socket, sender, CSTR("FULL")) < 0) {
+                if (zed_net_udp_socket_send(&server->socket, sender, CSTR("SERVER FULL")) < 0) {
                     const char *err = zed_net_get_error();
                     TraceLog(LOG_ERROR, "[NetworkServer] Failed to send network data. Error: %s", err);
                 }
@@ -246,7 +241,7 @@ int network_server_listen(NetworkServer *server)
         }
     } while (bytes > 0);
 
-    return 1;
+E_CLEAN_END
 }
 
 void network_server_close_socket(NetworkServer *server)

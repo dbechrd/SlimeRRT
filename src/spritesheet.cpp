@@ -54,7 +54,6 @@
 enum TokenType {
     TOK_UNKNOWN,
     TOK_ANIMATION,
-    TOK_DIRSPRITE,
     TOK_FRAME,
     TOK_SPRITESHEET,
     TOK_SPRITE,
@@ -201,7 +200,6 @@ static bool ConsumeString_Path(Scanner *scanner, char *buf, size_t bufLength)
 {
     assert(scanner);
 
-    bool foundPath = false;
     size_t bufCursor = 0;
 
     char c = PeekChar(scanner);
@@ -532,7 +530,6 @@ static bool ParseSpritesheet(Scanner *scanner, Spritesheet *spritesheet)
     int framesParsed = 0;
     int animationsParsed = 0;
     int spritesParsed = 0;
-    int dirSpritesParsed = 0;
 
     DiscardWhitespaceNewlinesComments(scanner);
     char c = PeekChar(scanner);
