@@ -11,6 +11,7 @@
 #include "spritesheet.h"
 #include "spritesheet_catalog.h"
 #include "tilemap.h"
+#include "world.h"
 #include "dlb_rand.h"
 #include <cassert>
 
@@ -21,19 +22,14 @@ void BloodParticlesFollowPlayer(ParticleEffect *effect, void *userData)
     assert(userData);
 
     Player *player = (Player *)userData;
-    effect->origin = player_get_attach_point(player, PlayerAttachPoint_Gut);
+    effect->origin = player->GetAttachPoint(PlayerAttachPoint_Gut);
 }
 
-void sim(double now, double dt, const PlayerControllerState input, Player *player, Tilemap *map, Slime *slimes,
-    const SpriteDef *coinSpriteDef)
+void sim(double now, double dt, const PlayerControllerState input, World &world, const SpriteDef *coinSpriteDef)
 {
-    assert(player);
-    assert(map);
-    assert(slimes);
-
     for (int i = 0; i < PlayerInventorySlot_Count; i++) {
         if (input.selectSlot[i]) {
-            player->inventory.selectedSlot = (PlayerInventorySlot)i;
+            world.player->inventory.selectedSlot = (PlayerInventorySlot)i;
             break;
         }
     }
@@ -55,23 +51,23 @@ void sim(double now, double dt, const PlayerControllerState input, Player *playe
             moveBuffer.x -= 1.0f;
         }
         if (input.run) {
-            player->moveState = PlayerMoveState_Running;
+            world.player->moveState = PlayerMoveState_Running;
             playerSpeed += 2.0f;
         } else {
-            player->moveState = PlayerMoveState_Walking;
+            world.player->moveState = PlayerMoveState_Walking;
         }
     } else {
-        player->moveState = PlayerMoveState_Idle;
+        world.player->moveState = PlayerMoveState_Idle;
     }
 
     Vector2 moveOffset = v2_scale(v2_normalize(moveBuffer), METERS_TO_PIXELS(playerSpeed) * (float)dt);
     if (!v2_is_zero(moveOffset)) {
-        const Vector2 curPos = body_ground_position(&player->body);
-        const Tile *curTile = tilemap_at_world_try(map, (int)curPos.x, (int)curPos.y);
+        const Vector2 curPos = body_ground_position(&world.player->body);
+        const Tile *curTile = tilemap_at_world_try(world.map, (int)curPos.x, (int)curPos.y);
         const bool curWalkable = tile_is_walkable(curTile);
 
         Vector2 newPos = v2_add(curPos, moveOffset);
-        Tile *newTile = tilemap_at_world_try(map, (int)newPos.x, (int)newPos.y);
+        Tile *newTile = tilemap_at_world_try(world.map, (int)newPos.x, (int)newPos.y);
 
         // NOTE: This extra logic allows the player to slide when attempting to move diagonally against a wall
         // NOTE: If current tile isn't walkable, allow player to walk off it. This may not be the best solution
@@ -85,7 +81,7 @@ void sim(double now, double dt, const PlayerControllerState input, Player *playe
                 // XY unwalkable, try only X offset
                 newPos = curPos;
                 newPos.x += moveOffset.x;
-                newTile = tilemap_at_world_try(map, (int)newPos.x, (int)newPos.y);
+                newTile = tilemap_at_world_try(world.map, (int)newPos.x, (int)newPos.y);
                 if (tile_is_walkable(newTile)) {
                     // X offset is walkable
                     moveOffset.y = 0.0f;
@@ -93,7 +89,7 @@ void sim(double now, double dt, const PlayerControllerState input, Player *playe
                     // X unwalkable, try only Y offset
                     newPos = curPos;
                     newPos.y += moveOffset.y;
-                    newTile = tilemap_at_world_try(map, (int)newPos.x, (int)newPos.y);
+                    newTile = tilemap_at_world_try(world.map, (int)newPos.x, (int)newPos.y);
                     if (tile_is_walkable(newTile)) {
                         // Y offset is walkable
                         moveOffset.x = 0.0f;
@@ -110,7 +106,7 @@ void sim(double now, double dt, const PlayerControllerState input, Player *playe
             }
         }
 
-        if (player_move(player, now, dt, moveOffset)) {
+        if (world.player->Move(now, dt, moveOffset)) {
             static double lastFootstep = 0;
             double timeSinceLastFootstep = now - lastFootstep;
             if (timeSinceLastFootstep > 1.0f / playerSpeed) {
@@ -123,45 +119,44 @@ void sim(double now, double dt, const PlayerControllerState input, Player *playe
     if (input.attack) {
         const float playerAttackReach = METERS_TO_PIXELS(1.0f);
 
-        if (player_attack(player, now, dt)) {
+        if (world.player->Attack(now, dt)) {
             float playerDamage;
 
-            const Item *selectedItem = player_selected_item(player);
-            switch (selectedItem->type) {
+            const Item &selectedItem = world.player->GetSelectedItem();
+            switch (selectedItem.type) {
                 case ItemType_Weapon: {
-                    playerDamage = selectedItem->data.weapon.damage;
+                    playerDamage = selectedItem.data.weapon.damage;
                     break;
                 }
                 default: {
-                    playerDamage = player->combat.meleeDamage;
+                    playerDamage = world.player->combat.meleeDamage;
                     break;
                 }
             }
 
             size_t slimesHit = 0;
-            for (size_t slimeIdx = 0; slimeIdx < MAX_SLIMES; slimeIdx++) {
-                Slime *slime = &slimes[slimeIdx];
-                if (!slime->combat.hitPoints)
+            for (Slime &slime : world.slimes) {
+                if (!slime.combat.hitPoints)
                     continue;
 
-                Vector3 playerToSlime = v3_sub(slime->body.position, player->body.position);
+                Vector3 playerToSlime = v3_sub(slime.body.position, world.player->body.position);
                 if (v3_length_sq(playerToSlime) <= playerAttackReach * playerAttackReach) {
-                    player->stats.damageDealt += MIN(slime->combat.hitPoints, playerDamage);
-                    slime->combat.hitPoints = MAX(0.0f, slime->combat.hitPoints - playerDamage);
-                    if (!slime->combat.hitPoints) {
+                    world.player->stats.damageDealt += MIN(slime.combat.hitPoints, playerDamage);
+                    slime.combat.hitPoints = MAX(0.0f, slime.combat.hitPoints - playerDamage);
+                    if (!slime.combat.hitPoints) {
                         //sound_catalog_play(SoundID_Squeak, 0.75f + dlb_rand32f_variance(0.2f));
 
-                        int coins = dlb_rand32i_range(1, 4) * (int)slime->sprite.scale;
+                        int coins = dlb_rand32i_range(1, 4) * (int)slime.sprite.scale;
                         // TODO(design): Convert coins to higher currency if stack fills up?
-                        player->inventory.slots[PlayerInventorySlot_Coins].stackCount += coins;
-                        player->stats.coinsCollected += coins;
+                        world.player->inventory.slots[PlayerInventorySlot_Coins].stackCount += coins;
+                        world.player->stats.coinsCollected += coins;
 
-                        Vector3 deadCenter = sprite_world_center(&slime->sprite, slime->body.position, slime->sprite.scale);
+                        Vector3 deadCenter = sprite_world_center(slime.sprite, slime.body.position, slime.sprite.scale);
                         particle_effect_create(ParticleEffectType_Goo, 20, deadCenter, 2.0, now, 0);
                         particle_effect_create(ParticleEffectType_Gold, (size_t)coins, deadCenter, 2.0, now, coinSpriteDef);
                         sound_catalog_play(SoundID_Gold, 1.0f + dlb_rand32f_variance(0.1f));
 
-                        player->stats.slimesSlain++;
+                        world.player->stats.slimesSlain++;
                     } else {
                         SoundID squish = dlb_rand32i_range(0, 1) ? SoundID_Squish1 : SoundID_Squish2;
                         sound_catalog_play(squish, 1.0f + dlb_rand32f_variance(0.2f));
@@ -177,7 +172,7 @@ void sim(double now, double dt, const PlayerControllerState input, Player *playe
         }
     }
 
-    player_update(player, now, dt);
+    world.player->Update(now, dt);
 
     {
         // TODO: Move these to somewhere
@@ -190,43 +185,39 @@ void sim(double now, double dt, const PlayerControllerState input, Player *playe
         //static double lastSquish = 0;
         //double timeSinceLastSquish = now - lastSquish;
 
-        for (size_t slimeIdx = 0; slimeIdx < MAX_SLIMES; slimeIdx++) {
-            Slime *slime = &slimes[slimeIdx];
-            if (!slime->combat.hitPoints)
+        size_t slimeCount = world.slimes.size();
+        for (size_t slimeIdx = 0; slimeIdx < slimeCount; slimeIdx++) {
+            Slime &slime = world.slimes[slimeIdx];
+            if (!slime.combat.hitPoints)
                 continue;
 
-            Vector2 slimeToPlayer = v2_sub(body_ground_position(&player->body), body_ground_position(&slime->body));
+            Vector2 slimeToPlayer = v2_sub(body_ground_position(&world.player->body), body_ground_position(&slime.body));
             const float slimeToPlayerDistSq = v2_length_sq(slimeToPlayer);
             if (slimeToPlayerDistSq > SQUARED(slimeAttackReach) &&
                 slimeToPlayerDistSq <= SQUARED(slimeAttackTrack))
             {
                 const float slimeToPlayerDist = sqrtf(slimeToPlayerDistSq);
-                const float moveDist = MIN(slimeToPlayerDist, slimeMoveSpeed * slime->sprite.scale);
+                const float moveDist = MIN(slimeToPlayerDist, slimeMoveSpeed * slime.sprite.scale);
                 // 25% -1.0, 75% +1.0f
                 const float moveRandMult = dlb_rand32i_range(1, 4) > 1 ? 1.0f : -1.0f;
                 const Vector2 slimeMoveDir = v2_scale(slimeToPlayer, 1.0f / slimeToPlayerDist);
                 const Vector2 slimeMove = v2_scale(slimeMoveDir, moveDist * moveRandMult);
-                const Vector2 slimePos = body_ground_position(&slime->body);
+                const Vector2 slimePos = body_ground_position(&slime.body);
                 const Vector2 slimePosNew = v2_add(slimePos, slimeMove);
 
                 int willCollide = 0;
-                for (size_t collideIdx = 0; collideIdx < MAX_SLIMES; collideIdx++) {
-                    if (collideIdx == slimeIdx)
+                for (size_t collideIdx = slimeIdx + 1; collideIdx < slimeCount; collideIdx++) {
+                    Slime &otherSlime = world.slimes[collideIdx];
+                    if (!otherSlime.combat.hitPoints)
                         continue;
 
-                    if (!slimes[collideIdx].combat.hitPoints)
-                        continue;
-
-                    Vector2 otherSlimePos = body_ground_position(&slimes[collideIdx].body);
-                    const float zDist = fabsf(slime->body.position.z - slimes[collideIdx].body.position.z);
-                    const float radiusScaled = slimeRadius * slime->sprite.scale;
+                    Vector2 otherSlimePos = body_ground_position(&otherSlime.body);
+                    const float zDist = fabsf(slime.body.position.z - otherSlime.body.position.z);
+                    const float radiusScaled = slimeRadius * slime.sprite.scale;
                     if (v2_length_sq(v2_sub(slimePos, otherSlimePos)) < SQUARED(radiusScaled) && zDist < radiusScaled) {
-                        Slime *a = &slimes[slimeIdx];
-                        Slime *b = &slimes[collideIdx];
-                        if (slime_combine(a, b)) {
-                            const Slime *dead = a->combat.hitPoints == 0.0f ? a : b;
-                            const Vector3 slimeBC = sprite_world_center(
-                                &dead->sprite, dead->body.position, dead->sprite.scale
+                        if (slime.Combine(otherSlime)) {
+                            const Slime &dead = slime.combat.hitPoints == 0.0f ? slime : otherSlime;
+                            const Vector3 slimeBC = sprite_world_center(dead.sprite, dead.body.position, dead.sprite.scale
                             );
                             particle_effect_create(ParticleEffectType_Goo, 20, slimeBC, 2.0, now, 0);
                         }
@@ -236,39 +227,39 @@ void sim(double now, double dt, const PlayerControllerState input, Player *playe
                     }
                 }
 
-                if (!willCollide && slime_move(&slimes[slimeIdx], now, dt, slimeMove)) {
+                if (!willCollide && slime.Move(now, dt, slimeMove)) {
                     SoundID squish = dlb_rand32i_range(0, 1) ? SoundID_Squish1 : SoundID_Squish2;
                     sound_catalog_play(squish, 1.0f + dlb_rand32f_variance(0.2f));
                 }
             }
 
             // Allow slime to attack if on the ground and close enough to the player
-            slimeToPlayer = v2_sub(body_ground_position(&player->body), body_ground_position(&slime->body));
+            slimeToPlayer = v2_sub(body_ground_position(&world.player->body), body_ground_position(&slime.body));
             if (v2_length_sq(slimeToPlayer) <= SQUARED(slimeAttackReach)) {
-                if (slime_attack(&slimes[slimeIdx], now, dt)) {
-                    player->combat.hitPoints = MAX(
+                if (slime.Attack(now, dt)) {
+                    world.player->combat.hitPoints = MAX(
                         0.0f,
-                        player->combat.hitPoints - (slimeAttackDamage * slime->sprite.scale)
+                        world.player->combat.hitPoints - (slimeAttackDamage * slime.sprite.scale)
                     );
 
                     static double lastBleed = 0;
                     const double bleedDuration = 3.0;
 
                     if (now - lastBleed > bleedDuration / 3.0) {
-                        Vector3 playerGut = player_get_attach_point(player, PlayerAttachPoint_Gut);
+                        Vector3 playerGut = world.player->GetAttachPoint(PlayerAttachPoint_Gut);
                         ParticleEffect *bloodParticles = particle_effect_create(
                             ParticleEffectType_Blood, 32, playerGut, bleedDuration, now, 0
                         );
                         if (bloodParticles) {
                             bloodParticles->callbacks[ParticleEffectEvent_BeforeUpdate].function = BloodParticlesFollowPlayer;
-                            bloodParticles->callbacks[ParticleEffectEvent_BeforeUpdate].userData = player;
+                            bloodParticles->callbacks[ParticleEffectEvent_BeforeUpdate].userData = world.player;
                         }
                         lastBleed = now;
                     }
                 }
             }
 
-            slime_update(&slimes[slimeIdx], now, dt);
+            slime.Update(now, dt);
         }
     }
 

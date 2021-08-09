@@ -3,26 +3,22 @@
 #include "dlb_types.h"
 #include <cassert>
 
-static Spritesheet spritesheetCatalog[SpritesheetID_Count];
+SpritesheetCatalog g_spritesheetCatalog;
 
-void spritesheet_catalog_init()
+void SpritesheetCatalog::Load()
 {
     // TODO: Load spritesheets from file
-    spritesheet_init(&spritesheetCatalog[SpritesheetID_Charlie], "resources/charlie.txt");
-    spritesheet_init(&spritesheetCatalog[SpritesheetID_Coin   ], "resources/coin_gold.txt");
-    spritesheet_init(&spritesheetCatalog[SpritesheetID_Slime  ], "resources/slime.txt");
+    spritesheets[SpritesheetID_Charlie].LoadFromFile("resources/charlie.txt");
+    spritesheets[SpritesheetID_Coin   ].LoadFromFile("resources/coin_gold.txt");
+    spritesheets[SpritesheetID_Slime  ].LoadFromFile("resources/slime.txt");
 }
 
-const Spritesheet *spritesheet_catalog_find(SpritesheetID id)
+const Spritesheet &SpritesheetCatalog::FindById(SpritesheetID id) const
 {
     // TODO: Return null if invalid id?
-    assert(id < ARRAY_SIZE(spritesheetCatalog));
-    return &spritesheetCatalog[id];
-}
+    assert(id < ARRAY_SIZE(spritesheets));
 
-void spritesheet_catalog_free()
-{
-    for (size_t i = 0; i < SpritesheetID_Count; i++) {
-        spritesheet_free(&spritesheetCatalog[i]);
-    }
+    const Spritesheet &spritesheet = spritesheets[id];
+    assert(spritesheet.sprites.size());  // Forgot to load the catalog?
+    return spritesheets[id];
 }

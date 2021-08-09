@@ -14,9 +14,9 @@ void item_catalog_init()
     itemCatalog[ItemID_Weapon_Sword       ].data.weapon.damage = 5.0f;
 }
 
-const Item *item_catalog_find(ItemID id)
+const Item& item_catalog_find(ItemID id)
 {
     // TODO: Return null if invalid id?
     assert(id < ARRAY_SIZE(itemCatalog));
-    return &itemCatalog[id];
+    return itemCatalog[id];
 }

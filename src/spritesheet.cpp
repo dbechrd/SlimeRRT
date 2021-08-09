@@ -65,74 +65,87 @@ struct Token {
 };
 
 struct Scanner {
+    bool DiscardChar(char c);
+    bool DiscardString(const char *str);
+    char PeekChar() const;
+    bool ConsumePositiveInt(int *value);
+    StringView ConsumeString_Alpha();
+    StringView ConsumeString_Name();
+    bool ConsumeString_Path(char *buf, size_t bufLength);
+    void DiscardWhitespace();
+    void DiscardNewlines();
+    void DiscardComment();
+    void DiscardWhitespaceNewlinesComments();
+    TokenType GetIdentifierType(StringView tok);
+    Token ParseIdentifier();
+    bool ParseHeader(Spritesheet &spritesheet);
+    bool ParseFrame(SpriteFrame &frame);
+    bool ParseAnimation(SpriteAnim &animation);
+    bool ParseSprite(SpriteDef &sprite);
+    bool ParseSpritesheet(Spritesheet &spritesheet);
+
+public:
     const char *fileName;
     size_t cursor;
     size_t length;
     const char *text;
 };
 
-static bool DiscardChar(Scanner *scanner, char c)
+bool Scanner::DiscardChar(char c)
 {
-    assert(scanner);
     assert(c);
 
-    if (scanner->cursor < scanner->length && scanner->text[scanner->cursor] == c) {
-        scanner->cursor++;
+    if (cursor < length && text[cursor] == c) {
+        cursor++;
         return true;
     }
     return false;
 }
 
-static bool DiscardString(Scanner *scanner, const char *str)
+bool Scanner::DiscardString(const char *str)
 {
-    assert(scanner);
     assert(str);
 
     size_t idx = 0;
-    while (scanner->cursor < scanner->length && scanner->text[scanner->cursor] == str[idx]) {
+    while (cursor < length && text[cursor] == str[idx]) {
         idx++;
-        scanner->cursor++;
+        cursor++;
     }
 
     // If string has more characters, we didn't match it all. Reset cursor and return false.
     if (str[idx]) {
-        scanner->cursor -= idx;
+        cursor -= idx;
         return false;
     }
     return true;
 }
 
-static char PeekChar(Scanner *scanner)
+char Scanner::PeekChar() const
 {
-    assert(scanner);
-
     char c = 0;
-    if (scanner->cursor < scanner->length) {
-        c = scanner->text[scanner->cursor];
+    if (cursor < length) {
+        c = text[cursor];
     }
     return c;
 }
 
-
-static bool ConsumePositiveInt(Scanner *scanner, int *value)
+bool Scanner::ConsumePositiveInt(int *value)
 {
-    assert(scanner);
-
     bool foundNum = false;
     int accum = 0;
-    char c = PeekChar(scanner);
+    char c = PeekChar();
     while (c) {
         switch (c) {
             NUM {
                 accum = accum * 10 + (int)(c - '0');
                 if (accum < 0) {
                     // TODO: Better error info (line/column)
-                    TraceLog(LOG_FATAL, "'%s': Integer overflow in ConsumeInt.\n", scanner->fileName);
+                    TraceLog(LOG_FATAL, "'%s': Integer overflow in ConsumeInt.\n", fileName);
                     exit(-1);
                 }
                 foundNum = true;
-                scanner->cursor++;
-                c = PeekChar(scanner);
+                cursor++;
+                c = PeekChar();
                 break;
             }
             default: {
@@ -147,20 +160,18 @@ static bool ConsumePositiveInt(Scanner *scanner, int *value)
     return foundNum;
 }
 
-static StringView ConsumeString_Alpha(Scanner *scanner)
+StringView Scanner::ConsumeString_Alpha()
 {
-    assert(scanner);
-
     StringView view = {};
-    view.text = scanner->text + scanner->cursor;
+    view.text = text + cursor;
 
-    char c = PeekChar(scanner);
+    char c = PeekChar();
     while (c) {
         switch (c) {
             ALPHA {
                 view.length++;
-                scanner->cursor++;
-                c = PeekChar(scanner);
+                cursor++;
+                c = PeekChar();
                 break;
             }
             default: {
@@ -171,20 +182,18 @@ static StringView ConsumeString_Alpha(Scanner *scanner)
     return view;
 }
 
-static StringView ConsumeString_Name(Scanner *scanner)
+StringView Scanner::ConsumeString_Name()
 {
-    assert(scanner);
-
     StringView view = {};
-    view.text = scanner->text + scanner->cursor;
+    view.text = text + cursor;
 
-    char c = PeekChar(scanner);
+    char c = PeekChar();
     while (c) {
         switch (c) {
             NAME {
                 view.length++;
-                scanner->cursor++;
-                c = PeekChar(scanner);
+                cursor++;
+                c = PeekChar();
                 break;
             }
             default: {
@@ -196,20 +205,18 @@ static StringView ConsumeString_Name(Scanner *scanner)
     return view;
 }
 
-static bool ConsumeString_Path(Scanner *scanner, char *buf, size_t bufLength)
+bool Scanner::ConsumeString_Path(char *buf, size_t bufLength)
 {
-    assert(scanner);
-
     size_t bufCursor = 0;
 
-    char c = PeekChar(scanner);
+    char c = PeekChar();
     while (c && bufCursor < bufLength) {
         switch (c) {
             PATH {
                 buf[bufCursor] = c;
                 bufCursor++;
-                scanner->cursor++;
-                c = PeekChar(scanner);
+                cursor++;
+                c = PeekChar();
                 break;
             }
             default: {
@@ -219,21 +226,19 @@ static bool ConsumeString_Path(Scanner *scanner, char *buf, size_t bufLength)
     }
 
     if (c && bufCursor == bufLength) {
-        TraceLog(LOG_FATAL, "%s: Internal buffer is not big enough (max: %zu) to hold that path.\n", scanner->fileName, bufLength);
+        TraceLog(LOG_FATAL, "%s: Internal buffer is not big enough (max: %zu) to hold that path.\n", fileName, bufLength);
         assert(!"Internal path buffer not big enough");
         exit(-1);
     }
     return true;
 }
 
-static void DiscardWhitespace(Scanner *scanner)
+void Scanner::DiscardWhitespace()
 {
-    assert(scanner);
-
-    while (scanner->cursor < scanner->length) {
-        switch (scanner->text[scanner->cursor]) {
+    while (cursor < length) {
+        switch (text[cursor]) {
             WHITESPACE {
-                scanner->cursor++;
+                cursor++;
                 break;
             }
             default: {
@@ -243,14 +248,12 @@ static void DiscardWhitespace(Scanner *scanner)
     }
 }
 
-static void DiscardNewlines(Scanner *scanner)
+void Scanner::DiscardNewlines()
 {
-    assert(scanner);
-
-    while (scanner->cursor < scanner->length) {
-        switch (scanner->text[scanner->cursor]) {
+    while (cursor < length) {
+        switch (text[cursor]) {
             NEWLINE {
-                scanner->cursor++;
+                cursor++;
                 break;
             }
             default: {
@@ -260,28 +263,24 @@ static void DiscardNewlines(Scanner *scanner)
     }
 }
 
-static void DiscardComment(Scanner *scanner)
+void Scanner::DiscardComment()
 {
-    assert(scanner);
-
     // Discard remainder of line
-    while (scanner->cursor < scanner->length && scanner->text[scanner->cursor] != '\n') {
-        scanner->cursor++;
+    while (cursor < length && text[cursor] != '\n') {
+        cursor++;
     }
 }
 
-static void DiscardWhitespaceNewlinesComments(Scanner *scanner)
+void Scanner::DiscardWhitespaceNewlinesComments()
 {
-    assert(scanner);
-
-    while (scanner->cursor < scanner->length) {
-        switch (scanner->text[scanner->cursor]) {
+    while (cursor < length) {
+        switch (text[cursor]) {
             WHITESPACE_NEWLINE {
-                scanner->cursor++;
+                cursor++;
                 break;
             }
             COMMENT {
-                DiscardComment(scanner);
+                DiscardComment();
                 break;
             }
             default: {
@@ -291,9 +290,8 @@ static void DiscardWhitespaceNewlinesComments(Scanner *scanner)
     }
 }
 
-static TokenType GetIdentifierType(Scanner *scanner, StringView tok)
+TokenType Scanner::GetIdentifierType(StringView tok)
 {
-    assert(scanner);
     assert(tok.length);
     assert(tok.text);
 
@@ -308,64 +306,63 @@ static TokenType GetIdentifierType(Scanner *scanner, StringView tok)
     return type;
 }
 
-static Token ParseIdentifier(Scanner *scanner)
+Token Scanner::ParseIdentifier()
 {
-    assert(scanner);
-
     Token tok{};
-    tok.token = ConsumeString_Alpha(scanner);
-    tok.type = GetIdentifierType(scanner, tok.token);
+    tok.token = ConsumeString_Alpha();
+    tok.type = GetIdentifierType(tok.token);
     if (tok.type == TOK_UNKNOWN) {
         // TODO: Report better error info (line/column)
         TraceLog(LOG_ERROR, "Encountered unrecognized tokifer '%.*s' in file '%s'.\n", tok.token.length,
-            tok.token.text, scanner->fileName);
+            tok.token.text, fileName);
     }
     return tok;
 }
 
-static bool ParseHeader(Scanner *scanner, Spritesheet *spritesheet)
+bool Scanner::ParseHeader(Spritesheet &spritesheet)
 {
-    assert(scanner);
-    assert(spritesheet);
-
 #define USAGE "  Usage: spritesheet <frame_count> <animation_count> <sprite_count> <texture_path>\n" \
               "Example: spritesheet 8 1 1 resources/coin_gold.png\n"
 
+    int frameCount = 0;
+    int animationCount = 0;
+    int spriteCount = 0;
+
     // frame count
-    DiscardWhitespaceNewlinesComments(scanner);
-    if (!ConsumePositiveInt(scanner, &spritesheet->frameCount)) {
-        TraceLog(LOG_ERROR, "'%s': Expected frame_count.\n" USAGE, scanner->fileName);
+    DiscardWhitespaceNewlinesComments();
+    if (!ConsumePositiveInt(&frameCount)) {
+        TraceLog(LOG_ERROR, "'%s': Expected frame_count.\n" USAGE, fileName);
         return false;
-    } else if (spritesheet->frameCount <= 0) {
-        TraceLog(LOG_ERROR, "'%s': frame_count must be a positive, non-zero integer.\n" USAGE, scanner->fileName);
+    } else if (frameCount <= 0) {
+        TraceLog(LOG_ERROR, "'%s': frame_count must be a positive, non-zero integer.\n" USAGE, fileName);
         return false;
     }
 
     // animation count
-    DiscardWhitespaceNewlinesComments(scanner);
-    if (!ConsumePositiveInt(scanner, &spritesheet->animationCount)) {
-        TraceLog(LOG_ERROR, "'%s': Expected animation_count.\n" USAGE, scanner->fileName);
+    DiscardWhitespaceNewlinesComments();
+    if (!ConsumePositiveInt(&animationCount)) {
+        TraceLog(LOG_ERROR, "'%s': Expected animation_count.\n" USAGE, fileName);
         return false;
-    } else if (spritesheet->animationCount <= 0) {
-        TraceLog(LOG_ERROR, "'%s': animation_count must be a positive, non-zero integer.\n" USAGE, scanner->fileName);
+    } else if (animationCount <= 0) {
+        TraceLog(LOG_ERROR, "'%s': animation_count must be a positive, non-zero integer.\n" USAGE, fileName);
         return false;
     }
 
     // sprite count
-    DiscardWhitespaceNewlinesComments(scanner);
-    if (!ConsumePositiveInt(scanner, &spritesheet->spriteCount)) {
-        TraceLog(LOG_ERROR, "'%s': Expected sprite_count.\n" USAGE, scanner->fileName);
+    DiscardWhitespaceNewlinesComments();
+    if (!ConsumePositiveInt(&spriteCount)) {
+        TraceLog(LOG_ERROR, "'%s': Expected sprite_count.\n" USAGE, fileName);
         return false;
-    } else if (spritesheet->spriteCount <= 0) {
-        TraceLog(LOG_ERROR, "'%s': sprite_count must be a positive, non-zero integer.\n" USAGE, scanner->fileName);
+    } else if (spriteCount <= 0) {
+        TraceLog(LOG_ERROR, "'%s': sprite_count must be a positive, non-zero integer.\n" USAGE, fileName);
         return false;
     }
 
     // texture path
-    DiscardWhitespaceNewlinesComments(scanner);
+    DiscardWhitespaceNewlinesComments();
     char texturePath[256] = {};
-    if (!ConsumeString_Path(scanner, texturePath, sizeof(texturePath) - 1)) {
-        TraceLog(LOG_ERROR, "'%s': Expected texture_path. " USAGE "\n", scanner->fileName);
+    if (!ConsumeString_Path(texturePath, sizeof(texturePath) - 1)) {
+        TraceLog(LOG_ERROR, "'%s': Expected texture_path. " USAGE "\n", fileName);
         return false;
     }
 
@@ -373,30 +370,21 @@ static bool ParseHeader(Scanner *scanner, Spritesheet *spritesheet)
     // Initialization, not parsing.. but it seems appropriate for it to live here?
     //--------------------------------------------------------------------------------
     // Allocate memory for frames
-    spritesheet->frames = (SpriteFrame *)calloc(spritesheet->frameCount, sizeof(*spritesheet->frames));
-    if (!spritesheet->frames) {
-        TraceLog(LOG_ERROR, "'%s': Failed to allocate memory for %d frames in spritesheet.\n", scanner->fileName, spritesheet->frameCount);
-        return false;
-    }
+    // TODO: Handle bad_alloc?
+    spritesheet.frames.reserve(frameCount);
 
     // Allocate memory for animations
-    spritesheet->animations = (SpriteAnim *)calloc(spritesheet->animationCount, sizeof(*spritesheet->animations));
-    if (!spritesheet->animations) {
-        TraceLog(LOG_ERROR, "'%s': Failed to allocate memory for %d sprites in spritesheet.\n", scanner->fileName, spritesheet->animationCount);
-        return false;
-    }
+    // TODO: Handle bad_alloc?
+    spritesheet.animations.reserve(animationCount);
 
     // Allocate memory for sprites
-    spritesheet->sprites = (SpriteDef *)calloc(spritesheet->spriteCount, sizeof(*spritesheet->sprites));
-    if (!spritesheet->sprites) {
-        TraceLog(LOG_ERROR, "'%s': Failed to allocate memory for %d sprites in spritesheet.\n", scanner->fileName, spritesheet->spriteCount);
-        return false;
-    }
+    // TODO: Handle bad_alloc?
+    spritesheet.sprites.reserve(spriteCount);
 
     // Load spritesheet texture
-    spritesheet->texture = LoadTexture(texturePath);
-    if (!spritesheet->texture.width) {
-        TraceLog(LOG_ERROR, "'%s': Failed to load spritesheet texture [path: %s].\n", scanner->fileName, texturePath);
+    spritesheet.texture = LoadTexture(texturePath);
+    if (!spritesheet.texture.width) {
+        TraceLog(LOG_ERROR, "'%s': Failed to load spritesheet texture [path: %s].\n", fileName, texturePath);
         return false;
     }
     //--------------------------------------------------------------------------------
@@ -405,53 +393,50 @@ static bool ParseHeader(Scanner *scanner, Spritesheet *spritesheet)
 #undef USAGE
 }
 
-static bool ParseFrame(Scanner *scanner, SpriteFrame *frame)
+bool Scanner::ParseFrame(SpriteFrame &frame)
 {
-    assert(scanner);
-    assert(frame);
-
 #define USAGE "  Usage: frame <name> <x> <y> <width> <height>\n" \
               "Example: frame player_melee_idle 0 0 54 94\n"
 
     // name
-    DiscardWhitespaceNewlinesComments(scanner);
-    frame->name = ConsumeString_Name(scanner);
-    if (!frame->name.length) {
-        TraceLog(LOG_ERROR, "'%s': Expected name.\n" USAGE, scanner->fileName);
+    DiscardWhitespaceNewlinesComments();
+    frame.name = ConsumeString_Name();
+    if (!frame.name.length) {
+        TraceLog(LOG_ERROR, "'%s': Expected name.\n" USAGE, fileName);
         return false;
     }
 
     // x
-    DiscardWhitespaceNewlinesComments(scanner);
-    if (!ConsumePositiveInt(scanner, &frame->x)) {
-        TraceLog(LOG_ERROR, "'%s': Expected frame x (left).\n" USAGE, scanner->fileName);
+    DiscardWhitespaceNewlinesComments();
+    if (!ConsumePositiveInt(&frame.x)) {
+        TraceLog(LOG_ERROR, "'%s': Expected frame x (left).\n" USAGE, fileName);
         return false;
     }
 
     // y
-    DiscardWhitespaceNewlinesComments(scanner);
-    if (!ConsumePositiveInt(scanner, &frame->y)) {
-        TraceLog(LOG_ERROR, "'%s': Expected frame y (top).\n" USAGE, scanner->fileName);
+    DiscardWhitespaceNewlinesComments();
+    if (!ConsumePositiveInt(&frame.y)) {
+        TraceLog(LOG_ERROR, "'%s': Expected frame y (top).\n" USAGE, fileName);
         return false;
     }
 
     // width
-    DiscardWhitespaceNewlinesComments(scanner);
-    if (!ConsumePositiveInt(scanner, &frame->width)) {
-        TraceLog(LOG_ERROR, "'%s': Expected frame width.\n" USAGE, scanner->fileName);
+    DiscardWhitespaceNewlinesComments();
+    if (!ConsumePositiveInt(&frame.width)) {
+        TraceLog(LOG_ERROR, "'%s': Expected frame width.\n" USAGE, fileName);
         return false;
-    } else if (frame->width <= 0) {
-        TraceLog(LOG_ERROR, "'%s': width must be a positive, non-zero integer.\n" USAGE, scanner->fileName);
+    } else if (frame.width <= 0) {
+        TraceLog(LOG_ERROR, "'%s': width must be a positive, non-zero integer.\n" USAGE, fileName);
         return false;
     }
 
     // height
-    DiscardWhitespaceNewlinesComments(scanner);
-    if (!ConsumePositiveInt(scanner, &frame->height)) {
-        TraceLog(LOG_ERROR, "'%s': Expected frame height.\n" USAGE, scanner->fileName);
+    DiscardWhitespaceNewlinesComments();
+    if (!ConsumePositiveInt(&frame.height)) {
+        TraceLog(LOG_ERROR, "'%s': Expected frame height.\n" USAGE, fileName);
         return false;
-    } else if (frame->height <= 0) {
-        TraceLog(LOG_ERROR, "'%s': height must be a positive, non-zero integer.\n" USAGE, scanner->fileName);
+    } else if (frame.height <= 0) {
+        TraceLog(LOG_ERROR, "'%s': height must be a positive, non-zero integer.\n" USAGE, fileName);
         return false;
     }
 
@@ -459,34 +444,31 @@ static bool ParseFrame(Scanner *scanner, SpriteFrame *frame)
 #undef USAGE
 }
 
-static bool ParseAnimation(Scanner *scanner, SpriteAnim *animation)
+bool Scanner::ParseAnimation(SpriteAnim &animation)
 {
-    assert(scanner);
-    assert(animation);
-
 #define USAGE "  Usage: animation <name> <frame0> [frame1] ... [frame15]\n" \
               "Example: animation coin_spin 0 1 2 3 4 5 6 7\n"
 
     // name
-    DiscardWhitespaceNewlinesComments(scanner);
-    animation->name = ConsumeString_Name(scanner);
-    if (!animation->name.length) {
-        TraceLog(LOG_ERROR, "'%s': Expected name.\n" USAGE, scanner->fileName);
+    DiscardWhitespaceNewlinesComments();
+    animation.name = ConsumeString_Name();
+    if (!animation.name.length) {
+        TraceLog(LOG_ERROR, "'%s': Expected name.\n" USAGE, fileName);
         return false;
     }
 
     // frames
     for (int i = 0; i < SPRITEANIM_MAX_FRAMES; i++) {
-        DiscardWhitespaceNewlinesComments(scanner);
-        if (ConsumePositiveInt(scanner, &animation->frames[i])) {
-            animation->frameCount++;
+        DiscardWhitespaceNewlinesComments();
+        if (ConsumePositiveInt(&animation.frames[i])) {
+            animation.frameCount++;
         } else {
-            animation->frames[i] = -1;
+            animation.frames[i] = -1;
         }
     }
 
-    if (!animation->frameCount) {
-        TraceLog(LOG_ERROR, "'%s': Expected at least one frame index.\n" USAGE, scanner->fileName);
+    if (!animation.frameCount) {
+        TraceLog(LOG_ERROR, "'%s': Expected at least one frame index.\n" USAGE, fileName);
         return false;
     }
 
@@ -494,29 +476,26 @@ static bool ParseAnimation(Scanner *scanner, SpriteAnim *animation)
 #undef USAGE
 }
 
-static bool ParseSprite(Scanner *scanner, SpriteDef *sprite)
+bool Scanner::ParseSprite(SpriteDef &sprite)
 {
-    assert(scanner);
-    assert(sprite);
-
 #define USAGE "  Usage: sprite <name> <anim_n> <anim_e> <anim_s> <anim_w> <anim_ne> <anim_se> <anim_sw> <anim_nw>\n" \
               "Example: sprite player_sword 10 11 12 13 14 15 16 17\n"
 
     // name
-    DiscardWhitespaceNewlinesComments(scanner);
-    sprite->name = ConsumeString_Name(scanner);
-    if (!sprite->name.length) {
-        TraceLog(LOG_ERROR, "'%s': Expected name.\n" USAGE, scanner->fileName);
+    DiscardWhitespaceNewlinesComments();
+    sprite.name = ConsumeString_Name();
+    if (!sprite.name.length) {
+        TraceLog(LOG_ERROR, "'%s': Expected name.\n" USAGE, fileName);
         return false;
     }
 
     // directional animations
     for (int i = 0; i < Direction_Count; i++) {
-        DiscardWhitespaceNewlinesComments(scanner);
-        if (DiscardChar(scanner, '-')) {
-            sprite->animations[i] = -1;
-        } else if (!ConsumePositiveInt(scanner, &sprite->animations[i])) {
-            TraceLog(LOG_ERROR, "'%s': Expected an animation index for each of the %d directions.\n" USAGE, scanner->fileName, (int)Direction_Count);
+        DiscardWhitespaceNewlinesComments();
+        if (DiscardChar('-')) {
+            sprite.animations[i] = -1;
+        } else if (!ConsumePositiveInt(&sprite.animations[i])) {
+            TraceLog(LOG_ERROR, "'%s': Expected an animation index for each of the %d directions.\n" USAGE, fileName, (int)Direction_Count);
             return false;
         }
     }
@@ -525,69 +504,44 @@ static bool ParseSprite(Scanner *scanner, SpriteDef *sprite)
 #undef USAGE
 }
 
-static bool ParseSpritesheet(Scanner *scanner, Spritesheet *spritesheet)
+bool Scanner::ParseSpritesheet(Spritesheet &spritesheet)
 {
     int framesParsed = 0;
     int animationsParsed = 0;
     int spritesParsed = 0;
 
-    DiscardWhitespaceNewlinesComments(scanner);
-    char c = PeekChar(scanner);
+    DiscardWhitespaceNewlinesComments();
+    char c = PeekChar();
     while (c) {
         switch (c) {
             ALPHA {
-                Token tok = ParseIdentifier(scanner);
+                Token tok = ParseIdentifier();
                 switch (tok.type) {
                     case TOK_SPRITESHEET: {
-                        if (!ParseHeader(scanner, spritesheet)) {
+                        if (!ParseHeader(spritesheet)) {
                             return false;
                         }
                         break;
                     }
                     case TOK_FRAME: {
-                        if (!spritesheet->frameCount) {
-                            TraceLog(LOG_ERROR, "'%s': Error: Encountered 'spriteframe' before 'header'.\n", scanner->fileName);
-                            return false;
-                        }
-                        if (framesParsed >= spritesheet->frameCount) {
-                            TraceLog(LOG_ERROR, "'%s': Error: Encountered 'spriteframe', but [%d of %d] frames have already been added to the spritesheet.\n", scanner->fileName, framesParsed, spritesheet->frameCount);
-                            return false;
-                        }
-                        SpriteFrame *frame = &spritesheet->frames[framesParsed];
-                        if (!ParseFrame(scanner, frame)) {
+                        SpriteFrame &frame = spritesheet.frames.emplace_back();
+                        if (!ParseFrame(frame)) {
                             return false;
                         }
                         framesParsed++;
                         break;
                     }
                     case TOK_ANIMATION: {
-                        if (!spritesheet->animationCount) {
-                            TraceLog(LOG_ERROR, "'%s': Error: Encountered 'animation' before 'header'.\n", scanner->fileName);
-                            return false;
-                        }
-                        if (animationsParsed >= spritesheet->animationCount) {
-                            TraceLog(LOG_ERROR, "'%s': Error: Encountered 'animation', but [%d of %d] animations have already been added to the spritesheet.\n", scanner->fileName, animationsParsed, spritesheet->animationCount);
-                            return false;
-                        }
-                        SpriteAnim *animation = &spritesheet->animations[animationsParsed];
-                        if (!ParseAnimation(scanner, animation)) {
+                        SpriteAnim &animation = spritesheet.animations.emplace_back();
+                        if (!ParseAnimation(animation)) {
                             return false;
                         }
                         animationsParsed++;
                         break;
                     }
                     case TOK_SPRITE: {
-                        if (!spritesheet->spriteCount) {
-                            TraceLog(LOG_ERROR, "'%s': Error: Encountered 'sprite' before 'header'.\n", scanner->fileName);
-                            return false;
-                        }
-                        if (spritesParsed >= spritesheet->spriteCount) {
-                            TraceLog(LOG_ERROR, "'%s': Error: Encountered 'sprite', but [%d of %d] sprites have already been added to the spritesheet.\n", scanner->fileName, spritesParsed, spritesheet->spriteCount);
-                            return false;
-                        }
-                        SpriteDef *sprite = &spritesheet->sprites[spritesParsed];
-                        sprite->spritesheet = spritesheet;
-                        if (!ParseSprite(scanner, sprite)) {
+                        SpriteDef &sprite = spritesheet.sprites.emplace_back(&spritesheet);
+                        if (!ParseSprite(sprite)) {
                             return false;
                         }
                         spritesParsed++;
@@ -595,7 +549,7 @@ static bool ParseSpritesheet(Scanner *scanner, Spritesheet *spritesheet)
                     }
                     default: {
                         // TODO: Better error handling
-                        TraceLog(LOG_ERROR, "'%s': Error: Unrecognized token '%.*s'\n.", scanner->fileName, tok.token.length, tok.token.text);
+                        TraceLog(LOG_ERROR, "'%s': Error: Unrecognized token '%.*s'\n.", fileName, tok.token.length, tok.token.text);
                         assert(!"Unrecognized token");
                         break;
                     }
@@ -604,66 +558,57 @@ static bool ParseSpritesheet(Scanner *scanner, Spritesheet *spritesheet)
             }
             default: {
                 // TODO: Better error handling
-                TraceLog(LOG_ERROR, "'%s': Error: Unexpected character '%c'\n.", scanner->fileName, c);
+                TraceLog(LOG_ERROR, "'%s': Error: Unexpected character '%c'\n.", fileName, c);
                 assert(!"Unexpected character");
                 break;
             }
         }
-        DiscardWhitespaceNewlinesComments(scanner);
-        c = PeekChar(scanner);
-    }
-
-    if (framesParsed < spritesheet->frameCount) {
-        TraceLog(LOG_ERROR, "'%s': Error: Expected to find %d frames, only found %d.\n", scanner->fileName, spritesheet->frameCount, framesParsed);
-        return false;
-    } else if (animationsParsed < spritesheet->animationCount) {
-        TraceLog(LOG_ERROR, "'%s': Error: Expected to find %d animations, only found %d.\n", scanner->fileName, spritesheet->animationCount, animationsParsed);
-        return false;
-    } else if (spritesParsed < spritesheet->spriteCount) {
-        TraceLog(LOG_ERROR, "'%s': Error: Expected to find %d sprites, only found %d.\n", scanner->fileName, spritesheet->spriteCount, spritesParsed);
-        return false;
+        DiscardWhitespaceNewlinesComments();
+        c = PeekChar();
     }
 
     return true;
 }
 
-void spritesheet_init(Spritesheet *spritesheet, const char *fileName)
+SpriteDef::SpriteDef(const Spritesheet *spritesheet) : SpriteDef()
 {
-    unsigned int dataLength = 0;
-    char *data = (char *)LoadFileData(fileName, &dataLength);
-    if (!data) {
-        return;
+    this->spritesheet = spritesheet;
+}
+
+bool Spritesheet::LoadFromFile(const char *fileName)
+{
+    buf = (char *)LoadFileData(fileName, &bufLength);
+    if (!buf) {
+        return false;
     }
-    spritesheet->buf = data;
-    spritesheet->bufLength = dataLength;
 
     Scanner scanner = {};
     scanner.fileName = fileName;
-    scanner.text = spritesheet->buf;
-    scanner.length = spritesheet->bufLength;
-    if (!ParseSpritesheet(&scanner, spritesheet)) {
-        spritesheet_free(spritesheet);
-    }
+    scanner.text = buf;
+    scanner.length = bufLength;
+
+    bool success = scanner.ParseSpritesheet(*this);
+    return success;
 }
 
-const SpriteDef *spritesheet_find_sprite(const Spritesheet *spritesheet, const char *name)
+Spritesheet::~Spritesheet()
+{
+    frames.clear();
+    animations.clear();
+    sprites.clear();
+    UnloadTexture(texture);
+    UnloadFileData((unsigned char *)buf);
+}
+
+const SpriteDef *Spritesheet::FindSprite(const char *name) const
 {
     // TODO: Hash table if the # of sprites per sheet grows to > 16.. or make SpriteID / sprite catalog?
-    for (int i = 0; i < spritesheet->spriteCount; i++) {
-        const SpriteDef *sprite = &spritesheet->sprites[i];
-        if (!strncmp(sprite->name.text, name, sprite->name.length)) {
-            return sprite;
+    for (const SpriteDef &sprite : sprites) {
+        if (!strncmp(sprite.name.text, name, sprite.name.length)) {
+            return &sprite;
         }
     }
-    return 0;
-}
 
-void spritesheet_free(Spritesheet *spritesheet)
-{
-    free(spritesheet->frames);
-    free(spritesheet->animations);
-    free(spritesheet->sprites);
-    UnloadTexture(spritesheet->texture);
-    UnloadFileData((unsigned char *)spritesheet->buf);
-    memset(spritesheet, 0, sizeof(*spritesheet));
+    // TODO: Return reference to some ugly placeholder sprite instead
+    return 0;
 }

@@ -2,6 +2,7 @@
 #include "direction.h"
 #include "string_view.h"
 #include "raylib.h"
+#include <vector>
 
 struct SpriteFrame {
     StringView name;  // name of frame
@@ -21,23 +22,31 @@ struct SpriteAnim {
 };
 
 struct SpriteDef {
+public:
+    SpriteDef(const Spritesheet *spritesheet);
+
+private:
+    SpriteDef() = default;
+
+public:
     StringView name;                  // name of sprite
-    struct Spritesheet *spritesheet;  // parent spritesheet
+    const Spritesheet *spritesheet;   // parent spritesheet
     int animations[Direction_Count];  // animation index (spritesheet->animations)
 };
 
 struct Spritesheet {
-    Texture texture;         // spritesheet texture
-    int frameCount;          // # of frames
-    SpriteFrame *frames;     // array of frames
-    int animationCount;      // # of animations
-    SpriteAnim *animations;  // array of animations
-    int spriteCount;         // # of sprites
-    SpriteDef *sprites;      // array of sprites definitions
-    unsigned int bufLength;  // length of file buffer in memory
-    char *buf;               // file buffer (needs to be freed with UnloadFileData())
-};
+public:
+    ~Spritesheet();
 
-void              spritesheet_init        (Spritesheet *spritesheet, const char *fileName);
-const SpriteDef * spritesheet_find_sprite (const Spritesheet *spritesheet, const char *name);
-void              spritesheet_free        (Spritesheet *spritesheet);
+public:
+    bool LoadFromFile(const char *fileName);
+    const SpriteDef *FindSprite(const char *name) const;
+
+public:
+    Texture texture;                    // spritesheet texture
+    std::vector<SpriteFrame> frames;    // array of frames
+    std::vector<SpriteAnim> animations; // array of animations
+    std::vector<SpriteDef> sprites;     // array of sprites definitions
+    unsigned int bufLength;             // length of file buffer in memory
+    char *buf;                          // file buffer (needs to be freed with UnloadFileData())
+};

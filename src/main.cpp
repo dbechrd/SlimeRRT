@@ -84,7 +84,7 @@ void DrawNode(RTree::RTree::Node *node, int level) {
 int main(int argc, char *argv[])
 {
     parse_args(g_world.args, argc, argv);
-    //g_world.args.server = true;
+    g_world.args.server = true;
 
     maths_test();
 
@@ -165,6 +165,10 @@ int main(int argc, char *argv[])
 
     std::thread server_thread = {};
     if (g_world.args.server) {
+
+        // TODO: Maintain a queue of user input (broadcast chat immediately or only on tick?), and ensure tick is
+        // delayed long enough to have all of the input before the sim runs
+
         server_thread = std::thread(network_server_thread);
     }
 
@@ -216,7 +220,7 @@ int main(int argc, char *argv[])
 
     draw_commands_init();
     sound_catalog_init();
-    spritesheet_catalog_init();
+    g_spritesheetCatalog.Load();
     item_catalog_init();
     particles_init();
 
@@ -331,44 +335,33 @@ int main(int argc, char *argv[])
     bool cameraFollowPlayer = true;
 
     // TODO: Move sprite loading to somewhere more sane
-    const Spritesheet *charlieSpritesheet = spritesheet_catalog_find(SpritesheetID_Charlie);
-    const SpriteDef *charlieSpriteDef = spritesheet_find_sprite(charlieSpritesheet, "player_sword");
+    const Spritesheet &charlieSpritesheet = g_spritesheetCatalog.FindById(SpritesheetID_Charlie);
+    const SpriteDef *charlieSpriteDef = charlieSpritesheet.FindSprite("player_sword");
+    assert(charlieSpriteDef);
 
-    const Spritesheet *slimeSpritesheet = spritesheet_catalog_find(SpritesheetID_Slime);
-    const SpriteDef *slimeSpriteDef = spritesheet_find_sprite(slimeSpritesheet, "slime");
+    const Spritesheet &slimeSpritesheet = g_spritesheetCatalog.FindById(SpritesheetID_Slime);
+    const SpriteDef *slimeSpriteDef = slimeSpritesheet.FindSprite("slime");
+    assert(slimeSpriteDef);
 
-    const Spritesheet *coinSpritesheet = spritesheet_catalog_find(SpritesheetID_Coin);
-    const SpriteDef *coinSpriteDef = spritesheet_find_sprite(coinSpritesheet, "coin");
+    const Spritesheet &coinSpritesheet = g_spritesheetCatalog.FindById(SpritesheetID_Coin);
+    const SpriteDef *coinSpriteDef = coinSpritesheet.FindSprite("coin");
+    assert(coinSpriteDef);
 
-    Player charlie = {};
-    player_init(&charlie, "Charlie", charlieSpriteDef);
+    Player charlie("Charlie", *charlieSpriteDef);
     charlie.body.position = worldSpawn;
-
-    Slime slimes[MAX_SLIMES] = {};
+    g_world.player = &charlie;
 
     {
-        // TODO: Slime radius should probably be determined base on largest frame, no an arbitrary frame. Or, it could
-        // be specified in the config file.
-        assert(slimeSpriteDef);
-        int firstAnimIndex = slimeSpriteDef->animations[0];
-        assert(firstAnimIndex >= 0);
-        assert(firstAnimIndex < slimeSpriteDef->spritesheet->animationCount);
-
-        int firstFrameIdx = slimeSpriteDef->spritesheet->animations[firstAnimIndex].frames[0];
-        assert(firstFrameIdx >= 0);
-        assert(firstFrameIdx < slimeSpriteDef->spritesheet->frameCount);
-
-        SpriteFrame *firstFrame = &slimeSpritesheet->frames[firstFrameIdx];
-        const float slimeRadiusX = firstFrame->width / 2.0f;
-        const float slimeRadiusY = firstFrame->height / 2.0f;
+        const float slimeRadius = 50.0f;
         const size_t mapPixelsX = g_world.map->widthTiles  * g_world.map->tileset->tileWidth;
         const size_t mapPixelsY = g_world.map->heightTiles * g_world.map->tileset->tileHeight;
-        const float maxX = mapPixelsX - slimeRadiusX;
-        const float maxY = mapPixelsY - slimeRadiusY;
-        for (int i = 0; i < MAX_SLIMES; i++) {
-            slime_init(&slimes[i], 0, slimeSpriteDef);
-            slimes[i].body.position.x = dlb_rand32f_range(slimeRadiusX, maxX);
-            slimes[i].body.position.y = dlb_rand32f_range(slimeRadiusY, maxY);
+        const float maxX = mapPixelsX - slimeRadius;
+        const float maxY = mapPixelsY - slimeRadius;
+        for (size_t i = 0; i < 256; i++) {
+            g_world.slimes.emplace_back(nullptr, *slimeSpriteDef);
+            Slime &slime = g_world.slimes.back();
+            slime.body.position.x = dlb_rand32f_range(slimeRadius, maxX);
+            slime.body.position.y = dlb_rand32f_range(slimeRadius, maxY);
         }
     }
 
@@ -474,7 +467,7 @@ int main(int argc, char *argv[])
             if (cameraFollowPlayer) {
                 PlayerControllerState input{};
                 QueryPlayerController(input);
-                sim(now, dt, input, &charlie, g_world.map, slimes, coinSpriteDef);
+                sim(now, dt, input, g_world, coinSpriteDef);
                 camera.target = body_ground_position(&charlie.body);
             } else {
                 const int cameraSpeed = 5;
@@ -614,16 +607,13 @@ int main(int argc, char *argv[])
             draw_commands_enable_culling(cameraRect);
 
             // Queue player for drawing
-            player_push(&charlie);
+            charlie.Push();
 
             // Queue slimes for drawing
-            for (int i = 0; i < MAX_SLIMES; i++) {
-                const Slime *slime = &slimes[i];
-                if (!slime->combat.hitPoints) {
-                    continue;
+            for (const Slime &slime : g_world.slimes) {
+                if (slime.combat.hitPoints) {
+                    slime.Push();
                 }
-
-                slime_push(slime);
             }
 
             // Queue particles for drawing
@@ -987,7 +977,6 @@ int main(int argc, char *argv[])
     UnloadTexture(tilesetTex);
     UnloadTexture(checkboardTexture);
     sound_catalog_free();
-    spritesheet_catalog_free();
     particles_free();
     draw_commands_free();
     UnloadMusicStream(mus_whistle);

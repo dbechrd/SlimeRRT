@@ -1,4 +1,5 @@
 #pragma once
+#include "spritesheet.h"
 
 enum SpritesheetID {
     SpritesheetID_Empty,
@@ -8,6 +9,16 @@ enum SpritesheetID {
     SpritesheetID_Count
 };
 
-void                       spritesheet_catalog_init();
-const struct Spritesheet * spritesheet_catalog_find(enum SpritesheetID id);
-void                       spritesheet_catalog_free();
+struct SpritesheetCatalog
+{
+public:
+    void Load();
+
+public:
+    const Spritesheet &FindById(SpritesheetID id) const;
+
+private:
+    Spritesheet spritesheets[SpritesheetID_Count];
+};
+
+extern SpritesheetCatalog g_spritesheetCatalog;

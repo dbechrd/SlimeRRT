@@ -11,60 +11,53 @@
 
 #define SLIME_MAX_SCALE 3.0f
 
-void slime_init(Slime *slime, const char *name, const SpriteDef *spriteDef)
+Slime::Slime(const char *name, const SpriteDef &spriteDef) : Slime()
 {
-    assert(slime);
-    //assert(name);
-    assert(spriteDef);
-
-    slime->name = name;
-    slime->body.restitution = 0.0f;
-    slime->body.drag = 0.95f;
-    slime->body.friction = 0.95f;
-    slime->body.lastUpdated = GetTime();
-    slime->sprite.spriteDef = spriteDef;
-    slime->sprite.scale = 1.0f;
-    slime->sprite.direction = Direction_South;
-    slime->combat.maxHitPoints = 5.0f;
-    slime->combat.hitPoints = slime->combat.maxHitPoints;
+    name = name;
+    body.restitution = 0.0f;
+    body.drag = 0.95f;
+    body.friction = 0.95f;
+    body.lastUpdated = GetTime();
+    sprite.spriteDef = &spriteDef;
+    sprite.scale = 1.0f;
+    sprite.direction = Direction_South;
+    combat.maxHitPoints = 5.0f;
+    combat.hitPoints = combat.maxHitPoints;
 }
 
-static void update_direction(Slime *slime, Vector2 offset)
+void Slime::UpdateDirection(Vector2 offset)
 {
-    assert(slime);
-
-    Direction prevDirection = slime->sprite.direction;
+    Direction prevDirection = sprite.direction;
     if (offset.x > 0.0f) {
         if (offset.y > 0.0f) {
-            slime->sprite.direction = fabs(offset.x) > fabs(offset.y) ? Direction_East : Direction_South;
+            sprite.direction = fabs(offset.x) > fabs(offset.y) ? Direction_East : Direction_South;
         } else if (offset.y < 0.0f) {
-            slime->sprite.direction = fabs(offset.x) > fabs(offset.y) ? Direction_East : Direction_North;
+            sprite.direction = fabs(offset.x) > fabs(offset.y) ? Direction_East : Direction_North;
         } else {
-            slime->sprite.direction = Direction_East;
+            sprite.direction = Direction_East;
         }
     } else if (offset.x < 0.0f) {
         if (offset.y > 0.0f) {
-            slime->sprite.direction = fabs(offset.x) > fabs(offset.y) ? Direction_West : Direction_South;
+            sprite.direction = fabs(offset.x) > fabs(offset.y) ? Direction_West : Direction_South;
         } else if (offset.y < 0.0f) {
-            slime->sprite.direction = fabs(offset.x) > fabs(offset.y) ? Direction_West : Direction_North;
+            sprite.direction = fabs(offset.x) > fabs(offset.y) ? Direction_West : Direction_North;
         } else {
-            slime->sprite.direction = Direction_West;
+            sprite.direction = Direction_West;
         }
     } else {
         if (offset.y > 0.0f) {
-            slime->sprite.direction = Direction_South;
+            sprite.direction = Direction_South;
         } else if (offset.y < 0.0f) {
-            slime->sprite.direction = Direction_North;
+            sprite.direction = Direction_North;
         }
     }
-    if (slime->sprite.direction != prevDirection) {
-        slime->sprite.animFrameIdx = 0;
+    if (sprite.direction != prevDirection) {
+        sprite.animFrameIdx = 0;
     }
 }
 
-bool slime_move(Slime *slime, double now, double dt, Vector2 offset)
+bool Slime::Move(double now, double dt, Vector2 offset)
 {
-    assert(slime);
     UNUSED(dt);  // todo: use dt
 
     if (v2_is_zero(offset)) {
@@ -72,30 +65,29 @@ bool slime_move(Slime *slime, double now, double dt, Vector2 offset)
     }
 
     // On ground and hasn't moved for a bit
-    const double timeSinceLastMoved = now - slime->body.lastMoved;
-    if (slime->body.position.z == 0.0f && timeSinceLastMoved > slime->randJumpIdle) {
-        slime->body.velocity.x += offset.x;
-        slime->body.velocity.y += offset.y;
-        slime->body.velocity.z += METERS_TO_PIXELS(3.0f);
-        slime->randJumpIdle = (double)dlb_rand32f_range(1.0f, 2.5f);
-        update_direction(slime, offset);
+    const double timeSinceLastMoved = now - body.lastMoved;
+    if (body.position.z == 0.0f && timeSinceLastMoved > randJumpIdle) {
+        body.velocity.x += offset.x;
+        body.velocity.y += offset.y;
+        body.velocity.z += METERS_TO_PIXELS(3.0f);
+        randJumpIdle = (double)dlb_rand32f_range(1.0f, 2.5f);
+        UpdateDirection(offset);
         return true;
     }
     return false;
 }
 
-bool slime_combine(Slime *slimeA, Slime *slimeB)
+bool Slime::Combine(Slime &other)
 {
-    assert(slimeA);
-    assert(slimeB);
-
     // The bigger slime should absorb the smaller one
-    Slime *a = slimeA;
-    Slime *b = slimeB;
-    if (slimeB->sprite.scale > slimeA->sprite.scale) {
-        Slime *tmp = a;
-        a = b;
-        b = tmp;
+    Slime *a = nullptr;
+    Slime *b = nullptr;
+    if (a->sprite.scale > b->sprite.scale) {
+        a = this;
+        b = &other;
+    } else {
+        a = &other;
+        b = this;
     }
 
     // Limit max scale
@@ -116,61 +108,57 @@ bool slime_combine(Slime *slimeA, Slime *slimeB)
     return true;
 }
 
-bool slime_attack(Slime *slime, double now, double dt)
+bool Slime::Attack(double now, double dt)
 {
-    assert(slime);
     UNUSED(dt); // todo: use dt;
 
-    if (slime->action == SlimeAction_None) {
-        slime->action = SlimeAction_Attack;
-        slime->combat.attackStartedAt = now;
-        slime->combat.attackDuration = 0.1;
+    if (action == Action_None) {
+        action = Action_Attack;
+        combat.attackStartedAt = now;
+        combat.attackDuration = 0.1;
         return true;
     }
     return false;
 }
 
-void slime_update(Slime *slime, double now, double dt)
+void Slime::Update(double now, double dt)
 {
-    assert(slime);
-
-    const double timeSinceAttackStarted = now - slime->combat.attackStartedAt;
-    if (timeSinceAttackStarted > slime->combat.attackDuration) {
-        slime->action = SlimeAction_None;
-        slime->combat.attackStartedAt = 0;
-        slime->combat.attackDuration = 0;
+    const double timeSinceAttackStarted = now - combat.attackStartedAt;
+    if (timeSinceAttackStarted > combat.attackDuration) {
+        action = Action_None;
+        combat.attackStartedAt = 0;
+        combat.attackDuration = 0;
     }
 
-    body_update(&slime->body, now, dt);
-    sprite_update(&slime->sprite, now, dt);
+    body_update(&body, now, dt);
+    sprite_update(sprite, now, dt);
 }
 
-float slime_depth(const Slime *slime)
+float Slime::Depth() const
 {
-    const float depth = slime->body.position.y;
-    return depth;
+    return body.position.y;
 }
 
-bool slime_cull(const Slime* slime, Rectangle cullRect)
+bool Slime::Cull(const Rectangle &cullRect) const
 {
-    bool cull = sprite_cull_body(&slime->sprite, &slime->body, cullRect);
+    bool cull = sprite_cull_body(sprite, body, cullRect);
     return cull;
 }
 
-void slime_push(const Slime *slime)
+void Slime::Push() const
 {
-    draw_command_push(DrawableType_Slime, slime);
+    draw_command_push(DrawableType_Slime, this);
 }
 
-void slime_draw(const Slime *slime)
+void Slime::Draw() const
 {
     // Player shadow
     // TODO: Shadow size based on height from ground
     // https://yal.cc/top-down-bouncing-loot-effects/
-    //const float shadowScale = 1.0f + slime->transform.position.z / 20.0f;
-    const Vector2 slimeBC = body_ground_position(&slime->body);
-    shadow_draw((int)slimeBC.x, (int)slimeBC.y, 16.0f * slime->sprite.scale, -8.0f * slime->sprite.scale);
+    //const float shadowScale = 1.0f + slime.transform.position.z / 20.0f;
+    const Vector2 slimeBC = body_ground_position(&body);
+    shadow_draw((int)slimeBC.x, (int)slimeBC.y, 16.0f * sprite.scale, -8.0f * sprite.scale);
 
-    sprite_draw_body(&slime->sprite, &slime->body, Fade(WHITE, 0.7f));
-    healthbar_draw(10, &slime->sprite, &slime->body, slime->combat.hitPoints, slime->combat.maxHitPoints);
+    sprite_draw_body(sprite, body, Fade(WHITE, 0.7f));
+    healthbar_draw(10, sprite, body, combat.hitPoints, combat.maxHitPoints);
 }

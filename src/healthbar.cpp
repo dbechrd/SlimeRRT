@@ -8,9 +8,9 @@ void healthbars_set_font(const Font font)
     healthbarFont = font;
 }
 
-void healthbar_draw(int fontSize, const Sprite *sprite, const Body3D *body, float hitPoints, float maxHitPoints)
+void healthbar_draw(int fontSize, const Sprite &sprite, const Body3D &body, float hitPoints, float maxHitPoints)
 {
-    Vector3 topCenter = sprite_world_top_center(sprite, body->position, sprite->scale);
+    Vector3 topCenter = sprite_world_top_center(sprite, body.position, sprite.scale);
     float x = topCenter.x;
     float y = (topCenter.y - topCenter.z) - 10.0f;
     //float y = topCenter.y - 10.0f;

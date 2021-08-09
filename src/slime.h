@@ -3,28 +3,40 @@
 #include "combat.h"
 #include "sprite.h"
 
-#define MAX_SLIMES 256
-
-enum SlimeAction {
-    SlimeAction_None   = 0,
-    SlimeAction_Attack = 1,
-};
+//enum SlimeAction {
+//    SlimeAction_None   = 0,
+//    SlimeAction_Attack = 1,
+//};
 
 struct Slime {
+public:
+    enum Action {
+        Action_None   = 0,
+        Action_Attack = 1,
+    };
+
+public:
+    Slime(const char *name, const SpriteDef &spriteDef);
+
+public:
+    bool Move(double now, double dt, Vector2 offset);
+    bool Combine(Slime &other);
+    bool Attack(double now, double dt);
+    void Update(double now, double dt);
+    float Depth() const;
+    bool Cull(const Rectangle &cullRect) const;
+    void Push() const;
+    void Draw() const;
+
+private:
+    Slime() = default;
+    void UpdateDirection(Vector2 offset);
+
+public:
     const char *name;
     Body3D body;
     Combat combat;
     Sprite sprite;
-    SlimeAction action;
+    Action action;
     double randJumpIdle;
 };
-
-void slime_init    (Slime *slime, const char *name, const struct SpriteDef *spriteDef);
-bool slime_move    (Slime *slime, double now, double dt, Vector2 offset);
-bool slime_combine (Slime *slimeA, Slime *slimeB);
-bool slime_attack  (Slime *slime, double now, double dt);
-void slime_update  (Slime *slime, double now, double dt);
-float slime_depth  (const Slime *slime);
-bool slime_cull    (const Slime* slime, Rectangle cullRect);
-void slime_push    (const Slime *slime);
-void slime_draw    (const Slime *slime);

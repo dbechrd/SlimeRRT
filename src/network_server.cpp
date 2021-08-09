@@ -11,6 +11,7 @@
 #include <cstring>
 #include <ctime>
 
+#define SERVER_USERNAME "SERVER"
 static const char *LOG_SRC = "NetworkServer";
 
 NetworkServer g_server;
@@ -54,7 +55,7 @@ E_START
 E_CLEAN_END
 }
 
-static int network_server_send(const NetworkServer *server, const NetworkServerClient *client, const char *data, size_t size)
+static int network_server_send_raw(const NetworkServer *server, const NetworkServerClient *client, const char *data, size_t size)
 {
 E_START
     assert(client);
@@ -70,17 +71,52 @@ E_START
 E_CLEAN_END
 }
 
-static void network_server_broadcast(const NetworkServer *server, const char *data, size_t size)
+static int network_server_send(const NetworkServer *server, const NetworkServerClient *client, const NetMessage *message)
+{
+E_START
+    static char rawPacket[PACKET_SIZE_MAX] = {};
+    memset(rawPacket, 0, sizeof(rawPacket));
+
+    BitStream writer{};
+    bit_stream_writer_init(&writer, (uint32_t *)rawPacket, sizeof(rawPacket));
+    size_t rawBytes = serialize_net_message(&writer, message);
+    E_CHECK(network_server_send_raw(server, client, rawPacket, rawBytes));
+E_CLEAN_END
+}
+
+static void network_server_broadcast_raw(const NetworkServer *server, const char *data, size_t size)
 {
     // Broadcast message to all connected clients
     for (int i = 0; i < NETWORK_SERVER_CLIENTS_MAX; ++i) {
         if (server->clients[i].address.host) {
-            if (network_server_send(server, &server->clients[i], data, size) != E_SUCCESS) {
+            if (network_server_send_raw(server, &server->clients[i], data, size) != E_SUCCESS) {
                 // TODO: Handle error somehow? Retry queue.. or..? Idk.. This seems fatal. Look up why Win32 might fail
             }
         }
     }
     TraceLog(LOG_INFO, "[NetworkServer] BROADCAST\n  %.*s", size, data);
+}
+
+static void network_server_broadcast(const NetworkServer *server, const NetMessage *message)
+{
+    static char rawPacket[PACKET_SIZE_MAX]{};
+    memset(rawPacket, 0, sizeof(rawPacket));
+
+    BitStream writer{};
+    bit_stream_writer_init(&writer, (uint32_t *)rawPacket, sizeof(rawPacket));
+    size_t rawBytes = serialize_net_message(&writer, message);
+    network_server_broadcast_raw(server, rawPacket, rawBytes);
+}
+
+void network_server_broadcast_chat_message(const NetworkServer *server, const char *msg, size_t msgLength)
+{
+    NetMessage netMsg {};
+    netMsg.type = NetMessageType_ChatMessage;
+    netMsg.data.chatMessage.username = SERVER_USERNAME;
+    netMsg.data.chatMessage.usernameLength = sizeof(SERVER_USERNAME) - 1;
+    netMsg.data.chatMessage.message = msg;
+    netMsg.data.chatMessage.messageLength = msgLength;
+    network_server_broadcast(server, &netMsg);
 }
 
 static int network_server_send_welcome_basket(const NetworkServer *server, NetworkServerClient *client)
@@ -90,16 +126,10 @@ static int network_server_send_welcome_basket(const NetworkServer *server, Netwo
     // - player list
 
     {
+        TraceLog(LOG_INFO, "[NetworkServer] Sending welcome basket to %s\n", TextFormatIP(client->address));
         NetMessage userJoinedNotification {};
         userJoinedNotification.type = NetMessageType_Welcome;
-
-        char rawPacket[PACKET_SIZE_MAX] = {};
-        BitStream writer{};
-        bit_stream_writer_init(&writer, (uint32_t *)rawPacket, sizeof(rawPacket));
-        size_t rawBytes = serialize_net_message(&writer, &userJoinedNotification);
-
-        TraceLog(LOG_INFO, "[NetworkServer] Sending welcome basket to %s\n", TextFormatIP(client->address));
-        network_server_send(server, client, rawPacket, rawBytes);
+        network_server_send(server, client, &userJoinedNotification);
     }
 
     {
@@ -115,12 +145,7 @@ static int network_server_send_welcome_basket(const NetworkServer *server, Netwo
         userJoinedNotification.data.chatMessage.usernameLength = sizeof("SERVER") - 1;
         userJoinedNotification.data.chatMessage.messageLength = messageLength;
         userJoinedNotification.data.chatMessage.message = message;
-
-        char rawPacket[PACKET_SIZE_MAX]{};
-        BitStream writer{};
-        bit_stream_writer_init(&writer, (uint32_t *)rawPacket, sizeof(rawPacket));
-        size_t rawBytes = serialize_net_message(&writer, &userJoinedNotification);
-        network_server_broadcast(server, rawPacket, rawBytes);
+        network_server_broadcast(server, &userJoinedNotification);
     }
 
     return 1;
@@ -147,11 +172,7 @@ static void network_server_process_message(NetworkServer *server, NetworkServerC
 
             // TODO(security): This is currently rebroadcasting user input to all other clients.. ripe for abuse
             // Broadcast chat message
-            char rawPacket[PACKET_SIZE_MAX] = {};
-            BitStream writer = {};
-            bit_stream_writer_init(&writer, (uint32_t *)rawPacket, sizeof(rawPacket));
-            size_t rawBytes = serialize_net_message(&writer, &packet->message);
-            network_server_broadcast(server, rawPacket, rawBytes);
+            network_server_broadcast(server, &packet->message);
             break;
         }
         default: {

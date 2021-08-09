@@ -1,9 +1,5 @@
 #pragma once
 #include "controller.h"
+#include "world.h"
 
-struct Player;
-struct Slime;
-struct Tilemap;
-
-void sim(double now, double dt, PlayerControllerState input, struct Player *player, struct Tilemap *map,
-    struct Slime *slimes, const SpriteDef *coinSprite);
+void sim(double now, double dt, const PlayerControllerState input, World &world, const SpriteDef *coinSpriteDef);

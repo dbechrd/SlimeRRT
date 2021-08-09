@@ -5,10 +5,9 @@
 #include <cassert>
 #include <cstdlib>
 #include <cstring>
+#include <vector>
 
-static size_t commandCapacity;
-static size_t commandCount;
-static DrawCommand *sortedCommands;
+static std::vector<DrawCommand> sortedCommands;
 static bool cullEnabled;
 static Rectangle cullRect;
 
@@ -17,13 +16,11 @@ void draw_commands_init(void)
     // HACK: reserve enough draw commands for worst case
     // TODO: dynamically grow command list
     const size_t MAX_PLAYERS = 1;
-    commandCapacity = MAX_PARTICLES + MAX_SLIMES + MAX_PLAYERS;
-    sortedCommands = (DrawCommand *)calloc(commandCapacity, sizeof(*sortedCommands));
 }
 
 void draw_commands_free(void)
 {
-    free(sortedCommands);
+    sortedCommands.clear();
 }
 
 static float draw_command_depth(const DrawCommand *cmd)
@@ -35,11 +32,11 @@ static float draw_command_depth(const DrawCommand *cmd)
             break;
         }
         case DrawableType_Player: {
-            depth = player_depth((const Player *)cmd->drawable);
+            depth = ((const Player *)cmd->drawable)->Depth();
             break;
         }
         case DrawableType_Slime: {
-            depth = slime_depth((const Slime *)cmd->drawable);
+            depth = ((const Slime *)cmd->drawable)->Depth();
             break;
         }
     }
@@ -69,11 +66,11 @@ static bool draw_command_cull(const DrawCommand *cmd)
             break;
         }
         case DrawableType_Player: {
-            cull = player_cull((const Player *)cmd->drawable, cullRect);
+            cull = ((const Player *)cmd->drawable)->Cull(cullRect);
             break;
         }
         case DrawableType_Slime: {
-            cull = slime_cull((const Slime *)cmd->drawable, cullRect);
+            cull = ((const Slime *)cmd->drawable)->Cull(cullRect);
             break;
         }
     }
@@ -84,7 +81,6 @@ static bool draw_command_cull(const DrawCommand *cmd)
 void draw_command_push(DrawableType type, const void *drawable)
 {
     assert(drawable);
-    assert(commandCount < commandCapacity);
 
     DrawCommand cmd = {};
     cmd.type = type;
@@ -107,20 +103,21 @@ void draw_command_push(DrawableType type, const void *drawable)
 #endif
         }
         default: {
+            size_t size = sortedCommands.size();
+            sortedCommands.resize(size + 1);
             const float depthA = draw_command_depth(&cmd);
             int j;
-            for (j = (int)commandCount - 1; j >= 0; j--) {
+            // NOTE: j is signed because it terminates at -1
+            for (j = (int)size - 1; j >= 0; j--) {
                 const float depthB = draw_command_depth(&sortedCommands[j]);
                 if (depthB <= depthA) {
                     break;
                 }
-                sortedCommands[j + 1] = sortedCommands[j];
+                sortedCommands[(size_t)j + 1] = sortedCommands[j];
             }
-            sortedCommands[j + 1] = cmd;
+            sortedCommands[(size_t)j + 1] = cmd;
         }
     }
-
-    commandCount++;
 }
 
 static void draw_command_draw(const DrawCommand *cmd)
@@ -131,11 +128,11 @@ static void draw_command_draw(const DrawCommand *cmd)
             break;
         }
         case DrawableType_Player: {
-            player_draw((const Player *)cmd->drawable);
+            ((const Player *)cmd->drawable)->Draw();
             break;
         }
         case DrawableType_Slime: {
-            slime_draw((const Slime *)cmd->drawable);
+            ((const Slime *)cmd->drawable)->Draw();
             break;
         }
     }
@@ -143,21 +140,19 @@ static void draw_command_draw(const DrawCommand *cmd)
 
 void draw_commands_flush(void)
 {
-    if (!commandCount) {
+    if (sortedCommands.empty()) {
         return;
     }
 
-    for (size_t i = 0; i < commandCount; i++) {
-        const DrawCommand *cmd = &sortedCommands[i];
+    for (const DrawCommand &cmd : sortedCommands) {
 #if !CULL_ON_PUSH
         if (!cullEnabled || !draw_command_cull(cmd)) {
             draw_command_draw(cmd);
         }
 #else
-        draw_command_draw(cmd);
+        draw_command_draw(&cmd);
 #endif
     }
 
-    memset(sortedCommands, 0, commandCount * sizeof(*sortedCommands));
-    commandCount = 0;
+    sortedCommands.clear();
 }

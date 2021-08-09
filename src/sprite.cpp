@@ -3,55 +3,49 @@
 #include "body.h"
 #include <cassert>
 
-const SpriteAnim *sprite_anim(const Sprite *sprite)
+const SpriteAnim &sprite_anim(const Sprite &sprite)
 {
-    assert(sprite);
-    assert(sprite->spriteDef);
-    assert(sprite->spriteDef->spritesheet);
-    assert(sprite->spriteDef->animations);
+    assert(sprite.spriteDef);
+    assert(sprite.spriteDef->spritesheet);
+    assert(sprite.spriteDef->animations);
 
-    const Spritesheet *sheet = sprite->spriteDef->spritesheet;
-    const int animationIdx = sprite->spriteDef->animations[sprite->direction];
-    SpriteAnim *anim = &sheet->animations[animationIdx];
+    const Spritesheet *sheet = sprite.spriteDef->spritesheet;
+    const int animationIdx = sprite.spriteDef->animations[sprite.direction];
+    const SpriteAnim &anim = sheet->animations[animationIdx];
     return anim;
 }
 
-const SpriteFrame *sprite_frame(const Sprite *sprite)
+const SpriteFrame &sprite_frame(const Sprite &sprite)
 {
-    assert(sprite);
-    assert(sprite->spriteDef);
-    assert(sprite->spriteDef->spritesheet);
+    assert(sprite.spriteDef);
+    assert(sprite.spriteDef->spritesheet);
 
-    const SpriteAnim *animation = sprite_anim(sprite);
-    assert(sprite->animFrameIdx >= 0);
-    assert(sprite->animFrameIdx < animation->frameCount);
+    const SpriteAnim &animation = sprite_anim(sprite);
+    assert(sprite.animFrameIdx >= 0);
+    assert(sprite.animFrameIdx < animation.frameCount);
 
-    const int frameIdx = animation->frames[sprite->animFrameIdx];
-    Spritesheet *sheet = sprite->spriteDef->spritesheet;
+    const int frameIdx = animation.frames[sprite.animFrameIdx];
+    const Spritesheet *sheet = sprite.spriteDef->spritesheet;
     assert(frameIdx >= 0);
-    assert(frameIdx < sheet->frameCount);
+    assert(frameIdx < sheet->frames.size());
 
-    SpriteFrame *frame = &sheet->frames[frameIdx];
+    const SpriteFrame &frame = sheet->frames[frameIdx];
     return frame;
 }
 
-Rectangle sprite_frame_rect(const Sprite *sprite)
+Rectangle sprite_frame_rect(const Sprite &sprite)
 {
-    assert(sprite);
-
-    const SpriteFrame *frame = sprite_frame(sprite);
+    const SpriteFrame &frame = sprite_frame(sprite);
     Rectangle rect = {};
-    rect.x = (float)frame->x;
-    rect.y = (float)frame->y;
-    rect.width = (float)frame->width;
-    rect.height = (float)frame->height;
+    rect.x = (float)frame.x;
+    rect.y = (float)frame.y;
+    rect.width = (float)frame.width;
+    rect.height = (float)frame.height;
     return rect;
 }
 
-Rectangle sprite_world_rect(const Sprite *sprite, Vector3 position, float scale)
+Rectangle sprite_world_rect(const Sprite &sprite, Vector3 position, float scale)
 {
-    assert(sprite);
-
     Rectangle frameRect = sprite_frame_rect(sprite);
     Rectangle rect = {};
     rect.x = position.x - frameRect.width / 2.0f * scale;
@@ -61,10 +55,8 @@ Rectangle sprite_world_rect(const Sprite *sprite, Vector3 position, float scale)
     return rect;
 }
 
-Vector3 sprite_world_top_center(const Sprite *sprite, Vector3 position, float scale)
+Vector3 sprite_world_top_center(const Sprite &sprite, Vector3 position, float scale)
 {
-    assert(sprite);
-
     Rectangle frameRect = sprite_frame_rect(sprite);
     Vector3 center = {};
     center.x = position.x;
@@ -73,10 +65,8 @@ Vector3 sprite_world_top_center(const Sprite *sprite, Vector3 position, float sc
     return center;
 }
 
-Vector3 sprite_world_center(const Sprite *sprite, Vector3 position, float scale)
+Vector3 sprite_world_center(const Sprite &sprite, Vector3 position, float scale)
 {
-    assert(sprite);
-
     Rectangle frameRect = sprite_frame_rect(sprite);
     Vector3 center = {};
     center.x = position.x;
@@ -85,43 +75,41 @@ Vector3 sprite_world_center(const Sprite *sprite, Vector3 position, float scale)
     return center;
 }
 
-void sprite_update(Sprite *sprite, double now, double dt)
+void sprite_update(Sprite &sprite, double now, double dt)
 {
     UNUSED(dt);
-    assert(sprite);
-    if (!sprite->spriteDef) return;
+    if (!sprite.spriteDef) {
+        return;
+    }
 
     // TODO: SpriteAnim might want to store animation FPS and/or per-frame delays
-    const SpriteAnim *anim = sprite_anim(sprite);
-    if (anim && anim->frameCount > 1) {
+    const SpriteAnim &anim = sprite_anim(sprite);
+    if (anim.frameCount > 1) {
         const double animFps = 24.0;
         const double animDelay = 1.0 / animFps;
-        if (now - sprite->lastAnimFrameStarted > animDelay) {
-            sprite->animFrameIdx++;
-            sprite->animFrameIdx %= anim->frameCount;
-            sprite->lastAnimFrameStarted = now;
+        if (now - sprite.lastAnimFrameStarted > animDelay) {
+            sprite.animFrameIdx++;
+            sprite.animFrameIdx %= anim.frameCount;
+            sprite.lastAnimFrameStarted = now;
         }
     }
 }
 
-bool sprite_cull_body(const Sprite *sprite, const struct Body3D *body, Rectangle cullRect)
+bool sprite_cull_body(const Sprite &sprite, const Body3D &body, Rectangle cullRect)
 {
-    assert(sprite);
-    assert(body);
-
-    const Rectangle bodyRect = sprite_world_rect(sprite, body->position, sprite->scale);
+    const Rectangle bodyRect = sprite_world_rect(sprite, body.position, sprite.scale);
     bool cull = !CheckCollisionRecs(bodyRect, cullRect);
     return cull;
 }
 
-static void sprite_draw(const Sprite *sprite, Rectangle dest, Color color)
+static void sprite_draw(const Sprite &sprite, Rectangle dest, Color color)
 {
 #if DEMO_BODY_RECT
     // DEBUG: Draw collision rectangle
     DrawRectangleRec(dest, Fade(RED, 0.2f));
 #endif
 
-    if (sprite->spriteDef) {
+    if (sprite.spriteDef) {
 #if 0
         // Funny bug where texture stays still relative to screen, could be fun to abuse later
         const Rectangle rect = drawthing_rect(drawThing);
@@ -129,8 +117,8 @@ static void sprite_draw(const Sprite *sprite, Rectangle dest, Color color)
         const Rectangle rect = sprite_frame_rect(sprite);
 #endif
         // Draw textured sprite
-        DrawTextureTiled(sprite->spriteDef->spritesheet->texture, rect, dest, { 0.0f, 0.0f }, 0.0f,
-            sprite->scale, color);
+        DrawTextureTiled(sprite.spriteDef->spritesheet->texture, rect, dest, { 0.0f, 0.0f }, 0.0f,
+            sprite.scale, color);
     } else {
         // Draw magenta rectangle
         DrawRectangleRec(dest, MAGENTA);
@@ -143,11 +131,8 @@ static void sprite_draw(const Sprite *sprite, Rectangle dest, Color color)
 #endif
 }
 
-void sprite_draw_body(const Sprite *sprite, const Body3D *body, Color color)
+void sprite_draw_body(const Sprite &sprite, const Body3D &body, Color color)
 {
-    assert(sprite);
-    assert(body);
-
-    const Rectangle bodyRect = sprite_world_rect(sprite, body->position, sprite->scale);
+    const Rectangle bodyRect = sprite_world_rect(sprite, body.position, sprite.scale);
     sprite_draw(sprite, bodyRect, color);
 }

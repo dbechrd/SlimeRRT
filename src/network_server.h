@@ -29,12 +29,13 @@ struct NetworkServer {
 
 extern NetworkServer g_server;
 
-int  network_server_thread       ();
-int  network_server_init         (NetworkServer *server);
-int  network_server_open_socket  (NetworkServer *server, unsigned short port);
-int  network_server_listen       (NetworkServer *server);
-void network_server_close_socket (NetworkServer *server);
-void network_server_free         (NetworkServer *server);
+int  network_server_thread                  ();
+int  network_server_init                    (NetworkServer *server);
+int  network_server_open_socket             (NetworkServer *server, unsigned short port);
+void network_server_broadcast_chat_message  (const NetworkServer *server, const char *msg, size_t msgLength);
+int  network_server_listen                  (NetworkServer *server);
+void network_server_close_socket            (NetworkServer *server);
+void network_server_free                    (NetworkServer *server);
 
 #if 0
 int  network_packet_history_count    (const NetworkServer *server);

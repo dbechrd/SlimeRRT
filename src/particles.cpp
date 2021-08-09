@@ -170,7 +170,7 @@ void particles_update(double now, double dt)
                 particle->body.position = effect->origin;
             }
             body_update(&particle->body, now, dt);
-            sprite_update(&particle->sprite, now, dt);
+            sprite_update(particle->sprite, now, dt);
             particle->effect->def->update(particle, alpha);
         } else if (alpha >= 1.0f) {
             particle->effect->particlesLeft--;
@@ -220,7 +220,7 @@ bool particle_cull(const Particle *particle, Rectangle cullRect)
     bool cull = false;
 
     if (particle->sprite.spriteDef) {
-        cull = sprite_cull_body(&particle->sprite, &particle->body, cullRect);
+        cull = sprite_cull_body(particle->sprite, particle->body, cullRect);
     } else {
         const Vector2 particleBC = body_bottom_center(&particle->body);
         cull = !CheckCollisionCircleRec(particleBC, particle->sprite.scale, cullRect);
@@ -247,7 +247,7 @@ void particles_push(void)
 void particle_draw(const Particle *particle)
 {
     if (particle->sprite.spriteDef) {
-        sprite_draw_body(&particle->sprite, &particle->body, particle->color);
+        sprite_draw_body(particle->sprite, particle->body, particle->color);
     } else {
         DrawCircle(
             (int)particle->body.position.x,

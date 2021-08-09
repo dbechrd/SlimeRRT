@@ -29,23 +29,35 @@ struct PlayerStats {
 };
 
 struct Player {
-    const char *name;
-    PlayerActionState actionState;
-    PlayerMoveState moveState;
-    Body3D body;
-    Combat combat;
-    Sprite sprite;
-    PlayerInventory inventory;
-    PlayerStats stats;
-};
+public:
+    Player(const char *name, const SpriteDef &spriteDef);
 
-void player_init                (Player *player, const char *name, const struct SpriteDef *spriteDef);
-Vector3 player_get_attach_point (const Player *player, PlayerAttachPoint attachPoint);
-const Item *player_selected_item(const Player *player);
-bool player_move                (Player *player, double now, double dt, Vector2 offset);
-bool player_attack              (Player *player, double now, double dt);
-void player_update              (Player *player, double now, double dt);
-float player_depth              (const Player *player);
-bool player_cull                (const Player* player, Rectangle cullRect);
-void player_push                (const Player *player);
-void player_draw                (const Player *player);
+public:
+    Vector3 GetAttachPoint(PlayerAttachPoint attachPoint) const;
+    const Item& GetSelectedItem() const;
+
+private:
+    Player() = default;
+
+public:
+    bool Move(double now, double dt, Vector2 offset);
+    bool Attack(double now, double dt);
+    void Update(double now, double dt);
+    float Depth() const;
+    bool Cull(const Rectangle &cullRect) const;
+    void Push() const;
+    void Draw() const;
+
+private:
+    void UpdateDirection(Vector2 offset);
+
+public:
+    const char       *name;
+    PlayerActionState actionState;
+    PlayerMoveState   moveState;
+    Body3D            body;
+    Combat            combat;
+    Sprite            sprite;
+    PlayerInventory   inventory;
+    PlayerStats       stats;
+};
