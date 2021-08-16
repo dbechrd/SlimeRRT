@@ -11,14 +11,9 @@ enum SpritesheetID {
 
 struct SpritesheetCatalog
 {
-public:
-    void Load();
-
-public:
-    const Spritesheet &FindById(SpritesheetID id) const;
-
-private:
     Spritesheet spritesheets[SpritesheetID_Count];
+
+    void Load();
 };
 
 extern SpritesheetCatalog g_spritesheetCatalog;

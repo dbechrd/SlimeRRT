@@ -1,10 +1,10 @@
 #pragma once
 
 #define PARTICLE_FX_INIT(name) \
-    void particle_fx_##name##_init   (Particle *particle, double duration)
+    void particle_fx_##name##_init   (Particle &particle, double duration)
 
 #define PARTICLE_FX_UPDATE(name) \
-    void particle_fx_##name##_update (Particle *particle, float alpha)
+    void particle_fx_##name##_update (Particle &particle, float alpha)
 
 #define PARTICLE_FX_DECL(name) \
     PARTICLE_FX_INIT(name); \

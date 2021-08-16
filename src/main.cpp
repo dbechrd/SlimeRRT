@@ -19,7 +19,6 @@
 #include "tileset.h"
 #include "tilemap.h"
 #include "rtree.h"
-#include "sim.h"
 #include "world.h"
 #include "../test/maths_test.h"
 
@@ -53,38 +52,12 @@ void parse_args(Args &args, int argc, char *argv[])
     }
 }
 
-void DrawNode(RTree::RTree::Node *node, int level) {
-    static Color colors[] = {
-        Color{ 255,   0,   0, 255 },
-        Color{   0, 255,   0, 255 },
-        Color{   0,   0, 255, 255 },
-        PINK,
-        LIME,
-        SKYBLUE
-    };
-    assert(level < ARRAY_SIZE(colors));
-    switch (node->type) {
-        case RTree::RTree::NodeType_Directory: {
-            for (size_t i = 0; i < node->count; i++) {
-                DrawNode(node->children[i], level + 1);
-            }
-            break;
-        }
-        case RTree::RTree::NodeType_Leaf: {
-            for (size_t i = 0; i < node->count; i++) {
-                RTree::RTree::Entry *entry = node->entries[i];
-                DrawRectangleLinesEx(entry->bounds.toRect(), level + 4, WHITE);
-            }
-            break;
-        }
-    }
-    DrawRectangleLinesEx(node->bounds.toRect(), level + 3, colors[level]);
-}
-
 int main(int argc, char *argv[])
 {
-    parse_args(g_world.args, argc, argv);
-    g_world.args.server = true;
+    World world{};
+
+    parse_args(world.args, argc, argv);
+    world.args.server = true;
 
     maths_test();
 
@@ -93,8 +66,8 @@ int main(int argc, char *argv[])
     //--------------------------------------------------------------------------------------
     error_init();
 
-    g_world.rtt_seed = 16; //time(NULL);
-    dlb_rand32_seed_r(&g_world.rtt_rand, g_world.rtt_seed, g_world.rtt_seed);
+    world.rtt_seed = 16; //time(NULL);
+    dlb_rand32_seed_r(&world.rtt_rand, world.rtt_seed, world.rtt_seed);
 
     //dlb_rand_test();
 
@@ -150,7 +123,7 @@ int main(int argc, char *argv[])
     ////////////////////////////////////////////////////////////////////////////
 
     const char *title = "Attack the slimes!";
-    if (g_world.args.server) {
+    if (world.args.server) {
         title = "[Server] Attack the slimes!";
     }
     InitWindow(1600, 900, title);
@@ -164,7 +137,7 @@ int main(int argc, char *argv[])
     }
 
     std::thread server_thread = {};
-    if (g_world.args.server) {
+    if (world.args.server) {
 
         // TODO: Maintain a queue of user input (broadcast chat immediately or only on tick?), and ensure tick is
         // delayed long enough to have all of the input before the sim runs
@@ -173,6 +146,8 @@ int main(int argc, char *argv[])
     }
 
     NetworkClient client = {};
+    strncpy(client.username, world.args.server ? "SERVER" : "client", ARRAY_SIZE(client.username));
+    client.usernameLength = strnlen(client.username, ARRAY_SIZE(client.username));
     if (!network_client_init(&client)) {
         TraceLog(LOG_FATAL, "Failed to initialize network client system.\n");
     }
@@ -246,17 +221,17 @@ int main(int argc, char *argv[])
 
     {
         Tilemap tilemap = {};
-        g_world.map = &tilemap;
+        world.map = &tilemap;
     }
     //tilemap_generate_ex(&tilemap, 128, 128, &tileset);
-    tilemap_generate_ex(g_world.map, &g_world.rtt_rand, 256, 256, &tileset);
+    tilemap_generate_ex(world.map, &world.rtt_rand, 256, 256, &tileset);
     //tilemap_generate_ex(&tilemap, 512, 512, &tileset);
 
     Texture minimapTex = {};
     {
         Image minimapImg = {};
-        minimapImg.width = (int)g_world.map->widthTiles;
-        minimapImg.height = (int)g_world.map->heightTiles;
+        minimapImg.width = (int)world.map->widthTiles;
+        minimapImg.height = (int)world.map->heightTiles;
         minimapImg.mipmaps = 1;
         minimapImg.format = UNCOMPRESSED_R8G8B8A8;
         assert(sizeof(Color) == 4);
@@ -270,13 +245,13 @@ int main(int argc, char *argv[])
         tileColors[TileType_Wood    ] = BROWN;
         tileColors[TileType_Concrete] = GRAY;
 
-        const size_t heightTiles = g_world.map->heightTiles;
-        const size_t widthTiles = g_world.map->widthTiles;
+        const size_t heightTiles = world.map->heightTiles;
+        const size_t widthTiles = world.map->widthTiles;
 
         Color *minimapPixel = (Color *)minimapImg.data;
         for (size_t y = 0; y < heightTiles; y += 1) {
             for (size_t x = 0; x < widthTiles; x += 1) {
-                const Tile *tile = &g_world.map->tiles[y * g_world.map->widthTiles + x];
+                const Tile *tile = &world.map->tiles[y * world.map->widthTiles + x];
                 // Draw all tiles as different colored pixels
                 assert(tile->tileType >= 0);
                 assert(tile->tileType < TileType_Count);
@@ -290,8 +265,8 @@ int main(int argc, char *argv[])
     }
 
     const Vector3 worldSpawn = {
-        (float)g_world.map->widthTiles / 2.0f * g_world.map->tileset->tileWidth,
-        (float)g_world.map->heightTiles / 2.0f * g_world.map->tileset->tileHeight,
+        (float)world.map->widthTiles / 2.0f * world.map->tileset->tileWidth,
+        (float)world.map->heightTiles / 2.0f * world.map->tileset->tileHeight,
         0.0f
     };
 
@@ -299,7 +274,7 @@ int main(int argc, char *argv[])
     const int RECT_COUNT = 100;
     std::array<Rectangle, RECT_COUNT> rects{};
     std::array<bool, RECT_COUNT> drawn{};
-    RTree::RTree tree{};
+    RTree::RTree<size_t> tree{};
 
     dlb_rand32_t rstar_rand{};
     dlb_rand32_seed_r(&rstar_rand, 0, 0);
@@ -316,7 +291,7 @@ int main(int argc, char *argv[])
             aabb.min.y = rects[i].y;
             aabb.max.x = rects[i].x + rects[i].width;
             aabb.max.y = rects[i].y + rects[i].height;
-            tree.Insert(aabb, (void *)i);
+            tree.Insert(aabb, i);
         }
     }
 #endif
@@ -335,31 +310,31 @@ int main(int argc, char *argv[])
     bool cameraFollowPlayer = true;
 
     // TODO: Move sprite loading to somewhere more sane
-    const Spritesheet &charlieSpritesheet = g_spritesheetCatalog.FindById(SpritesheetID_Charlie);
+    const Spritesheet &charlieSpritesheet = g_spritesheetCatalog.spritesheets[SpritesheetID_Charlie];
     const SpriteDef *charlieSpriteDef = charlieSpritesheet.FindSprite("player_sword");
     assert(charlieSpriteDef);
 
-    const Spritesheet &slimeSpritesheet = g_spritesheetCatalog.FindById(SpritesheetID_Slime);
+    const Spritesheet &slimeSpritesheet = g_spritesheetCatalog.spritesheets[SpritesheetID_Slime];
     const SpriteDef *slimeSpriteDef = slimeSpritesheet.FindSprite("slime");
     assert(slimeSpriteDef);
 
-    const Spritesheet &coinSpritesheet = g_spritesheetCatalog.FindById(SpritesheetID_Coin);
+    const Spritesheet &coinSpritesheet = g_spritesheetCatalog.spritesheets[SpritesheetID_Coin];
     const SpriteDef *coinSpriteDef = coinSpritesheet.FindSprite("coin");
     assert(coinSpriteDef);
 
     Player charlie("Charlie", *charlieSpriteDef);
     charlie.body.position = worldSpawn;
-    g_world.player = &charlie;
+    world.player = &charlie;
 
     {
         const float slimeRadius = 50.0f;
-        const size_t mapPixelsX = g_world.map->widthTiles  * g_world.map->tileset->tileWidth;
-        const size_t mapPixelsY = g_world.map->heightTiles * g_world.map->tileset->tileHeight;
+        const size_t mapPixelsX = world.map->widthTiles  * world.map->tileset->tileWidth;
+        const size_t mapPixelsY = world.map->heightTiles * world.map->tileset->tileHeight;
         const float maxX = mapPixelsX - slimeRadius;
         const float maxY = mapPixelsY - slimeRadius;
         for (size_t i = 0; i < 256; i++) {
-            g_world.slimes.emplace_back(nullptr, *slimeSpriteDef);
-            Slime &slime = g_world.slimes.back();
+            world.slimes.emplace_back(nullptr, *slimeSpriteDef);
+            Slime &slime = world.slimes.back();
             slime.body.position.x = dlb_rand32f_range(slimeRadius, maxX);
             slime.body.position.y = dlb_rand32f_range(slimeRadius, maxY);
         }
@@ -447,7 +422,7 @@ int main(int argc, char *argv[])
                     aabb.min.y = floorf(rects[next_rect_to_add].y);
                     aabb.max.x = floorf(rects[next_rect_to_add].x + rects[next_rect_to_add].width);
                     aabb.max.y = floorf(rects[next_rect_to_add].y + rects[next_rect_to_add].height);
-                    tree.Insert(aabb, (void *)next_rect_to_add);
+                    tree.Insert(aabb, next_rect_to_add);
                     next_rect_to_add++;
                     lastRectAddedAt = GetTime();
                 }
@@ -467,7 +442,7 @@ int main(int argc, char *argv[])
             if (cameraFollowPlayer) {
                 PlayerControllerState input{};
                 QueryPlayerController(input);
-                sim(now, dt, input, g_world, coinSpriteDef);
+                world.Sim(now, dt, input, world, coinSpriteDef);
                 camera.target = body_ground_position(&charlie.body);
             } else {
                 const int cameraSpeed = 5;
@@ -554,11 +529,11 @@ int main(int argc, char *argv[])
         size_t tilesDrawn = 0;
 
         {
-            const float tileWidthMip  = (float)(g_world.map->tileset->tileWidth * zoomMipLevel);
-            const float tileHeightMip = (float)(g_world.map->tileset->tileHeight * zoomMipLevel);
-            const size_t heightTiles = g_world.map->heightTiles;
-            const size_t widthTiles  = g_world.map->widthTiles;
-            const Rectangle *tileRects = g_world.map->tileset->textureRects;
+            const float tileWidthMip  = (float)(world.map->tileset->tileWidth * zoomMipLevel);
+            const float tileHeightMip = (float)(world.map->tileset->tileHeight * zoomMipLevel);
+            const size_t heightTiles = world.map->heightTiles;
+            const size_t widthTiles  = world.map->widthTiles;
+            const Rectangle *tileRects = world.map->tileset->textureRects;
             const float camLeft   = cameraRect.x;
             const float camTop    = cameraRect.y;
             const float camRight  = cameraRect.x + cameraRect.width;
@@ -566,7 +541,7 @@ int main(int argc, char *argv[])
 
             for (size_t y = 0; y < heightTiles; y += zoomMipLevel) {
                 for (size_t x = 0; x < widthTiles; x += zoomMipLevel) {
-                    const Tile *tile = &g_world.map->tiles[y * g_world.map->widthTiles + x];
+                    const Tile *tile = &world.map->tiles[y * world.map->widthTiles + x];
                     const Vector2 tilePos = tile->position;
                     if (tilePos.x + tileWidthMip >= camLeft &&
                         tilePos.y + tileHeightMip >= camTop &&
@@ -575,7 +550,7 @@ int main(int argc, char *argv[])
                     {
                         // Draw all tiles as textured rects (looks best, performs worst)
                         Rectangle textureRect = tileRects[tile->tileType];
-                        DrawTextureRec(*g_world.map->tileset->texture, textureRect, tile->position, WHITE);
+                        DrawTextureRec(*world.map->tileset->texture, textureRect, tile->position, WHITE);
                         tilesDrawn++;
                     }
                 }
@@ -590,14 +565,14 @@ int main(int argc, char *argv[])
 
         Tile *mouseTile = 0;
         if (findMouseTile) {
-            mouseTile = tilemap_at_world_try(g_world.map, (int)mousePosWorld.x, (int)mousePosWorld.y);
+            mouseTile = tilemap_at_world_try(world.map, (int)mousePosWorld.x, (int)mousePosWorld.y);
             if (mouseTile) {
                 // Draw red outline on hovered tile
                 Rectangle mouseTileRect {
                     mouseTile->position.x,
                     mouseTile->position.y,
-                    (float)g_world.map->tileset->tileWidth  * zoomMipLevel,
-                    (float)g_world.map->tileset->tileHeight * zoomMipLevel
+                    (float)world.map->tileset->tileWidth  * zoomMipLevel,
+                    (float)world.map->tileset->tileHeight * zoomMipLevel
                 };
                 DrawRectangleLinesEx(mouseTileRect, 1 * (int)invZoom, RED);
             }
@@ -610,7 +585,7 @@ int main(int argc, char *argv[])
             charlie.Push();
 
             // Queue slimes for drawing
-            for (const Slime &slime : g_world.slimes) {
+            for (const Slime &slime : world.slimes) {
                 if (slime.combat.hitPoints) {
                     slime.Push();
                 }
@@ -637,8 +612,8 @@ int main(int argc, char *argv[])
         };
 
 #if 1
-        std::vector<void *> matches{};
-        tree.Search(searchAABB, matches, RTree::RTree::CompareMode_Overlap);
+        std::vector<size_t> matches{};
+        tree.Search(searchAABB, matches, RTree::CompareMode_Overlap);
 #else
         static std::vector<void *> matches;
         matches.clear();
@@ -649,8 +624,7 @@ int main(int argc, char *argv[])
         }
 #endif
 
-        for (const void *value : matches) {
-            size_t i = (size_t)value;
+        for (const size_t i : matches) {
             DrawRectangleRec(rects[i], Fade(RED, 0.6f));
             drawn[i] = true;
         }
@@ -663,7 +637,7 @@ int main(int argc, char *argv[])
         //    }
         //}
 
-        DrawNode(tree.root, 0);
+        tree.Draw();
         DrawRectangleLinesEx(searchRect, 2, YELLOW);
 #endif
 
@@ -702,7 +676,7 @@ int main(int argc, char *argv[])
             DrawTextFont(fonts[fontIdx], TextFormat("tilePos : %.02f, %.02f", mouseTile->position.x, mouseTile->position.y),
                 tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, fontHeight, BLACK);
             lineOffset += fontHeight;
-            DrawTextFont(fonts[fontIdx], TextFormat("tileSize: %zu, %zu", g_world.map->tileset->tileWidth, g_world.map->tileset->tileHeight),
+            DrawTextFont(fonts[fontIdx], TextFormat("tileSize: %zu, %zu", world.map->tileset->tileWidth, world.map->tileset->tileHeight),
                 tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, fontHeight, BLACK);
             lineOffset += fontHeight;
             DrawTextFont(fonts[fontIdx], TextFormat("tileType: %d", mouseTile->tileType),
@@ -791,7 +765,7 @@ int main(int argc, char *argv[])
 
 #if ALPHA_NETWORKING
         // Render connected clients
-        if (g_world.args.server) {
+        if (world.args.server) {
             int linesOfText = 1 + (int)g_server.clientsConnected;
 
             const float margin = 6.0f;   // left/top margin
@@ -965,13 +939,13 @@ int main(int argc, char *argv[])
 #if ALPHA_NETWORKING
     network_client_close_socket(&client);
     network_client_free(&client);
-    if (g_world.args.server) {
+    if (world.args.server) {
         network_server_close_socket(&g_server);
         server_thread.join();
     }
     zed_net_shutdown();
 #endif
-    tilemap_free(g_world.map);
+    tilemap_free(world.map);
     tileset_free(&tileset);
     UnloadTexture(minimapTex);
     UnloadTexture(tilesetTex);

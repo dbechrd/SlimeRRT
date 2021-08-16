@@ -52,10 +52,8 @@ int network_client_connect(NetworkClient *client, const char *hostname, unsigned
     }
     assert(client->server.host);
     assert(client->server.port);
-
-    const char *username = g_world.args.server ? "SERVER" : "anonymous";
-    client->usernameLength = MIN(strlen(username), USERNAME_LENGTH_MAX);
-    memcpy(client->username, username, client->usernameLength);
+    assert(client->usernameLength);
+    assert(client->username);
 
     NetMessage userIdent = {};
     userIdent.type = NetMessageType_Identify;

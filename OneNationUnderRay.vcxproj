@@ -33,7 +33,6 @@
     <ClCompile Include="src\player.cpp" />
     <ClCompile Include="src\player_inventory.cpp" />
     <ClCompile Include="src\shadow.cpp" />
-    <ClCompile Include="src\sim.cpp" />
     <ClCompile Include="src\slime.cpp" />
     <ClCompile Include="src\sound_catalog.cpp" />
     <ClCompile Include="src\sprite.cpp" />
@@ -68,7 +67,6 @@
     <ClInclude Include="src\player_inventory.h" />
     <ClInclude Include="src\rtree.h" />
     <ClInclude Include="src\shadow.h" />
-    <ClInclude Include="src\sim.h" />
     <ClInclude Include="src\slime.h" />
     <ClInclude Include="src\sound_catalog.h" />
     <ClInclude Include="src\sprite.h" />

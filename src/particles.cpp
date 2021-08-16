@@ -81,7 +81,7 @@ static void generate_effect_particles(ParticleEffect *effect, size_t particleCou
 
         particle->effect = effect;
         particle->sprite.spriteDef = spriteDef;
-        effect->def->init(particle, effect->duration);
+        effect->def->init(*particle, effect->duration);
         effect->particlesLeft++;
 
         prev = particle;
@@ -144,13 +144,13 @@ void particles_update(double now, double dt)
 
     size_t effectsCounted = 0;
     for (size_t i = 0; effectsCounted < effectsActiveCount; i++) {
-        ParticleEffect *effect = &effects[i];
-        if (effect->type == ParticleEffectType_Dead)
+        ParticleEffect &effect = effects[i];
+        if (effect.type == ParticleEffectType_Dead)
             continue;
 
-        if (effect->callbacks[ParticleEffectEvent_BeforeUpdate].function) {
-            effect->callbacks[ParticleEffectEvent_BeforeUpdate].function(
-                effect, effect->callbacks[ParticleEffectEvent_BeforeUpdate].userData
+        if (effect.callbacks[ParticleEffectEvent_BeforeUpdate].function) {
+            effect.callbacks[ParticleEffectEvent_BeforeUpdate].function(
+                effect, effect.callbacks[ParticleEffectEvent_BeforeUpdate].userData
             );
         }
         effectsCounted++;
@@ -158,27 +158,27 @@ void particles_update(double now, double dt)
 
     size_t particlesCounted = 0;
     for (size_t i = 0; particlesCounted < particlesActiveCount; i++) {
-        Particle *particle = &particles[i];
-        if (!particle->effect)
+        Particle &particle = particles[i];
+        if (!particle.effect)
             continue;  // particle is dead
 
-        ParticleEffect *effect = particle->effect;
-        const float animTime = (float)(now - particle->effect->startedAt);
-        const float alpha = (float)((animTime - particle->spawnAt) / (particle->dieAt - particle->spawnAt));
+        ParticleEffect &effect = *particle.effect;
+        const float animTime = (float)(now - effect.startedAt);
+        const float alpha = (float)((animTime - particle.spawnAt) / (particle.dieAt - particle.spawnAt));
         if (alpha >= 0.0f && alpha < 1.0f) {
-            if (!particle->body.lastUpdated) {
-                particle->body.position = effect->origin;
+            if (!particle.body.lastUpdated) {
+                particle.body.position = effect.origin;
             }
-            body_update(&particle->body, now, dt);
-            sprite_update(particle->sprite, now, dt);
-            particle->effect->def->update(particle, alpha);
+            body_update(&particle.body, now, dt);
+            sprite_update(particle.sprite, now, dt);
+            effect.def->update(particle, alpha);
         } else if (alpha >= 1.0f) {
-            particle->effect->particlesLeft--;
+            effect.particlesLeft--;
 
             // Return particle to free list
-            memset(particle, 0, sizeof(*particle));
-            particle->next = particlesFree;
-            particlesFree = particle;
+            memset(&particle, 0, sizeof(particle));
+            particle.next = particlesFree;
+            particlesFree = &particle;
             particlesActiveCount--;
         }
         particlesCounted++;
@@ -186,23 +186,23 @@ void particles_update(double now, double dt)
 
     effectsCounted = 0;
     for (size_t i = 0; effectsCounted < effectsActiveCount; i++) {
-        ParticleEffect *effect = &effects[i];
-        if (effect->type == ParticleEffectType_Dead)
+        ParticleEffect &effect = effects[i];
+        if (effect.type == ParticleEffectType_Dead)
             continue;
 
         // note: ParticleEffectEvent_AfterUpdate would go here if I ever care about that..
 
-        if (!effect->particlesLeft) {
-            if (effect->callbacks[ParticleEffectEvent_Dying].function) {
-                effect->callbacks[ParticleEffectEvent_Dying].function(
-                    effect, effect->callbacks[ParticleEffectEvent_Dying].userData
+        if (!effect.particlesLeft) {
+            if (effect.callbacks[ParticleEffectEvent_Dying].function) {
+                effect.callbacks[ParticleEffectEvent_Dying].function(
+                    effect, effect.callbacks[ParticleEffectEvent_Dying].userData
                 );
             }
 
             // Return effect to free list
-            memset(effect, 0, sizeof(*effect));
-            effect->next = effectsFree;
-            effectsFree = effect;
+            memset(&effect, 0, sizeof(effect));
+            effect.next = effectsFree;
+            effectsFree = &effect;
             effectsActiveCount--;
         }
         effectsCounted++;

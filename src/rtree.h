@@ -1,5 +1,6 @@
 #pragma once
 #include "maths.h"
+#include "raylib.h"
 #include <cassert>
 #include <array>
 #include <vector>
@@ -97,6 +98,19 @@ namespace RTree {
         Chunk *head{};
     };
 
+    enum NodeType {
+        NodeType_Directory, // has children nodes
+        NodeType_Leaf       // has values
+    };
+
+    // Note: We could also support additional search modes:
+    // - CompareContained     // return entries containted by the search AABB
+    // - CompareContains      // return entries which contain the search AABB
+    // As well as range deletion (delete all nodes which meet the comparison constraint)
+    enum CompareMode {
+        CompareMode_Overlap
+    };
+
     // "R-Trees - A Dynamic Index Structure for Spatial Searching"
     // Antonin Guttman
     //
@@ -105,17 +119,14 @@ namespace RTree {
     //  (5) The root node has at least two children unless it is a leaf
     //  (6) All leaves appear on the same level
     //
+    template<typename T>
     class RTree {
     public:
-        enum NodeType {
-            NodeType_Directory, // has children nodes
-            NodeType_Leaf       // has values
-        };
-
         // **MUST** start with AABB
+        template<typename T>
         struct Entry {
             AABB bounds;
-            void *udata;
+            T udata;
         };
 
         //struct Node;
@@ -128,6 +139,7 @@ namespace RTree {
         //};
 
         // **MUST** start with AABB
+        template<typename T>
         struct Node {
             AABB bounds;
             NodeType type;
@@ -135,17 +147,9 @@ namespace RTree {
             union {
                 AABB *aabbs[RTREE_MAX_ENTRIES];
                 Node *children[RTREE_MAX_ENTRIES];
-                Entry *entries[RTREE_MAX_ENTRIES];
+                Entry<T> *entries[RTREE_MAX_ENTRIES];
             };
-            Node *parent;
-        };
-
-        // Note: We could also support additional search modes:
-        // - CompareContained     // return entries containted by the search AABB
-        // - CompareContains      // return entries which contain the search AABB
-        // As well as range deletion (delete all nodes which meet the comparison constraint)
-        enum CompareMode {
-            CompareMode_Overlap
+            Node<T> *parent;
         };
 
         RTree()
@@ -153,18 +157,22 @@ namespace RTree {
             root = nodes.Alloc();
             root->type = NodeType_Leaf;
         }
-        void Search(const AABB &aabb, std::vector<void *> &matches, CompareMode compareMode) const
+
+        template<typename T>
+        void Search(const AABB &aabb, std::vector<T> &matches, CompareMode compareMode) const
         {
             SearchNode(*root, aabb, matches, compareMode);
         }
-        void Insert(const AABB &aabb, void *udata)
+
+        template<typename T>
+        void Insert(const AABB &aabb, T udata)
         {
-            Entry *entry = entries.Alloc();
+            Entry<T> *entry = entries.Alloc();
             entry->bounds = aabb;
             entry->udata = udata;
 
-            Node *leaf = ChooseLeaf(*entry);
-            Node *newLeaf = 0;
+            Node<T> *leaf = ChooseLeaf(*entry);
+            Node<T> *newLeaf = 0;
             if (leaf->count < RTREE_MAX_ENTRIES) {
                 leaf->entries[leaf->count] = entry;
                 leaf->count++;
@@ -174,10 +182,12 @@ namespace RTree {
             }
             AdjustTree(leaf, newLeaf);
         }
-        bool Delete(const AABB &aabb, void *udata)
+
+        template<typename T>
+        bool Delete(const AABB &aabb, T udata)
         {
             // TODO: Could return entry index as well.. perhaps a pointless optimization?
-            Node *leaf = FindLeaf(*root, aabb, udata);
+            Node<T> *leaf = FindLeaf(*root, aabb, udata);
             if (!leaf) {
                 return false;  // Entry not found
             }
@@ -207,7 +217,7 @@ namespace RTree {
 
             // if root has one child, make child the new root
             if (root->count == 1) {
-                Node *oldRoot = root;
+                Node<T> *oldRoot = root;
                 root = root->children[0];
                 if (oldRoot->type == NodeType_Leaf) {
                     for (size_t j = 0; j < oldRoot->count; j++) {
@@ -220,12 +230,17 @@ namespace RTree {
             return true;
         }
 
-        Node *root;
-    private:
-        ChunkAllocator<Node, 16> nodes;
-        ChunkAllocator<Entry, 16> entries;
+        void Draw() const {
+            DrawNode(*root, 0);
+        }
 
-        void SearchNode(const Node &node, const AABB &aabb, std::vector<void *> &matches, CompareMode compareMode) const
+        Node<T> *root;
+    private:
+        ChunkAllocator<Node<T>, 16> nodes;
+        ChunkAllocator<Entry<T>, 16> entries;
+
+        template<typename T>
+        void SearchNode(const Node<T> &node, const AABB &aabb, std::vector<T> &matches, CompareMode compareMode) const
         {
             for (size_t i = 0; i < node.count; i++) {
                 bool passCompare = false;
@@ -251,12 +266,12 @@ namespace RTree {
             }
         }
 
-        Node *ChooseLeaf(const Entry &entry)
+        Node<T> *ChooseLeaf(const Entry<T> &entry)
         {
-            Node *node = root;
+            Node<T> *node = root;
             while (node->type == NodeType_Directory) {
                 // Find child whose bounds need least enlargement to include aabb
-                Node *bestChild = 0;
+                Node<T> *bestChild = 0;
                 float minEnlargementArea = FLT_MAX;
                 for (size_t i = 0; i < node->count; i++) {
                     float enlargmentArea = node->children[i]->bounds.calcAreaIncrease(entry.bounds);
@@ -272,19 +287,19 @@ namespace RTree {
 
         // node will be split into two nodes. the first new node will overwrite node in-place; the
         // second new node will be created and a pointer to it will be returned
-        Node *SplitLeaf(Node *node, Entry *entry)
+        Node<T> *SplitLeaf(Node<T> *node, Entry<T> *entry)
         {
             assert(node->type == NodeType_Leaf);
             assert(node->count == RTREE_MAX_ENTRIES);
 
-            Entry *remainingEntries[RTREE_MAX_ENTRIES + 1] = {};
+            Entry<T> *remainingEntries[RTREE_MAX_ENTRIES + 1] = {};
             memcpy(remainingEntries, node->entries, sizeof(node->entries));
             remainingEntries[RTREE_MAX_ENTRIES] = entry;
 
             memset(node->entries, 0, sizeof(node->entries));
             node->count = 0;
 
-            Node *nodeB = nodes.Alloc();
+            Node<T> *nodeB = nodes.Alloc();
             nodeB->type = node->type;
             nodeB->parent = node->parent;
 
@@ -323,7 +338,7 @@ namespace RTree {
             {
                 // PickNext
                 size_t ENext = ARRAY_SIZE(remainingEntries);
-                Node *addToNode;
+                Node<T> *addToNode;
 
                 for (;;) {
                     addToNode = 0;
@@ -383,19 +398,19 @@ namespace RTree {
             return nodeB;
         }
 
-        Node *SplitDirectory(Node *node, Node *child)
+        Node<T> *SplitDirectory(Node<T> *node, Node<T> *child)
         {
             assert(node->type == NodeType_Directory);
             assert(node->count == RTREE_MAX_ENTRIES);
 
-            Node *remainingChildren[RTREE_MAX_ENTRIES + 1] = {};
+            Node<T> *remainingChildren[RTREE_MAX_ENTRIES + 1] = {};
             memcpy(remainingChildren, node->children, sizeof(node->children));
             remainingChildren[RTREE_MAX_ENTRIES] = child;
 
             memset(node->children, 0, sizeof(node->children));
             node->count = 0;
 
-            Node *nodeB = nodes.Alloc();
+            Node<T> *nodeB = nodes.Alloc();
             nodeB->type = node->type;
             nodeB->parent = node->parent;
 
@@ -434,7 +449,7 @@ namespace RTree {
             {
                 // PickNext
                 size_t ENext = ARRAY_SIZE(remainingChildren);
-                Node *addToNode;
+                Node<T> *addToNode;
 
                 for (;;) {
                     addToNode = 0;
@@ -491,7 +506,7 @@ namespace RTree {
             return nodeB;
         }
 
-        void RecalcNodeBounds(Node *node)
+        void RecalcNodeBounds(Node<T> *node)
         {
             assert(node);
             assert(node->count);
@@ -505,11 +520,11 @@ namespace RTree {
             assert(temp.min.x != 6.2349234f);
         }
 
-        void AdjustTree(Node *node, Node *splitNode)
+        void AdjustTree(Node<T> *node, Node<T> *splitNode)
         {
             // TODO: Remove 1980 single-letter variable names (replicating paper to start)
-            Node *N = node;
-            Node *NN = splitNode;
+            Node<T> *N = node;
+            Node<T> *NN = splitNode;
 
             RecalcNodeBounds(N);
             if (NN) {
@@ -517,12 +532,12 @@ namespace RTree {
             }
 
             while (N->parent) {
-                Node *P = N->parent;
+                Node<T> *P = N->parent;
                 RecalcNodeBounds(P);
 
                 if (NN) {
-                    Node *PP = NN->parent;
-                    Node *PPP = 0;
+                    Node<T> *PP = NN->parent;
+                    Node<T> *PPP = 0;
 
                     if (PP->count < RTREE_MAX_ENTRIES) {
                         PP->children[P->count] = NN;
@@ -546,7 +561,7 @@ namespace RTree {
             if (NN) {
                 assert(N && !N->parent);
                 assert(NN && !NN->parent);
-                Node *newRoot = nodes.Alloc();
+                Node<T> *newRoot = nodes.Alloc();
                 newRoot->type = NodeType_Directory;
                 newRoot->count = 2;
                 newRoot->children[0] = N;
@@ -559,13 +574,14 @@ namespace RTree {
 
         }
 
-        Node *FindLeaf(Node &node, const AABB &aabb, void *udata)
+        template<typename T>
+        Node<T> *FindLeaf(Node<T> &node, const AABB &aabb, T udata)
         {
             switch (node.type) {
                 case NodeType_Directory: {
                     for (size_t i = 0; i < node.count; i++) {
                         if (aabb.intersects(node.entries[i]->bounds)) {
-                            Node *result = FindLeaf(*node.children[i], aabb, udata);
+                            Node<T> *result = FindLeaf(*node.children[i], aabb, udata);
                             if (result) {
                                 return result;
                             }
@@ -585,10 +601,38 @@ namespace RTree {
             return NULL;
         }
 
-        void CondenseTree(Node &node)
+        void CondenseTree(Node<T> &node)
         {
             // TODO: "Re-insert orphaned entries from eliminated leaf nodes"
             UNUSED(node);
+        }
+
+        void DrawNode(const Node<T> &node, int level) const {
+            static Color colors[] = {
+                Color{ 255,   0,   0, 255 },
+                Color{   0, 255,   0, 255 },
+                Color{   0,   0, 255, 255 },
+                PINK,
+                LIME,
+                SKYBLUE
+            };
+            assert(level < ARRAY_SIZE(colors));
+            switch (node.type) {
+                case NodeType_Directory: {
+                    for (size_t i = 0; i < node.count; i++) {
+                        DrawNode(*node.children[i], level + 1);
+                    }
+                    break;
+                }
+                case NodeType_Leaf: {
+                    for (size_t i = 0; i < node.count; i++) {
+                        Entry<T> *entry = node.entries[i];
+                        DrawRectangleLinesEx(entry->bounds.toRect(), level + 4, WHITE);
+                    }
+                    break;
+                }
+            }
+            DrawRectangleLinesEx(node.bounds.toRect(), level + 3, colors[level]);
         }
     };
 }

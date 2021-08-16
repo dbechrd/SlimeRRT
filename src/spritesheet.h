@@ -22,31 +22,25 @@ struct SpriteAnim {
 };
 
 struct SpriteDef {
-public:
+    StringView name;                  // name of sprite
+    const Spritesheet *spritesheet;   // parent spritesheet
+    int animations[Direction_Count];  // animation index (spritesheet->animations)
+
     SpriteDef(const Spritesheet *spritesheet);
 
 private:
     SpriteDef() = default;
-
-public:
-    StringView name;                  // name of sprite
-    const Spritesheet *spritesheet;   // parent spritesheet
-    int animations[Direction_Count];  // animation index (spritesheet->animations)
 };
 
 struct Spritesheet {
-public:
-    ~Spritesheet();
-
-public:
-    bool LoadFromFile(const char *fileName);
-    const SpriteDef *FindSprite(const char *name) const;
-
-public:
     Texture texture;                    // spritesheet texture
     std::vector<SpriteFrame> frames;    // array of frames
     std::vector<SpriteAnim> animations; // array of animations
     std::vector<SpriteDef> sprites;     // array of sprites definitions
     unsigned int bufLength;             // length of file buffer in memory
     char *buf;                          // file buffer (needs to be freed with UnloadFileData())
+
+    ~Spritesheet();
+    bool LoadFromFile(const char *fileName);
+    const SpriteDef *FindSprite(const char *name) const;
 };

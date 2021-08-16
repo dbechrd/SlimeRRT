@@ -42,15 +42,15 @@ enum ParticleEffectEventType {
     ParticleEffectEvent_Count
 };
 
-typedef void (*ParticleInitFn  )(Particle *particle, double duration);
-typedef void (*ParticleUpdateFn)(Particle *particle, float alpha);
+typedef void (*ParticleInitFn  )(Particle &particle, double duration);
+typedef void (*ParticleUpdateFn)(Particle &particle, float alpha);
 
 struct ParticleDef {
     ParticleInitFn   init;
     ParticleUpdateFn update;
 };
 
-typedef void (*ParticeEffectEventCallbackFn)(struct ParticleEffect *effect, void *userData);
+typedef void (*ParticeEffectEventCallbackFn)(struct ParticleEffect &effect, void *userData);
 
 struct ParticeEffectEventCallback {
     ParticeEffectEventCallbackFn function;
