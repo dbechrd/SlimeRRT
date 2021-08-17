@@ -1,91 +1,13 @@
 #pragma once
 #include "helpers.h"
+#include "net_message.h"
 #include "zed_net.h"
-
-enum NetMessageType {
-    NetMessageType_Unknown,
-    NetMessageType_Identify,
-    NetMessageType_Welcome,
-    NetMessageType_ChatMessage,
-    NetMessageType_PlayerState,
-    NetMessageType_Count
-};
-
-struct NetMessage_Identify {
-    size_t usernameLength;
-    const char *username;
-    //char username[USERNAME_LENGTH_MAX];
-    // TODO: Encrypt packet
-    //size_t passwordLength;
-    //const char *password;
-};
-
-struct NetMessage_Welcome {
-    size_t unused;
-};
-
-struct NetMessage_ChatMessage {
-    size_t usernameLength;
-    const char *username;
-    //char username[USERNAME_LENGTH_MAX];
-    size_t messageLength;
-    const char *message;
-    //char message[CHAT_MESSAGE_LENGTH_MAX];
-};
-
-#if 0
-//---------------------------------------------
-// Examples
-//---------------------------------------------
-// fist, idle          : 00 0. ...
-// fist, walking N     : 00 10 000
-// sword, attacking SE : 01 11 101
-//---------------------------------------------
-struct NetMessage_PlayerInput {
-    // 0       - idle       (no bits will follow)
-    // 1       - moving     (running bit will follow)
-    // 1 0     - walking    (direction bits will follow)
-    // 1 1     - running    (direction bits will follow)
-    // 1 * 000 - north
-    // 1 * 001 - east
-    // 1 * 010 - south
-    // 1 * 011 - west
-    // 1 * 100 - northeast
-    // 1 * 101 - southeast
-    // 1 * 110 - southwest
-    // 1 * 111 - northwest
-    unsigned int moving : 1;
-    unsigned int running : 1;
-    unsigned int direction : 3;
-
-    // 0 - none             (no bits will follow)
-    // 1 - attacking
-    unsigned int attacking : 1;
-
-    // 00 - PlayerInventorySlot_1
-    // 01 - PlayerInventorySlot_2
-    // 10 - PlayerInventorySlot_3
-    // 11 - <unused>
-    unsigned int selectSlot : 2;
-};
-#endif
-
-struct NetMessage {
-    // TODO: sequence number
-    //size_t sequenceNumber;
-    NetMessageType type;
-    union {
-        NetMessage_Identify     identify;
-        NetMessage_Welcome      welcome;
-        NetMessage_ChatMessage  chatMessage;
-    } data;
-};
 
 struct Packet {
     zed_net_address_t srcAddress;
     char timestampStr[12];  // hh:MM:SS AM
     char rawBytes[PACKET_SIZE_MAX];
-    NetMessage message;
+    NetMessage *message;
 };
 
 struct PacketBuffer {

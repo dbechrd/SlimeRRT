@@ -4,9 +4,9 @@
 
 // TODO: Send player position, velocity, state to all clients from server (different packet/struct than above!)
 struct PlayerState {
-    PlayerMoveState moveState;
+    Player::MoveState moveState;
     Direction direction;
-    PlayerActionState actionState;
+    Player::ActionState actionState;
     PlayerInventorySlot selectSlot;
 };
 

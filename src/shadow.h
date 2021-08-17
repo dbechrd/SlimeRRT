@@ -1,3 +1,5 @@
 #pragma once
 
-void shadow_draw(int x, int y, float radius, float yOffset);
+struct Shadow {
+    static void Draw(int x, int y, float radius, float yOffset);
+};

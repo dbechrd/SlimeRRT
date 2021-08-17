@@ -20,18 +20,17 @@ void error_init();
 
 #define E_LOG_TYPE(log_type, err_code, format, ...) \
 do { \
-    TraceLog((log_type), "[%s:%d][%s] %s (%d): ", __FILE__, __LINE__, LOG_SRC, #err_code, (err_code)); \
-    TraceLog((log_type), (format), __VA_ARGS__); \
-    TraceLog((log_type), "\n"); \
+    TraceLog((log_type), "[%s:%d]\n[%s][%s (%d)]: " format "\n", \
+        __FILE__, __LINE__, LOG_SRC, #err_code, err_code, __VA_ARGS__); \
     e_code = (err_code); \
     goto e_cleanup; \
 } while(0);
 
 #define E_FATAL(err_code, format, ...) \
-    E_LOG_TYPE(LOG_FATAL, (err_code), (format), __VA_ARGS__);
+    E_LOG_TYPE(LOG_FATAL, err_code, format, __VA_ARGS__);
 
 #define E_ERROR(err_code, format, ...) \
-    E_LOG_TYPE(LOG_ERROR, (err_code), (format), __VA_ARGS__);
+    E_LOG_TYPE(LOG_ERROR, err_code, format, __VA_ARGS__);
 
 #define E_CHECK(cond) \
     e_code = (cond); \
@@ -41,5 +40,5 @@ do { \
 
 #define E_CHECK_ALLOC(cond, format, ...) \
     if (!(cond)) { \
-        E_FATAL(E_ALLOC_FAILED, (format), __VA_ARGS__); \
+        E_FATAL(E_ALLOC_FAILED, format, __VA_ARGS__); \
     }

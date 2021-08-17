@@ -4,42 +4,45 @@
 #include "sprite.h"
 #include "player_inventory.h"
 
-enum PlayerMoveState {
-    PlayerMoveState_Idle      = 0,
-    PlayerMoveState_Walking   = 1,
-    PlayerMoveState_Running   = 2,
-};
-
-enum PlayerActionState {
-    PlayerActionState_None      = 0,
-    PlayerActionState_Attacking = 1,
-};
-
-enum PlayerAttachPoint {
-    PlayerAttachPoint_Gut
-};
-
-struct PlayerStats {
-    unsigned int coinsCollected;
-    float damageDealt;
-    float kmWalked;
-    unsigned int slimesSlain;
-    unsigned int timesFistSwung;
-    unsigned int timesSwordSwung;
-};
-
 struct Player {
-public:
+    enum MoveState {
+        MoveState_Idle      = 0,
+        MoveState_Walking   = 1,
+        MoveState_Running   = 2,
+    };
+
+    enum ActionState {
+        ActionState_None      = 0,
+        ActionState_Attacking = 1,
+    };
+
+    enum AttachPoint {
+        AttachPoint_Gut
+    };
+
+    struct Stats {
+        unsigned int coinsCollected;
+        float damageDealt;
+        float kmWalked;
+        unsigned int slimesSlain;
+        unsigned int timesFistSwung;
+        unsigned int timesSwordSwung;
+    };
+
+    const char *    m_name;
+    ActionState     m_actionState;
+    MoveState       m_moveState;
+    Body3D          m_body;
+    Combat          m_combat;
+    Sprite          m_sprite;
+    PlayerInventory m_inventory;
+    Stats           m_stats;
+
     Player(const char *name, const SpriteDef &spriteDef);
 
-public:
-    Vector3 GetAttachPoint(PlayerAttachPoint attachPoint) const;
+    Vector3 GetAttachPoint(AttachPoint attachPoint) const;
     const Item& GetSelectedItem() const;
 
-private:
-    Player() = default;
-
-public:
     bool Move(double now, double dt, Vector2 offset);
     bool Attack(double now, double dt);
     void Update(double now, double dt);
@@ -49,15 +52,7 @@ public:
     void Draw() const;
 
 private:
-    void UpdateDirection(Vector2 offset);
+    Player() = default;
 
-public:
-    const char       *name;
-    PlayerActionState actionState;
-    PlayerMoveState   moveState;
-    Body3D            body;
-    Combat            combat;
-    Sprite            sprite;
-    PlayerInventory   inventory;
-    PlayerStats       stats;
+    void UpdateDirection(Vector2 offset);
 };

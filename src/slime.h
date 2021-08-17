@@ -9,16 +9,20 @@
 //};
 
 struct Slime {
-public:
     enum Action {
         Action_None   = 0,
         Action_Attack = 1,
     };
 
-public:
+    const char *m_name;
+    Body3D m_body;
+    Combat m_combat;
+    Sprite m_sprite;
+    Action m_action;
+    double m_randJumpIdle;
+
     Slime(const char *name, const SpriteDef &spriteDef);
 
-public:
     bool Move(double now, double dt, Vector2 offset);
     bool Combine(Slime &other);
     bool Attack(double now, double dt);
@@ -31,12 +35,4 @@ public:
 private:
     Slime() = default;
     void UpdateDirection(Vector2 offset);
-
-public:
-    const char *name;
-    Body3D body;
-    Combat combat;
-    Sprite sprite;
-    Action action;
-    double randJumpIdle;
 };

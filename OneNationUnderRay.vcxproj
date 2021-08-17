@@ -25,6 +25,7 @@
     <ClCompile Include="src\maths.cpp" />
     <ClCompile Include="src\network_client.cpp" />
     <ClCompile Include="src\network_server.cpp" />
+    <ClCompile Include="src\net_message.cpp" />
     <ClCompile Include="src\packet.cpp" />
     <ClCompile Include="src\particles.cpp" />
     <ClCompile Include="src\particle_fx_blood.cpp" />
@@ -60,6 +61,7 @@
     <ClInclude Include="src\maths.h" />
     <ClInclude Include="src\network_client.h" />
     <ClInclude Include="src\network_server.h" />
+    <ClInclude Include="src\net_message.h" />
     <ClInclude Include="src\packet.h" />
     <ClInclude Include="src\particles.h" />
     <ClInclude Include="src\particle_fx.h" />

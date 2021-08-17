@@ -1,14 +1,14 @@
 #include "healthbar.h"
 #include <cmath>
 
-static Font healthbarFont;
+Font HealthBar::s_font;
 
-void healthbars_set_font(const Font font)
+void HealthBar::SetFont(const Font font)
 {
-    healthbarFont = font;
+    HealthBar::s_font = font;
 }
 
-void healthbar_draw(int fontSize, const Sprite &sprite, const Body3D &body, float hitPoints, float maxHitPoints)
+void HealthBar::Draw(int fontSize, const Sprite &sprite, const Body3D &body, float hitPoints, float maxHitPoints)
 {
     Vector3 topCenter = sprite_world_top_center(sprite, body.position, sprite.scale);
     float x = topCenter.x;
@@ -38,5 +38,5 @@ void healthbar_draw(int fontSize, const Sprite &sprite, const Body3D &body, floa
     DrawRectangleRec(bgRect, DARKGRAY);
     DrawRectangleRec(indicatorRect, RED);
     DrawRectangleLinesEx(bgRect, 1, BLACK);
-    DrawTextFont(healthbarFont, hpText, hpRect.x, hpRect.y, fontSize, WHITE);
+    DrawTextFont(s_font, hpText, hpRect.x, hpRect.y, fontSize, WHITE);
 }

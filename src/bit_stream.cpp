@@ -1,211 +1,104 @@
 #include "bit_stream.h"
-#include "packet.h"
+#include "helpers.h"
 #include <cassert>
 
-void bit_stream_writer_init(BitStream *stream, uint32_t *buffer, size_t bufferSize)
+BitStream::BitStream(uint32_t *buffer, size_t bufferSize) : m_buffer(buffer), m_bufferBits(bufferSize * 8)
 {
-    // Must be aligned to word boundary
-    assert(bufferSize % 4 == 0);
+    assert(buffer);
+    assert(bufferSize);
+    //assert(bufferSize % 4 == 0);  // Must be aligned to word boundary.. why?
+};
 
-    stream->buffer = buffer;
-    stream->bufferSize = bufferSize;
-}
-
-void bit_stream_reader_init(BitStream *stream, uint32_t *buffer, size_t bytes)
+// Read # of bits from scratch into word
+uint32_t BitStreamReader::Read(uint8_t bits)
 {
-    stream->buffer = buffer;
-    stream->total_bits = bytes * 8;
-}
-
-static void bit_stream_flush(BitStream *stream)
-{
-    assert(stream->word_index < stream->bufferSize);
-    stream->buffer[stream->word_index] = stream->scratch & 0xFFFFFFFF;
-    stream->word_index++;
-    stream->scratch >>= 32;
-    stream->scratch_bits -= MIN(stream->scratch_bits, 32);
-}
-
-static void bit_stream_write(BitStream *stream, uint32_t word, uint8_t bits)
-{
-    assert(stream);
-    assert(stream->buffer);
     assert(bits);
+    assert(bits <= 32);
+    assert(m_numBitsRead + bits <= m_bufferBits);
 
-    uint64_t maskedWord = (((uint64_t)1 << bits) - 1) & word;
-    stream->scratch |= maskedWord << stream->scratch_bits;
-    stream->scratch_bits += bits;
-    stream->total_bits += bits;
-
-    if (stream->scratch_bits > 32) {
-        bit_stream_flush(stream);
-    }
-}
-
-static uint32_t bit_stream_read(BitStream *stream, uint8_t bits)
-{
-    assert(stream);
-    assert(stream->buffer);
-    assert(bits);
-
-    assert(stream->num_bits_read + bits <= stream->total_bits);
-
-    if (bits > stream->scratch_bits) {
-        stream->scratch |= (uint64_t)stream->buffer[stream->word_index] << stream->scratch_bits;
-        stream->word_index++;
-        stream->scratch_bits += 32;
+    // Read next word into scratch if scratch needs more bits to service the read
+    if (bits > m_scratchBits) {
+        m_scratch |= (uint64_t)m_buffer[m_wordIndex] << m_scratchBits;
+        m_wordIndex++;
+        m_scratchBits += 32;
     }
 
-    uint32_t word = (((uint64_t)1 << bits) - 1) & stream->scratch;
-    stream->scratch >>= bits;
-    stream->scratch_bits -= bits;
-    stream->num_bits_read += bits;
+    uint32_t word = (((uint64_t)1 << bits) - 1) & m_scratch;
+    m_scratch >>= bits;
+    m_scratchBits -= bits;
+    m_numBitsRead += bits;
     return word;
 }
 
-// https://gafferongames.com/post/serialization_strategies/
-static void bit_stream_write_align(BitStream *stream)
+void BitStreamReader::Align()
 {
-    const uint8_t remainderBits = stream->total_bits % 8;
+    const uint8_t remainderBits = m_numBitsRead % 8;
     if (remainderBits) {
-        uint32_t zero = 0;
-        bit_stream_write(stream, zero, 8 - remainderBits);
-        assert(stream->scratch_bits % 8 == 0);
-    }
-}
-
-static void bit_stream_read_align(BitStream *stream)
-{
-    const uint8_t remainderBits = stream->num_bits_read % 8;
-    if (remainderBits) {
-        uint32_t value = bit_stream_read(stream, 8 - remainderBits);
-        assert(stream->scratch_bits % 8 == 0);
+        uint32_t value = Read(8 - remainderBits);
+        assert(m_scratchBits % 8 == 0);
         if (value != 0) {
             assert(!"Alignment padding corruption detected; expected zero padding");
             //return false;
         }
     }
+    assert(m_numBitsRead % 8 == 0);
 }
 
-static void write_net_message_identify(BitStream *stream, const NetMessage_Identify *identify)
+// Return # of bytes read
+size_t BitStreamReader::BytesRead() const
 {
-    assert(stream);
-    assert(identify);
-    assert(identify->usernameLength <= USERNAME_LENGTH_MAX);
-
-    bit_stream_write(stream, (uint32_t)identify->usernameLength, 5);
-    bit_stream_write_align(stream);
-    for (size_t i = 0; i < identify->usernameLength; i++) {
-        bit_stream_write(stream, identify->username[i], 8);
-    }
+    return m_numBitsRead / 8;
 }
 
-static void read_net_message_identify(BitStream *stream, NetMessage_Identify *identify)
+// Return pointer to currently location in buffer (for in-place string references)
+const char *BitStreamReader::BufferPtr() const
 {
-    assert(stream);
-    assert(identify);
-
-    identify->usernameLength = bit_stream_read(stream, 5);
-    assert(identify->usernameLength <= USERNAME_LENGTH_MAX);
-    bit_stream_read_align(stream);
-    assert(stream->num_bits_read % 8 == 0);
-    identify->username = (char *)stream->buffer + stream->num_bits_read / 8;
-    for (size_t i = 0; i < identify->usernameLength; i++) {
-        bit_stream_read(stream, 8);
-    }
+    return (char *)m_buffer + BytesRead();
 }
 
-static void write_net_message_welcome(BitStream *stream, const NetMessage_Welcome *welcome)
+// Write # of bits from word into scratch
+void BitStreamWriter::Write(uint32_t word, uint8_t bits)
 {
-    UNUSED(stream);
-    UNUSED(welcome);
-}
+    assert(m_buffer);
+    assert(bits);
 
-static void read_net_message_welcome(BitStream *stream, NetMessage_Welcome *welcome)
-{
-    UNUSED(stream);
-    UNUSED(welcome);
-}
+    uint64_t maskedWord = (((uint64_t)1 << bits) - 1) & word;
+    m_scratch |= maskedWord << m_scratchBits;
+    m_scratchBits += bits;
+    m_numBitsWritten += bits;
 
-static void write_net_message_chat_message(BitStream *stream, const NetMessage_ChatMessage *chatMessage)
-{
-    assert(stream);
-    assert(chatMessage);
-    assert(chatMessage->usernameLength <= USERNAME_LENGTH_MAX);
-    assert(chatMessage->messageLength <= CHAT_MESSAGE_LENGTH_MAX);
-
-    bit_stream_write(stream, (uint32_t)chatMessage->usernameLength, 5);
-    bit_stream_write_align(stream);
-    for (size_t i = 0; i < chatMessage->usernameLength; i++) {
-        bit_stream_write(stream, chatMessage->username[i], 8);
-    }
-
-    bit_stream_write(stream, (uint32_t)chatMessage->messageLength, 9);
-    bit_stream_write_align(stream);
-    for (size_t i = 0; i < chatMessage->messageLength; i++) {
-        bit_stream_write(stream, chatMessage->message[i], 8);
+    if (m_scratchBits > 32) {
+        Flush();
     }
 }
 
-static void read_net_message_chat_message(BitStream *stream, NetMessage_ChatMessage *chatMessage)
+// https://gafferongames.com/post/serialization_strategies/
+void BitStreamWriter::Align()
 {
-    assert(stream);
-    assert(chatMessage);
-
-    chatMessage->usernameLength = bit_stream_read(stream, 5);
-    assert(chatMessage->usernameLength <= USERNAME_LENGTH_MAX);
-    bit_stream_read_align(stream);
-    assert(stream->num_bits_read % 8 == 0);
-    chatMessage->username = (char *)stream->buffer + stream->num_bits_read / 8;
-    for (size_t i = 0; i < chatMessage->usernameLength; i++) {
-        bit_stream_read(stream, 8);
+    const uint8_t remainderBits = m_numBitsWritten % 8;
+    if (remainderBits) {
+        uint32_t zero = 0;
+        Write(zero, 8 - remainderBits);
+        assert(m_scratchBits % 8 == 0);
     }
+    assert(m_numBitsWritten % 8 == 0);
+}
 
-    chatMessage->messageLength = bit_stream_read(stream, 9);
-    assert(chatMessage->messageLength <= CHAT_MESSAGE_LENGTH_MAX);
-    bit_stream_read_align(stream);
-    assert(stream->num_bits_read % 8 == 0);
-    chatMessage->message = (char *)stream->buffer + stream->num_bits_read / 8;
-    for (size_t i = 0; i < chatMessage->messageLength; i++) {
-        bit_stream_read(stream, 8);
+// Flush word from scratch to buffer
+void BitStreamWriter::Flush()
+{
+    if (m_scratchBits) {
+        assert(m_wordIndex * 8 < m_bufferBits);
+        m_buffer[m_wordIndex] = m_scratch & 0xFFFFFFFF;
+        m_wordIndex++;
+        m_scratch >>= 32;
+        m_scratchBits -= MIN(m_scratchBits, 32);
     }
 }
 
-size_t serialize_net_message(BitStream *stream, const NetMessage *message)
+size_t BitStreamWriter::BytesWritten() const
 {
-    bit_stream_write(stream, message->type, 2);
-    switch (message->type) {
-        case NetMessageType_Identify: {
-            write_net_message_identify(stream, &message->data.identify);
-            break;
-        } case NetMessageType_Welcome: {
-            write_net_message_welcome(stream, &message->data.welcome);
-            break;
-        } case NetMessageType_ChatMessage: {
-            write_net_message_chat_message(stream, &message->data.chatMessage);
-            break;
-        }
-    }
-    if (stream->scratch_bits) {
-        bit_stream_flush(stream);
-    }
-    return stream->total_bits / 8 + (stream->total_bits % 8 > 0);
-}
-
-void deserialize_net_message(BitStream *stream, NetMessage *message)
-{
-    // TODO: Validate that this is a valid enum value
-    message->type = (NetMessageType)bit_stream_read(stream, 2);
-    switch (message->type) {
-        case NetMessageType_Identify: {
-            read_net_message_identify(stream, &message->data.identify);
-            break;
-        } case NetMessageType_Welcome: {
-            read_net_message_welcome(stream, &message->data.welcome);
-            break;
-        } case NetMessageType_ChatMessage: {
-            read_net_message_chat_message(stream, &message->data.chatMessage);
-            break;
-        }
-    }
+    assert(m_numBitsWritten % 8 == 0);
+    const size_t bytesWritten = m_numBitsWritten / 8;
+    return bytesWritten;
 }

@@ -19,5 +19,5 @@ struct ChatHistory {
 };
 
 int  chat_history_init             (ChatHistory *chatHistory);
-void chat_history_push_net_message (ChatHistory *chatHistory, const struct NetMessage_ChatMessage *netChat);
+void chat_history_push_net_message (ChatHistory *chatHistory, const struct NetMessage_ChatMessage &netChat);
 void chat_history_free             (ChatHistory *chatHistory);

@@ -47,7 +47,7 @@ E_START
 
     if (zed_net_udp_socket_open(&server->socket, port, 0) < 0) {
         const char *err = zed_net_get_error();
-        E_FATAL(E_NET_PORT_IN_USE, "Failed to open socket on port %hu. Error: %s", server->port, err);
+        E_FATAL(E_NET_PORT_IN_USE, "Failed to open socket on port %hu. Zed: %s", port, err);
     }
 
     assert(server->socket.handle);
@@ -66,20 +66,18 @@ E_START
 
     if (zed_net_udp_socket_send(&server->socket, client->address, data, (int)size) < 0) {
         const char *err = zed_net_get_error();
-        E_ERROR(E_SOCK_SEND_FAILED, "Failed to send data. Error: %s", err);
+        E_ERROR(E_SOCK_SEND_FAILED, "Failed to send data. Zed: %s", err);
     }
 E_CLEAN_END
 }
 
-static int network_server_send(const NetworkServer *server, const NetworkServerClient *client, const NetMessage *message)
+static int network_server_send(const NetworkServer *server, const NetworkServerClient *client, const NetMessage &message)
 {
 E_START
     static char rawPacket[PACKET_SIZE_MAX] = {};
     memset(rawPacket, 0, sizeof(rawPacket));
 
-    BitStream writer{};
-    bit_stream_writer_init(&writer, (uint32_t *)rawPacket, sizeof(rawPacket));
-    size_t rawBytes = serialize_net_message(&writer, message);
+    size_t rawBytes = message.Serialize((uint32_t *)rawPacket, sizeof(rawPacket));
     E_CHECK(network_server_send_raw(server, client, rawPacket, rawBytes));
 E_CLEAN_END
 }
@@ -97,26 +95,23 @@ static void network_server_broadcast_raw(const NetworkServer *server, const char
     TraceLog(LOG_INFO, "[NetworkServer] BROADCAST\n  %.*s", size, data);
 }
 
-static void network_server_broadcast(const NetworkServer *server, const NetMessage *message)
+static void network_server_broadcast(const NetworkServer *server, const NetMessage &message)
 {
     static char rawPacket[PACKET_SIZE_MAX]{};
     memset(rawPacket, 0, sizeof(rawPacket));
 
-    BitStream writer{};
-    bit_stream_writer_init(&writer, (uint32_t *)rawPacket, sizeof(rawPacket));
-    size_t rawBytes = serialize_net_message(&writer, message);
+    size_t rawBytes = message.Serialize((uint32_t *)rawPacket, sizeof(rawPacket));
     network_server_broadcast_raw(server, rawPacket, rawBytes);
 }
 
 void network_server_broadcast_chat_message(const NetworkServer *server, const char *msg, size_t msgLength)
 {
-    NetMessage netMsg {};
-    netMsg.type = NetMessageType_ChatMessage;
-    netMsg.data.chatMessage.username = SERVER_USERNAME;
-    netMsg.data.chatMessage.usernameLength = sizeof(SERVER_USERNAME) - 1;
-    netMsg.data.chatMessage.message = msg;
-    netMsg.data.chatMessage.messageLength = msgLength;
-    network_server_broadcast(server, &netMsg);
+    NetMessage_ChatMessage netMsg{};
+    netMsg.m_username = SERVER_USERNAME;
+    netMsg.m_usernameLength = sizeof(SERVER_USERNAME) - 1;
+    netMsg.m_message = msg;
+    netMsg.m_messageLength = msgLength;
+    network_server_broadcast(server, netMsg);
 }
 
 static int network_server_send_welcome_basket(const NetworkServer *server, NetworkServerClient *client)
@@ -127,9 +122,8 @@ static int network_server_send_welcome_basket(const NetworkServer *server, Netwo
 
     {
         TraceLog(LOG_INFO, "[NetworkServer] Sending welcome basket to %s\n", TextFormatIP(client->address));
-        NetMessage userJoinedNotification {};
-        userJoinedNotification.type = NetMessageType_Welcome;
-        network_server_send(server, client, &userJoinedNotification);
+        NetMessage_Welcome userJoinedNotification{};
+        network_server_send(server, client, userJoinedNotification);
     }
 
     {
@@ -139,13 +133,12 @@ static int network_server_send_welcome_basket(const NetworkServer *server, Netwo
         const char *message = TextFormat("%.*s joined the game.", usernameLength, username);
         size_t messageLength = strlen(message);
 
-        NetMessage userJoinedNotification{};
-        userJoinedNotification.type = NetMessageType_ChatMessage;
-        userJoinedNotification.data.chatMessage.username = "SERVER";
-        userJoinedNotification.data.chatMessage.usernameLength = sizeof("SERVER") - 1;
-        userJoinedNotification.data.chatMessage.messageLength = messageLength;
-        userJoinedNotification.data.chatMessage.message = message;
-        network_server_broadcast(server, &userJoinedNotification);
+        NetMessage_ChatMessage userJoinedNotification{};
+        userJoinedNotification.m_username = "SERVER";
+        userJoinedNotification.m_usernameLength = sizeof("SERVER") - 1;
+        userJoinedNotification.m_messageLength = messageLength;
+        userJoinedNotification.m_message = message;
+        network_server_broadcast(server, userJoinedNotification);
     }
 
     return 1;
@@ -153,26 +146,27 @@ static int network_server_send_welcome_basket(const NetworkServer *server, Netwo
 
 static void network_server_process_message(NetworkServer *server, NetworkServerClient *client, Packet *packet)
 {
-    BitStream reader{};
-    bit_stream_reader_init(&reader, (uint32_t *)packet->rawBytes, sizeof(packet->rawBytes));
-    deserialize_net_message(&reader, &packet->message);
+    packet->message = &NetMessage::Deserialize((uint32_t *)packet->rawBytes, sizeof(packet->rawBytes));
 
-    switch (packet->message.type) {
-        case NetMessageType_Identify: {
-            client->usernameLength = MIN(packet->message.data.identify.usernameLength, USERNAME_LENGTH_MAX);
-            memcpy(client->username, packet->message.data.identify.username, client->usernameLength);
+    switch (packet->message->m_type) {
+        case NetMessage::NetMessageType_Identify: {
+            NetMessage_Identify &identMsg = static_cast<NetMessage_Identify &>(*packet->message);
+            client->usernameLength = MIN(identMsg.m_usernameLength, USERNAME_LENGTH_MAX);
+            memcpy(client->username, identMsg.m_username, client->usernameLength);
             break;
-        } case NetMessageType_ChatMessage: {
+        } case NetMessage::NetMessageType_ChatMessage: {
+            NetMessage_ChatMessage &chatMsg = static_cast<NetMessage_ChatMessage &>(*packet->message);
+
             // TODO(security): Validate some session token that's not known to other people to prevent impersonation
-            //assert(packet->message.data.chatMessage.usernameLength == client->usernameLength);
-            //assert(!strncmp(packet->message.data.chatMessage.username, client->username, client->usernameLength));
+            //assert(chatMsg.m_usernameLength == client->usernameLength);
+            //assert(!strncmp(chatMsg.m_username, client->username, client->usernameLength));
 
             // Store chat message in chat history
-            chat_history_push_net_message(&server->chatHistory, &packet->message.data.chatMessage);
+            chat_history_push_net_message(&server->chatHistory, chatMsg);
 
             // TODO(security): This is currently rebroadcasting user input to all other clients.. ripe for abuse
             // Broadcast chat message
-            network_server_broadcast(server, &packet->message);
+            network_server_broadcast(server, chatMsg);
             break;
         }
         default: {
@@ -201,7 +195,7 @@ E_START
         if (bytes < 0) {
             // TODO: Ignore this.. or log it? zed_net doesn't pass through any useful error messages to diagnose this.
             const char *err = zed_net_get_error();
-            E_FATAL(E_SOCK_RECV_FAILED, "Failed to receive network data. Error: %s", err);
+            E_FATAL(E_SOCK_RECV_FAILED, "Failed to receive network data. Zed: %s", err);
         }
 
         if (bytes > 0) {
@@ -234,7 +228,7 @@ E_START
                 // Send "server full" response to sender
                 if (zed_net_udp_socket_send(&server->socket, sender, CSTR("SERVER FULL")) < 0) {
                     const char *err = zed_net_get_error();
-                    TraceLog(LOG_ERROR, "[NetworkServer] Failed to send network data. Error: %s", err);
+                    TraceLog(LOG_ERROR, "[NetworkServer] Failed to send network data. Zed: %s", err);
                 }
 
                 TraceLog(LOG_INFO, "[NetworkServer] Server full, client denied.");
@@ -253,7 +247,7 @@ E_START
             TraceLog(LOG_INFO, "[NetworkServer] Sending ACK to %s\n", senderStr);
             if (zed_net_udp_socket_send(&server->socket, client->address, CSTR("ACK")) < 0) {
                 const char *err = zed_net_get_error();
-                TraceLog(LOG_ERROR, "[NetworkServer] Failed to send network data. Error: %s", err);
+                TraceLog(LOG_ERROR, "[NetworkServer] Failed to send network data. Zed: %s", err);
             }
 #endif
 

@@ -32,17 +32,18 @@ static ChatMessage *chat_history_message_alloc(ChatHistory *chatHistory)
     return message;
 }
 
-void chat_history_push_net_message(ChatHistory *chatHistory, const NetMessage_ChatMessage *netChat)
+void chat_history_push_net_message(ChatHistory *chatHistory, const NetMessage_ChatMessage &netChat)
 {
+    // TODO: Copy constructor for ChatMessage(NetMessage_ChatMessage &netChatMsg)
     ChatMessage *chat = chat_history_message_alloc(chatHistory);
 
-    assert(netChat->usernameLength <= USERNAME_LENGTH_MAX);
-    chat->usernameLength = MIN(netChat->usernameLength, USERNAME_LENGTH_MAX);
-    memcpy(chat->username, netChat->username, chat->usernameLength);
+    assert(netChat.m_usernameLength <= USERNAME_LENGTH_MAX);
+    chat->usernameLength = MIN(netChat.m_usernameLength, USERNAME_LENGTH_MAX);
+    memcpy(chat->username, netChat.m_username, chat->usernameLength);
 
-    assert(netChat->messageLength <= CHAT_MESSAGE_LENGTH_MAX);
-    chat->messageLength = MIN(netChat->messageLength, CHAT_MESSAGE_LENGTH_MAX);
-    memcpy(chat->message, netChat->message, chat->messageLength);
+    assert(netChat.m_messageLength <= CHAT_MESSAGE_LENGTH_MAX);
+    chat->messageLength = MIN(netChat.m_messageLength, CHAT_MESSAGE_LENGTH_MAX);
+    memcpy(chat->message, netChat.m_message, chat->messageLength);
 }
 
 void chat_history_free(ChatHistory *chatHistory)

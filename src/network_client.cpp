@@ -32,7 +32,7 @@ int network_client_open_socket(NetworkClient *client)
 
     if (zed_net_udp_socket_open(&client->socket, 0, 1) < 0) {
         const char *err = zed_net_get_error();
-        TraceLog(LOG_ERROR, "[NetworkClient] Failed to open socket. Error: %s", err);
+        TraceLog(LOG_ERROR, "[NetworkClient] Failed to open socket. Zed: %s", err);
         return 0;
     }
     assert(client->socket.handle);
@@ -47,7 +47,7 @@ int network_client_connect(NetworkClient *client, const char *hostname, unsigned
     if (zed_net_get_address(&client->server, hostname, port) < 0) {
         // TODO: Handle server connect failure gracefully (e.g. user could have typed wrong ip or port).
         const char *err = zed_net_get_error();
-        TraceLog(LOG_ERROR, "[NetworkClient] Failed to connect to server %s:%hu. Error: %s", hostname, port, err);
+        TraceLog(LOG_ERROR, "[NetworkClient] Failed to connect to server %s:%hu. Zed: %s", hostname, port, err);
         return 0;
     }
     assert(client->server.host);
@@ -55,19 +55,16 @@ int network_client_connect(NetworkClient *client, const char *hostname, unsigned
     assert(client->usernameLength);
     assert(client->username);
 
-    NetMessage userIdent = {};
-    userIdent.type = NetMessageType_Identify;
-    userIdent.data.chatMessage.username = client->username;
-    userIdent.data.chatMessage.usernameLength = client->usernameLength;
+    NetMessage_Identify userIdent{};
+    userIdent.m_username = client->username;
+    userIdent.m_usernameLength = client->usernameLength;
 
     char rawPacket[PACKET_SIZE_MAX] = {};
-    BitStream writer = {};
-    bit_stream_writer_init(&writer, (uint32_t *)rawPacket, sizeof(rawPacket));
-    size_t rawBytes = serialize_net_message(&writer, &userIdent);
+    size_t rawBytes = userIdent.Serialize((uint32_t *)rawPacket, sizeof(rawPacket));
 
     if (zed_net_udp_socket_send(&client->socket, client->server, rawPacket, (int)rawBytes) < 0) {
         const char *err = zed_net_get_error();
-        TraceLog(LOG_ERROR, "[NetworkClient] Failed to send connection request. Error: %s", err);
+        TraceLog(LOG_ERROR, "[NetworkClient] Failed to send connection request. Zed: %s", err);
         return 0;
     }
     client->serverHostname = hostname;
@@ -85,7 +82,7 @@ int network_client_send(const NetworkClient *client, const char *data, size_t si
 
     if (zed_net_udp_socket_send(&client->socket, client->server, data, (int)size) < 0) {
         const char *err = zed_net_get_error();
-        TraceLog(LOG_ERROR, "[NetworkClient] Failed to send data. Error: %s", err);
+        TraceLog(LOG_ERROR, "[NetworkClient] Failed to send data. Zed: %s", err);
         return 0;
     }
 
@@ -106,39 +103,35 @@ int network_client_send_chat_message(const NetworkClient *client, const char *me
     // This would be weird since if we're not connected how do we see the chat box?
     assert(client->usernameLength);
 
-    NetMessage chatMessage = {};
-    chatMessage.type = NetMessageType_ChatMessage;
-    chatMessage.data.chatMessage.usernameLength = client->usernameLength;
-    chatMessage.data.chatMessage.username = client->username;
-    chatMessage.data.chatMessage.messageLength = messageLengthSafe;
-    chatMessage.data.chatMessage.message = message;
+    NetMessage_ChatMessage chatMessage{};
+    chatMessage.m_usernameLength = client->usernameLength;
+    chatMessage.m_username = client->username;
+    chatMessage.m_messageLength = messageLengthSafe;
+    chatMessage.m_message = message;
 
     char rawPacket[PACKET_SIZE_MAX] = {};
-    BitStream writer = {};
-    bit_stream_writer_init(&writer, (uint32_t *)rawPacket, sizeof(rawPacket));
-    size_t rawBytes = serialize_net_message(&writer, &chatMessage);
+    size_t rawBytes = chatMessage.Serialize((uint32_t *)rawPacket, sizeof(rawPacket));
     return network_client_send(client, rawPacket, rawBytes);
 }
 
 static void network_client_process_message(NetworkClient *client, Packet *packet)
 {
-    BitStream reader = {};
-    bit_stream_reader_init(&reader, (uint32_t *)packet->rawBytes, sizeof(packet->rawBytes));
-    deserialize_net_message(&reader, &packet->message);
+    packet->message = &NetMessage::Deserialize((uint32_t *)packet->rawBytes, sizeof(packet->rawBytes));
 
-    switch (packet->message.type) {
-        case NetMessageType_Welcome: {
+    switch (packet->message->m_type) {
+        case NetMessage::NetMessageType_Welcome: {
             // TODO: Store salt sent from server instead.. handshake stuffs
             //const char *username = "user";
             //client->usernameLength = MIN(strlen(username), USERNAME_LENGTH_MAX);
             //memcpy(client->username, username, client->usernameLength);
             break;
-        } case NetMessageType_ChatMessage: {
-            chat_history_push_net_message(&client->chatHistory, &packet->message.data.chatMessage);
+        } case NetMessage::NetMessageType_ChatMessage: {
+            NetMessage_ChatMessage &chatMsg = static_cast<NetMessage_ChatMessage &>(*packet->message);
+            chat_history_push_net_message(&client->chatHistory, chatMsg);
             break;
         }
         default: {
-            TraceLog(LOG_WARNING, "[NetworkClient] Unrecognized message type: %d", packet->message.type);
+            TraceLog(LOG_WARNING, "[NetworkClient] Unrecognized message type: %d", packet->message->m_type);
             break;
         }
     }
@@ -167,7 +160,7 @@ int network_client_receive(NetworkClient *client)
         if (bytes < 0) {
             // TODO: Ignore this.. or log it? zed_net doesn't pass through any useful error messages to diagnose this.
             const char *err = zed_net_get_error();
-            TraceLog(LOG_ERROR, "[NetworkClient] Failed to receive network data. Error: %s", err);
+            TraceLog(LOG_ERROR, "[NetworkClient] Failed to receive network data. Zed: %s", err);
             return 0;
         }
 

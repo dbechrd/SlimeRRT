@@ -57,7 +57,7 @@ int main(int argc, char *argv[])
     World world{};
 
     parse_args(world.args, argc, argv);
-    world.args.server = true;
+    //world.args.server = true;
 
     maths_test();
 
@@ -95,29 +95,24 @@ int main(int argc, char *argv[])
     }
 #endif
     {
-        NetMessage msgWritten = {};
-        msgWritten.type = NetMessageType_ChatMessage;
-        msgWritten.data.chatMessage.username = "test username";
-        msgWritten.data.chatMessage.usernameLength = strlen(msgWritten.data.chatMessage.username);
-        msgWritten.data.chatMessage.message = "This is a test message";
-        msgWritten.data.chatMessage.messageLength = strlen(msgWritten.data.chatMessage.message);
+        NetMessage_ChatMessage msgWritten{};
+        msgWritten.m_username = "test username";
+        msgWritten.m_usernameLength = strlen(msgWritten.m_username);
+        msgWritten.m_message = "This is a test message";
+        msgWritten.m_messageLength = strlen(msgWritten.m_message);
 
         char rawPacket[PACKET_SIZE_MAX] = {};
-        BitStream chatWriter = {};
-        bit_stream_writer_init(&chatWriter, (uint32_t *)rawPacket, sizeof(rawPacket));
-        serialize_net_message(&chatWriter, &msgWritten);
+        size_t bytes = msgWritten.Serialize((uint32_t *)rawPacket, sizeof(rawPacket));
 
-        NetMessage msgRead = {};
-        BitStream chatReader = {};
-        assert(chatWriter.total_bits % 8 == 0);
-        bit_stream_reader_init(&chatReader, (uint32_t *)rawPacket, chatWriter.total_bits / 8);
-        deserialize_net_message(&chatReader, &msgRead);
+        NetMessage &baseMsgRead = NetMessage::Deserialize((uint32_t *)rawPacket, bytes);
+        assert(baseMsgRead.m_type == NetMessage::NetMessageType_ChatMessage);
+        NetMessage_ChatMessage &msgRead = static_cast<NetMessage_ChatMessage &>(baseMsgRead);
 
-        assert(msgRead.type == msgWritten.type);
-        assert(msgRead.data.chatMessage.usernameLength == msgWritten.data.chatMessage.usernameLength);
-        assert(!strncmp(msgRead.data.chatMessage.username, msgWritten.data.chatMessage.username, msgRead.data.chatMessage.usernameLength));
-        assert(msgRead.data.chatMessage.messageLength == msgWritten.data.chatMessage.messageLength);
-        assert(!strncmp(msgRead.data.chatMessage.message, msgWritten.data.chatMessage.message, msgRead.data.chatMessage.messageLength));
+        assert(msgRead.m_type == msgWritten.m_type);
+        assert(msgRead.m_usernameLength == msgWritten.m_usernameLength);
+        assert(!strncmp(msgRead.m_username, msgWritten.m_username, msgRead.m_usernameLength));
+        assert(msgRead.m_messageLength == msgWritten.m_messageLength);
+        assert(!strncmp(msgRead.m_message, msgWritten.m_message, msgRead.m_messageLength));
     }
 
     ////////////////////////////////////////////////////////////////////////////
@@ -177,7 +172,7 @@ int main(int argc, char *argv[])
     size_t fontIdx = 1;
     GuiSetFont(fonts[fontIdx]);
 
-    healthbars_set_font(fonts[0]);
+    HealthBar::SetFont(fonts[0]);
 
     int screenWidth = GetScreenWidth();
     int screenHeight = GetScreenHeight();
@@ -323,7 +318,7 @@ int main(int argc, char *argv[])
     assert(coinSpriteDef);
 
     Player charlie("Charlie", *charlieSpriteDef);
-    charlie.body.position = worldSpawn;
+    charlie.m_body.position = worldSpawn;
     world.player = &charlie;
 
     {
@@ -335,8 +330,8 @@ int main(int argc, char *argv[])
         for (size_t i = 0; i < 256; i++) {
             world.slimes.emplace_back(nullptr, *slimeSpriteDef);
             Slime &slime = world.slimes.back();
-            slime.body.position.x = dlb_rand32f_range(slimeRadius, maxX);
-            slime.body.position.y = dlb_rand32f_range(slimeRadius, maxY);
+            slime.m_body.position.x = dlb_rand32f_range(slimeRadius, maxX);
+            slime.m_body.position.y = dlb_rand32f_range(slimeRadius, maxY);
         }
     }
 
@@ -443,7 +438,7 @@ int main(int argc, char *argv[])
                 PlayerControllerState input{};
                 QueryPlayerController(input);
                 world.Sim(now, dt, input, world, coinSpriteDef);
-                camera.target = body_ground_position(&charlie.body);
+                camera.target = body_ground_position(&charlie.m_body);
             } else {
                 const int cameraSpeed = 5;
                 if (IsKeyDown(KEY_A)) camera.target.x -= cameraSpeed / camera.zoom;
@@ -493,9 +488,9 @@ int main(int argc, char *argv[])
         const float invZoom = 1.0f / camera.zoom;
 #endif
 
-        if (charlie.body.idle && !IsMusicPlaying(mus_whistle)) {
+        if (charlie.m_body.idle && !IsMusicPlaying(mus_whistle)) {
             PlayMusicStream(mus_whistle);
-        } else if (!charlie.body.idle && IsMusicPlaying(mus_whistle)) {
+        } else if (!charlie.m_body.idle && IsMusicPlaying(mus_whistle)) {
             StopMusicStream(mus_whistle);
         }
 
@@ -586,7 +581,7 @@ int main(int argc, char *argv[])
 
             // Queue slimes for drawing
             for (const Slime &slime : world.slimes) {
-                if (slime.combat.hitPoints) {
+                if (slime.m_combat.hitPoints) {
                     slime.Push();
                 }
             }
@@ -729,20 +724,20 @@ int main(int argc, char *argv[])
                 text = TextFormat("%2i fps (%.02f ms)", GetFPS(), GetFrameTime() * 1000.0f);
             }
             PUSH_TEXT(text, WHITE);
-            text = TextFormat("Coins: %d", charlie.inventory.slots[PlayerInventorySlot_Coins].stackCount);
+            text = TextFormat("Coins: %d", charlie.m_inventory.slots[PlayerInventorySlot_Coins].stackCount);
             PUSH_TEXT(text, YELLOW);
 
-            text = TextFormat("Coins collected   %u", charlie.stats.coinsCollected);
+            text = TextFormat("Coins collected   %u", charlie.m_stats.coinsCollected);
             PUSH_TEXT(text, LIGHTGRAY);
-            text = TextFormat("Damage dealt      %.2f", charlie.stats.damageDealt);
+            text = TextFormat("Damage dealt      %.2f", charlie.m_stats.damageDealt);
             PUSH_TEXT(text, LIGHTGRAY);
-            text = TextFormat("Kilometers walked %.2f", charlie.stats.kmWalked);
+            text = TextFormat("Kilometers walked %.2f", charlie.m_stats.kmWalked);
             PUSH_TEXT(text, LIGHTGRAY);
-            text = TextFormat("Slimes slain      %u", charlie.stats.slimesSlain);
+            text = TextFormat("Slimes slain      %u", charlie.m_stats.slimesSlain);
             PUSH_TEXT(text, LIGHTGRAY);
-            text = TextFormat("Times fist swung  %u", charlie.stats.timesFistSwung);
+            text = TextFormat("Times fist swung  %u", charlie.m_stats.timesFistSwung);
             PUSH_TEXT(text, LIGHTGRAY);
-            text = TextFormat("Times sword swung %u", charlie.stats.timesSwordSwung);
+            text = TextFormat("Times sword swung %u", charlie.m_stats.timesSwordSwung);
             PUSH_TEXT(text, LIGHTGRAY);
 
 #if SHOW_DEBUG_STATS
