@@ -24,7 +24,7 @@ struct SpriteAnim {
 struct SpriteDef {
     StringView name;                  // name of sprite
     const Spritesheet *spritesheet;   // parent spritesheet
-    int animations[Direction_Count];  // animation index (spritesheet->animations)
+    int animations[(int)Direction::Count];  // animation index (spritesheet->animations)
 
     SpriteDef(const Spritesheet *spritesheet);
 

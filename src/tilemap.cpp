@@ -12,7 +12,7 @@ static size_t rrt_nearest_idx(Tilemap *map, Vector2 p);
 
 bool tile_is_walkable(const Tile *tile)
 {
-    return tile && tile->tileType != TileType_Water;
+    return tile && tile->tileType != TileType::Water;
 }
 
 void tilemap_generate(Tilemap *map, dlb_rand32_t *rng)
@@ -58,15 +58,15 @@ void tilemap_generate(Tilemap *map, dlb_rand32_t *rng)
     for (int y = 0; y < map->heightTiles; y++) {
         for (int x = 0; x < map->widthTiles; x++) {
             TileType tileType = tilemap_at(map, x, y)->tileType;
-            if (tileType == TileType_Water) {
+            if (tileType == TileType::Water) {
 #if 1
                 static const int beachWidth = 2;
                 for (int beachX = x-beachWidth; beachX <= x+beachWidth; beachX++) {
                     for (int beachY = y-beachWidth; beachY <= y+beachWidth; beachY++) {
                         if (beachX == 0 && beachY == 0) continue;  // this is the water tile
                         Tile *tile = tilemap_at_try(map, beachX, beachY);
-                        if (tile && tile->tileType != TileType_Water && tile->tileType != TileType_Concrete) {
-                            tile->tileType = TileType_Concrete;
+                        if (tile && tile->tileType != TileType::Water && tile->tileType != TileType::Concrete) {
+                            tile->tileType = TileType::Concrete;
                         }
                     }
                 }
@@ -75,17 +75,17 @@ void tilemap_generate(Tilemap *map, dlb_rand32_t *rng)
                 Tile *down  = AtTry(tileX, tileY + 1);
                 Tile *left  = AtTry(tileX - 1, tileY);
                 Tile *right = AtTry(tileX + 1, tileY);
-                if (up && up->tileType != TileType_Water) {
-                    SetTileType(tileX, tileY - 1, TileType_Concrete);
+                if (up && up->tileType != TileType::Water) {
+                    SetTileType(tileX, tileY - 1, TileType::Concrete);
                 }
-                if (down && down->tileType != TileType_Water) {
-                    SetTileType(tileX, tileY + 1, TileType_Concrete);
+                if (down && down->tileType != TileType::Water) {
+                    SetTileType(tileX, tileY + 1, TileType::Concrete);
                 }
-                if (left && left->tileType != TileType_Water) {
-                    SetTileType(tileX - 1, tileY, TileType_Concrete);
+                if (left && left->tileType != TileType::Water) {
+                    SetTileType(tileX - 1, tileY, TileType::Concrete);
                 }
-                if (right && right->tileType != TileType_Water) {
-                    SetTileType(tileX + 1, tileY, TileType_Concrete);
+                if (right && right->tileType != TileType::Water) {
+                    SetTileType(tileX + 1, tileY, TileType::Concrete);
                 }
 #endif
             }

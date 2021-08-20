@@ -17,7 +17,7 @@ struct PlayerControllerState {
     bool walkWest;
     bool run;
     bool attack;
-    bool selectSlot[PlayerInventorySlot_Count];
+    bool selectSlot[(int)PlayerInventorySlot::Count];
 };
 
 void QueryPlayerController(PlayerControllerState &input);

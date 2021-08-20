@@ -14,8 +14,8 @@ struct Body3D {
     double lastMoved;
     bool landed;
     bool idle;
-};
 
-Vector2 body_bottom_center   (const Body3D *body);
-Vector2 body_ground_position (const Body3D *body);
-void body_update             (Body3D *body, double now, double dt);
+    Vector2 BottomCenter() const;
+    Vector2 GroundPosition() const;
+    void Update(double now, double dt);
+};

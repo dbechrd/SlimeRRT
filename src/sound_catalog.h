@@ -1,16 +1,16 @@
 #pragma once
 #include "helpers.h"
 
-enum SoundID {
-    SoundID_Empty,
-    SoundID_Footstep,
-    SoundID_Gold,
-    SoundID_Slime_Stab1,
-    SoundID_Squeak,
-    SoundID_Squish1,
-    SoundID_Squish2,
-    SoundID_Whoosh,
-    SoundID_Count
+enum class SoundID {
+    Empty,
+    Footstep,
+    Gold,
+    Slime_Stab1,
+    Squeak,
+    Squish1,
+    Squish2,
+    Whoosh,
+    Count
 };
 
 void sound_catalog_init();

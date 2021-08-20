@@ -10,7 +10,7 @@ const SpriteAnim &sprite_anim(const Sprite &sprite)
     assert(sprite.spriteDef->animations);
 
     const Spritesheet *sheet = sprite.spriteDef->spritesheet;
-    const int animationIdx = sprite.spriteDef->animations[sprite.direction];
+    const int animationIdx = sprite.spriteDef->animations[(int)sprite.direction];
     const SpriteAnim &anim = sheet->animations[animationIdx];
     return anim;
 }

@@ -1,17 +1,17 @@
 #pragma once
 #include "spritesheet.h"
 
-enum SpritesheetID {
-    SpritesheetID_Empty,
-    SpritesheetID_Charlie,
-    SpritesheetID_Coin,
-    SpritesheetID_Slime,
-    SpritesheetID_Count
+enum class SpritesheetID {
+    Empty,
+    Charlie,
+    Coin,
+    Slime,
+    Count
 };
 
 struct SpritesheetCatalog
 {
-    Spritesheet spritesheets[SpritesheetID_Count];
+    Spritesheet spritesheets[(int)SpritesheetID::Count];
 
     void Load();
 };

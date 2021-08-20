@@ -3,13 +3,13 @@
 #include "math.h"
 #include "dlb_rand.h"
 
-enum TileType {
-    TileType_Grass,
-    TileType_Water,
-    TileType_Forest,
-    TileType_Wood,
-    TileType_Concrete,
-    TileType_Count
+enum class TileType {
+    Grass,
+    Water,
+    Forest,
+    Wood,
+    Concrete,
+    Count
 };
 
 // TODO: Refactor RRT logic out into standalone file

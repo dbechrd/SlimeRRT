@@ -18,7 +18,7 @@ int network_client_init(NetworkClient *client)
         return 0;
     }
 
-    if (chat_history_init(&client->chatHistory)) {
+    if (client->chatHistory.Init() != ErrorType::Success) {
         TraceLog(LOG_FATAL, "[NetworkClient] Failed to initialize chat system.\n");
         return 0;
     }
@@ -119,15 +119,15 @@ static void network_client_process_message(NetworkClient *client, Packet *packet
     packet->message = &NetMessage::Deserialize((uint32_t *)packet->rawBytes, sizeof(packet->rawBytes));
 
     switch (packet->message->m_type) {
-        case NetMessage::NetMessageType_Welcome: {
+        case NetMessage::Type::Welcome: {
             // TODO: Store salt sent from server instead.. handshake stuffs
             //const char *username = "user";
             //client->usernameLength = MIN(strlen(username), USERNAME_LENGTH_MAX);
             //memcpy(client->username, username, client->usernameLength);
             break;
-        } case NetMessage::NetMessageType_ChatMessage: {
+        } case NetMessage::Type::ChatMessage: {
             NetMessage_ChatMessage &chatMsg = static_cast<NetMessage_ChatMessage &>(*packet->message);
-            chat_history_push_net_message(&client->chatHistory, chatMsg);
+            client->chatHistory.PushNetMessage(chatMsg);
             break;
         }
         default: {

@@ -17,7 +17,7 @@ static const char *LOG_SRC = "NetworkServer";
 NetworkServer g_server;
 static const unsigned int SERVER_PORT = 4040;
 
-int network_server_thread()
+ErrorType network_server_thread()
 {
 E_START
     E_CHECK(network_server_init(&g_server));
@@ -28,7 +28,7 @@ E_CLEANUP
 E_END
 }
 
-int network_server_init(NetworkServer *server)
+ErrorType network_server_init(NetworkServer *server)
 {
 E_START
     assert(server);
@@ -36,18 +36,18 @@ E_START
     server->packetHistory.capacity = NETWORK_SERVER_PACKET_HISTORY_MAX;
     server->packetHistory.packets = (Packet *)calloc(server->packetHistory.capacity, sizeof(*server->packetHistory.packets));
     E_CHECK_ALLOC(server->packetHistory.packets, "Failed to allocate packet history buffer");
-    E_CHECK(chat_history_init(&server->chatHistory));
+    E_CHECK(server->chatHistory.Init());
 E_CLEAN_END
 }
 
-int network_server_open_socket(NetworkServer *server, unsigned short port)
+ErrorType network_server_open_socket(NetworkServer *server, unsigned short port)
 {
 E_START
     assert(server);
 
     if (zed_net_udp_socket_open(&server->socket, port, 0) < 0) {
         const char *err = zed_net_get_error();
-        E_FATAL(E_NET_PORT_IN_USE, "Failed to open socket on port %hu. Zed: %s", port, err);
+        E_FATAL(ErrorType::NetPortInUse, "Failed to open socket on port %hu. Zed: %s", port, err);
     }
 
     assert(server->socket.handle);
@@ -55,7 +55,7 @@ E_START
 E_CLEAN_END
 }
 
-static int network_server_send_raw(const NetworkServer *server, const NetworkServerClient *client, const char *data, size_t size)
+static ErrorType network_server_send_raw(const NetworkServer *server, const NetworkServerClient *client, const char *data, size_t size)
 {
 E_START
     assert(client);
@@ -66,12 +66,12 @@ E_START
 
     if (zed_net_udp_socket_send(&server->socket, client->address, data, (int)size) < 0) {
         const char *err = zed_net_get_error();
-        E_ERROR(E_SOCK_SEND_FAILED, "Failed to send data. Zed: %s", err);
+        E_ERROR(ErrorType::SockSendFailed, "Failed to send data. Zed: %s", err);
     }
 E_CLEAN_END
 }
 
-static int network_server_send(const NetworkServer *server, const NetworkServerClient *client, const NetMessage &message)
+static ErrorType network_server_send(const NetworkServer *server, const NetworkServerClient *client, const NetMessage &message)
 {
 E_START
     static char rawPacket[PACKET_SIZE_MAX] = {};
@@ -87,7 +87,7 @@ static void network_server_broadcast_raw(const NetworkServer *server, const char
     // Broadcast message to all connected clients
     for (int i = 0; i < NETWORK_SERVER_CLIENTS_MAX; ++i) {
         if (server->clients[i].address.host) {
-            if (network_server_send_raw(server, &server->clients[i], data, size) != E_SUCCESS) {
+            if (network_server_send_raw(server, &server->clients[i], data, size) != ErrorType::Success) {
                 // TODO: Handle error somehow? Retry queue.. or..? Idk.. This seems fatal. Look up why Win32 might fail
             }
         }
@@ -149,12 +149,12 @@ static void network_server_process_message(NetworkServer *server, NetworkServerC
     packet->message = &NetMessage::Deserialize((uint32_t *)packet->rawBytes, sizeof(packet->rawBytes));
 
     switch (packet->message->m_type) {
-        case NetMessage::NetMessageType_Identify: {
+        case NetMessage::Type::Identify: {
             NetMessage_Identify &identMsg = static_cast<NetMessage_Identify &>(*packet->message);
             client->usernameLength = MIN(identMsg.m_usernameLength, USERNAME_LENGTH_MAX);
             memcpy(client->username, identMsg.m_username, client->usernameLength);
             break;
-        } case NetMessage::NetMessageType_ChatMessage: {
+        } case NetMessage::Type::ChatMessage: {
             NetMessage_ChatMessage &chatMsg = static_cast<NetMessage_ChatMessage &>(*packet->message);
 
             // TODO(security): Validate some session token that's not known to other people to prevent impersonation
@@ -162,7 +162,7 @@ static void network_server_process_message(NetworkServer *server, NetworkServerC
             //assert(!strncmp(chatMsg.m_username, client->username, client->usernameLength));
 
             // Store chat message in chat history
-            chat_history_push_net_message(&server->chatHistory, chatMsg);
+            server->chatHistory.PushNetMessage(chatMsg);
 
             // TODO(security): This is currently rebroadcasting user input to all other clients.. ripe for abuse
             // Broadcast chat message
@@ -175,7 +175,7 @@ static void network_server_process_message(NetworkServer *server, NetworkServerC
     }
 }
 
-int network_server_listen(NetworkServer *server)
+ErrorType network_server_listen(NetworkServer *server)
 {
 E_START
     assert(server);
@@ -195,7 +195,7 @@ E_START
         if (bytes < 0) {
             // TODO: Ignore this.. or log it? zed_net doesn't pass through any useful error messages to diagnose this.
             const char *err = zed_net_get_error();
-            E_FATAL(E_SOCK_RECV_FAILED, "Failed to receive network data. Zed: %s", err);
+            E_FATAL(ErrorType::SockRecvFailed, "Failed to receive network data. Zed: %s", err);
         }
 
         if (bytes > 0) {

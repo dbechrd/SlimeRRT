@@ -27,7 +27,6 @@
 #define PACKET_SIZE_MAX     1024
 #define USERNAME_LENGTH_MAX 32
 
-// must be power of 2 (shift modulus ring buffer)
 #define CHAT_MESSAGE_HISTORY    16 //64
 #define CHAT_MESSAGE_LENGTH_MAX 500  // not including nil terminator, must be < CHAT_MESSAGE_BUFFER_LEN
 #define CHAT_MESSAGE_BUFFER_LEN 512  // including nil terminator

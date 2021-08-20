@@ -14,18 +14,18 @@ size_t NetMessage::Serialize(uint32_t *buffer, size_t bufferLength) const
 NetMessage &NetMessage::Deserialize(uint32_t *buffer, size_t bufferLength)
 {
     BitStreamReader reader(buffer, bufferLength);
-    NetMessageType type = (NetMessageType)reader.Read(2);
+    NetMessage::Type type = (NetMessage::Type)reader.Read(2);
     reader.Align();
 
     NetMessage *msg = nullptr;
     switch (type) {
-        case NetMessageType_Identify: {
+        case NetMessage::Type::Identify: {
             msg = new NetMessage_Identify();
             break;
-        } case NetMessageType_Welcome: {
+        } case NetMessage::Type::Welcome: {
             msg = new NetMessage_Welcome();
             break;
-        } case NetMessageType_ChatMessage: {
+        } case NetMessage::Type::ChatMessage: {
             msg = new NetMessage_ChatMessage();
             break;
         } default: {
@@ -38,7 +38,7 @@ NetMessage &NetMessage::Deserialize(uint32_t *buffer, size_t bufferLength)
 
 void NetMessage::Serialize(BitStreamWriter &writer) const
 {
-    writer.Write(m_type, 2);
+    writer.Write((int)m_type, 2);
     writer.Align();
 }
 

@@ -5,19 +5,19 @@
 #include "player_inventory.h"
 
 struct Player {
-    enum MoveState {
-        MoveState_Idle      = 0,
-        MoveState_Walking   = 1,
-        MoveState_Running   = 2,
+    enum class MoveState {
+        Idle      = 0,
+        Walking   = 1,
+        Running   = 2,
     };
 
-    enum ActionState {
-        ActionState_None      = 0,
-        ActionState_Attacking = 1,
+    enum class ActionState {
+        None      = 0,
+        Attacking = 1,
     };
 
-    enum AttachPoint {
-        AttachPoint_Gut
+    enum class AttachPoint {
+        Gut
     };
 
     struct Stats {

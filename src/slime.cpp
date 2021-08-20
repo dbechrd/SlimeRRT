@@ -14,15 +14,17 @@
 Slime::Slime(const char *name, const SpriteDef &spriteDef) : Slime()
 {
     m_name = name;
+    m_action = Action::None;
     m_body.restitution = 0.0f;
     m_body.drag = 0.95f;
     m_body.friction = 0.95f;
     m_body.lastUpdated = GetTime();
     m_sprite.spriteDef = &spriteDef;
     m_sprite.scale = 1.0f;
-    m_sprite.direction = Direction_South;
+    m_sprite.direction = Direction::South;
     m_combat.maxHitPoints = 5.0f;
     m_combat.hitPoints = m_combat.maxHitPoints;
+    m_randJumpIdle = 0.0;
 }
 
 void Slime::UpdateDirection(Vector2 offset)
@@ -30,25 +32,25 @@ void Slime::UpdateDirection(Vector2 offset)
     Direction prevDirection = m_sprite.direction;
     if (offset.x > 0.0f) {
         if (offset.y > 0.0f) {
-            m_sprite.direction = fabs(offset.x) > fabs(offset.y) ? Direction_East : Direction_South;
+            m_sprite.direction = fabs(offset.x) > fabs(offset.y) ? Direction::East : Direction::South;
         } else if (offset.y < 0.0f) {
-            m_sprite.direction = fabs(offset.x) > fabs(offset.y) ? Direction_East : Direction_North;
+            m_sprite.direction = fabs(offset.x) > fabs(offset.y) ? Direction::East : Direction::North;
         } else {
-            m_sprite.direction = Direction_East;
+            m_sprite.direction = Direction::East;
         }
     } else if (offset.x < 0.0f) {
         if (offset.y > 0.0f) {
-            m_sprite.direction = fabs(offset.x) > fabs(offset.y) ? Direction_West : Direction_South;
+            m_sprite.direction = fabs(offset.x) > fabs(offset.y) ? Direction::West : Direction::South;
         } else if (offset.y < 0.0f) {
-            m_sprite.direction = fabs(offset.x) > fabs(offset.y) ? Direction_West : Direction_North;
+            m_sprite.direction = fabs(offset.x) > fabs(offset.y) ? Direction::West : Direction::North;
         } else {
-            m_sprite.direction = Direction_West;
+            m_sprite.direction = Direction::West;
         }
     } else {
         if (offset.y > 0.0f) {
-            m_sprite.direction = Direction_South;
+            m_sprite.direction = Direction::South;
         } else if (offset.y < 0.0f) {
-            m_sprite.direction = Direction_North;
+            m_sprite.direction = Direction::North;
         }
     }
     if (m_sprite.direction != prevDirection) {
@@ -112,8 +114,8 @@ bool Slime::Attack(double now, double dt)
 {
     UNUSED(dt); // todo: use dt;
 
-    if (m_action == Action_None) {
-        m_action = Action_Attack;
+    if (m_action == Action::None) {
+        m_action = Action::Attack;
         m_combat.attackStartedAt = now;
         m_combat.attackDuration = 0.1;
         return true;
@@ -125,12 +127,12 @@ void Slime::Update(double now, double dt)
 {
     const double timeSinceAttackStarted = now - m_combat.attackStartedAt;
     if (timeSinceAttackStarted > m_combat.attackDuration) {
-        m_action = Action_None;
+        m_action = Action::None;
         m_combat.attackStartedAt = 0;
         m_combat.attackDuration = 0;
     }
 
-    body_update(&m_body, now, dt);
+    m_body.Update(now, dt);
     sprite_update(m_sprite, now, dt);
 }
 
@@ -147,7 +149,7 @@ bool Slime::Cull(const Rectangle &cullRect) const
 
 void Slime::Push() const
 {
-    draw_command_push(DrawableType_Slime, this);
+    draw_command_push(DrawableType::Slime, this);
 }
 
 void Slime::Draw() const
@@ -156,7 +158,7 @@ void Slime::Draw() const
     // TODO: Shadow size based on height from ground
     // https://yal.cc/top-down-bouncing-loot-effects/
     //const float shadowScale = 1.0f + slime.transform.position.z / 20.0f;
-    const Vector2 slimeBC = body_ground_position(&m_body);
+    const Vector2 slimeBC = m_body.GroundPosition();
     Shadow::Draw((int)slimeBC.x, (int)slimeBC.y, 16.0f * m_sprite.scale, -8.0f * m_sprite.scale);
 
     sprite_draw_body(m_sprite, m_body, Fade(WHITE, 0.7f));

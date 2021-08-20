@@ -91,8 +91,8 @@ static void generate_effect_particles(ParticleEffect *effect, size_t particleCou
 ParticleEffect *particle_effect_create(ParticleEffectType type, size_t particleCount, Vector3 origin, double duration,
     double now, const SpriteDef *spriteDef)
 {
-    assert(type > 0);
-    assert(type < ParticleEffectType_Count);
+    assert((int)type > 0);
+    assert((int)type < (int)ParticleEffectType::Count);
     assert(particleCount);
     assert(duration);
     assert(duration > 0.0);
@@ -108,7 +108,7 @@ ParticleEffect *particle_effect_create(ParticleEffectType type, size_t particleC
     effectsActiveCount++;
 
     // Sanity checks to ensure previous effect was freed properly and/or free list is returning valid pointers
-    assert(effect->type == ParticleEffectType_Dead);
+    assert(effect->type == ParticleEffectType::Dead);
     assert(effect->particlesLeft == 0);
 
     effect->type = type;
@@ -116,11 +116,11 @@ ParticleEffect *particle_effect_create(ParticleEffectType type, size_t particleC
     effect->duration = duration;
     effect->startedAt = now;
 
-    static ParticleDef particle_fx_defs[ParticleEffectType_Count]{};
-    particle_fx_defs[ParticleEffectType_Blood] = { particle_fx_blood_init, particle_fx_blood_update };
-    particle_fx_defs[ParticleEffectType_Gold ] = { particle_fx_gold_init, particle_fx_gold_update };
-    particle_fx_defs[ParticleEffectType_Goo  ] = { particle_fx_goo_init, particle_fx_goo_update };
-    effect->def = &particle_fx_defs[effect->type];
+    static ParticleDef particle_fx_defs[(int)ParticleEffectType::Count]{};
+    particle_fx_defs[(int)ParticleEffectType::Blood] = { particle_fx_blood_init, particle_fx_blood_update };
+    particle_fx_defs[(int)ParticleEffectType::Gold ] = { particle_fx_gold_init, particle_fx_gold_update };
+    particle_fx_defs[(int)ParticleEffectType::Goo  ] = { particle_fx_goo_init, particle_fx_goo_update };
+    effect->def = &particle_fx_defs[(int)effect->type];
 
     generate_effect_particles(effect, particleCount, spriteDef);
 
@@ -145,12 +145,12 @@ void particles_update(double now, double dt)
     size_t effectsCounted = 0;
     for (size_t i = 0; effectsCounted < effectsActiveCount; i++) {
         ParticleEffect &effect = effects[i];
-        if (effect.type == ParticleEffectType_Dead)
+        if (effect.type == ParticleEffectType::Dead)
             continue;
 
-        if (effect.callbacks[ParticleEffectEvent_BeforeUpdate].function) {
-            effect.callbacks[ParticleEffectEvent_BeforeUpdate].function(
-                effect, effect.callbacks[ParticleEffectEvent_BeforeUpdate].userData
+        if (effect.callbacks[(int)ParticleEffectEventType::BeforeUpdate].function) {
+            effect.callbacks[(int)ParticleEffectEventType::BeforeUpdate].function(
+                effect, effect.callbacks[(int)ParticleEffectEventType::BeforeUpdate].userData
             );
         }
         effectsCounted++;
@@ -169,7 +169,7 @@ void particles_update(double now, double dt)
             if (!particle.body.lastUpdated) {
                 particle.body.position = effect.origin;
             }
-            body_update(&particle.body, now, dt);
+            particle.body.Update(now, dt);
             sprite_update(particle.sprite, now, dt);
             effect.def->update(particle, alpha);
         } else if (alpha >= 1.0f) {
@@ -187,15 +187,15 @@ void particles_update(double now, double dt)
     effectsCounted = 0;
     for (size_t i = 0; effectsCounted < effectsActiveCount; i++) {
         ParticleEffect &effect = effects[i];
-        if (effect.type == ParticleEffectType_Dead)
+        if (effect.type == ParticleEffectType::Dead)
             continue;
 
         // note: ParticleEffectEvent_AfterUpdate would go here if I ever care about that..
 
         if (!effect.particlesLeft) {
-            if (effect.callbacks[ParticleEffectEvent_Dying].function) {
-                effect.callbacks[ParticleEffectEvent_Dying].function(
-                    effect, effect.callbacks[ParticleEffectEvent_Dying].userData
+            if (effect.callbacks[(int)ParticleEffectEventType::Dying].function) {
+                effect.callbacks[(int)ParticleEffectEventType::Dying].function(
+                    effect, effect.callbacks[(int)ParticleEffectEventType::Dying].userData
                 );
             }
 
@@ -222,7 +222,7 @@ bool particle_cull(const Particle *particle, Rectangle cullRect)
     if (particle->sprite.spriteDef) {
         cull = sprite_cull_body(particle->sprite, particle->body, cullRect);
     } else {
-        const Vector2 particleBC = body_bottom_center(&particle->body);
+        const Vector2 particleBC = particle->body.BottomCenter();
         cull = !CheckCollisionCircleRec(particleBC, particle->sprite.scale, cullRect);
     }
 
@@ -239,7 +239,7 @@ void particles_push(void)
         if (!particle->effect)
             continue;  // particle is dead
 
-        draw_command_push(DrawableType_Particle, particle);
+        draw_command_push(DrawableType::Particle, particle);
         particlesPushed++;
     }
 }

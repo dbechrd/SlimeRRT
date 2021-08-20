@@ -28,18 +28,18 @@ void       particle_draw    (const Particle *particle);
 
 //-----------------------------------------------------------------------------
 
-enum ParticleEffectType {
-    ParticleEffectType_Dead,
-    ParticleEffectType_Blood,
-    ParticleEffectType_Gold,
-    ParticleEffectType_Goo,
-    ParticleEffectType_Count
+enum class ParticleEffectType {
+    Dead,
+    Blood,
+    Gold,
+    Goo,
+    Count
 };
 
-enum ParticleEffectEventType {
-    ParticleEffectEvent_BeforeUpdate,
-    ParticleEffectEvent_Dying,
-    ParticleEffectEvent_Count
+enum class ParticleEffectEventType {
+    BeforeUpdate,
+    Dying,
+    Count
 };
 
 typedef void (*ParticleInitFn  )(Particle &particle, double duration);
@@ -66,7 +66,7 @@ struct ParticleEffect {
     Sprite sprite;                // sprite to be used for all particles.. for now
     struct ParticleEffect *next;  // when dead, intrusive free list
     ParticleDef *def;
-    ParticeEffectEventCallback callbacks[ParticleEffectEvent_Count];
+    ParticeEffectEventCallback callbacks[(int)ParticleEffectEventType::Count];
 };
 
 ParticleEffect *particle_effect_create(ParticleEffectType type, size_t particleCount, Vector3 origin, double duration,

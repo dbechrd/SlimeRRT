@@ -105,7 +105,7 @@ int main(int argc, char *argv[])
         size_t bytes = msgWritten.Serialize((uint32_t *)rawPacket, sizeof(rawPacket));
 
         NetMessage &baseMsgRead = NetMessage::Deserialize((uint32_t *)rawPacket, bytes);
-        assert(baseMsgRead.m_type == NetMessage::NetMessageType_ChatMessage);
+        assert(baseMsgRead.m_type == NetMessage::Type::ChatMessage);
         NetMessage_ChatMessage &msgRead = static_cast<NetMessage_ChatMessage &>(baseMsgRead);
 
         assert(msgRead.m_type == msgWritten.m_type);
@@ -212,7 +212,7 @@ int main(int argc, char *argv[])
     assert(tilesetTex.width);
 
     Tileset tileset = {};
-    tileset_init_ex(&tileset, &tilesetTex, 32, 32, TileType_Count);
+    tileset_init_ex(&tileset, &tilesetTex, 32, 32, (int)TileType::Count);
 
     {
         Tilemap tilemap = {};
@@ -233,12 +233,12 @@ int main(int argc, char *argv[])
         minimapImg.data = calloc((size_t)minimapImg.width * minimapImg.height, sizeof(Color));
         assert(minimapImg.data);
 
-        Color tileColors[TileType_Count]{};
-        tileColors[TileType_Grass   ] = GREEN;
-        tileColors[TileType_Water   ] = SKYBLUE;
-        tileColors[TileType_Forest  ] = DARKGREEN;
-        tileColors[TileType_Wood    ] = BROWN;
-        tileColors[TileType_Concrete] = GRAY;
+        Color tileColors[(int)TileType::Count]{};
+        tileColors[(int)TileType::Grass   ] = GREEN;
+        tileColors[(int)TileType::Water   ] = SKYBLUE;
+        tileColors[(int)TileType::Forest  ] = DARKGREEN;
+        tileColors[(int)TileType::Wood    ] = BROWN;
+        tileColors[(int)TileType::Concrete] = GRAY;
 
         const size_t heightTiles = world.map->heightTiles;
         const size_t widthTiles = world.map->widthTiles;
@@ -248,9 +248,9 @@ int main(int argc, char *argv[])
             for (size_t x = 0; x < widthTiles; x += 1) {
                 const Tile *tile = &world.map->tiles[y * world.map->widthTiles + x];
                 // Draw all tiles as different colored pixels
-                assert(tile->tileType >= 0);
-                assert(tile->tileType < TileType_Count);
-                *minimapPixel = tileColors[tile->tileType];
+                assert((int)tile->tileType >= 0);
+                assert((int)tile->tileType < (int)TileType::Count);
+                *minimapPixel = tileColors[(int)tile->tileType];
                 minimapPixel++;
             }
         }
@@ -305,15 +305,15 @@ int main(int argc, char *argv[])
     bool cameraFollowPlayer = true;
 
     // TODO: Move sprite loading to somewhere more sane
-    const Spritesheet &charlieSpritesheet = g_spritesheetCatalog.spritesheets[SpritesheetID_Charlie];
+    const Spritesheet &charlieSpritesheet = g_spritesheetCatalog.spritesheets[(int)SpritesheetID::Charlie];
     const SpriteDef *charlieSpriteDef = charlieSpritesheet.FindSprite("player_sword");
     assert(charlieSpriteDef);
 
-    const Spritesheet &slimeSpritesheet = g_spritesheetCatalog.spritesheets[SpritesheetID_Slime];
+    const Spritesheet &slimeSpritesheet = g_spritesheetCatalog.spritesheets[(int)SpritesheetID::Slime];
     const SpriteDef *slimeSpriteDef = slimeSpritesheet.FindSprite("slime");
     assert(slimeSpriteDef);
 
-    const Spritesheet &coinSpritesheet = g_spritesheetCatalog.spritesheets[SpritesheetID_Coin];
+    const Spritesheet &coinSpritesheet = g_spritesheetCatalog.spritesheets[(int)SpritesheetID::Coin];
     const SpriteDef *coinSpriteDef = coinSpritesheet.FindSprite("coin");
     assert(coinSpriteDef);
 
@@ -438,7 +438,7 @@ int main(int argc, char *argv[])
                 PlayerControllerState input{};
                 QueryPlayerController(input);
                 world.Sim(now, dt, input, world, coinSpriteDef);
-                camera.target = body_ground_position(&charlie.m_body);
+                camera.target = charlie.m_body.GroundPosition();
             } else {
                 const int cameraSpeed = 5;
                 if (IsKeyDown(KEY_A)) camera.target.x -= cameraSpeed / camera.zoom;
@@ -544,7 +544,7 @@ int main(int argc, char *argv[])
                         tilePos.y < camBottom)
                     {
                         // Draw all tiles as textured rects (looks best, performs worst)
-                        Rectangle textureRect = tileRects[tile->tileType];
+                        Rectangle textureRect = tileRects[(int)tile->tileType];
                         DrawTextureRec(*world.map->tileset->texture, textureRect, tile->position, WHITE);
                         tilesDrawn++;
                     }
@@ -608,7 +608,7 @@ int main(int argc, char *argv[])
 
 #if 1
         std::vector<size_t> matches{};
-        tree.Search(searchAABB, matches, RTree::CompareMode_Overlap);
+        tree.Search(searchAABB, matches, RTree::CompareMode::Overlap);
 #else
         static std::vector<void *> matches;
         matches.clear();
@@ -724,7 +724,7 @@ int main(int argc, char *argv[])
                 text = TextFormat("%2i fps (%.02f ms)", GetFPS(), GetFrameTime() * 1000.0f);
             }
             PUSH_TEXT(text, WHITE);
-            text = TextFormat("Coins: %d", charlie.m_inventory.slots[PlayerInventorySlot_Coins].stackCount);
+            text = TextFormat("Coins: %d", charlie.m_inventory.slots[(int)PlayerInventorySlot::Coins].stackCount);
             PUSH_TEXT(text, YELLOW);
 
             text = TextFormat("Coins collected   %u", charlie.m_stats.coinsCollected);

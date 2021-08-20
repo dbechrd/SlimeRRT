@@ -3,22 +3,21 @@
 #include "raylib.h"
 #include <cassert>
 
-static Sound soundCatalog[SoundID_Count];
-
+static Sound soundCatalog[(int)SoundID::Count];
 static Sound load_missing_ogg();
 
 void sound_catalog_init()
 {
-    soundCatalog[SoundID_Empty      ] = load_missing_ogg();
-    soundCatalog[SoundID_Footstep   ] = LoadSound("resources/footstep1.ogg");
-    soundCatalog[SoundID_Gold       ] = LoadSound("resources/gold1.ogg");
-    soundCatalog[SoundID_Slime_Stab1] = LoadSound("resources/slime_stab1.ogg");
-    soundCatalog[SoundID_Squeak     ] = LoadSound("resources/squeak1.ogg");
-    soundCatalog[SoundID_Squish1    ] = LoadSound("resources/squish1.ogg");
-    soundCatalog[SoundID_Squish2    ] = LoadSound("resources/squish2.ogg");
-    soundCatalog[SoundID_Whoosh     ] = LoadSound("resources/whoosh1.ogg");
+    soundCatalog[(int)SoundID::Empty      ] = load_missing_ogg();
+    soundCatalog[(int)SoundID::Footstep   ] = LoadSound("resources/footstep1.ogg");
+    soundCatalog[(int)SoundID::Gold       ] = LoadSound("resources/gold1.ogg");
+    soundCatalog[(int)SoundID::Slime_Stab1] = LoadSound("resources/slime_stab1.ogg");
+    soundCatalog[(int)SoundID::Squeak     ] = LoadSound("resources/squeak1.ogg");
+    soundCatalog[(int)SoundID::Squish1    ] = LoadSound("resources/squish1.ogg");
+    soundCatalog[(int)SoundID::Squish2    ] = LoadSound("resources/squish2.ogg");
+    soundCatalog[(int)SoundID::Whoosh     ] = LoadSound("resources/whoosh1.ogg");
 
-    for (size_t i = 0; i < SoundID_Count; i++) {
+    for (int i = 0; i < (int)SoundID::Count; i++) {
         if (!soundCatalog[i].sampleCount) {
             soundCatalog[i] = load_missing_ogg();
         }
@@ -27,31 +26,31 @@ void sound_catalog_init()
 
 void sound_catalog_play(SoundID id, float pitch)
 {
-    assert(id >= 0);
-    assert(id < ARRAY_SIZE(soundCatalog));
-    assert(soundCatalog[id].sampleCount);
+    assert((int)id >= 0);
+    assert((int)id < ARRAY_SIZE(soundCatalog));
+    assert(soundCatalog[(int)id].sampleCount);
 
     //if (IsSoundPlaying(soundCatalog[id])) {
     //    return;
     //}
 
-    SetSoundPitch(soundCatalog[id], pitch);
-    PlaySound(soundCatalog[id]);
+    SetSoundPitch(soundCatalog[(int)id], pitch);
+    PlaySound(soundCatalog[(int)id]);
 }
 
 bool sound_catalog_playing(SoundID id)
 {
-    assert(id >= 0);
-    assert(id < ARRAY_SIZE(soundCatalog));
-    assert(soundCatalog[id].sampleCount);
+    assert((int)id >= 0);
+    assert((int)id < ARRAY_SIZE(soundCatalog));
+    assert(soundCatalog[(int)id].sampleCount);
 
-    bool playing = IsSoundPlaying(soundCatalog[id]);
+    bool playing = IsSoundPlaying(soundCatalog[(int)id]);
     return playing;
 }
 
 void sound_catalog_free()
 {
-    for (size_t i = 0; i < SoundID_Count; i++) {
+    for (int i = 0; i < (int)SoundID::Count; i++) {
         if (soundCatalog[i].sampleCount) {
             UnloadSound(soundCatalog[i]);
         }

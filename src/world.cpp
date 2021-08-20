@@ -17,16 +17,16 @@
 
 void BloodParticlesFollowPlayer(ParticleEffect &effect, void *userData)
 {
-    assert(effect.type == ParticleEffectType_Blood);
+    assert(effect.type == ParticleEffectType::Blood);
     assert(userData);
 
     Player *player = (Player *)userData;
-    effect.origin = player->GetAttachPoint(Player::AttachPoint_Gut);
+    effect.origin = player->GetAttachPoint(Player::AttachPoint::Gut);
 }
 
 void World::Sim(double now, double dt, const PlayerControllerState input, World &world, const SpriteDef *coinSpriteDef)
 {
-    for (int i = 0; i < PlayerInventorySlot_Count; i++) {
+    for (int i = 0; i < (int)PlayerInventorySlot::Count; i++) {
         if (input.selectSlot[i]) {
             world.player->m_inventory.selectedSlot = (PlayerInventorySlot)i;
             break;
@@ -50,18 +50,18 @@ void World::Sim(double now, double dt, const PlayerControllerState input, World 
             moveBuffer.x -= 1.0f;
         }
         if (input.run) {
-            world.player->m_moveState = Player::MoveState_Running;
+            world.player->m_moveState = Player::MoveState::Running;
             playerSpeed += 2.0f;
         } else {
-            world.player->m_moveState = Player::MoveState_Walking;
+            world.player->m_moveState = Player::MoveState::Walking;
         }
     } else {
-        world.player->m_moveState = Player::MoveState_Idle;
+        world.player->m_moveState = Player::MoveState::Idle;
     }
 
     Vector2 moveOffset = v2_scale(v2_normalize(moveBuffer), METERS_TO_PIXELS(playerSpeed) * (float)dt);
     if (!v2_is_zero(moveOffset)) {
-        const Vector2 curPos = body_ground_position(&world.player->m_body);
+        const Vector2 curPos = world.player->m_body.GroundPosition();
         const Tile *curTile = tilemap_at_world_try(world.map, (int)curPos.x, (int)curPos.y);
         const bool curWalkable = tile_is_walkable(curTile);
 
@@ -109,7 +109,7 @@ void World::Sim(double now, double dt, const PlayerControllerState input, World 
             static double lastFootstep = 0;
             double timeSinceLastFootstep = now - lastFootstep;
             if (timeSinceLastFootstep > 1.0f / playerSpeed) {
-                sound_catalog_play(SoundID_Footstep, 1.0f + dlb_rand32f_variance(0.5f));
+                sound_catalog_play(SoundID::Footstep, 1.0f + dlb_rand32f_variance(0.5f));
                 lastFootstep = now;
             }
         }
@@ -123,7 +123,7 @@ void World::Sim(double now, double dt, const PlayerControllerState input, World 
 
             const Item &selectedItem = world.player->GetSelectedItem();
             switch (selectedItem.type) {
-                case ItemType_Weapon: {
+                case ItemType::Weapon: {
                     playerDamage = selectedItem.data.weapon.damage;
                     break;
                 }
@@ -143,21 +143,21 @@ void World::Sim(double now, double dt, const PlayerControllerState input, World 
                     world.player->m_stats.damageDealt += MIN(slime.m_combat.hitPoints, playerDamage);
                     slime.m_combat.hitPoints = MAX(0.0f, slime.m_combat.hitPoints - playerDamage);
                     if (!slime.m_combat.hitPoints) {
-                        //sound_catalog_play(SoundID_Squeak, 0.75f + dlb_rand32f_variance(0.2f));
+                        //sound_catalog_play(SoundID::Squeak, 0.75f + dlb_rand32f_variance(0.2f));
 
                         int coins = dlb_rand32i_range(1, 4) * (int)slime.m_sprite.scale;
                         // TODO(design): Convert coins to higher currency if stack fills up?
-                        world.player->m_inventory.slots[PlayerInventorySlot_Coins].stackCount += coins;
+                        world.player->m_inventory.slots[(int)PlayerInventorySlot::Coins].stackCount += coins;
                         world.player->m_stats.coinsCollected += coins;
 
                         Vector3 deadCenter = sprite_world_center(slime.m_sprite, slime.m_body.position, slime.m_sprite.scale);
-                        particle_effect_create(ParticleEffectType_Goo, 20, deadCenter, 2.0, now, 0);
-                        particle_effect_create(ParticleEffectType_Gold, (size_t)coins, deadCenter, 2.0, now, coinSpriteDef);
-                        sound_catalog_play(SoundID_Gold, 1.0f + dlb_rand32f_variance(0.1f));
+                        particle_effect_create(ParticleEffectType::Goo, 20, deadCenter, 2.0, now, 0);
+                        particle_effect_create(ParticleEffectType::Gold, (size_t)coins, deadCenter, 2.0, now, coinSpriteDef);
+                        sound_catalog_play(SoundID::Gold, 1.0f + dlb_rand32f_variance(0.1f));
 
                         world.player->m_stats.slimesSlain++;
                     } else {
-                        SoundID squish = dlb_rand32i_range(0, 1) ? SoundID_Squish1 : SoundID_Squish2;
+                        SoundID squish = dlb_rand32i_range(0, 1) ? SoundID::Squish1 : SoundID::Squish2;
                         sound_catalog_play(squish, 1.0f + dlb_rand32f_variance(0.2f));
                     }
                     slimesHit++;
@@ -165,9 +165,9 @@ void World::Sim(double now, double dt, const PlayerControllerState input, World 
             }
 
             if (slimesHit) {
-                sound_catalog_play(SoundID_Slime_Stab1, 1.0f + dlb_rand32f_variance(0.1f));
+                sound_catalog_play(SoundID::Slime_Stab1, 1.0f + dlb_rand32f_variance(0.1f));
             }
-            sound_catalog_play(SoundID_Whoosh, 1.0f + dlb_rand32f_variance(0.1f));
+            sound_catalog_play(SoundID::Whoosh, 1.0f + dlb_rand32f_variance(0.1f));
         }
     }
 
@@ -190,7 +190,7 @@ void World::Sim(double now, double dt, const PlayerControllerState input, World 
             if (!slime.m_combat.hitPoints)
                 continue;
 
-            Vector2 slimeToPlayer = v2_sub(body_ground_position(&world.player->m_body), body_ground_position(&slime.m_body));
+            Vector2 slimeToPlayer = v2_sub(world.player->m_body.GroundPosition(), slime.m_body.GroundPosition());
             const float slimeToPlayerDistSq = v2_length_sq(slimeToPlayer);
             if (slimeToPlayerDistSq > SQUARED(slimeAttackReach) &&
                 slimeToPlayerDistSq <= SQUARED(slimeAttackTrack))
@@ -201,7 +201,7 @@ void World::Sim(double now, double dt, const PlayerControllerState input, World 
                 const float moveRandMult = dlb_rand32i_range(1, 4) > 1 ? 1.0f : -1.0f;
                 const Vector2 slimeMoveDir = v2_scale(slimeToPlayer, 1.0f / slimeToPlayerDist);
                 const Vector2 slimeMove = v2_scale(slimeMoveDir, moveDist * moveRandMult);
-                const Vector2 slimePos = body_ground_position(&slime.m_body);
+                const Vector2 slimePos = slime.m_body.GroundPosition();
                 const Vector2 slimePosNew = v2_add(slimePos, slimeMove);
 
                 int willCollide = 0;
@@ -210,7 +210,7 @@ void World::Sim(double now, double dt, const PlayerControllerState input, World 
                     if (!otherSlime.m_combat.hitPoints)
                         continue;
 
-                    Vector2 otherSlimePos = body_ground_position(&otherSlime.m_body);
+                    Vector2 otherSlimePos = otherSlime.m_body.GroundPosition();
                     const float zDist = fabsf(slime.m_body.position.z - otherSlime.m_body.position.z);
                     const float radiusScaled = slimeRadius * slime.m_sprite.scale;
                     if (v2_length_sq(v2_sub(slimePos, otherSlimePos)) < SQUARED(radiusScaled) && zDist < radiusScaled) {
@@ -218,7 +218,7 @@ void World::Sim(double now, double dt, const PlayerControllerState input, World 
                             const Slime &dead = slime.m_combat.hitPoints == 0.0f ? slime : otherSlime;
                             const Vector3 slimeBC = sprite_world_center(dead.m_sprite, dead.m_body.position, dead.m_sprite.scale
                             );
-                            particle_effect_create(ParticleEffectType_Goo, 20, slimeBC, 2.0, now, 0);
+                            particle_effect_create(ParticleEffectType::Goo, 20, slimeBC, 2.0, now, 0);
                         }
                     }
                     if (v2_length_sq(v2_sub(slimePosNew, otherSlimePos)) < SQUARED(radiusScaled) && zDist < radiusScaled) {
@@ -227,13 +227,13 @@ void World::Sim(double now, double dt, const PlayerControllerState input, World 
                 }
 
                 if (!willCollide && slime.Move(now, dt, slimeMove)) {
-                    SoundID squish = dlb_rand32i_range(0, 1) ? SoundID_Squish1 : SoundID_Squish2;
+                    SoundID squish = dlb_rand32i_range(0, 1) ? SoundID::Squish1 : SoundID::Squish2;
                     sound_catalog_play(squish, 1.0f + dlb_rand32f_variance(0.2f));
                 }
             }
 
             // Allow slime to attack if on the ground and close enough to the player
-            slimeToPlayer = v2_sub(body_ground_position(&world.player->m_body), body_ground_position(&slime.m_body));
+            slimeToPlayer = v2_sub(world.player->m_body.GroundPosition(), slime.m_body.GroundPosition());
             if (v2_length_sq(slimeToPlayer) <= SQUARED(slimeAttackReach)) {
                 if (slime.Attack(now, dt)) {
                     world.player->m_combat.hitPoints = MAX(
@@ -245,13 +245,13 @@ void World::Sim(double now, double dt, const PlayerControllerState input, World 
                     const double bleedDuration = 3.0;
 
                     if (now - lastBleed > bleedDuration / 3.0) {
-                        Vector3 playerGut = world.player->GetAttachPoint(Player::AttachPoint_Gut);
+                        Vector3 playerGut = world.player->GetAttachPoint(Player::AttachPoint::Gut);
                         ParticleEffect *bloodParticles = particle_effect_create(
-                            ParticleEffectType_Blood, 32, playerGut, bleedDuration, now, 0
+                            ParticleEffectType::Blood, 32, playerGut, bleedDuration, now, 0
                         );
                         if (bloodParticles) {
-                            bloodParticles->callbacks[ParticleEffectEvent_BeforeUpdate].function = BloodParticlesFollowPlayer;
-                            bloodParticles->callbacks[ParticleEffectEvent_BeforeUpdate].userData = world.player;
+                            bloodParticles->callbacks[(int)ParticleEffectEventType::BeforeUpdate].function = BloodParticlesFollowPlayer;
+                            bloodParticles->callbacks[(int)ParticleEffectEventType::BeforeUpdate].userData = world.player;
                         }
                         lastBleed = now;
                     }

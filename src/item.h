@@ -1,17 +1,17 @@
 #pragma once
 
-enum ItemType {
-    ItemType_Empty,
-    ItemType_Currency,
-    ItemType_Weapon,
-    ItemType_Count
+enum class ItemType {
+    Empty,
+    Currency,
+    Weapon,
+    Count
 };
 
-enum ItemID {
-    ItemID_Empty,
-    ItemID_Currency_Coin,
-    ItemID_Weapon_Sword,
-    ItemID_Count
+enum class ItemID {
+    Empty,
+    Currency_Coin,
+    Weapon_Sword,
+    Count
 };
 
 // TODO: Min damage, max damage, effects, etc.

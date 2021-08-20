@@ -3,15 +3,15 @@
 #include "combat.h"
 #include "sprite.h"
 
-//enum SlimeAction {
+//enum class SlimeAction {
 //    SlimeAction_None   = 0,
 //    SlimeAction_Attack = 1,
 //};
 
 struct Slime {
-    enum Action {
-        Action_None   = 0,
-        Action_Attack = 1,
+    enum class Action {
+        None   = 0,
+        Attack = 1,
     };
 
     const char *m_name;

@@ -1,6 +1,7 @@
 #pragma once
-#include "packet.h"
 #include "chat.h"
+#include "error.h"
+#include "packet.h"
 #include "zed_net.h"
 #include <cstdint>
 
@@ -22,20 +23,20 @@ struct NetworkServer {
     NetworkServerClient clients[NETWORK_SERVER_CLIENTS_MAX];
     // TODO: Could have a packet history by message type? This would allow us to only store history of important
     // messages, and/or have different buffer sizes for different types of message.
-    //PacketBuffer packetHistory[NetMessageType_Count];
+    //PacketBuffer packetHistory[Count];
     PacketBuffer packetHistory;
     ChatHistory chatHistory;
 };
 
 extern NetworkServer g_server;
 
-int  network_server_thread                  ();
-int  network_server_init                    (NetworkServer *server);
-int  network_server_open_socket             (NetworkServer *server, unsigned short port);
-void network_server_broadcast_chat_message  (const NetworkServer *server, const char *msg, size_t msgLength);
-int  network_server_listen                  (NetworkServer *server);
-void network_server_close_socket            (NetworkServer *server);
-void network_server_free                    (NetworkServer *server);
+ErrorType network_server_thread                  ();
+ErrorType network_server_init                    (NetworkServer *server);
+ErrorType network_server_open_socket             (NetworkServer *server, unsigned short port);
+void      network_server_broadcast_chat_message  (const NetworkServer *server, const char *msg, size_t msgLength);
+ErrorType network_server_listen                  (NetworkServer *server);
+void      network_server_close_socket            (NetworkServer *server);
+void      network_server_free                    (NetworkServer *server);
 
 #if 0
 int  network_packet_history_count    (const NetworkServer *server);

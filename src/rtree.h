@@ -98,17 +98,17 @@ namespace RTree {
         Chunk *head{};
     };
 
-    enum NodeType {
-        NodeType_Directory, // has children nodes
-        NodeType_Leaf       // has values
+    enum class NodeType {
+        Directory, // has children nodes
+        Leaf       // has values
     };
 
     // Note: We could also support additional search modes:
     // - CompareContained     // return entries containted by the search AABB
     // - CompareContains      // return entries which contain the search AABB
     // As well as range deletion (delete all nodes which meet the comparison constraint)
-    enum CompareMode {
-        CompareMode_Overlap
+    enum class CompareMode {
+        Overlap
     };
 
     // "R-Trees - A Dynamic Index Structure for Spatial Searching"
@@ -133,8 +133,8 @@ namespace RTree {
         //struct Entry {
         //    AABB bounds;
         //    union {
-        //        Node *child;  // NodeType_Directory
-        //        void *udata;  // NodeType_Leaf
+        //        Node *child;  // NodeType::Directory
+        //        void *udata;  // NodeType::Leaf
         //    };
         //};
 
@@ -155,7 +155,7 @@ namespace RTree {
         RTree()
         {
             root = nodes.Alloc();
-            root->type = NodeType_Leaf;
+            root->type = NodeType::Leaf;
         }
 
         template<typename T>
@@ -192,7 +192,7 @@ namespace RTree {
                 return false;  // Entry not found
             }
 
-            assert(leaf->type == NodeType_Leaf);
+            assert(leaf->type == NodeType::Leaf);
             assert(leaf->count > 0);
 
             size_t i = 0;
@@ -219,7 +219,7 @@ namespace RTree {
             if (root->count == 1) {
                 Node<T> *oldRoot = root;
                 root = root->children[0];
-                if (oldRoot->type == NodeType_Leaf) {
+                if (oldRoot->type == NodeType::Leaf) {
                     for (size_t j = 0; j < oldRoot->count; j++) {
                         entries.Free(oldRoot->entries[j]);
                     }
@@ -245,17 +245,17 @@ namespace RTree {
             for (size_t i = 0; i < node.count; i++) {
                 bool passCompare = false;
                 switch (compareMode) {
-                    case CompareMode_Overlap: {
+                    case CompareMode::Overlap: {
                         passCompare = node.aabbs[i]->intersects(aabb);
                         break;
                     }
                 }
                 if (passCompare) {
                     switch (node.type) {
-                        case NodeType_Directory:
+                        case NodeType::Directory:
                             SearchNode(*node.children[i], aabb, matches, compareMode);
                             break;
-                        case NodeType_Leaf:
+                        case NodeType::Leaf:
                             matches.push_back(node.entries[i]->udata);
                             break;
                         default:
@@ -268,8 +268,9 @@ namespace RTree {
 
         Node<T> *ChooseLeaf(const Entry<T> &entry)
         {
+            assert(root);
             Node<T> *node = root;
-            while (node->type == NodeType_Directory) {
+            while (node->type == NodeType::Directory) {
                 // Find child whose bounds need least enlargement to include aabb
                 Node<T> *bestChild = 0;
                 float minEnlargementArea = FLT_MAX;
@@ -289,7 +290,7 @@ namespace RTree {
         // second new node will be created and a pointer to it will be returned
         Node<T> *SplitLeaf(Node<T> *node, Entry<T> *entry)
         {
-            assert(node->type == NodeType_Leaf);
+            assert(node->type == NodeType::Leaf);
             assert(node->count == RTREE_MAX_ENTRIES);
 
             Entry<T> *remainingEntries[RTREE_MAX_ENTRIES + 1] = {};
@@ -400,7 +401,7 @@ namespace RTree {
 
         Node<T> *SplitDirectory(Node<T> *node, Node<T> *child)
         {
-            assert(node->type == NodeType_Directory);
+            assert(node->type == NodeType::Directory);
             assert(node->count == RTREE_MAX_ENTRIES);
 
             Node<T> *remainingChildren[RTREE_MAX_ENTRIES + 1] = {};
@@ -562,7 +563,7 @@ namespace RTree {
                 assert(N && !N->parent);
                 assert(NN && !NN->parent);
                 Node<T> *newRoot = nodes.Alloc();
-                newRoot->type = NodeType_Directory;
+                newRoot->type = NodeType::Directory;
                 newRoot->count = 2;
                 newRoot->children[0] = N;
                 newRoot->children[0]->parent = newRoot;
@@ -578,7 +579,7 @@ namespace RTree {
         Node<T> *FindLeaf(Node<T> &node, const AABB &aabb, T udata)
         {
             switch (node.type) {
-                case NodeType_Directory: {
+                case NodeType::Directory: {
                     for (size_t i = 0; i < node.count; i++) {
                         if (aabb.intersects(node.entries[i]->bounds)) {
                             Node<T> *result = FindLeaf(*node.children[i], aabb, udata);
@@ -589,7 +590,7 @@ namespace RTree {
                     }
                     break;
                 }
-                case NodeType_Leaf: {
+                case NodeType::Leaf: {
                     for (size_t i = 0; i < node.count; i++) {
                         if (node.entries[i]->udata == udata) {
                             return &node;
@@ -618,13 +619,13 @@ namespace RTree {
             };
             assert(level < ARRAY_SIZE(colors));
             switch (node.type) {
-                case NodeType_Directory: {
+                case NodeType::Directory: {
                     for (size_t i = 0; i < node.count; i++) {
                         DrawNode(*node.children[i], level + 1);
                     }
                     break;
                 }
-                case NodeType_Leaf: {
+                case NodeType::Leaf: {
                     for (size_t i = 0; i < node.count; i++) {
                         Entry<T> *entry = node.entries[i];
                         DrawRectangleLinesEx(entry->bounds.toRect(), level + 4, WHITE);

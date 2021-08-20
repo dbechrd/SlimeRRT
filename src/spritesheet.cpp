@@ -51,12 +51,12 @@
     FILENAME
 
 
-enum TokenType {
-    TOK_UNKNOWN,
-    TOK_ANIMATION,
-    TOK_FRAME,
-    TOK_SPRITESHEET,
-    TOK_SPRITE,
+enum class TokenType {
+    Unknown,
+    Animation,
+    Frame,
+    Spritesheet,
+    Sprite,
 };
 
 struct Token {
@@ -295,13 +295,13 @@ TokenType Scanner::GetIdentifierType(StringView tok)
     assert(tok.length);
     assert(tok.text);
 
-    TokenType type = TOK_UNKNOWN;
+    TokenType type = TokenType::Unknown;
 
     // TODO: Hash table
-    if      (!strncmp(tok.text, "animation",   tok.length)) { type = TOK_ANIMATION;   }
-    else if (!strncmp(tok.text, "frame",       tok.length)) { type = TOK_FRAME;       }
-    else if (!strncmp(tok.text, "sprite",      tok.length)) { type = TOK_SPRITE;      }
-    else if (!strncmp(tok.text, "spritesheet", tok.length)) { type = TOK_SPRITESHEET; }
+    if      (!strncmp(tok.text, "animation",   tok.length)) { type = TokenType::Animation;   }
+    else if (!strncmp(tok.text, "frame",       tok.length)) { type = TokenType::Frame;       }
+    else if (!strncmp(tok.text, "sprite",      tok.length)) { type = TokenType::Sprite;      }
+    else if (!strncmp(tok.text, "spritesheet", tok.length)) { type = TokenType::Spritesheet; }
 
     return type;
 }
@@ -311,7 +311,7 @@ Token Scanner::ParseIdentifier()
     Token tok{};
     tok.token = ConsumeString_Alpha();
     tok.type = GetIdentifierType(tok.token);
-    if (tok.type == TOK_UNKNOWN) {
+    if (tok.type == TokenType::Unknown) {
         // TODO: Report better error info (line/column)
         TraceLog(LOG_ERROR, "Encountered unrecognized tokifer '%.*s' in file '%s'.\n", tok.token.length,
             tok.token.text, fileName);
@@ -490,12 +490,12 @@ bool Scanner::ParseSprite(SpriteDef &sprite)
     }
 
     // directional animations
-    for (int i = 0; i < Direction_Count; i++) {
+    for (int i = 0; i < (int)Direction::Count; i++) {
         DiscardWhitespaceNewlinesComments();
         if (DiscardChar('-')) {
             sprite.animations[i] = -1;
         } else if (!ConsumePositiveInt(&sprite.animations[i])) {
-            TraceLog(LOG_ERROR, "'%s': Expected an animation index for each of the %d directions.\n" USAGE, fileName, (int)Direction_Count);
+            TraceLog(LOG_ERROR, "'%s': Expected an animation index for each of the %d directions.\n" USAGE, fileName, (int)Direction::Count);
             return false;
         }
     }
@@ -517,13 +517,13 @@ bool Scanner::ParseSpritesheet(Spritesheet &spritesheet)
             ALPHA {
                 Token tok = ParseIdentifier();
                 switch (tok.type) {
-                    case TOK_SPRITESHEET: {
+                    case TokenType::Spritesheet: {
                         if (!ParseHeader(spritesheet)) {
                             return false;
                         }
                         break;
                     }
-                    case TOK_FRAME: {
+                    case TokenType::Frame: {
                         SpriteFrame &frame = spritesheet.frames.emplace_back();
                         if (!ParseFrame(frame)) {
                             return false;
@@ -531,7 +531,7 @@ bool Scanner::ParseSpritesheet(Spritesheet &spritesheet)
                         framesParsed++;
                         break;
                     }
-                    case TOK_ANIMATION: {
+                    case TokenType::Animation: {
                         SpriteAnim &animation = spritesheet.animations.emplace_back();
                         if (!ParseAnimation(animation)) {
                             return false;
@@ -539,7 +539,7 @@ bool Scanner::ParseSpritesheet(Spritesheet &spritesheet)
                         animationsParsed++;
                         break;
                     }
-                    case TOK_SPRITE: {
+                    case TokenType::Sprite: {
                         SpriteDef &sprite = spritesheet.sprites.emplace_back(&spritesheet);
                         if (!ParseSprite(sprite)) {
                             return false;

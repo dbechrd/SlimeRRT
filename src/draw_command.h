@@ -1,11 +1,11 @@
 #pragma once
 #include "raylib.h"
 
-enum DrawableType {
-    DrawableType_Particle,
-    DrawableType_Player,
-    DrawableType_Slime,
-    DrawableType_Count
+enum class DrawableType {
+    Particle,
+    Player,
+    Slime,
+    Count
 };
 
 struct DrawCommand {

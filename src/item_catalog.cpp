@@ -3,20 +3,20 @@
 #include "dlb_types.h"
 #include <cassert>
 
-static Item itemCatalog[ItemID_Count];
+static Item itemCatalog[(int)ItemID::Count];
 
 void item_catalog_init()
 {
     // TODO: Load items from file
-    itemCatalog[ItemID_Empty        ] = { ItemID_Empty        ,   1, ItemType_Empty    };
-    itemCatalog[ItemID_Currency_Coin] = { ItemID_Currency_Coin, 999, ItemType_Currency };
-    itemCatalog[ItemID_Weapon_Sword ] = { ItemID_Weapon_Sword ,   1, ItemType_Weapon   };
-    itemCatalog[ItemID_Weapon_Sword ].data.weapon.damage = 5.0f;
+    itemCatalog[(int)ItemID::Empty        ] = { ItemID::Empty        ,   1, ItemType::Empty    };
+    itemCatalog[(int)ItemID::Currency_Coin] = { ItemID::Currency_Coin, 999, ItemType::Currency };
+    itemCatalog[(int)ItemID::Weapon_Sword ] = { ItemID::Weapon_Sword ,   1, ItemType::Weapon   };
+    itemCatalog[(int)ItemID::Weapon_Sword ].data.weapon.damage = 5.0f;
 }
 
 const Item& item_catalog_find(ItemID id)
 {
     // TODO: Return null if invalid id?
-    assert(id < ARRAY_SIZE(itemCatalog));
-    return itemCatalog[id];
+    assert((int)id < ARRAY_SIZE(itemCatalog));
+    return itemCatalog[(int)id];
 }

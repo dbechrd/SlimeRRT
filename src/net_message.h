@@ -39,25 +39,25 @@ struct NetMessage_PlayerInput {
 #endif
 
 struct NetMessage {
-    enum NetMessageType {
-        NetMessageType_Unknown,
-        NetMessageType_Identify,
-        NetMessageType_Welcome,
-        NetMessageType_ChatMessage,
-        NetMessageType_PlayerState,
-        NetMessageType_Count
+    enum class Type {
+        Unknown,
+        Identify,
+        Welcome,
+        ChatMessage,
+        PlayerState,
+        Count
     };
 
     // TODO: sequence number
     //size_t sequenceNumber;
-    NetMessageType m_type = NetMessageType_Unknown;
+    Type m_type = Type::Unknown;
 
     size_t Serialize(uint32_t *buffer, size_t bufferLength) const;
     static NetMessage &Deserialize(uint32_t *buffer, size_t bufferLength);
 
 protected:
     NetMessage() = delete;
-    NetMessage(NetMessageType type) : m_type(type) {};
+    NetMessage(Type type) : m_type(type) {};
 
     virtual void Serialize(BitStreamWriter &writer) const;
     virtual void Deserialize(BitStreamReader &reader) = 0;
@@ -70,7 +70,7 @@ struct NetMessage_Identify : public NetMessage {
     //size_t passwordLength;
     //const char *password;
 
-    NetMessage_Identify() : NetMessage(NetMessageType_Identify) {};
+    NetMessage_Identify() : NetMessage(Type::Identify) {};
     using NetMessage::Serialize;
 
 protected:
@@ -81,7 +81,7 @@ protected:
 struct NetMessage_Welcome : public NetMessage  {
     //size_t unused;
 
-    NetMessage_Welcome() : NetMessage(NetMessageType_Welcome) {};
+    NetMessage_Welcome() : NetMessage(Type::Welcome) {};
     using NetMessage::Serialize;
 
 protected:
@@ -95,7 +95,7 @@ struct NetMessage_ChatMessage : public NetMessage  {
     size_t       m_messageLength  = 0;
     const char * m_message        = 0;
 
-    NetMessage_ChatMessage() : NetMessage(NetMessageType_ChatMessage) {};
+    NetMessage_ChatMessage() : NetMessage(Type::ChatMessage) {};
     using NetMessage::Serialize;
 
 protected:

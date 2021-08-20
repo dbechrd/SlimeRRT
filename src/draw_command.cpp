@@ -27,15 +27,15 @@ static float draw_command_depth(const DrawCommand *cmd)
 {
     float depth = 0.0f;
     switch (cmd->type) {
-        case DrawableType_Particle: {
+        case DrawableType::Particle: {
             depth = particle_depth((const Particle *)cmd->drawable);
             break;
         }
-        case DrawableType_Player: {
+        case DrawableType::Player: {
             depth = ((const Player *)cmd->drawable)->Depth();
             break;
         }
-        case DrawableType_Slime: {
+        case DrawableType::Slime: {
             depth = ((const Slime *)cmd->drawable)->Depth();
             break;
         }
@@ -61,15 +61,15 @@ static bool draw_command_cull(const DrawCommand *cmd)
     bool cull = false;
 
     switch (cmd->type) {
-        case DrawableType_Particle: {
+        case DrawableType::Particle: {
             cull = particle_cull((const Particle *)cmd->drawable, cullRect);
             break;
         }
-        case DrawableType_Player: {
+        case DrawableType::Player: {
             cull = ((const Player *)cmd->drawable)->Cull(cullRect);
             break;
         }
-        case DrawableType_Slime: {
+        case DrawableType::Slime: {
             cull = ((const Slime *)cmd->drawable)->Cull(cullRect);
             break;
         }
@@ -97,7 +97,7 @@ void draw_command_push(DrawableType type, const void *drawable)
     // TODO: Research quad tree vs. AABB
 
     switch (type) {
-        case DrawableType_Particle: {
+        case DrawableType::Particle: {
 #if 0
             sortedCommands[commandCount] = cmd;
 #endif
@@ -123,15 +123,15 @@ void draw_command_push(DrawableType type, const void *drawable)
 static void draw_command_draw(const DrawCommand *cmd)
 {
     switch (cmd->type) {
-        case DrawableType_Particle: {
+        case DrawableType::Particle: {
             particle_draw((const Particle *)cmd->drawable);
             break;
         }
-        case DrawableType_Player: {
+        case DrawableType::Player: {
             ((const Player *)cmd->drawable)->Draw();
             break;
         }
-        case DrawableType_Slime: {
+        case DrawableType::Slime: {
             ((const Slime *)cmd->drawable)->Draw();
             break;
         }
