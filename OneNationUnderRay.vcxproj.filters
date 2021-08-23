@@ -34,6 +34,7 @@
     <ClCompile Include="src\error.cpp" />
     <ClCompile Include="src\maths.cpp" />
     <ClCompile Include="src\net_message.cpp" />
+    <ClCompile Include="src\drawable.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\bit_stream.h" />
@@ -69,5 +70,6 @@
     <ClInclude Include="test\maths_test.h" />
     <ClInclude Include="src\error.h" />
     <ClInclude Include="src\net_message.h" />
+    <ClInclude Include="src\drawable.h" />
   </ItemGroup>
 </Project>

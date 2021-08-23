@@ -10,6 +10,7 @@
 #include <cstdio>
 #include <cstring>
 #include <ctime>
+#include <new>
 
 #define SERVER_USERNAME "SERVER"
 static const char *LOG_SRC = "NetworkServer";
@@ -35,6 +36,9 @@ E_START
 
     server->packetHistory.capacity = NETWORK_SERVER_PACKET_HISTORY_MAX;
     server->packetHistory.packets = (Packet *)calloc(server->packetHistory.capacity, sizeof(*server->packetHistory.packets));
+    for (size_t i = 0; i < server->packetHistory.capacity; i++) {
+        new(server->packetHistory.packets + i) Packet{};
+    }
     E_CHECK_ALLOC(server->packetHistory.packets, "Failed to allocate packet history buffer");
     E_CHECK(server->chatHistory.Init());
 E_CLEAN_END
@@ -107,10 +111,10 @@ static void network_server_broadcast(const NetworkServer *server, const NetMessa
 void network_server_broadcast_chat_message(const NetworkServer *server, const char *msg, size_t msgLength)
 {
     NetMessage_ChatMessage netMsg{};
-    netMsg.m_username = SERVER_USERNAME;
-    netMsg.m_usernameLength = sizeof(SERVER_USERNAME) - 1;
-    netMsg.m_message = msg;
-    netMsg.m_messageLength = msgLength;
+    netMsg.username = SERVER_USERNAME;
+    netMsg.usernameLength = sizeof(SERVER_USERNAME) - 1;
+    netMsg.message = msg;
+    netMsg.messageLength = msgLength;
     network_server_broadcast(server, netMsg);
 }
 
@@ -134,10 +138,10 @@ static int network_server_send_welcome_basket(const NetworkServer *server, Netwo
         size_t messageLength = strlen(message);
 
         NetMessage_ChatMessage userJoinedNotification{};
-        userJoinedNotification.m_username = "SERVER";
-        userJoinedNotification.m_usernameLength = sizeof("SERVER") - 1;
-        userJoinedNotification.m_messageLength = messageLength;
-        userJoinedNotification.m_message = message;
+        userJoinedNotification.username = "SERVER";
+        userJoinedNotification.usernameLength = sizeof("SERVER") - 1;
+        userJoinedNotification.messageLength = messageLength;
+        userJoinedNotification.message = message;
         network_server_broadcast(server, userJoinedNotification);
     }
 
@@ -148,18 +152,18 @@ static void network_server_process_message(NetworkServer *server, NetworkServerC
 {
     packet->message = &NetMessage::Deserialize((uint32_t *)packet->rawBytes, sizeof(packet->rawBytes));
 
-    switch (packet->message->m_type) {
+    switch (packet->message->type) {
         case NetMessage::Type::Identify: {
             NetMessage_Identify &identMsg = static_cast<NetMessage_Identify &>(*packet->message);
-            client->usernameLength = MIN(identMsg.m_usernameLength, USERNAME_LENGTH_MAX);
-            memcpy(client->username, identMsg.m_username, client->usernameLength);
+            client->usernameLength = MIN(identMsg.usernameLength, USERNAME_LENGTH_MAX);
+            memcpy(client->username, identMsg.username, client->usernameLength);
             break;
         } case NetMessage::Type::ChatMessage: {
             NetMessage_ChatMessage &chatMsg = static_cast<NetMessage_ChatMessage &>(*packet->message);
 
             // TODO(security): Validate some session token that's not known to other people to prevent impersonation
-            //assert(chatMsg.m_usernameLength == client->usernameLength);
-            //assert(!strncmp(chatMsg.m_username, client->username, client->usernameLength));
+            //assert(chatMsg.usernameLength == client->usernameLength);
+            //assert(!strncmp(chatMsg.username, client->username, client->usernameLength));
 
             // Store chat message in chat history
             server->chatHistory.PushNetMessage(chatMsg);
@@ -277,7 +281,7 @@ void network_server_free(NetworkServer *server)
     network_server_close_socket(server);
     free(server->packetHistory.packets);
     free(server->chatHistory.messages);
-    memset(server, 0, sizeof(*server));
+    //memset(server, 0, sizeof(*server));
 }
 
 #if 0

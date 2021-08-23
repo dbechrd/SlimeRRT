@@ -7,87 +7,31 @@
 #include <cstring>
 #include <vector>
 
-static std::vector<DrawCommand> sortedCommands;
-static bool cullEnabled;
-static Rectangle cullRect;
-
-void draw_commands_init(void)
+DrawCommand &DrawCommand::operator=(const DrawCommand &other)
 {
-    // HACK: reserve enough draw commands for worst case
-    // TODO: dynamically grow command list
-    const size_t MAX_PLAYERS = 1;
-}
-
-void draw_commands_free(void)
-{
-    sortedCommands.clear();
-}
-
-static float draw_command_depth(const DrawCommand *cmd)
-{
-    float depth = 0.0f;
-    switch (cmd->type) {
-        case DrawableType::Particle: {
-            depth = particle_depth((const Particle *)cmd->drawable);
-            break;
-        }
-        case DrawableType::Player: {
-            depth = ((const Player *)cmd->drawable)->Depth();
-            break;
-        }
-        case DrawableType::Slime: {
-            depth = ((const Slime *)cmd->drawable)->Depth();
-            break;
-        }
+    if (this != &other) {
+        drawable = other.drawable;
     }
-    return depth;
+    return *this;
 }
 
-void draw_commands_enable_culling(const Rectangle rect)
+void DrawList::EnableCulling(const Rectangle rect)
 {
     cullRect = rect;
     cullEnabled = true;
 }
 
-void draw_commands_disable_culling(void)
+void DrawList::DisableCulling(void)
 {
     cullRect = {};
     assert(cullRect.width == 0);
     cullEnabled = false;
 }
 
-static bool draw_command_cull(const DrawCommand *cmd)
+void DrawList::Push(const Drawable &drawable)
 {
-    bool cull = false;
-
-    switch (cmd->type) {
-        case DrawableType::Particle: {
-            cull = particle_cull((const Particle *)cmd->drawable, cullRect);
-            break;
-        }
-        case DrawableType::Player: {
-            cull = ((const Player *)cmd->drawable)->Cull(cullRect);
-            break;
-        }
-        case DrawableType::Slime: {
-            cull = ((const Slime *)cmd->drawable)->Cull(cullRect);
-            break;
-        }
-    }
-
-    return cull;
-}
-
-void draw_command_push(DrawableType type, const void *drawable)
-{
-    assert(drawable);
-
-    DrawCommand cmd = {};
-    cmd.type = type;
-    cmd.drawable = drawable;
-
 #if CULL_ON_PUSH
-    if (cullEnabled && draw_command_cull(&cmd)) {
+    if (cullEnabled && drawable.Cull(cullRect)) {
         return;
     }
 #endif
@@ -96,49 +40,22 @@ void draw_command_push(DrawableType type, const void *drawable)
     // TODO: Only sort items that are in the same broadphase cell
     // TODO: Research quad tree vs. AABB
 
-    switch (type) {
-        case DrawableType::Particle: {
-#if 0
-            sortedCommands[commandCount] = cmd;
-#endif
+    size_t size = sortedCommands.size();
+    sortedCommands.resize(size + 1);
+    const float depthA = drawable.Depth();
+    int j;
+    // NOTE: j is signed because it terminates at -1
+    for (j = (int)size - 1; j >= 0; j--) {
+        const float depthB = sortedCommands[j].drawable->Depth();
+        if (depthB <= depthA) {
+            break;
         }
-        default: {
-            size_t size = sortedCommands.size();
-            sortedCommands.resize(size + 1);
-            const float depthA = draw_command_depth(&cmd);
-            int j;
-            // NOTE: j is signed because it terminates at -1
-            for (j = (int)size - 1; j >= 0; j--) {
-                const float depthB = draw_command_depth(&sortedCommands[j]);
-                if (depthB <= depthA) {
-                    break;
-                }
-                sortedCommands[(size_t)j + 1] = sortedCommands[j];
-            }
-            sortedCommands[(size_t)j + 1] = cmd;
-        }
+        sortedCommands[(size_t)j + 1] = sortedCommands[j];
     }
+    sortedCommands[(size_t)j + 1].drawable = &drawable;
 }
 
-static void draw_command_draw(const DrawCommand *cmd)
-{
-    switch (cmd->type) {
-        case DrawableType::Particle: {
-            particle_draw((const Particle *)cmd->drawable);
-            break;
-        }
-        case DrawableType::Player: {
-            ((const Player *)cmd->drawable)->Draw();
-            break;
-        }
-        case DrawableType::Slime: {
-            ((const Slime *)cmd->drawable)->Draw();
-            break;
-        }
-    }
-}
-
-void draw_commands_flush(void)
+void DrawList::Flush()
 {
     if (sortedCommands.empty()) {
         return;
@@ -146,11 +63,11 @@ void draw_commands_flush(void)
 
     for (const DrawCommand &cmd : sortedCommands) {
 #if !CULL_ON_PUSH
-        if (!cullEnabled || !draw_command_cull(cmd)) {
-            draw_command_draw(cmd);
+        if (!cullEnabled || !cmd.drawable.Cull()) {
+            cmd.drawable->Draw();
         }
 #else
-        draw_command_draw(&cmd);
+        cmd.drawable->Draw();
 #endif
     }
 

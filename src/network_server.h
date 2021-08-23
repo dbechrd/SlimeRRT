@@ -10,22 +10,22 @@
 #define NETWORK_SERVER_PACKET_HISTORY_MAX 256
 
 struct NetworkServerClient {
-    zed_net_address_t address;
-    double last_packet_received_at;
-    size_t usernameLength;
-    char username[USERNAME_LENGTH_MAX];
+    zed_net_address_t address                       {};
+    double            last_packet_received_at       {};
+    size_t            usernameLength                {};
+    char              username[USERNAME_LENGTH_MAX] {};
 };
 
 struct NetworkServer {
-    unsigned short port;
-    zed_net_socket_t socket;
-    size_t clientsConnected;
-    NetworkServerClient clients[NETWORK_SERVER_CLIENTS_MAX];
+    unsigned short      port             {};
+    zed_net_socket_t    socket           {};
+    size_t              clientsConnected {};
+    NetworkServerClient clients[NETWORK_SERVER_CLIENTS_MAX]{};
     // TODO: Could have a packet history by message type? This would allow us to only store history of important
     // messages, and/or have different buffer sizes for different types of message.
     //PacketBuffer packetHistory[Count];
-    PacketBuffer packetHistory;
-    ChatHistory chatHistory;
+    PacketBuffer        packetHistory    {};
+    ChatHistory         chatHistory      {};
 };
 
 extern NetworkServer g_server;

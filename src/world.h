@@ -7,16 +7,16 @@
 #include <vector>
 
 struct Args {
-    bool server;
+    bool server {};
 };
 
 struct World {
-    Args args;
-    Player *player;
-    Tilemap *map;
-    std::vector<Slime> slimes;
-    uint64_t rtt_seed;
-    dlb_rand32_t rtt_rand;
+    Args               args     {};
+    Player *           player   {};
+    Tilemap *          map      {};
+    std::vector<Slime> slimes   {};
+    uint64_t           rtt_seed {};
+    dlb_rand32_t       rtt_rand {};
 
     void Sim(double now, double dt, const PlayerControllerState input, World &world, const SpriteDef *coinSpriteDef);
 };

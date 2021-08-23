@@ -6,11 +6,11 @@
 
 struct BitStream {
     // For read & write
-    uint64_t    m_scratch     = 0;  // temporary scratch buffer to hold bits until we fill a 32-bit word
-    size_t      m_scratchBits = 0;  // number of bits in scratch that are in use (i.e. not yet written / read)
-    size_t      m_wordIndex   = 0;  // index of next word in `buffer`
-    uint32_t *  m_buffer      = 0;  // buffer we're writing to / reading from
-    size_t      m_bufferBits  = 0;  // size of packet in bytes * 8
+    uint64_t    scratch     {};  // temporary scratch buffer to hold bits until we fill a 32-bit word
+    size_t      scratchBits {};  // number of bits in scratch that are in use (i.e. not yet written / read)
+    size_t      wordIndex   {};  // index of next word in `buffer`
+    uint32_t *  buffer      {};  // buffer we're writing to / reading from
+    size_t      bufferBits  {};  // size of packet in bytes * 8
 
     BitStream(uint32_t *buffer, size_t bufferLength);
 };
@@ -31,7 +31,7 @@ struct BitStreamReader : public BitStream {
     const char *BufferPtr() const;
 
 private:
-    size_t m_numBitsRead = 0; // number of bits we've read so far
+    size_t numBitsRead{}; // number of bits we've read so far
 };
 
 struct BitStreamWriter : public BitStream {
@@ -50,5 +50,5 @@ struct BitStreamWriter : public BitStream {
     size_t BytesWritten() const;
 
 private:
-    size_t m_numBitsWritten = 0; // number of bits we've written so far
+    size_t numBitsWritten{}; // number of bits we've written so far
 };

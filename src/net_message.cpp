@@ -38,7 +38,7 @@ NetMessage &NetMessage::Deserialize(uint32_t *buffer, size_t bufferLength)
 
 void NetMessage::Serialize(BitStreamWriter &writer) const
 {
-    writer.Write((int)m_type, 2);
+    writer.Write((int)type, 2);
     writer.Align();
 }
 
@@ -46,12 +46,12 @@ void NetMessage_Identify::Serialize(BitStreamWriter &writer) const
 {
     NetMessage::Serialize(writer);
 
-    assert(m_usernameLength <= USERNAME_LENGTH_MAX);
-    writer.Write((uint32_t)m_usernameLength, 5);
+    assert(usernameLength <= USERNAME_LENGTH_MAX);
+    writer.Write((uint32_t)usernameLength, 5);
     writer.Align();
 
-    for (size_t i = 0; i < m_usernameLength; i++) {
-        writer.Write(m_username[i], 8);
+    for (size_t i = 0; i < usernameLength; i++) {
+        writer.Write(username[i], 8);
     }
     writer.Flush();
 }
@@ -66,32 +66,32 @@ void NetMessage_ChatMessage::Serialize(BitStreamWriter &writer) const
 {
     NetMessage::Serialize(writer);
 
-    assert(m_usernameLength <= USERNAME_LENGTH_MAX);
-    assert(m_messageLength <= CHAT_MESSAGE_LENGTH_MAX);
-    writer.Write((uint32_t)m_usernameLength, 5);
+    assert(usernameLength <= USERNAME_LENGTH_MAX);
+    assert(messageLength <= CHAT_MESSAGE_LENGTH_MAX);
+    writer.Write((uint32_t)usernameLength, 5);
     writer.Align();
 
-    for (size_t i = 0; i < m_usernameLength; i++) {
-        writer.Write(m_username[i], 8);
+    for (size_t i = 0; i < usernameLength; i++) {
+        writer.Write(username[i], 8);
     }
 
-    writer.Write((uint32_t)m_messageLength, 9);
+    writer.Write((uint32_t)messageLength, 9);
     writer.Align();
 
-    for (size_t i = 0; i < m_messageLength; i++) {
-        writer.Write(m_message[i], 8);
+    for (size_t i = 0; i < messageLength; i++) {
+        writer.Write(message[i], 8);
     }
     writer.Flush();
 }
 
 void NetMessage_Identify::Deserialize(BitStreamReader &reader)
 {
-    m_usernameLength = reader.Read(5);
-    assert(m_usernameLength <= USERNAME_LENGTH_MAX);
+    usernameLength = reader.Read(5);
+    assert(usernameLength <= USERNAME_LENGTH_MAX);
     reader.Align();
 
-    m_username = reader.BufferPtr();
-    for (size_t i = 0; i < m_usernameLength; i++) {
+    username = reader.BufferPtr();
+    for (size_t i = 0; i < usernameLength; i++) {
         reader.Read(8);
     }
 }
@@ -103,21 +103,21 @@ void NetMessage_Welcome::Deserialize(BitStreamReader &reader)
 
 void NetMessage_ChatMessage::Deserialize(BitStreamReader &reader)
 {
-    m_usernameLength = reader.Read(5);
-    assert(m_usernameLength <= USERNAME_LENGTH_MAX);
+    usernameLength = reader.Read(5);
+    assert(usernameLength <= USERNAME_LENGTH_MAX);
     reader.Align();
 
-    m_username = reader.BufferPtr();
-    for (size_t i = 0; i < m_usernameLength; i++) {
+    username = reader.BufferPtr();
+    for (size_t i = 0; i < usernameLength; i++) {
         reader.Read(8);
     }
 
-    m_messageLength = reader.Read(9);
-    assert(m_messageLength <= CHAT_MESSAGE_LENGTH_MAX);
+    messageLength = reader.Read(9);
+    assert(messageLength <= CHAT_MESSAGE_LENGTH_MAX);
     reader.Align();
 
-    m_message = reader.BufferPtr();
-    for (size_t i = 0; i < m_messageLength; i++) {
+    message = reader.BufferPtr();
+    for (size_t i = 0; i < messageLength; i++) {
         reader.Read(8);
     }
 }

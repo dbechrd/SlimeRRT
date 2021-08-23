@@ -50,22 +50,22 @@ struct NetMessage {
 
     // TODO: sequence number
     //size_t sequenceNumber;
-    Type m_type = Type::Unknown;
+    Type type = Type::Unknown;
 
     size_t Serialize(uint32_t *buffer, size_t bufferLength) const;
     static NetMessage &Deserialize(uint32_t *buffer, size_t bufferLength);
 
 protected:
     NetMessage() = delete;
-    NetMessage(Type type) : m_type(type) {};
+    NetMessage(Type type) : type(type) {};
 
     virtual void Serialize(BitStreamWriter &writer) const;
     virtual void Deserialize(BitStreamReader &reader) = 0;
 };
 
 struct NetMessage_Identify : public NetMessage {
-    size_t       m_usernameLength = 0;
-    const char * m_username       = 0;
+    size_t       usernameLength {};
+    const char * username       {};
     // TODO: Encrypt packet
     //size_t passwordLength;
     //const char *password;
@@ -90,10 +90,10 @@ protected:
 };
 
 struct NetMessage_ChatMessage : public NetMessage  {
-    size_t       m_usernameLength = 0;
-    const char * m_username       = 0;
-    size_t       m_messageLength  = 0;
-    const char * m_message        = 0;
+    size_t       usernameLength {};
+    const char * username       {};
+    size_t       messageLength  {};
+    const char * message        {};
 
     NetMessage_ChatMessage() : NetMessage(Type::ChatMessage) {};
     using NetMessage::Serialize;

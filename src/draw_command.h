@@ -1,21 +1,22 @@
 #pragma once
+#include "drawable.h"
 #include "raylib.h"
-
-enum class DrawableType {
-    Particle,
-    Player,
-    Slime,
-    Count
-};
+#include <vector>
 
 struct DrawCommand {
-    DrawableType type;
-    const void *drawable;
+    const Drawable *drawable{};
+
+    DrawCommand &operator=(const DrawCommand &other);
 };
 
-void draw_commands_init             (void);
-void draw_commands_free             (void);
-void draw_commands_enable_culling   (const Rectangle view);                    // must be enabled before calling push()
-void draw_commands_disable_culling  (void);                                    // disable culling
-void draw_command_push              (DrawableType type, const void *drawable); // culls, queues and sorts draw calls
-void draw_commands_flush            (void);                                    // flushes command buffer
+struct DrawList {
+    void EnableCulling(const Rectangle view);  // must be enabled before calling push()
+    void DisableCulling();
+    void Push(const Drawable &drawable);
+    void Flush();
+
+private:
+    std::vector<DrawCommand> sortedCommands{};
+    bool cullEnabled{};
+    Rectangle cullRect{};
+};

@@ -6,6 +6,7 @@
 #include <cassert>
 #include <cstdlib>
 #include <cstring>
+#include <new>
 
 static const char *LOG_SRC = "Chat";
 
@@ -14,6 +15,9 @@ ErrorType ChatHistory::Init()
 E_START
     messages = (ChatMessage *)calloc(CHAT_MESSAGE_HISTORY, sizeof(*messages));
     E_CHECK_ALLOC(messages, "Failed to allocate chat message history buffer");
+    for (size_t i = 0; i < CHAT_MESSAGE_HISTORY; i++) {
+        new(messages + i) ChatMessage{};
+    }
     capacity = CHAT_MESSAGE_HISTORY;
 E_CLEAN_END
 }
@@ -32,7 +36,8 @@ ChatMessage *ChatHistory::Alloc()
         count++;
     } else {
         first = (first + 1) % capacity;
-        memset(message, 0, sizeof(*message));
+        *message = {};
+        //*message = ChatMessage();
     }
     return message;
 }
@@ -41,11 +46,11 @@ void ChatHistory::PushNetMessage(const NetMessage_ChatMessage &netChat)
 {
     ChatMessage *chat = Alloc();
 
-    assert(netChat.m_usernameLength <= USERNAME_LENGTH_MAX);
-    chat->usernameLength = MIN(netChat.m_usernameLength, USERNAME_LENGTH_MAX);
-    memcpy(chat->username, netChat.m_username, chat->usernameLength);
+    assert(netChat.usernameLength <= USERNAME_LENGTH_MAX);
+    chat->usernameLength = MIN(netChat.usernameLength, USERNAME_LENGTH_MAX);
+    memcpy(chat->username, netChat.username, chat->usernameLength);
 
-    assert(netChat.m_messageLength <= CHAT_MESSAGE_LENGTH_MAX);
-    chat->messageLength = MIN(netChat.m_messageLength, CHAT_MESSAGE_LENGTH_MAX);
-    memcpy(chat->message, netChat.m_message, chat->messageLength);
+    assert(netChat.messageLength <= CHAT_MESSAGE_LENGTH_MAX);
+    chat->messageLength = MIN(netChat.messageLength, CHAT_MESSAGE_LENGTH_MAX);
+    memcpy(chat->message, netChat.message, chat->messageLength);
 }

@@ -56,8 +56,8 @@ int network_client_connect(NetworkClient *client, const char *hostname, unsigned
     assert(client->username);
 
     NetMessage_Identify userIdent{};
-    userIdent.m_username = client->username;
-    userIdent.m_usernameLength = client->usernameLength;
+    userIdent.username = client->username;
+    userIdent.usernameLength = client->usernameLength;
 
     char rawPacket[PACKET_SIZE_MAX] = {};
     size_t rawBytes = userIdent.Serialize((uint32_t *)rawPacket, sizeof(rawPacket));
@@ -104,10 +104,10 @@ int network_client_send_chat_message(const NetworkClient *client, const char *me
     assert(client->usernameLength);
 
     NetMessage_ChatMessage chatMessage{};
-    chatMessage.m_usernameLength = client->usernameLength;
-    chatMessage.m_username = client->username;
-    chatMessage.m_messageLength = messageLengthSafe;
-    chatMessage.m_message = message;
+    chatMessage.usernameLength = client->usernameLength;
+    chatMessage.username = client->username;
+    chatMessage.messageLength = messageLengthSafe;
+    chatMessage.message = message;
 
     char rawPacket[PACKET_SIZE_MAX] = {};
     size_t rawBytes = chatMessage.Serialize((uint32_t *)rawPacket, sizeof(rawPacket));
@@ -118,7 +118,7 @@ static void network_client_process_message(NetworkClient *client, Packet *packet
 {
     packet->message = &NetMessage::Deserialize((uint32_t *)packet->rawBytes, sizeof(packet->rawBytes));
 
-    switch (packet->message->m_type) {
+    switch (packet->message->type) {
         case NetMessage::Type::Welcome: {
             // TODO: Store salt sent from server instead.. handshake stuffs
             //const char *username = "user";
@@ -131,7 +131,7 @@ static void network_client_process_message(NetworkClient *client, Packet *packet
             break;
         }
         default: {
-            TraceLog(LOG_WARNING, "[NetworkClient] Unrecognized message type: %d", packet->message->m_type);
+            TraceLog(LOG_WARNING, "[NetworkClient] Unrecognized message type: %d", packet->message->type);
             break;
         }
     }

@@ -14,6 +14,6 @@ enum class PlayerInventorySlot {
 };
 
 struct PlayerInventory {
-    PlayerInventorySlot selectedSlot;
-    ItemStack slots[(int)PlayerInventorySlot::Count];
+    PlayerInventorySlot selectedSlot{};
+    ItemStack slots[(int)PlayerInventorySlot::Count]{};
 };

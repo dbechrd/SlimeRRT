@@ -5,6 +5,7 @@
 #include "helpers.h"
 #include "draw_command.h"
 #include "dlb_rand.h"
+#include "chat.h"
 #include <cassert>
 #include <cstdlib>
 #include <cstring>
@@ -31,12 +32,19 @@ void particles_init(void)
         exit(-1);
     }
 
+    ChatMessage *a = (ChatMessage *)calloc(CHAT_MESSAGE_HISTORY, sizeof(*a));
+    for (size_t i = 0; i < CHAT_MESSAGE_HISTORY; i++) {
+        new(a + i) ChatMessage{};
+    }
+
     // Initialze intrusive free lists
     for (size_t i = 0; i < MAX_PARTICLES - 1; i++) {
+        new(particles + i) Particle{};
         particles[i].next = &particles[i + 1];
     }
     particlesFree = particles;
     for (size_t i = 0; i < MAX_EFFECTS - 1; i++) {
+        new(effects + i) ParticleEffect{};
         effects[i].next = &effects[i + 1];
     }
     effectsFree = effects;
@@ -176,7 +184,7 @@ void particles_update(double now, double dt)
             effect.particlesLeft--;
 
             // Return particle to free list
-            memset(&particle, 0, sizeof(particle));
+            particle = {};
             particle.next = particlesFree;
             particlesFree = &particle;
             particlesActiveCount--;
@@ -200,7 +208,7 @@ void particles_update(double now, double dt)
             }
 
             // Return effect to free list
-            memset(&effect, 0, sizeof(effect));
+            effect = {};
             effect.next = effectsFree;
             effectsFree = &effect;
             effectsActiveCount--;
@@ -209,27 +217,7 @@ void particles_update(double now, double dt)
     }
 }
 
-float particle_depth(const Particle *particle)
-{
-    const float depth = particle->body.position.y;
-    return depth;
-}
-
-bool particle_cull(const Particle *particle, Rectangle cullRect)
-{
-    bool cull = false;
-
-    if (particle->sprite.spriteDef) {
-        cull = sprite_cull_body(particle->sprite, particle->body, cullRect);
-    } else {
-        const Vector2 particleBC = particle->body.BottomCenter();
-        cull = !CheckCollisionCircleRec(particleBC, particle->sprite.scale, cullRect);
-    }
-
-    return cull;
-}
-
-void particles_push(void)
+void particles_push(DrawList &drawList)
 {
     assert(particlesActiveCount <= MAX_PARTICLES);
 
@@ -239,21 +227,43 @@ void particles_push(void)
         if (!particle->effect)
             continue;  // particle is dead
 
-        draw_command_push(DrawableType::Particle, particle);
+        drawList.Push(*particle);
         particlesPushed++;
     }
 }
 
-void particle_draw(const Particle *particle)
+float Particle::Depth() const
 {
-    if (particle->sprite.spriteDef) {
-        sprite_draw_body(particle->sprite, particle->body, particle->color);
-    } else {
+    const float depth = body.position.y;
+    return depth;
+}
+
+bool Particle::Cull(const Rectangle &cullRect) const
+{
+    bool cull = false;
+
+    if (sprite.spriteDef) {
+        cull = sprite_cull_body(sprite, body, cullRect);
+    }
+    else {
+        const Vector2 particleBC = body.BottomCenter();
+        cull = !CheckCollisionCircleRec(particleBC, sprite.scale, cullRect);
+    }
+
+    return cull;
+}
+
+void Particle::Draw() const
+{
+    if (sprite.spriteDef) {
+        sprite_draw_body(sprite, body, color);
+    }
+    else {
         DrawCircle(
-            (int)particle->body.position.x,
-            (int)(particle->body.position.y - particle->body.position.z),
-            particle->sprite.scale,
-            particle->color
+            (int)body.position.x,
+            (int)(body.position.y - body.position.z),
+            sprite.scale,
+            color
         );
     }
 }

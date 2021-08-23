@@ -5,11 +5,11 @@
 
 struct Sprite {
 public:
-    const SpriteDef *spriteDef;
-    float scale;
-    Direction direction;
-    size_t animFrameIdx;
-    double lastAnimFrameStarted;
+    const SpriteDef * spriteDef            {};
+    float             scale                {};
+    Direction         direction            {};
+    size_t            animFrameIdx         {};
+    double            lastAnimFrameStarted {};
 };
 
 const SpriteAnim  &sprite_anim             (const Sprite &sprite);

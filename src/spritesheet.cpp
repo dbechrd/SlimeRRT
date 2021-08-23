@@ -570,7 +570,7 @@ bool Scanner::ParseSpritesheet(Spritesheet &spritesheet)
     return true;
 }
 
-SpriteDef::SpriteDef(const Spritesheet *spritesheet) : SpriteDef()
+SpriteDef::SpriteDef(const Spritesheet *spritesheet)
 {
     this->spritesheet = spritesheet;
 }

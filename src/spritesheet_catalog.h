@@ -11,7 +11,7 @@ enum class SpritesheetID {
 
 struct SpritesheetCatalog
 {
-    Spritesheet spritesheets[(int)SpritesheetID::Count];
+    Spritesheet spritesheets[(int)SpritesheetID::Count]{};
 
     void Load();
 };

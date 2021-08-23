@@ -84,16 +84,16 @@ namespace RTree {
 
     private:
         struct ChunkMetadata {
-            struct Chunk *chunk;
+            struct Chunk *chunk{};
         };
         struct ChunkEntry {
-            T data;
-            ChunkMetadata metadata;
+            T data{};
+            ChunkMetadata metadata{};
         };
         struct Chunk {
-            ChunkEntry entries[ChunkSize];
-            std::bitset<ChunkSize> in_use;
-            Chunk *next;
+            ChunkEntry entries[ChunkSize]{};
+            std::bitset<ChunkSize> in_use{};
+            Chunk *next{};
         };
         Chunk *head{};
     };
@@ -125,8 +125,8 @@ namespace RTree {
         // **MUST** start with AABB
         template<typename T>
         struct Entry {
-            AABB bounds;
-            T udata;
+            AABB bounds {};
+            T    udata  {};
         };
 
         //struct Node;
@@ -141,15 +141,15 @@ namespace RTree {
         // **MUST** start with AABB
         template<typename T>
         struct Node {
-            AABB bounds;
-            NodeType type;
-            size_t count;
+            AABB     bounds {};
+            NodeType type   {};
+            size_t   count  {};
             union {
                 AABB *aabbs[RTREE_MAX_ENTRIES];
                 Node *children[RTREE_MAX_ENTRIES];
                 Entry<T> *entries[RTREE_MAX_ENTRIES];
             };
-            Node<T> *parent;
+            Node<T> *parent{};
         };
 
         RTree()
@@ -234,10 +234,10 @@ namespace RTree {
             DrawNode(*root, 0);
         }
 
-        Node<T> *root;
+        Node<T> *root{};
     private:
-        ChunkAllocator<Node<T>, 16> nodes;
-        ChunkAllocator<Entry<T>, 16> entries;
+        ChunkAllocator<Node<T>, 16>  nodes   {};
+        ChunkAllocator<Entry<T>, 16> entries {};
 
         template<typename T>
         void SearchNode(const Node<T> &node, const AABB &aabb, std::vector<T> &matches, CompareMode compareMode) const

@@ -1,6 +1,7 @@
 #pragma once
 #include "body.h"
 #include "combat.h"
+#include "drawable.h"
 #include "sprite.h"
 
 //enum class SlimeAction {
@@ -8,29 +9,28 @@
 //    SlimeAction_Attack = 1,
 //};
 
-struct Slime {
+struct Slime : public Drawable {
     enum class Action {
         None   = 0,
         Attack = 1,
     };
 
-    const char *m_name;
-    Body3D m_body;
-    Combat m_combat;
-    Sprite m_sprite;
-    Action m_action;
-    double m_randJumpIdle;
+    const char *name         {};
+    Body3D      body         {};
+    Combat      combat       {};
+    Action      action       {};
+    double      randJumpIdle {};
 
-    Slime(const char *name, const SpriteDef &spriteDef);
+    Slime(const char *slimeName, const SpriteDef &spriteDef);
+
+    float Depth() const override;
+    bool Cull(const Rectangle &cullRect) const override;
+    void Draw() const override;
 
     bool Move(double now, double dt, Vector2 offset);
     bool Combine(Slime &other);
     bool Attack(double now, double dt);
     void Update(double now, double dt);
-    float Depth() const;
-    bool Cull(const Rectangle &cullRect) const;
-    void Push() const;
-    void Draw() const;
 
 private:
     Slime() = default;

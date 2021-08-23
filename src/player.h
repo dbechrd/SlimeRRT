@@ -1,10 +1,11 @@
 #pragma once
 #include "body.h"
 #include "combat.h"
+#include "drawable.h"
 #include "sprite.h"
 #include "player_inventory.h"
 
-struct Player {
+struct Player : public Drawable {
     enum class MoveState {
         Idle      = 0,
         Walking   = 1,
@@ -21,24 +22,27 @@ struct Player {
     };
 
     struct Stats {
-        unsigned int coinsCollected;
-        float damageDealt;
-        float kmWalked;
-        unsigned int slimesSlain;
-        unsigned int timesFistSwung;
-        unsigned int timesSwordSwung;
+        uint32_t coinsCollected  {};
+        float    damageDealt     {};
+        float    kmWalked        {};
+        uint32_t slimesSlain     {};
+        uint32_t timesFistSwung  {};
+        uint32_t timesSwordSwung {};
     };
 
-    const char *    m_name;
-    ActionState     m_actionState;
-    MoveState       m_moveState;
-    Body3D          m_body;
-    Combat          m_combat;
-    Sprite          m_sprite;
-    PlayerInventory m_inventory;
-    Stats           m_stats;
+    const char *    name        {};
+    ActionState     actionState {};
+    MoveState       moveState   {};
+    Body3D          body        {};
+    Combat          combat      {};
+    PlayerInventory inventory   {};
+    Stats           stats       {};
 
-    Player(const char *name, const SpriteDef &spriteDef);
+    Player(const char *playerName, const SpriteDef &spriteDef);
+
+    float Depth() const override;
+    bool Cull(const Rectangle &cullRect) const override;
+    void Draw() const override;
 
     Vector3 GetAttachPoint(AttachPoint attachPoint) const;
     const Item& GetSelectedItem() const;
@@ -46,10 +50,6 @@ struct Player {
     bool Move(double now, double dt, Vector2 offset);
     bool Attack(double now, double dt);
     void Update(double now, double dt);
-    float Depth() const;
-    bool Cull(const Rectangle &cullRect) const;
-    void Push() const;
-    void Draw() const;
 
 private:
     Player() = default;

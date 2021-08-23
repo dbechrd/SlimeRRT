@@ -14,28 +14,28 @@ enum class TileType {
 
 // TODO: Refactor RRT logic out into standalone file
 struct RRTVertex {
-    TileType tileType;
-    Vector2 position;
-    Rectangle textureRect;
+    TileType  tileType    {};
+    Vector2   position    {};
+    Rectangle textureRect {};
 };
 
 struct RRT {
-    size_t vertexCount;
-    RRTVertex *vertices;
+    size_t      vertexCount {};
+    RRTVertex * vertices    {};
 };
 
 struct Tile {
-    TileType tileType;
-    Vector2 position;
+    TileType tileType {};
+    Vector2  position {};
 };
 
 struct Tilemap {
-    size_t widthTiles;   // width of map in tiles
-    size_t heightTiles;  // height of map in tiles
-    size_t tileCount;    // number of tiles in the map (widthTiles * heightTiles)
-    Tile *tiles;         // array of tile data
-    Tileset *tileset;    // tileset to use for rendering
-    RRT rrt;             // "Rapidly-exploring Random Tree" data struture (used for procedural generation)
+    size_t    widthTiles  {};  // width of map in tiles
+    size_t    heightTiles {};  // height of map in tiles
+    size_t    tileCount   {};  // number of tiles in the map (widthTiles * heightTiles)
+    Tile *    tiles       {};  // array of tile data
+    Tileset * tileset     {};  // tileset to use for rendering
+    RRT       rrt         {};  // "Rapidly-exploring Random Tree" data struture (used for procedural generation)
 };
 
 bool tile_is_walkable       (const Tile *tile);   // Return true if player can walk on the tile (false if tile is null)

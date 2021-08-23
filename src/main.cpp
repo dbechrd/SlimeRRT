@@ -96,23 +96,23 @@ int main(int argc, char *argv[])
 #endif
     {
         NetMessage_ChatMessage msgWritten{};
-        msgWritten.m_username = "test username";
-        msgWritten.m_usernameLength = strlen(msgWritten.m_username);
-        msgWritten.m_message = "This is a test message";
-        msgWritten.m_messageLength = strlen(msgWritten.m_message);
+        msgWritten.username = "test username";
+        msgWritten.usernameLength = strlen(msgWritten.username);
+        msgWritten.message = "This is a test message";
+        msgWritten.messageLength = strlen(msgWritten.message);
 
         char rawPacket[PACKET_SIZE_MAX] = {};
         size_t bytes = msgWritten.Serialize((uint32_t *)rawPacket, sizeof(rawPacket));
 
         NetMessage &baseMsgRead = NetMessage::Deserialize((uint32_t *)rawPacket, bytes);
-        assert(baseMsgRead.m_type == NetMessage::Type::ChatMessage);
+        assert(baseMsgRead.type == NetMessage::Type::ChatMessage);
         NetMessage_ChatMessage &msgRead = static_cast<NetMessage_ChatMessage &>(baseMsgRead);
 
-        assert(msgRead.m_type == msgWritten.m_type);
-        assert(msgRead.m_usernameLength == msgWritten.m_usernameLength);
-        assert(!strncmp(msgRead.m_username, msgWritten.m_username, msgRead.m_usernameLength));
-        assert(msgRead.m_messageLength == msgWritten.m_messageLength);
-        assert(!strncmp(msgRead.m_message, msgWritten.m_message, msgRead.m_messageLength));
+        assert(msgRead.type == msgWritten.type);
+        assert(msgRead.usernameLength == msgWritten.usernameLength);
+        assert(!strncmp(msgRead.username, msgWritten.username, msgRead.usernameLength));
+        assert(msgRead.messageLength == msgWritten.messageLength);
+        assert(!strncmp(msgRead.message, msgWritten.message, msgRead.messageLength));
     }
 
     ////////////////////////////////////////////////////////////////////////////
@@ -131,7 +131,7 @@ int main(int argc, char *argv[])
         TraceLog(LOG_FATAL, "Failed to initialize network utilities. Error: %s\n", err);
     }
 
-    std::thread server_thread = {};
+    std::thread server_thread{};
     if (world.args.server) {
 
         // TODO: Maintain a queue of user input (broadcast chat immediately or only on tick?), and ensure tick is
@@ -140,7 +140,7 @@ int main(int argc, char *argv[])
         server_thread = std::thread(network_server_thread);
     }
 
-    NetworkClient client = {};
+    NetworkClient client{};
     strncpy(client.username, world.args.server ? "SERVER" : "client", ARRAY_SIZE(client.username));
     client.usernameLength = strnlen(client.username, ARRAY_SIZE(client.username));
     if (!network_client_init(&client)) {
@@ -188,13 +188,12 @@ int main(int argc, char *argv[])
     // NOTE: Minimum of 0.001 seems reasonable (0.0001 is still audible on max volume)
     SetMasterVolume(0.01f);
 
-    draw_commands_init();
+    DrawList drawList{};
     sound_catalog_init();
     g_spritesheetCatalog.Load();
-    item_catalog_init();
     particles_init();
 
-    Music mus_background;
+    Music mus_background{};
     mus_background = LoadMusicStream("resources/fluquor_copyright.ogg");
     mus_background.looping = true;
     PlayMusicStream(mus_background);
@@ -211,13 +210,9 @@ int main(int argc, char *argv[])
     Texture tilesetTex = LoadTexture("resources/tiles32.png");
     assert(tilesetTex.width);
 
-    Tileset tileset = {};
-    tileset_init_ex(&tileset, &tilesetTex, 32, 32, (int)TileType::Count);
-
-    {
-        Tilemap tilemap = {};
-        world.map = &tilemap;
-    }
+    Tileset tileset{ &tilesetTex, 32, 32, (int)TileType::Count };
+    Tilemap tilemap{};
+    world.map = &tilemap;
     //tilemap_generate_ex(&tilemap, 128, 128, &tileset);
     tilemap_generate_ex(world.map, &world.rtt_rand, 256, 256, &tileset);
     //tilemap_generate_ex(&tilemap, 512, 512, &tileset);
@@ -318,7 +313,7 @@ int main(int argc, char *argv[])
     assert(coinSpriteDef);
 
     Player charlie("Charlie", *charlieSpriteDef);
-    charlie.m_body.position = worldSpawn;
+    charlie.body.position = worldSpawn;
     world.player = &charlie;
 
     {
@@ -328,10 +323,11 @@ int main(int argc, char *argv[])
         const float maxX = mapPixelsX - slimeRadius;
         const float maxY = mapPixelsY - slimeRadius;
         for (size_t i = 0; i < 256; i++) {
-            world.slimes.emplace_back(nullptr, *slimeSpriteDef);
+            //world.slimes.emplace_back(nullptr, *slimeSpriteDef);
+            world.slimes.emplace_back(Slime{ nullptr, *slimeSpriteDef });
             Slime &slime = world.slimes.back();
-            slime.m_body.position.x = dlb_rand32f_range(slimeRadius, maxX);
-            slime.m_body.position.y = dlb_rand32f_range(slimeRadius, maxY);
+            slime.body.position.x = dlb_rand32f_range(slimeRadius, maxX);
+            slime.body.position.y = dlb_rand32f_range(slimeRadius, maxY);
         }
     }
 
@@ -435,10 +431,9 @@ int main(int argc, char *argv[])
             }
 
             if (cameraFollowPlayer) {
-                PlayerControllerState input{};
-                QueryPlayerController(input);
+                PlayerControllerState input = PlayerControllerState::Query();
                 world.Sim(now, dt, input, world, coinSpriteDef);
-                camera.target = charlie.m_body.GroundPosition();
+                camera.target = charlie.body.GroundPosition();
             } else {
                 const int cameraSpeed = 5;
                 if (IsKeyDown(KEY_A)) camera.target.x -= cameraSpeed / camera.zoom;
@@ -488,9 +483,9 @@ int main(int argc, char *argv[])
         const float invZoom = 1.0f / camera.zoom;
 #endif
 
-        if (charlie.m_body.idle && !IsMusicPlaying(mus_whistle)) {
+        if (charlie.body.idle && !IsMusicPlaying(mus_whistle)) {
             PlayMusicStream(mus_whistle);
-        } else if (!charlie.m_body.idle && IsMusicPlaying(mus_whistle)) {
+        } else if (!charlie.body.idle && IsMusicPlaying(mus_whistle)) {
             StopMusicStream(mus_whistle);
         }
 
@@ -574,22 +569,22 @@ int main(int argc, char *argv[])
         }
 
         {
-            draw_commands_enable_culling(cameraRect);
+            drawList.EnableCulling(cameraRect);
 
             // Queue player for drawing
-            charlie.Push();
+            drawList.Push(charlie);
 
             // Queue slimes for drawing
             for (const Slime &slime : world.slimes) {
-                if (slime.m_combat.hitPoints) {
-                    slime.Push();
+                if (slime.combat.hitPoints) {
+                    drawList.Push(slime);
                 }
             }
 
             // Queue particles for drawing
-            particles_push();
+            particles_push(drawList);
 
-            draw_commands_flush();
+            drawList.Flush();
         }
 
 #if DEMO_VIEW_RTREE
@@ -724,20 +719,20 @@ int main(int argc, char *argv[])
                 text = TextFormat("%2i fps (%.02f ms)", GetFPS(), GetFrameTime() * 1000.0f);
             }
             PUSH_TEXT(text, WHITE);
-            text = TextFormat("Coins: %d", charlie.m_inventory.slots[(int)PlayerInventorySlot::Coins].stackCount);
+            text = TextFormat("Coins: %d", charlie.inventory.slots[(int)PlayerInventorySlot::Coins].stackCount);
             PUSH_TEXT(text, YELLOW);
 
-            text = TextFormat("Coins collected   %u", charlie.m_stats.coinsCollected);
+            text = TextFormat("Coins collected   %u", charlie.stats.coinsCollected);
             PUSH_TEXT(text, LIGHTGRAY);
-            text = TextFormat("Damage dealt      %.2f", charlie.m_stats.damageDealt);
+            text = TextFormat("Damage dealt      %.2f", charlie.stats.damageDealt);
             PUSH_TEXT(text, LIGHTGRAY);
-            text = TextFormat("Kilometers walked %.2f", charlie.m_stats.kmWalked);
+            text = TextFormat("Kilometers walked %.2f", charlie.stats.kmWalked);
             PUSH_TEXT(text, LIGHTGRAY);
-            text = TextFormat("Slimes slain      %u", charlie.m_stats.slimesSlain);
+            text = TextFormat("Slimes slain      %u", charlie.stats.slimesSlain);
             PUSH_TEXT(text, LIGHTGRAY);
-            text = TextFormat("Times fist swung  %u", charlie.m_stats.timesFistSwung);
+            text = TextFormat("Times fist swung  %u", charlie.stats.timesFistSwung);
             PUSH_TEXT(text, LIGHTGRAY);
-            text = TextFormat("Times sword swung %u", charlie.m_stats.timesSwordSwung);
+            text = TextFormat("Times sword swung %u", charlie.stats.timesSwordSwung);
             PUSH_TEXT(text, LIGHTGRAY);
 
 #if SHOW_DEBUG_STATS
@@ -941,13 +936,11 @@ int main(int argc, char *argv[])
     zed_net_shutdown();
 #endif
     tilemap_free(world.map);
-    tileset_free(&tileset);
     UnloadTexture(minimapTex);
     UnloadTexture(tilesetTex);
     UnloadTexture(checkboardTexture);
     sound_catalog_free();
     particles_free();
-    draw_commands_free();
     UnloadMusicStream(mus_whistle);
     UnloadMusicStream(mus_background);
     CloseAudioDevice();

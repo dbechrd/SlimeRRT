@@ -3,7 +3,7 @@
 #include "dlb_types.h"
 #include <cassert>
 
-SpritesheetCatalog g_spritesheetCatalog;
+SpritesheetCatalog g_spritesheetCatalog{};
 
 void SpritesheetCatalog::Load()
 {

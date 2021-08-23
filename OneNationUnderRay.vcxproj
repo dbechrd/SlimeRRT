@@ -15,6 +15,7 @@
     <ClCompile Include="src\body.cpp" />
     <ClCompile Include="src\chat.cpp" />
     <ClCompile Include="src\controller.cpp" />
+    <ClCompile Include="src\drawable.cpp" />
     <ClCompile Include="src\draw_command.cpp" />
     <ClCompile Include="src\error.cpp" />
     <ClCompile Include="src\healthbar.cpp" />
@@ -52,6 +53,7 @@
     <ClInclude Include="src\combat.h" />
     <ClInclude Include="src\controller.h" />
     <ClInclude Include="src\direction.h" />
+    <ClInclude Include="src\drawable.h" />
     <ClInclude Include="src\draw_command.h" />
     <ClInclude Include="src\error.h" />
     <ClInclude Include="src\healthbar.h" />

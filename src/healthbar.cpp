@@ -1,5 +1,6 @@
 #include "healthbar.h"
 #include <cmath>
+#include <cassert>
 
 Font HealthBar::s_font;
 
@@ -10,6 +11,8 @@ void HealthBar::SetFont(const Font font)
 
 void HealthBar::Draw(int fontSize, const Sprite &sprite, const Body3D &body, float hitPoints, float maxHitPoints)
 {
+    assert(HealthBar::s_font.baseSize);
+
     Vector3 topCenter = sprite_world_top_center(sprite, body.position, sprite.scale);
     float x = topCenter.x;
     float y = (topCenter.y - topCenter.z) - 10.0f;
