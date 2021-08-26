@@ -27,21 +27,23 @@ struct RRT {
 struct Tile {
     TileType tileType {};
     Vector2  position {};
+
+    bool IsWalkable() const {
+        return tileType != TileType::Water;
+    }
 };
 
 struct Tilemap {
-    size_t    widthTiles  {};  // width of map in tiles
-    size_t    heightTiles {};  // height of map in tiles
-    size_t    tileCount   {};  // number of tiles in the map (widthTiles * heightTiles)
-    Tile *    tiles       {};  // array of tile data
-    Tileset * tileset     {};  // tileset to use for rendering
-    RRT       rrt         {};  // "Rapidly-exploring Random Tree" data struture (used for procedural generation)
+    size_t  width      {};  // width of map in tiles
+    size_t  height     {};  // height of map in tiles
+    size_t  tileWidth  {};  // width of each tile
+    size_t  tileHeight {};  // height of each tile
+    RRT     rrt        {};  // "Rapidly-exploring Random Tree" data struture (used for procedural generation)
+    Tile *  tiles      {};  // array of tile data
 };
 
-bool tile_is_walkable       (const Tile *tile);   // Return true if player can walk on the tile (false if tile is null)
-
 void tilemap_generate       (Tilemap *map, dlb_rand32_t *rng);
-void tilemap_generate_ex    (Tilemap *map, dlb_rand32_t *rng, size_t width, size_t height, Tileset *tileset);
+void tilemap_generate_ex    (Tilemap *map, size_t width, size_t height, size_t tileWidth, size_t tileHeight, dlb_rand32_t *rng);
 void tilemap_free           (Tilemap *map);
 Tile *tilemap_at            (Tilemap *map, int tileX, int tileY);  // Return tile at grid position x,y, assert on failure
 Tile *tilemap_at_try        (Tilemap *map, int tileX, int tileY);  // Return tile at grid position x,y, if it exists

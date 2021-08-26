@@ -23,7 +23,7 @@ static void traceLogCallback(int logType, const char *text, va_list args)
 void error_init()
 {
     logFile = fopen("log.txt", "w");
-    //SetTraceLogCallback(traceLogCallback);
+    SetTraceLogCallback(traceLogCallback);
 }
 
 void error_free()

@@ -56,7 +56,6 @@ struct NetMessage {
     static NetMessage &Deserialize(uint32_t *buffer, size_t bufferLength);
 
 protected:
-    NetMessage() = delete;
     NetMessage(Type type) : type(type) {};
 
     virtual void Serialize(BitStreamWriter &writer) const;

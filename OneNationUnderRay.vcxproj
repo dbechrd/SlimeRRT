@@ -11,6 +11,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\args.cpp" />
+    <ClInclude Include="src\args.h" />
     <ClCompile Include="src\bit_stream.cpp" />
     <ClCompile Include="src\body.cpp" />
     <ClCompile Include="src\chat.cpp" />
@@ -18,14 +20,15 @@
     <ClCompile Include="src\drawable.cpp" />
     <ClCompile Include="src\draw_command.cpp" />
     <ClCompile Include="src\error.cpp" />
+    <ClCompile Include="src\game_server.cpp" />
     <ClCompile Include="src\healthbar.cpp" />
     <ClCompile Include="src\helpers.cpp" />
     <ClCompile Include="src\item.cpp" />
     <ClCompile Include="src\item_catalog.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\maths.cpp" />
-    <ClCompile Include="src\network_client.cpp" />
-    <ClCompile Include="src\network_server.cpp" />
+    <ClCompile Include="src\net_client.cpp" />
+    <ClCompile Include="src\net_server.cpp" />
     <ClCompile Include="src\net_message.cpp" />
     <ClCompile Include="src\packet.cpp" />
     <ClCompile Include="src\particles.cpp" />
@@ -44,7 +47,10 @@
     <ClCompile Include="src\tileset.cpp" />
     <ClCompile Include="src\world.cpp" />
     <ClCompile Include="src\zed_net.cpp" />
+    <ClCompile Include="test\bitstream_test.cpp" />
     <ClCompile Include="test\maths_test.cpp" />
+    <ClCompile Include="test\net_message_test.cpp" />
+    <ClCompile Include="test\tests.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\bit_stream.h" />
@@ -56,13 +62,14 @@
     <ClInclude Include="src\drawable.h" />
     <ClInclude Include="src\draw_command.h" />
     <ClInclude Include="src\error.h" />
+    <ClInclude Include="src\game_server.h" />
     <ClInclude Include="src\healthbar.h" />
     <ClInclude Include="src\helpers.h" />
     <ClInclude Include="src\item.h" />
     <ClInclude Include="src\item_catalog.h" />
     <ClInclude Include="src\maths.h" />
-    <ClInclude Include="src\network_client.h" />
-    <ClInclude Include="src\network_server.h" />
+    <ClInclude Include="src\net_client.h" />
+    <ClInclude Include="src\net_server.h" />
     <ClInclude Include="src\net_message.h" />
     <ClInclude Include="src\packet.h" />
     <ClInclude Include="src\particles.h" />
@@ -80,7 +87,7 @@
     <ClInclude Include="src\tilemap.h" />
     <ClInclude Include="src\tileset.h" />
     <ClInclude Include="src\world.h" />
-    <ClInclude Include="test\maths_test.h" />
+    <ClInclude Include="test\tests.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

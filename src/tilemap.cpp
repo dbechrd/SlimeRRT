@@ -10,56 +10,43 @@
 static void rrt_build(Tilemap *map, dlb_rand32_t *rng, Vector2 qinit, size_t numVertices, float maxGrowthDist);
 static size_t rrt_nearest_idx(Tilemap *map, Vector2 p);
 
-bool tile_is_walkable(const Tile *tile)
-{
-    return tile && tile->tileType != TileType::Water;
-}
-
 void tilemap_generate(Tilemap *map, dlb_rand32_t *rng)
 {
     assert(map);
-    assert(map->widthTiles);
-    assert(map->heightTiles);
-    assert(map->tileset);
-    assert(map->tileset->tileWidth);
-    assert(map->tileset->tileHeight);
-    assert(map->tileset->tileCount);
+    assert(map->width);
+    assert(map->height);
+    assert(map->tileWidth);
+    assert(map->tileHeight);
 
-    map->tileCount = map->widthTiles * map->heightTiles;
-    map->tiles = (Tile *)calloc(map->widthTiles * map->heightTiles, sizeof(*map->tiles));
-
-    const size_t tileWidth = map->tileset->tileWidth;
-    const size_t tileHeight = map->tileset->tileHeight;
+    map->tiles = (Tile *)calloc(map->width * map->height, sizeof(*map->tiles));
+    assert(map->tiles);
 
     // NOTE: These parameters are chosen somewhat arbitrarily at this point
-    const Vector2 middle = v2_init(map->widthTiles * tileWidth / 2.0f, map->heightTiles * tileHeight / 2.0f);
+    const Vector2 middle = v2_init(map->width * map->tileWidth / 2.0f, map->height * map->tileHeight / 2.0f);
     const size_t rrtSamples = 512;
-    const float maxGrowthDistance = map->widthTiles * tileWidth / 4.0f;
+    const float maxGrowthDistance = map->width * map->tileWidth / 4.0f;
     rrt_build(map, rng, middle, rrtSamples, maxGrowthDistance);
 
-    const Vector2 tileCenterOffset = v2_init(tileWidth / 2.0f, tileHeight / 2.0f);
-    for (int y = 0; y < map->heightTiles; y++) {
-        for (int x = 0; x < map->widthTiles; x++) {
+    const Vector2 tileCenterOffset = v2_init(map->tileWidth / 2.0f, map->tileHeight / 2.0f);
+    for (int y = 0; y < map->height; y++) {
+        for (int x = 0; x < map->width; x++) {
             //tile.tileType = randomType(g_mersenne);
             //tile.tileType = (tileY * w + tileX) % tileTypeCount; // Debug: Use every tile sequentially
-            const Vector2 position = v2_init((float)x * tileWidth, (float)y * tileHeight);
+            const Vector2 position = v2_init((float)x * map->tileWidth, (float)y * map->tileHeight);
             const Vector2 center = v2_add(position, tileCenterOffset);
             const size_t nearestIdx = rrt_nearest_idx(map, center);
 
             Tile *tile = tilemap_at(map, x, y);
-            //tile->sprite.setPosition(pos);
-            //tile->sprite.setTexture(texture);
             tile->tileType = map->rrt.vertices[nearestIdx].tileType;
             tile->position = position;
         }
     }
 
     // Pass 2: Surround water with sand for @rusteel
-    for (int y = 0; y < map->heightTiles; y++) {
-        for (int x = 0; x < map->widthTiles; x++) {
+    for (int y = 0; y < map->height; y++) {
+        for (int x = 0; x < map->width; x++) {
             TileType tileType = tilemap_at(map, x, y)->tileType;
             if (tileType == TileType::Water) {
-#if 1
                 static const int beachWidth = 2;
                 for (int beachX = x-beachWidth; beachX <= x+beachWidth; beachX++) {
                     for (int beachY = y-beachWidth; beachY <= y+beachWidth; beachY++) {
@@ -70,39 +57,24 @@ void tilemap_generate(Tilemap *map, dlb_rand32_t *rng)
                         }
                     }
                 }
-#else
-                Tile *up    = AtTry(tileX, tileY - 1);
-                Tile *down  = AtTry(tileX, tileY + 1);
-                Tile *left  = AtTry(tileX - 1, tileY);
-                Tile *right = AtTry(tileX + 1, tileY);
-                if (up && up->tileType != TileType::Water) {
-                    SetTileType(tileX, tileY - 1, TileType::Concrete);
-                }
-                if (down && down->tileType != TileType::Water) {
-                    SetTileType(tileX, tileY + 1, TileType::Concrete);
-                }
-                if (left && left->tileType != TileType::Water) {
-                    SetTileType(tileX - 1, tileY, TileType::Concrete);
-                }
-                if (right && right->tileType != TileType::Water) {
-                    SetTileType(tileX + 1, tileY, TileType::Concrete);
-                }
-#endif
             }
         }
     }
 }
 
-void tilemap_generate_ex(Tilemap *map, dlb_rand32_t *rng, size_t width, size_t height, Tileset *tileset)
+void tilemap_generate_ex(Tilemap *map, size_t width, size_t height, size_t tileWidth, size_t tileHeight, dlb_rand32_t *rng)
 {
     assert(map);
     assert(width);
     assert(height);
-    assert(tileset);
+    assert(tileWidth);
+    assert(tileHeight);
+    assert(rng);
 
-    map->widthTiles = width;
-    map->heightTiles = height;
-    map->tileset = tileset;
+    map->width = width;
+    map->height = height;
+    map->tileWidth = tileWidth;
+    map->tileHeight = tileHeight;
     tilemap_generate(map, rng);
 }
 
@@ -113,17 +85,17 @@ void tilemap_free(Tilemap *map)
 
 Tile *tilemap_at(Tilemap *map, int tileX, int tileY)
 {
-    size_t idx = (size_t)tileY * map->widthTiles + tileX;
-    assert(idx < (size_t)map->widthTiles * map->heightTiles);
+    size_t idx = (size_t)tileY * map->width + tileX;
+    assert(idx < (size_t)map->width * map->height);
     return &map->tiles[idx];
 }
 
 Tile *tilemap_at_try(Tilemap *map, int tileX, int tileY)
 {
     Tile *tile = NULL;
-    if (tileX >= 0 && tileY >= 0 && tileX < map->widthTiles && tileY < map->widthTiles) {
-        size_t idx = (size_t)tileY * map->widthTiles + tileX;
-        assert(idx < (size_t)map->widthTiles * map->heightTiles);
+    if (tileX >= 0 && tileY >= 0 && tileX < map->width && tileY < map->width) {
+        size_t idx = (size_t)tileY * map->width + tileX;
+        assert(idx < (size_t)map->width * map->height);
         tile = &map->tiles[idx];
     }
     return tile;
@@ -133,25 +105,25 @@ Tile *tilemap_at_world(Tilemap *map, int x, int y)
 {
     assert(x >= 0);
     assert(y >= 0);
-    assert(x < (int)map->tileset->tileWidth * map->widthTiles);
-    assert(y < (int)map->tileset->tileHeight * map->heightTiles);
+    assert(x < (int)map->tileWidth * map->width);
+    assert(y < (int)map->tileHeight * map->height);
 
-    int tileX = x / (int)map->tileset->tileWidth;
-    int tileY = y / (int)map->tileset->tileHeight;
+    int tileX = x / (int)map->tileWidth;
+    int tileY = y / (int)map->tileHeight;
     return tilemap_at(map, tileX, tileY);
 }
 
 Tile *tilemap_at_world_try(Tilemap *map, int x, int y)
 {
     if (x < 0 || y < 0 ||
-        (size_t)x >= map->tileset->tileWidth * map->widthTiles ||
-        (size_t)y >= map->tileset->tileHeight * map->heightTiles)
+        (size_t)x >= map->tileWidth * map->width ||
+        (size_t)y >= map->tileHeight * map->height)
     {
         return 0;
     }
 
-    int tileX = x / (int)map->tileset->tileWidth;
-    int tileY = y / (int)map->tileset->tileHeight;
+    int tileX = x / (int)map->tileWidth;
+    int tileY = y / (int)map->tileHeight;
     return tilemap_at_try(map, tileX, tileY);
 }
 
@@ -164,7 +136,7 @@ static void rrt_build(Tilemap *map, dlb_rand32_t *rng, Vector2 qinit, size_t num
     assert(map->rrt.vertices);
 
     const int tileMin = 0;
-    const int tileMax = (int)map->tileset->tileCount - 2;
+    const int tileMax = (int)TileType::Count - 2;
 
     RRTVertex *vertex = map->rrt.vertices;
     vertex->tileType = (TileType)dlb_rand32i_range_r(rng, tileMin, tileMax);
@@ -176,12 +148,12 @@ static void rrt_build(Tilemap *map, dlb_rand32_t *rng, Vector2 qinit, size_t num
     Vector2 qrand = {};
     for (size_t tileIdx = 1; tileIdx < map->rrt.vertexCount; tileIdx++) {
 #if 1
-        qrand.x = (float)dlb_rand32i_range_r(rng, 0, (int)(map->widthTiles * map->tileset->tileWidth));
-        qrand.y = (float)dlb_rand32i_range_r(rng, 0, (int)(map->heightTiles * map->tileset->tileHeight));
+        qrand.x = (float)dlb_rand32i_range_r(rng, 0, (int)(map->width * map->tileWidth));
+        qrand.y = (float)dlb_rand32i_range_r(rng, 0, (int)(map->height * map->tileHeight));
 #else
         // TODO: Try tile coords instead of pixels
-        qrand.tileX = (float)GetRandomValue(0, map->widthTiles);
-        qrand.tileY = (float)GetRandomValue(0, map->heightTiles);
+        qrand.tileX = (float)GetRandomValue(0, map->width);
+        qrand.tileY = (float)GetRandomValue(0, map->height);
 #endif
         size_t nearestIdx = rrt_nearest_idx(map, qrand);
         Vector2 qnear = map->rrt.vertices[nearestIdx].position;
@@ -226,53 +198,3 @@ static size_t rrt_nearest_idx(Tilemap *map, Vector2 p)
     }
     return minIdx;
 }
-
-////////////////////////////////////////////////////////////////////////////////
-
-#if 0
-void SetTileType(Tilemap *map, int tileX, int tileY, TileType tileType)
-{
-    Tile *tile = tilemap_at(map, tileX, tileY);
-    tile->textureRect
-    source.tileX = (float)(tilemap.tiles[i].tileType % tilesPerRow * tilemap.tileset->tileWidth);
-    source.tileY = (float)(tilemap.tiles[i].tileType / tilesPerRow * tilemap.tileset->tileHeight);
-    source.width  = (float)tilemap.tileset->tileWidth;
-    source.height = (float)tilemap.tileset->tileHeight;
-
-    Tile *tile = tilemap_at(map, tileX, tileY);
-    tile.tileType = tileType;
-    sf::Vector2u texSize = texture.getSize();
-    int texTilesPerRow = (int)texSize.tileX / tileWidth;
-    auto texRect = sf::IntRect(
-        (int)tile.tileType % texTilesPerRow * tileWidth,
-        (int)tile.tileType / texTilesPerRow * tileHeight,
-        tileWidth,
-        tileHeight
-    );
-    tile.sprite.setTextureRect(texRect);
-}
-
-void Draw(sf::RenderTarget &target, const sf::Vector2 &viewSize)
-{
-    mapBatch.setRenderTarget(target);
-    const size_t tileCount = (size_t)widthTiles * heightTiles;
-    for (size_t i = 0; i < tileCount; i++) {
-        mapBatch.draw(map[i].sprite);
-    }
-    mapBatch.display();
-}
-
-void DrawRRT(sf::RenderTarget &target) const
-{
-    // TODO: Draw this as a debug overlay using geometry shader to create the circles
-    sf::RenderStates states = sf::RenderStates::Default;
-    size_t vertexCount = rrt.size();
-    for (size_t i = 0; i < vertexCount; i++) {
-        sf::CircleShape circle;
-        circle.setPosition(rrt[i].position);
-        circle.setFillColor(sf::Color::Blue);
-        circle.setRadius(20.0f);
-        target.draw(circle);
-    }
-}
-#endif

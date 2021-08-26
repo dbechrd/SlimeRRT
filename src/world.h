@@ -6,18 +6,15 @@
 #include "dlb_rand.h"
 #include <vector>
 
-struct Args {
-    bool server {};
-};
-
 struct World {
-    Args               args     {};
-    Player *           player   {};
-    Tilemap *          map      {};
-    std::vector<Slime> slimes   {};
     uint64_t           rtt_seed {};
     dlb_rand32_t       rtt_rand {};
+    Tilemap            map      {};
+    Player *           player   {};
+    std::vector<Slime> slimes   {};
 
-    void Sim(double now, double dt, const PlayerControllerState input, World &world, const SpriteDef *coinSpriteDef);
+    World();
+    ~World();
+    void Sim(double now, double dt, const PlayerControllerState input, const SpriteDef *coinSpriteDef);
 };
 

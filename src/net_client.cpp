@@ -1,4 +1,4 @@
-#include "network_client.h"
+#include "net_client.h"
 #include "bit_stream.h"
 #include "chat.h"
 #include "world.h"
@@ -9,30 +9,30 @@
 #include <cstring>
 #include <ctime>
 
-int network_client_init(NetworkClient *client)
+int net_client_init(NetClient *client)
 {
-    client->packetHistory.capacity = NETWORK_CLIENT_PACKET_HISTORY_MAX;
+    client->packetHistory.capacity = NET_CLIENT_PACKET_HISTORY_MAX;
     client->packetHistory.packets = (Packet *)calloc(client->packetHistory.capacity, sizeof(*client->packetHistory.packets));
     if (!client->packetHistory.packets) {
-        TraceLog(LOG_FATAL, "[NetworkClient] Failed to allocate packet history buffer.");
+        TraceLog(LOG_FATAL, "[NetClient] Failed to allocate packet history buffer.");
         return 0;
     }
 
     if (client->chatHistory.Init() != ErrorType::Success) {
-        TraceLog(LOG_FATAL, "[NetworkClient] Failed to initialize chat system.\n");
+        TraceLog(LOG_FATAL, "[NetClient] Failed to initialize chat system.\n");
         return 0;
     }
 
     return 1;
 }
 
-int network_client_open_socket(NetworkClient *client)
+int net_client_open_socket(NetClient *client)
 {
     assert(client);
 
     if (zed_net_udp_socket_open(&client->socket, 0, 1) < 0) {
         const char *err = zed_net_get_error();
-        TraceLog(LOG_ERROR, "[NetworkClient] Failed to open socket. Zed: %s", err);
+        TraceLog(LOG_ERROR, "[NetClient] Failed to open socket. Zed: %s", err);
         return 0;
     }
     assert(client->socket.handle);
@@ -40,14 +40,14 @@ int network_client_open_socket(NetworkClient *client)
     return 1;
 }
 
-int network_client_connect(NetworkClient *client, const char *hostname, unsigned short port)
+int net_client_connect(NetClient *client, const char *hostname, unsigned short port)
 {
     // TODO: Display loading bar while resolving, sending and waiting for server response
 
     if (zed_net_get_address(&client->server, hostname, port) < 0) {
         // TODO: Handle server connect failure gracefully (e.g. user could have typed wrong ip or port).
         const char *err = zed_net_get_error();
-        TraceLog(LOG_ERROR, "[NetworkClient] Failed to connect to server %s:%hu. Zed: %s", hostname, port, err);
+        TraceLog(LOG_ERROR, "[NetClient] Failed to connect to server %s:%hu. Zed: %s", hostname, port, err);
         return 0;
     }
     assert(client->server.host);
@@ -64,7 +64,7 @@ int network_client_connect(NetworkClient *client, const char *hostname, unsigned
 
     if (zed_net_udp_socket_send(&client->socket, client->server, rawPacket, (int)rawBytes) < 0) {
         const char *err = zed_net_get_error();
-        TraceLog(LOG_ERROR, "[NetworkClient] Failed to send connection request. Zed: %s", err);
+        TraceLog(LOG_ERROR, "[NetClient] Failed to send connection request. Zed: %s", err);
         return 0;
     }
     client->serverHostname = hostname;
@@ -72,7 +72,7 @@ int network_client_connect(NetworkClient *client, const char *hostname, unsigned
     return 1;
 }
 
-int network_client_send(const NetworkClient *client, const char *data, size_t size)
+int net_client_send(const NetClient *client, const char *data, size_t size)
 {
     assert(client);
     assert(client->socket.handle);
@@ -82,14 +82,14 @@ int network_client_send(const NetworkClient *client, const char *data, size_t si
 
     if (zed_net_udp_socket_send(&client->socket, client->server, data, (int)size) < 0) {
         const char *err = zed_net_get_error();
-        TraceLog(LOG_ERROR, "[NetworkClient] Failed to send data. Zed: %s", err);
+        TraceLog(LOG_ERROR, "[NetClient] Failed to send data. Zed: %s", err);
         return 0;
     }
 
     return 1;
 }
 
-int network_client_send_chat_message(const NetworkClient *client, const char *message, size_t messageLength)
+int net_client_send_chat_message(const NetClient *client, const char *message, size_t messageLength)
 {
     assert(client);
     assert(client->socket.handle);
@@ -111,10 +111,10 @@ int network_client_send_chat_message(const NetworkClient *client, const char *me
 
     char rawPacket[PACKET_SIZE_MAX] = {};
     size_t rawBytes = chatMessage.Serialize((uint32_t *)rawPacket, sizeof(rawPacket));
-    return network_client_send(client, rawPacket, rawBytes);
+    return net_client_send(client, rawPacket, rawBytes);
 }
 
-static void network_client_process_message(NetworkClient *client, Packet *packet)
+static void net_client_process_message(NetClient *client, Packet *packet)
 {
     packet->message = &NetMessage::Deserialize((uint32_t *)packet->rawBytes, sizeof(packet->rawBytes));
 
@@ -131,18 +131,18 @@ static void network_client_process_message(NetworkClient *client, Packet *packet
             break;
         }
         default: {
-            TraceLog(LOG_WARNING, "[NetworkClient] Unrecognized message type: %d", packet->message->type);
+            TraceLog(LOG_WARNING, "[NetClient] Unrecognized message type: %d", packet->message->type);
             break;
         }
     }
 }
 
-int network_client_receive(NetworkClient *client)
+int net_client_receive(NetClient *client)
 {
     assert(client);
 
     if (!client->socket.handle) {
-        TraceLog(LOG_FATAL, "[NetworkClient] Client socket handle invalid. Cannot processing incoming packets.");
+        TraceLog(LOG_FATAL, "[NetClient] Client socket handle invalid. Cannot processing incoming packets.");
         return 0;
     }
 
@@ -160,7 +160,7 @@ int network_client_receive(NetworkClient *client)
         if (bytes < 0) {
             // TODO: Ignore this.. or log it? zed_net doesn't pass through any useful error messages to diagnose this.
             const char *err = zed_net_get_error();
-            TraceLog(LOG_ERROR, "[NetworkClient] Failed to receive network data. Zed: %s", err);
+            TraceLog(LOG_ERROR, "[NetClient] Failed to receive network data. Zed: %s", err);
             return 0;
         }
 
@@ -174,7 +174,7 @@ int network_client_receive(NetworkClient *client)
                 client->packetHistory.count++;
             }
 
-            // TODO: Refactor this out into helper function somewhere (it's also in network_server.c)
+            // TODO: Refactor this out into helper function somewhere (it's also in net_server.c)
             time_t t = time(NULL);
             struct tm tm = *localtime(&t);
             int len = snprintf(packet->timestampStr, sizeof(packet->timestampStr), "%02d:%02d:%02d", tm.tm_hour,
@@ -183,37 +183,37 @@ int network_client_receive(NetworkClient *client)
 
             const char *senderStr = TextFormatIP(sender);
             if (sender.host != client->server.host || sender.port != client->server.port) {
-                TraceLog(LOG_INFO, "[NetworkClient] STRANGER DANGER! Ingnoring unsolicited packet received from %s.\n",
+                TraceLog(LOG_INFO, "[NetClient] STRANGER DANGER! Ingnoring unsolicited packet received from %s.\n",
                     senderStr);
                 continue;
             }
 
-            network_client_process_message(client, packet);
-            //TraceLog(LOG_INFO, "[NetworkClient] RECV\n  %s said %s", senderStr, packet->rawBytes);
+            net_client_process_message(client, packet);
+            //TraceLog(LOG_INFO, "[NetClient] RECV\n  %s said %s", senderStr, packet->rawBytes);
         }
     } while (bytes > 0);
 
     return 1;
 }
 
-void network_client_disconnect(const NetworkClient *client)
+void net_client_disconnect(const NetClient *client)
 {
     assert(client);
 
     // TODO: Send disconnect message to server
 }
 
-void network_client_close_socket(const NetworkClient *client)
+void net_client_close_socket(const NetClient *client)
 {
     assert(client);
 
-    network_client_disconnect(client);
+    net_client_disconnect(client);
     zed_net_socket_close(&client->socket);
 }
 
-void network_client_free(NetworkClient *client)
+void net_client_free(NetClient *client)
 {
-    network_client_close_socket(client);
+    net_client_close_socket(client);
     free(client->packetHistory.packets);
     free(client->chatHistory.messages);
     memset(client, 0, sizeof(*client));

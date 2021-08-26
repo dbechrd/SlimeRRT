@@ -12,6 +12,7 @@ struct BitStream {
     uint32_t *  buffer      {};  // buffer we're writing to / reading from
     size_t      bufferBits  {};  // size of packet in bytes * 8
 
+protected:
     BitStream(uint32_t *buffer, size_t bufferLength);
 };
 

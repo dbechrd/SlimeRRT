@@ -1,4 +1,4 @@
-#include "network_server.h"
+#include "net_server.h"
 #include "bit_stream.h"
 #include "helpers.h"
 #include "packet.h"
@@ -13,28 +13,28 @@
 #include <new>
 
 #define SERVER_USERNAME "SERVER"
-static const char *LOG_SRC = "NetworkServer";
+static const char *LOG_SRC = "NetServer";
 
-NetworkServer g_server;
+NetServer g_net_server;
 static const unsigned int SERVER_PORT = 4040;
 
-ErrorType network_server_thread()
+ErrorType net_server_run()
 {
 E_START
-    E_CHECK(network_server_init(&g_server));
-    E_CHECK(network_server_open_socket(&g_server, SERVER_PORT));
-    E_CHECK(network_server_listen(&g_server));
+    E_CHECK(net_server_init(&g_net_server));
+    E_CHECK(net_server_open_socket(&g_net_server, SERVER_PORT));
+    E_CHECK(net_server_listen(&g_net_server));
 E_CLEANUP
-    network_server_free(&g_server);
+    net_server_free(&g_net_server);
 E_END
 }
 
-ErrorType network_server_init(NetworkServer *server)
+ErrorType net_server_init(NetServer *server)
 {
 E_START
     assert(server);
 
-    server->packetHistory.capacity = NETWORK_SERVER_PACKET_HISTORY_MAX;
+    server->packetHistory.capacity = NET_SERVER_PACKET_HISTORY_MAX;
     server->packetHistory.packets = (Packet *)calloc(server->packetHistory.capacity, sizeof(*server->packetHistory.packets));
     for (size_t i = 0; i < server->packetHistory.capacity; i++) {
         new(server->packetHistory.packets + i) Packet{};
@@ -44,7 +44,7 @@ E_START
 E_CLEAN_END
 }
 
-ErrorType network_server_open_socket(NetworkServer *server, unsigned short port)
+ErrorType net_server_open_socket(NetServer *server, unsigned short port)
 {
 E_START
     assert(server);
@@ -59,7 +59,7 @@ E_START
 E_CLEAN_END
 }
 
-static ErrorType network_server_send_raw(const NetworkServer *server, const NetworkServerClient *client, const char *data, size_t size)
+static ErrorType net_server_send_raw(const NetServer *server, const NetworkServerClient *client, const char *data, size_t size)
 {
 E_START
     assert(client);
@@ -75,59 +75,59 @@ E_START
 E_CLEAN_END
 }
 
-static ErrorType network_server_send(const NetworkServer *server, const NetworkServerClient *client, const NetMessage &message)
+static ErrorType net_server_send(const NetServer *server, const NetworkServerClient *client, const NetMessage &message)
 {
 E_START
     static char rawPacket[PACKET_SIZE_MAX] = {};
     memset(rawPacket, 0, sizeof(rawPacket));
 
     size_t rawBytes = message.Serialize((uint32_t *)rawPacket, sizeof(rawPacket));
-    E_CHECK(network_server_send_raw(server, client, rawPacket, rawBytes));
+    E_CHECK(net_server_send_raw(server, client, rawPacket, rawBytes));
 E_CLEAN_END
 }
 
-static void network_server_broadcast_raw(const NetworkServer *server, const char *data, size_t size)
+static void net_server_broadcast_raw(const NetServer *server, const char *data, size_t size)
 {
     // Broadcast message to all connected clients
-    for (int i = 0; i < NETWORK_SERVER_CLIENTS_MAX; ++i) {
+    for (int i = 0; i < NET_SERVER_CLIENTS_MAX; ++i) {
         if (server->clients[i].address.host) {
-            if (network_server_send_raw(server, &server->clients[i], data, size) != ErrorType::Success) {
+            if (net_server_send_raw(server, &server->clients[i], data, size) != ErrorType::Success) {
                 // TODO: Handle error somehow? Retry queue.. or..? Idk.. This seems fatal. Look up why Win32 might fail
             }
         }
     }
-    TraceLog(LOG_INFO, "[NetworkServer] BROADCAST\n  %.*s", size, data);
+    TraceLog(LOG_INFO, "[NetServer] BROADCAST\n  %.*s", size, data);
 }
 
-static void network_server_broadcast(const NetworkServer *server, const NetMessage &message)
+static void net_server_broadcast(const NetServer *server, const NetMessage &message)
 {
     static char rawPacket[PACKET_SIZE_MAX]{};
     memset(rawPacket, 0, sizeof(rawPacket));
 
     size_t rawBytes = message.Serialize((uint32_t *)rawPacket, sizeof(rawPacket));
-    network_server_broadcast_raw(server, rawPacket, rawBytes);
+    net_server_broadcast_raw(server, rawPacket, rawBytes);
 }
 
-void network_server_broadcast_chat_message(const NetworkServer *server, const char *msg, size_t msgLength)
+void net_server_broadcast_chat_message(const NetServer *server, const char *msg, size_t msgLength)
 {
     NetMessage_ChatMessage netMsg{};
     netMsg.username = SERVER_USERNAME;
     netMsg.usernameLength = sizeof(SERVER_USERNAME) - 1;
     netMsg.message = msg;
     netMsg.messageLength = msgLength;
-    network_server_broadcast(server, netMsg);
+    net_server_broadcast(server, netMsg);
 }
 
-static int network_server_send_welcome_basket(const NetworkServer *server, NetworkServerClient *client)
+static int net_server_send_welcome_basket(const NetServer *server, NetworkServerClient *client)
 {
     // TODO: Send current state to new client
     // - world (seed + entities)
     // - player list
 
     {
-        TraceLog(LOG_INFO, "[NetworkServer] Sending welcome basket to %s\n", TextFormatIP(client->address));
+        TraceLog(LOG_INFO, "[NetServer] Sending welcome basket to %s\n", TextFormatIP(client->address));
         NetMessage_Welcome userJoinedNotification{};
-        network_server_send(server, client, userJoinedNotification);
+        net_server_send(server, client, userJoinedNotification);
     }
 
     {
@@ -142,13 +142,13 @@ static int network_server_send_welcome_basket(const NetworkServer *server, Netwo
         userJoinedNotification.usernameLength = sizeof("SERVER") - 1;
         userJoinedNotification.messageLength = messageLength;
         userJoinedNotification.message = message;
-        network_server_broadcast(server, userJoinedNotification);
+        net_server_broadcast(server, userJoinedNotification);
     }
 
     return 1;
 }
 
-static void network_server_process_message(NetworkServer *server, NetworkServerClient *client, Packet *packet)
+static void net_server_process_message(NetServer *server, NetworkServerClient *client, Packet *packet)
 {
     packet->message = &NetMessage::Deserialize((uint32_t *)packet->rawBytes, sizeof(packet->rawBytes));
 
@@ -170,7 +170,7 @@ static void network_server_process_message(NetworkServer *server, NetworkServerC
 
             // TODO(security): This is currently rebroadcasting user input to all other clients.. ripe for abuse
             // Broadcast chat message
-            network_server_broadcast(server, chatMsg);
+            net_server_broadcast(server, chatMsg);
             break;
         }
         default: {
@@ -179,7 +179,7 @@ static void network_server_process_message(NetworkServer *server, NetworkServerC
     }
 }
 
-ErrorType network_server_listen(NetworkServer *server)
+ErrorType net_server_listen(NetServer *server)
 {
 E_START
     assert(server);
@@ -216,7 +216,7 @@ E_START
             size_t timeBytes = strftime(CSTR0(packet->timestampStr), "%I:%M:%S %p", utc); // 02:15:42 PM
 #endif
             NetworkServerClient *client = 0;
-            for (int i = 0; i < NETWORK_SERVER_CLIENTS_MAX; ++i) {
+            for (int i = 0; i < NET_SERVER_CLIENTS_MAX; ++i) {
                 // NOTE: Must be tightly packed array (assumes client not already connected when empty slot found)
                 if (!server->clients[i].address.host) {
                     client = &server->clients[i];
@@ -232,38 +232,38 @@ E_START
                 // Send "server full" response to sender
                 if (zed_net_udp_socket_send(&server->socket, sender, CSTR("SERVER FULL")) < 0) {
                     const char *err = zed_net_get_error();
-                    TraceLog(LOG_ERROR, "[NetworkServer] Failed to send network data. Zed: %s", err);
+                    TraceLog(LOG_ERROR, "[NetServer] Failed to send network data. Zed: %s", err);
                 }
 
-                TraceLog(LOG_INFO, "[NetworkServer] Server full, client denied.");
+                TraceLog(LOG_INFO, "[NetServer] Server full, client denied.");
                 continue;
             }
 
             if (!client->last_packet_received_at) {
-                network_server_send_welcome_basket(server, client);
+                net_server_send_welcome_basket(server, client);
                 server->clientsConnected++;
             }
             client->last_packet_received_at = GetTime();
 
 #if 0
             const char *senderStr = TextFormatIP(sender);
-            //TraceLog(LOG_INFO, "[NetworkServer] RECV %s\n  %s", senderStr, packet->rawBytes);
-            TraceLog(LOG_INFO, "[NetworkServer] Sending ACK to %s\n", senderStr);
+            //TraceLog(LOG_INFO, "[NetServer] RECV %s\n  %s", senderStr, packet->rawBytes);
+            TraceLog(LOG_INFO, "[NetServer] Sending ACK to %s\n", senderStr);
             if (zed_net_udp_socket_send(&server->socket, client->address, CSTR("ACK")) < 0) {
                 const char *err = zed_net_get_error();
-                TraceLog(LOG_ERROR, "[NetworkServer] Failed to send network data. Zed: %s", err);
+                TraceLog(LOG_ERROR, "[NetServer] Failed to send network data. Zed: %s", err);
             }
 #endif
 
-            network_server_process_message(server, client, packet);
-            //TraceLog(LOG_INFO, "[NetworkClient] RECV\n  %s said %s", senderStr, packet->rawBytes);
+            net_server_process_message(server, client, packet);
+            //TraceLog(LOG_INFO, "[NetClient] RECV\n  %s said %s", senderStr, packet->rawBytes);
         }
     } while (bytes > 0);
 
 E_CLEAN_END
 }
 
-void network_server_close_socket(NetworkServer *server)
+void net_server_close_socket(NetServer *server)
 {
     assert(server);
 
@@ -274,25 +274,25 @@ void network_server_close_socket(NetworkServer *server)
     //memset(&server->clients, 0, sizeof(server->clients));
 }
 
-void network_server_free(NetworkServer *server)
+void net_server_free(NetServer *server)
 {
     assert(server);
 
-    network_server_close_socket(server);
+    net_server_close_socket(server);
     free(server->packetHistory.packets);
     free(server->chatHistory.messages);
     //memset(server, 0, sizeof(*server));
 }
 
 #if 0
-int network_packet_history_count(NetworkServer *server)
+int network_packet_history_count(NetServer *server)
 {
     assert(server);
 
     return MAX_PACKET_HISTORY;
 }
 
-int network_packet_history_next(NetworkServer *server, int index)
+int network_packet_history_next(NetServer *server, int index)
 {
     assert(server);
 
@@ -301,7 +301,7 @@ int network_packet_history_next(NetworkServer *server, int index)
     return next;
 }
 
-int network_packet_history_prev(NetworkServer *server, int index)
+int network_packet_history_prev(NetServer *server, int index)
 {
     assert(server);
 
@@ -310,7 +310,7 @@ int network_packet_history_prev(NetworkServer *server, int index)
     return prev;
 }
 
-int network_packet_history_newest(NetworkServer *server)
+int network_packet_history_newest(NetServer *server)
 {
     assert(server);
 
@@ -318,7 +318,7 @@ int network_packet_history_newest(NetworkServer *server)
     return newest;
 }
 
-int network_packet_history_oldest(NetworkServer *server)
+int network_packet_history_oldest(NetServer *server)
 {
     assert(server);
 
@@ -326,7 +326,7 @@ int network_packet_history_oldest(NetworkServer *server)
     return index;
 }
 
-void network_packet_history_at(NetworkServer *server, int index, const Packet **packet)
+void network_packet_history_at(NetServer *server, int index, const Packet **packet)
 {
     assert(server);
     assert(index >= 0);
