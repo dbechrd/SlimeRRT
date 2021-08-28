@@ -52,6 +52,7 @@ struct NetMessage {
     //size_t sequenceNumber;
     Type type = Type::Unknown;
 
+    virtual ~NetMessage() {}
     size_t Serialize(uint32_t *buffer, size_t bufferLength) const;
     static NetMessage &Deserialize(uint32_t *buffer, size_t bufferLength);
 

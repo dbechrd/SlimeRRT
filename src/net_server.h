@@ -2,14 +2,32 @@
 #include "chat.h"
 #include "error.h"
 #include "packet.h"
+#include "dlb_murmur3.h"
 #include "zed_net.h"
 #include <cstdint>
+#include <unordered_map>
 
 #define NET_SERVER_CLIENTS_MAX 4
 // must be power of 2 (shift modulus ring buffer)
 #define NET_SERVER_PACKET_HISTORY_MAX 256
 
-struct NetworkServerClient {
+struct ZedNetAddressHash {
+    std::size_t operator()(const zed_net_address_t &address) const
+    {
+        return (size_t)dlb_murmur3(&address.host, sizeof(address.host)) ^
+              ((size_t)dlb_murmur3(&address.port, sizeof(address.port)) << 1);
+    }
+};
+
+struct ZedNetAddressEqual {
+    bool operator()(const zed_net_address_t &lhs, const zed_net_address_t &rhs) const
+    {
+        return lhs.host == rhs.host &&
+               lhs.port == rhs.port;
+    }
+};
+
+struct NetServerClient {
     zed_net_address_t address                       {};
     double            last_packet_received_at       {};
     size_t            usernameLength                {};
@@ -17,20 +35,21 @@ struct NetworkServerClient {
 };
 
 struct NetServer {
-    unsigned short      port             {};
-    zed_net_socket_t    socket           {};
-    size_t              clientsConnected {};
-    NetworkServerClient clients[NET_SERVER_CLIENTS_MAX]{};
+    unsigned short   port             {};
+    zed_net_socket_t socket           {};
+    std::unordered_map<zed_net_address_t, NetServerClient, ZedNetAddressHash, ZedNetAddressEqual> clients{};
     // TODO: Could have a packet history by message type? This would allow us to only store history of important
     // messages, and/or have different buffer sizes for different types of message.
     //PacketBuffer packetHistory[Count];
-    PacketBuffer        packetHistory    {};
-    ChatHistory         chatHistory      {};
+    PacketBuffer     packetHistory    {};
+    ChatHistory      chatHistory      {};
+
+
 };
 
 extern NetServer g_net_server;
 
-ErrorType net_server_run                  ();
+ErrorType net_server_run                     ();
 ErrorType net_server_init                    (NetServer *server);
 ErrorType net_server_open_socket             (NetServer *server, unsigned short port);
 void      net_server_broadcast_chat_message  (const NetServer *server, const char *msg, size_t msgLength);

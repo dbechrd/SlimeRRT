@@ -13,18 +13,17 @@ static const char *LOG_SRC = "Chat";
 ErrorType ChatHistory::Init()
 {
 E_START
-    messages = (ChatMessage *)calloc(CHAT_MESSAGE_HISTORY, sizeof(*messages));
-    E_CHECK_ALLOC(messages, "Failed to allocate chat message history buffer");
+    messages.resize(CHAT_MESSAGE_HISTORY);
     for (size_t i = 0; i < CHAT_MESSAGE_HISTORY; i++) {
-        new(messages + i) ChatMessage{};
+        new(&messages[i]) ChatMessage{};
     }
     capacity = CHAT_MESSAGE_HISTORY;
-E_CLEAN_END
+E_END
 }
 
 ChatHistory::~ChatHistory()
 {
-    free(messages);
+    messages.clear();
 }
 
 ChatMessage *ChatHistory::Alloc()
@@ -37,7 +36,6 @@ ChatMessage *ChatHistory::Alloc()
     } else {
         first = (first + 1) % capacity;
         *message = {};
-        //*message = ChatMessage();
     }
     return message;
 }

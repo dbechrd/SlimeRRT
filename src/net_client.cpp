@@ -11,18 +11,12 @@
 
 int net_client_init(NetClient *client)
 {
-    client->packetHistory.capacity = NET_CLIENT_PACKET_HISTORY_MAX;
-    client->packetHistory.packets = (Packet *)calloc(client->packetHistory.capacity, sizeof(*client->packetHistory.packets));
-    if (!client->packetHistory.packets) {
-        TraceLog(LOG_FATAL, "[NetClient] Failed to allocate packet history buffer.");
-        return 0;
-    }
+    client->packetHistory.packets.resize(NET_CLIENT_PACKET_HISTORY_MAX);
 
     if (client->chatHistory.Init() != ErrorType::Success) {
         TraceLog(LOG_FATAL, "[NetClient] Failed to initialize chat system.\n");
         return 0;
     }
-
     return 1;
 }
 
@@ -153,8 +147,8 @@ int net_client_receive(NetClient *client)
     int bytes = 0;
     do {
         zed_net_address_t sender = {};
-        size_t packetIdx = (client->packetHistory.first + client->packetHistory.count) % client->packetHistory.capacity;
-        assert(packetIdx < client->packetHistory.capacity);
+        size_t packetIdx = (client->packetHistory.first + client->packetHistory.count) % client->packetHistory.packets.size();
+        assert(packetIdx < client->packetHistory.packets.size());
         Packet *packet = &client->packetHistory.packets[packetIdx];
         bytes = zed_net_udp_socket_receive(&client->socket, &sender, CSTR0(packet->rawBytes));
         if (bytes < 0) {
@@ -166,11 +160,11 @@ int net_client_receive(NetClient *client)
 
         if (bytes > 0) {
             packet->srcAddress = sender;
-            memset(&packet->message, 0, sizeof(packet->message));
+            delete packet->message;
             memset(packet->rawBytes + bytes, 0, PACKET_SIZE_MAX - (size_t)bytes);
 
             // NOTE: If packet history already full, we're overwriting the oldest packet, so count stays the same
-            if (client->packetHistory.count < client->packetHistory.capacity) {
+            if (client->packetHistory.count < client->packetHistory.packets.size()) {
                 client->packetHistory.count++;
             }
 
@@ -203,18 +197,16 @@ void net_client_disconnect(const NetClient *client)
     // TODO: Send disconnect message to server
 }
 
-void net_client_close_socket(const NetClient *client)
+void net_client_close_socket(NetClient *client)
 {
     assert(client);
 
     net_client_disconnect(client);
     zed_net_socket_close(&client->socket);
+    client->packetHistory.packets.clear();
 }
 
 void net_client_free(NetClient *client)
 {
     net_client_close_socket(client);
-    free(client->packetHistory.packets);
-    free(client->chatHistory.messages);
-    memset(client, 0, sizeof(*client));
 }

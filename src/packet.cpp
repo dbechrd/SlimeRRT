@@ -1,5 +1,6 @@
 #include "packet.h"
 #include "raylib.h"
+#include <cstdlib>
 
 const char *TextFormatIP(zed_net_address_t address)
 {

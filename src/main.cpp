@@ -37,7 +37,12 @@
 #include <ctime>
 
 #include <array>
+#include <future>
 #include <thread>
+
+using namespace std::chrono_literals;
+
+static const char *LOG_SRC = "Main";
 
 int main(int argc, char *argv[])
 {
@@ -67,9 +72,12 @@ int main(int argc, char *argv[])
         TraceLog(LOG_FATAL, "Failed to initialize network utilities. Error: %s\n", err);
     }
 
-    std::thread game_server_thread;
-    if (args.server) {
-        game_server_thread = std::thread(game_server_run, args);
+    GameServer gameServer{ args };
+    std::future future = std::async(std::launch::async, [&gameServer] { return gameServer.Run(); });
+    if (future.wait_for(0ms) == std::future_status::ready) {
+        if (future.get() != ErrorType::Success) {
+            TraceLog(LOG_FATAL, "Failed to run game server\n");
+        }
     }
 
     NetClient client{};
@@ -685,7 +693,7 @@ int main(int argc, char *argv[])
 #if ALPHA_NETWORKING
         // Render connected clients
         if (args.server) {
-            int linesOfText = 1 + (int)g_net_server.clientsConnected;
+            int linesOfText = 1 + (int)g_net_server.clients.size();
 
             const float margin = 6.0f;   // left/top margin
             const float pad = 4.0f;      // left/top pad
@@ -703,12 +711,9 @@ int main(int argc, char *argv[])
 
             PUSH_TEXT("Connected clients:", WHITE);
 
-            for (size_t i = 0; i < NET_SERVER_CLIENTS_MAX; i++) {
-                const NetworkServerClient *serverClient = &g_net_server.clients[i];
-                if (serverClient->address.host) {
-                    text = TextFormatIP(serverClient->address);
-                    PUSH_TEXT(text, WHITE);
-                }
+            for (auto &kv : g_net_server.clients) {
+                text = TextFormatIP(kv.second.address);
+                PUSH_TEXT(text, WHITE);
             }
         }
 
@@ -852,15 +857,17 @@ int main(int argc, char *argv[])
         }
     }
 
-    //--------------------------------------------------------------------------------------
+    //--------------------------------
     // Clean up
-    //--------------------------------------------------------------------------------------
+    //--------------------------------
 #if ALPHA_NETWORKING
     net_client_close_socket(&client);
     net_client_free(&client);
     if (args.server) {
         net_server_close_socket(&g_net_server);
-        game_server_thread.join();
+        //if (future.wait_for(0ms) == std::future_status::ready) {
+        //    E_CHECK(future.get());
+        //}
     }
     zed_net_shutdown();
 #endif
@@ -876,6 +883,11 @@ int main(int argc, char *argv[])
     for (size_t i = 0 ; i < ARRAY_SIZE(fonts); i++) {
         UnloadFont(fonts[i]);
     }
-
     return 0;
 }
+
+#pragma warning(push)
+#pragma warning(disable:26819)
+#define DLB_MURMUR3_IMPLEMENTATION
+#include "dlb_murmur3.h"
+#pragma warning(pop)

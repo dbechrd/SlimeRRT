@@ -17,6 +17,7 @@ void error_init();
 #define E_START ErrorType e_code = ErrorType::Success;
 #define E_CLEANUP e_cleanup:
 #define E_END return e_code;
+#define E_END_INT return (int)e_code;
 #define E_CLEAN_END E_CLEANUP E_END;
 
 #define E_LOG_TYPE(log_type, err_code, format, ...) \
@@ -30,13 +31,13 @@ do { \
 #define E_FATAL(err_code, format, ...) \
     E_LOG_TYPE(LOG_FATAL, err_code, format, __VA_ARGS__);
 
-#define E_ERROR(err_code, format, ...) \
-    E_LOG_TYPE(LOG_ERROR, err_code, format, __VA_ARGS__);
+//#define E_ERROR(err_code, format, ...) \
+//    E_LOG_TYPE(LOG_ERROR, err_code, format, __VA_ARGS__);
 
-#define E_CHECK(cond) \
+#define E_CHECK(cond, format, ...) \
     e_code = (cond); \
     if (e_code != ErrorType::Success) { \
-        goto e_cleanup; \
+        E_FATAL(e_code, format, __VA_ARGS__); \
     }
 
 #define E_CHECK_ALLOC(cond, format, ...) \

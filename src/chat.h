@@ -3,6 +3,7 @@
 #include "helpers.h"
 #include "net_message.h"
 #include <cstdint>
+#include <vector>
 
 struct ChatMessage {
     // TODO: Send consistent chat timestamp from server
@@ -17,7 +18,7 @@ struct ChatHistory {
     size_t       first    {};  // index of first message (ring buffer)
     size_t       count    {};  // current # of message in buffer
     size_t       capacity {};  // maximum # of message in buffer
-    ChatMessage *messages {};  // array of messages
+    std::vector<ChatMessage> messages {};  // array of messages
 
     ~ChatHistory();
     ErrorType Init();

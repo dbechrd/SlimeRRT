@@ -1,6 +1,7 @@
 #pragma once
-#include "world.h"
 #include "args.h"
+#include "error.h"
+#include "world.h"
 #include <thread>
 
 struct GameServer {
@@ -10,6 +11,5 @@ struct GameServer {
     World world{};
 
     GameServer(Args args);
+    ErrorType Run();
 };
-
-void game_server_run(Args args);

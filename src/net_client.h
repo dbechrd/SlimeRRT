@@ -27,5 +27,5 @@ int  net_client_connect      (NetClient *client, const char *hostname, unsigned 
 int  net_client_send         (const NetClient *client, const char *data, size_t len);
 int  net_client_receive      (NetClient *client);
 void net_client_disconnect   (const NetClient *client);
-void net_client_close_socket (const NetClient *client);
+void net_client_close_socket (NetClient *client);
 void net_client_free         (NetClient *client);
