@@ -10,45 +10,15 @@
 
 static const char *LOG_SRC = "Chat";
 
-ErrorType ChatHistory::Init()
-{
-E_START
-    messages.resize(CHAT_MESSAGE_HISTORY);
-    for (size_t i = 0; i < CHAT_MESSAGE_HISTORY; i++) {
-        new(&messages[i]) ChatMessage{};
-    }
-    capacity = CHAT_MESSAGE_HISTORY;
-E_END
-}
-
-ChatHistory::~ChatHistory()
-{
-    messages.clear();
-}
-
-ChatMessage *ChatHistory::Alloc()
-{
-    size_t messageIdx = (first + count) % capacity;
-    assert(messageIdx < capacity);
-    ChatMessage *message = &messages[messageIdx];
-    if (count < capacity) {
-        count++;
-    } else {
-        first = (first + 1) % capacity;
-        *message = {};
-    }
-    return message;
-}
-
 void ChatHistory::PushNetMessage(const NetMessage_ChatMessage &netChat)
 {
-    ChatMessage *chat = Alloc();
+    ChatMessage &chat = Alloc();
 
     assert(netChat.usernameLength <= USERNAME_LENGTH_MAX);
-    chat->usernameLength = MIN(netChat.usernameLength, USERNAME_LENGTH_MAX);
-    memcpy(chat->username, netChat.username, chat->usernameLength);
+    chat.usernameLength = MIN(netChat.usernameLength, USERNAME_LENGTH_MAX);
+    memcpy(chat.username, netChat.username, chat.usernameLength);
 
     assert(netChat.messageLength <= CHAT_MESSAGE_LENGTH_MAX);
-    chat->messageLength = MIN(netChat.messageLength, CHAT_MESSAGE_LENGTH_MAX);
-    memcpy(chat->message, netChat.message, chat->messageLength);
+    chat.messageLength = MIN(netChat.messageLength, CHAT_MESSAGE_LENGTH_MAX);
+    memcpy(chat.message, netChat.message, chat.messageLength);
 }

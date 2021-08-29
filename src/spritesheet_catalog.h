@@ -15,5 +15,3 @@ struct SpritesheetCatalog
 
     void Load();
 };
-
-extern SpritesheetCatalog g_spritesheetCatalog;

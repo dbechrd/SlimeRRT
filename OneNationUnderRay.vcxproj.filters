@@ -40,6 +40,7 @@
     <ClCompile Include="test\tests.cpp" />
     <ClCompile Include="src\game_server.cpp" />
     <ClCompile Include="src\args.cpp" />
+    <ClCompile Include="src\game_client.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\bit_stream.h" />
@@ -78,5 +79,7 @@
     <ClInclude Include="src\drawable.h" />
     <ClInclude Include="src\game_server.h" />
     <ClInclude Include="src\args.h" />
+    <ClInclude Include="src\game_client.h" />
+    <ClInclude Include="src\ring_buffer.h" />
   </ItemGroup>
 </Project>

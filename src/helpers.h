@@ -14,10 +14,8 @@
 #define DEMO_BODY_RECT 0
 
 #if _DEBUG
-    #define ALPHA_NETWORKING 1
     #define SHOW_DEBUG_STATS 1
 #else
-    #define ALPHA_NETWORKING 0
     #define SHOW_DEBUG_STATS 1
 #endif
 

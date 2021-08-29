@@ -11,11 +11,5 @@ struct Packet {
     NetMessage *      message          {};
 };
 
-struct PacketBuffer {
-    size_t  first    {};  // index of first packet (ring buffer)
-    size_t  count    {};  // current # of packets in buffer
-    std::vector<Packet> packets{};  // ring buffer of packets
-};
-
 const char *TextFormatIP(zed_net_address_t address);
 

@@ -130,7 +130,9 @@ ZED_NET_DEF void zed_net_socket_close(const zed_net_socket_t *socket);
 //
 // Returns 0 on success
 // Returns -1 on failure (call 'zed_net_get_error' for more info)
-ZED_NET_DEF int zed_net_udp_socket_open(zed_net_socket_t *socket, unsigned short port, unsigned long non_blocking);
+ZED_NET_DEF int zed_net_udp_socket_open          (zed_net_socket_t *sock, unsigned short port, unsigned long non_blocking, unsigned long addr);
+ZED_NET_DEF int zed_net_udp_socket_open_any      (zed_net_socket_t *sock, unsigned short port, unsigned long non_blocking);
+ZED_NET_DEF int zed_net_udp_socket_open_localhost(zed_net_socket_t *sock, unsigned short port, unsigned long non_blocking);
 
 // Sends a specific amount of data to 'destination'
 //
@@ -156,7 +158,9 @@ ZED_NET_DEF int zed_net_udp_socket_receive(const zed_net_socket_t *socket, zed_n
 // Socket will listen for incoming clients if 'listen_socket' is non-zero
 // Returns 0 on success
 // Returns -1 on failure (call 'zed_net_get_error' for more info)
-ZED_NET_DEF int zed_net_tcp_socket_open(zed_net_socket_t *socket, unsigned short port, unsigned long non_blocking, int listen_socket);
+ZED_NET_DEF int zed_net_tcp_socket_open          (zed_net_socket_t *sock, unsigned short port, unsigned long non_blocking, int listen_socket, unsigned long addr);
+ZED_NET_DEF int zed_net_tcp_socket_open_any      (zed_net_socket_t *sock, unsigned short port, unsigned long non_blocking, int listen_socket);
+ZED_NET_DEF int zed_net_tcp_socket_open_localhost(zed_net_socket_t *sock, unsigned short port, unsigned long non_blocking, int listen_socket);
 
 // Connect to a remote endpoint
 // Returns 0 on success.
@@ -234,6 +238,31 @@ ZED_NET_DEF const char *zed_net_get_error(void) {
     return zed_net__g_error;
 }
 
+void PrintWSAError(int wsError, bool udp, bool non_blocking) {
+    if (non_blocking && wsError == WSAEWOULDBLOCK) {
+        return;
+    }
+    if (udp && wsError == WSAECONNRESET) {
+        printf("[WS_ERROR][%d][UDP] Port Unreachable\n", wsError);
+        return;
+    }
+
+    LPWSTR pBuffer = NULL;
+    FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_ALLOCATE_BUFFER,
+        0,
+        wsError,
+        0,
+        (LPWSTR)&pBuffer,
+        0,
+        0);
+    if (pBuffer) {
+        wprintf(L"[WS_ERROR][%d] %s\n", wsError, pBuffer);
+        LocalFree(pBuffer);
+    } else {
+        printf("[WS_ERROR][%d] Unrecognized error code. See: https://docs.microsoft.com/en-us/windows/win32/winsock/windows-sockets-error-codes-2\n", wsError);
+    }
+}
+
 ZED_NET_DEF int zed_net_init(void) {
 #ifdef _WIN32
     WSADATA wsa_data;
@@ -299,7 +328,7 @@ ZED_NET_DEF const char *zed_net_host_to_str(unsigned int host) {
     return inet_ntoa(in);
 }
 
-ZED_NET_DEF int zed_net_udp_socket_open(zed_net_socket_t *sock, unsigned short port, unsigned long non_blocking) {
+ZED_NET_DEF int zed_net_udp_socket_open(zed_net_socket_t *sock, unsigned short port, unsigned long non_blocking, unsigned long addr) {
     if (!sock)
         return zed_net__error("Socket is NULL");
 
@@ -313,10 +342,12 @@ ZED_NET_DEF int zed_net_udp_socket_open(zed_net_socket_t *sock, unsigned short p
     // Bind the socket to the port
     struct sockaddr_in address = { 0 };
     address.sin_family = AF_INET;
-    address.sin_addr.s_addr = INADDR_ANY;
+    address.sin_addr.s_addr = htonl(addr);
     address.sin_port = htons(port);
 
     if (bind(sock->handle, (const struct sockaddr *) &address, sizeof(struct sockaddr_in)) != 0) {
+        int wsError = WSAGetLastError();
+        PrintWSAError(wsError, true, (bool)non_blocking);
         zed_net_socket_close(sock);
         return zed_net__error("Failed to bind socket");
     }
@@ -341,7 +372,15 @@ ZED_NET_DEF int zed_net_udp_socket_open(zed_net_socket_t *sock, unsigned short p
     return 0;
 }
 
-ZED_NET_DEF int zed_net_tcp_socket_open(zed_net_socket_t *sock, unsigned short port, unsigned long non_blocking, int listen_socket) {
+ZED_NET_DEF int zed_net_udp_socket_open_any(zed_net_socket_t *sock, unsigned short port, unsigned long non_blocking) {
+    return zed_net_udp_socket_open(sock, port, non_blocking, INADDR_ANY);
+}
+
+ZED_NET_DEF int zed_net_udp_socket_open_localhost(zed_net_socket_t *sock, unsigned short port, unsigned long non_blocking) {
+    return zed_net_udp_socket_open(sock, port, non_blocking, INADDR_LOOPBACK);
+}
+
+ZED_NET_DEF int zed_net_tcp_socket_open(zed_net_socket_t *sock, unsigned short port, unsigned long non_blocking, int listen_socket, unsigned long addr) {
     if (!sock)
         return zed_net__error("Socket is NULL");
 
@@ -355,7 +394,7 @@ ZED_NET_DEF int zed_net_tcp_socket_open(zed_net_socket_t *sock, unsigned short p
     // Bind the socket to the port
     struct sockaddr_in address = { 0 };
     address.sin_family = AF_INET;
-    address.sin_addr.s_addr = INADDR_ANY;
+    address.sin_addr.s_addr = htonl(addr);
     address.sin_port = htons(port);
 
     if (bind(sock->handle, (const struct sockaddr *) &address, sizeof(struct sockaddr_in)) != 0) {
@@ -391,6 +430,14 @@ ZED_NET_DEF int zed_net_tcp_socket_open(zed_net_socket_t *sock, unsigned short p
     sock->non_blocking = non_blocking;
 
     return 0;
+}
+
+ZED_NET_DEF int zed_net_tcp_socket_open_any(zed_net_socket_t *sock, unsigned short port, unsigned long non_blocking, int listen_socket) {
+    return zed_net_tcp_socket_open(sock, port, non_blocking, listen_socket, INADDR_ANY);
+}
+
+ZED_NET_DEF int zed_net_tcp_socket_open_localhost(zed_net_socket_t *sock, unsigned short port, unsigned long non_blocking, int listen_socket) {
+    return zed_net_tcp_socket_open(sock, port, non_blocking, listen_socket, INADDR_LOOPBACK);
 }
 
 // Returns 1 if it would block, <0 if there's an error.
@@ -523,6 +570,8 @@ ZED_NET_DEF int zed_net_udp_socket_send(const zed_net_socket_t *socket, zed_net_
 
     int sent_bytes = sendto(socket->handle, (const char *) data, size, 0, (const struct sockaddr *) &address, sizeof(struct sockaddr_in));
     if (sent_bytes != size) {
+        int wsError = WSAGetLastError();
+        PrintWSAError(wsError, true, (bool)socket->non_blocking);
         return zed_net__error("Failed to send data");
     }
 
@@ -544,24 +593,7 @@ ZED_NET_DEF int zed_net_udp_socket_receive(const zed_net_socket_t *socket, zed_n
     int received_bytes = recvfrom(socket->handle, (char *) data, size, 0, (struct sockaddr *) &from, &from_length);
     if (received_bytes < 0) {
         int wsError = WSAGetLastError();
-        switch (wsError) {
-            case WSANOTINITIALISED:  puts("[WS_ERROR] A successful WSAStartup call must occur before using this function.\n"); break;
-            case WSAENETDOWN      :  puts("[WS_ERROR] The network subsystem has failed.\n"); break;
-            case WSAEFAULT        :  puts("[WS_ERROR] The buffer pointed to by the buf or from parameters are not in the user address space, or the fromlen parameter is too small to accommodate the source address of the peer address.\n"); break;
-            case WSAEINTR         :  puts("[WS_ERROR] The (blocking) call was canceled through WSACancelBlockingCall.\n"); break;
-            case WSAEINPROGRESS   :  puts("[WS_ERROR] A blocking Windows Sockets 1.1 call is in progress, or the service provider is still processing a callback function.\n"); break;
-            case WSAEINVAL        :  puts("[WS_ERROR] The socket has not been bound with bind, or an unknown flag was specified, or MSG_OOB was specified for a socket with SO_OOBINLINE enabled, or (for byte stream-style sockets only) len was zero or negative.\n"); break;
-            case WSAEISCONN       :  puts("[WS_ERROR] The socket is connected. This function is not permitted with a connected socket, whether the socket is connection oriented or connectionless.\n"); break;
-            case WSAENETRESET     :  puts("[WS_ERROR] For a datagram socket, this error indicates that the time to live has expired.\n"); break;
-            case WSAENOTSOCK      :  puts("[WS_ERROR] The descriptor in the s parameter is not a socket.\n"); break;
-            case WSAEOPNOTSUPP    :  puts("[WS_ERROR] MSG_OOB was specified, but the socket is not stream-style such as type SOCK_STREAM, OOB data is not supported in the communication domain associated with this socket, or the socket is unidirectional and supports only send operations.\n"); break;
-            case WSAESHUTDOWN     :  puts("[WS_ERROR] The socket has been shut down; it is not possible to recvfrom on a socket after shutdown has been invoked with how set to SD_RECEIVE or SD_BOTH.\n"); break;
-            case WSAEWOULDBLOCK   :  break; //puts("[WS_ERROR] The socket is marked as nonblocking and the recvfrom operation would block.\n"); break;
-            case WSAEMSGSIZE      :  puts("[WS_ERROR] The message was too large to fit into the buffer pointed to by the buf parameter and was truncated.\n"); break;
-            case WSAETIMEDOUT     :  puts("[WS_ERROR] The connection has been dropped, because of a network failure or because the system on the other end went down without notice.\n"); break;
-            case WSAECONNRESET    :  puts("[WS_ERROR] The virtual circuit was reset by the remote side executing a hard or abortive close. The application should close the socket; it is no longer usable. On a UDP-datagram socket this error indicates a previous send operation resulted in an ICMP Port Unreachable message.\n"); break;
-            default: printf("[WS_ERROR] Unrecognized error code: %d\n", wsError);
-        }
+        PrintWSAError(wsError, true, (bool)socket->non_blocking);
         return 0;
     } else if (received_bytes == 0) {
         return 0;
@@ -588,6 +620,8 @@ ZED_NET_DEF int zed_net_tcp_socket_send(zed_net_socket_t *remote_socket, const v
 
     int sent_bytes = send(remote_socket->handle, (const char *) data, size, 0);
     if (sent_bytes != size) {
+        int wsError = WSAGetLastError();
+        PrintWSAError(wsError, false, (bool)remote_socket->non_blocking);
         return zed_net__error("Failed to send data");
     }
 
@@ -613,6 +647,8 @@ ZED_NET_DEF int zed_net_tcp_socket_receive(zed_net_socket_t *remote_socket, void
 
     int received_bytes = recv(remote_socket->handle, (char *) data, size, 0);
     if (received_bytes <= 0) {
+        int wsError = WSAGetLastError();
+        PrintWSAError(wsError, false, (bool)remote_socket->non_blocking);
         return 0;
     }
     return received_bytes;

@@ -2,6 +2,7 @@
 #include "error.h"
 #include "helpers.h"
 #include "net_message.h"
+#include "ring_buffer.h"
 #include <cstdint>
 #include <vector>
 
@@ -14,16 +15,7 @@ struct ChatMessage {
     char   message[CHAT_MESSAGE_BUFFER_LEN] {};
 };
 
-struct ChatHistory {
-    size_t       first    {};  // index of first message (ring buffer)
-    size_t       count    {};  // current # of message in buffer
-    size_t       capacity {};  // maximum # of message in buffer
-    std::vector<ChatMessage> messages {};  // array of messages
-
-    ~ChatHistory();
-    ErrorType Init();
+struct ChatHistory : RingBuffer<ChatMessage> {
+    ChatHistory() : RingBuffer(CHAT_MESSAGE_HISTORY) {}
     void PushNetMessage(const NetMessage_ChatMessage &netChat);
-
-private:
-    ChatMessage *Alloc();
 };
