@@ -22,6 +22,8 @@
 //------------------------------------------------------------------------------
 // Constants
 //------------------------------------------------------------------------------
+#define SERVER_PORT         4040
+#define SERVER_USERNAME     "SERVER"
 #define PACKET_SIZE_MAX     1024
 #define USERNAME_LENGTH_MAX 32
 

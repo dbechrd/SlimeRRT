@@ -24,6 +24,7 @@ Slime::Slime(const char *slimeName, const SpriteDef &spriteDef)
     sprite.direction = Direction::South;
     combat.maxHitPoints = 5.0f;
     combat.hitPoints = combat.maxHitPoints;
+    combat.meleeDamage = 3.0f;
     randJumpIdle = 0.0;
 }
 
@@ -91,13 +92,18 @@ bool Slime::Move(double now, double dt, Vector2 offset)
         return false;
     }
 
+    if (!body.OnGround()) {
+        return false;
+    }
+
     // On ground and hasn't moved for a bit
-    const double timeSinceLastMoved = now - body.lastMoved;
-    if (body.position.z == 0.0f && timeSinceLastMoved > randJumpIdle) {
+    const double timeSinceJump = now - body.lastMoved;
+    if (timeSinceJump > randJumpIdle) {
+        action = Action::Jump;
         body.velocity.x += offset.x;
         body.velocity.y += offset.y;
         body.velocity.z += METERS_TO_PIXELS(3.0f);
-        randJumpIdle = (double)dlb_rand32f_range(1.0f, 2.5f);
+        randJumpIdle = (double)dlb_rand32f_range(1.0f, 2.5f) / sprite.scale;
         UpdateDirection(offset);
         return true;
     }
@@ -139,24 +145,47 @@ bool Slime::Attack(double now, double dt)
 {
     UNUSED(dt); // todo: use dt;
 
-    if (action == Action::None) {
+#if 0
+    if (!body.landed) {
+        return false;
+    }
+
+    const double timeSinceAttackStarted = now - combat.attackStartedAt;
+    if (timeSinceAttackStarted > (combat.attackDuration / sprite.scale)) {
         action = Action::Attack;
         combat.attackStartedAt = now;
         combat.attackDuration = 0.1;
         return true;
     }
+#else
+    if (body.landed) {
+        action = Action::Attack;
+        combat.attackStartedAt = now;
+        combat.attackDuration = 0.0;
+        return true;
+    }
+#endif
     return false;
 }
 
 void Slime::Update(double now, double dt)
 {
-    const double timeSinceAttackStarted = now - combat.attackStartedAt;
-    if (timeSinceAttackStarted > combat.attackDuration) {
-        action = Action::None;
-        combat.attackStartedAt = 0;
-        combat.attackDuration = 0;
+    switch (action) {
+        case Action::Jump: {
+            if (body.OnGround()) {
+                action = Action::None;
+            }
+            break;
+        } case Action::Attack: {
+            const double timeSinceAttackStarted = now - combat.attackStartedAt;
+            if (timeSinceAttackStarted > combat.attackDuration) {
+                action = Action::None;
+                combat.attackStartedAt = 0;
+                combat.attackDuration = 0;
+            }
+            break;
+        }
     }
-
     body.Update(now, dt);
     sprite_update(sprite, now, dt);
 }

@@ -12,7 +12,8 @@
 struct Slime : public Drawable {
     enum class Action {
         None   = 0,
-        Attack = 1,
+        Jump   = 1,
+        Attack = 2,
     };
 
     const char *name         {};

@@ -21,6 +21,11 @@ Vector2 Body3D::GroundPosition() const
     return groundPosition;
 }
 
+bool Body3D::OnGround() const
+{
+    return position.z == 0.0f;
+}
+
 void Body3D::Update(double now, double dt)
 {
     lastUpdated = now;

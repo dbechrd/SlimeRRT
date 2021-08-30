@@ -28,6 +28,8 @@ struct NetClient {
     void CloseSocket();
 
 private:
+    static const char *LOG_SRC;
+
     ErrorType Send(const char *data, size_t size);
     void ProcessMsg(Packet &packet);
 };

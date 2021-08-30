@@ -1,6 +1,6 @@
 #include "tileset.h"
 #include "raylib.h"
-#include <assert.h>
+#include <cassert>
 #include <stdlib.h>
 
 Tileset::Tileset(Texture *texture, size_t tileWidth, size_t tileHeight, size_t tileCount) :

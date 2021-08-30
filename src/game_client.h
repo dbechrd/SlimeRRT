@@ -6,10 +6,11 @@
 #include <thread>
 
 struct GameClient{
-    GameClient(Args args);
+    GameClient(Args args) : args(args) {};
     ErrorType Run(const char *hostname, unsigned short port);
 
 private:
+    static const char *LOG_SRC;
     Args args;
     World world         {};
     NetClient netClient {};

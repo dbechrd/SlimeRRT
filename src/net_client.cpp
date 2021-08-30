@@ -9,7 +9,7 @@
 #include <cstring>
 #include <ctime>
 
-static const char *LOG_SRC = "NetClient";
+const char *NetClient::LOG_SRC = "NetClient";
 
 NetClient::~NetClient()
 {

@@ -5,8 +5,7 @@
 
 using namespace std::chrono_literals;
 
-static const char *LOG_SRC = "GameServer";
-const unsigned int SERVER_PORT = 4040;
+const char *GameServer::LOG_SRC = "GameServer";
 
 GameServer::GameServer(Args args) : args(args)
 {

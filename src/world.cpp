@@ -194,7 +194,6 @@ void World::Sim(double now, double dt, const PlayerControllerState input, const 
         const float slimeMoveSpeed = METERS_TO_PIXELS(2.0f);
         const float slimeAttackReach = METERS_TO_PIXELS(0.5f);
         const float slimeAttackTrack = METERS_TO_PIXELS(10.0f);
-        const float slimeAttackDamage = 1.0f;
         const float slimeRadius = METERS_TO_PIXELS(0.5f);
 
         //static double lastSquish = 0;
@@ -208,9 +207,7 @@ void World::Sim(double now, double dt, const PlayerControllerState input, const 
 
             Vector2 slimeToPlayer = v2_sub(player->body.GroundPosition(), slime.body.GroundPosition());
             const float slimeToPlayerDistSq = v2_length_sq(slimeToPlayer);
-            if (slimeToPlayerDistSq > SQUARED(slimeAttackReach) &&
-                slimeToPlayerDistSq <= SQUARED(slimeAttackTrack))
-            {
+            if (slimeToPlayerDistSq <= SQUARED(slimeAttackTrack)) {
                 const float slimeToPlayerDist = sqrtf(slimeToPlayerDistSq);
                 const float moveDist = MIN(slimeToPlayerDist, slimeMoveSpeed * slime.sprite.scale);
                 // 25% -1.0, 75% +1.0f
@@ -254,11 +251,11 @@ void World::Sim(double now, double dt, const PlayerControllerState input, const 
                 if (slime.Attack(now, dt)) {
                     player->combat.hitPoints = MAX(
                         0.0f,
-                        player->combat.hitPoints - (slimeAttackDamage * slime.sprite.scale)
+                        player->combat.hitPoints - (slime.combat.meleeDamage * slime.sprite.scale)
                     );
 
                     static double lastBleed = 0;
-                    const double bleedDuration = 3.0;
+                    const double bleedDuration = 1.0;
 
                     if (now - lastBleed > bleedDuration / 3.0) {
                         Vector3 playerGut = player->GetAttachPoint(Player::AttachPoint::Gut);

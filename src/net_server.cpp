@@ -12,8 +12,7 @@
 #include <ctime>
 #include <new>
 
-#define SERVER_USERNAME "SERVER"
-static const char *LOG_SRC = "NetServer";
+const char *NetServer::LOG_SRC = "NetServer";
 
 NetServer::~NetServer()
 {

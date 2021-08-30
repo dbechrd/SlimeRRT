@@ -3,7 +3,7 @@
 #include "maths.h"
 #include "raylib.h"
 #include "dlb_types.h"
-#include <assert.h>
+#include <cassert>
 #include <float.h>
 #include <stdlib.h>
 
@@ -30,8 +30,6 @@ void tilemap_generate(Tilemap *map, dlb_rand32_t *rng)
     const Vector2 tileCenterOffset = v2_init(map->tileWidth / 2.0f, map->tileHeight / 2.0f);
     for (int y = 0; y < map->height; y++) {
         for (int x = 0; x < map->width; x++) {
-            //tile.tileType = randomType(g_mersenne);
-            //tile.tileType = (tileY * w + tileX) % tileTypeCount; // Debug: Use every tile sequentially
             const Vector2 position = v2_init((float)x * map->tileWidth, (float)y * map->tileHeight);
             const Vector2 center = v2_add(position, tileCenterOffset);
             const size_t nearestIdx = rrt_nearest_idx(map, center);

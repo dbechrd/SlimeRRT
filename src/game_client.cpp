@@ -1,6 +1,7 @@
 #include "draw_command.h"
 #include "game_client.h"
 #include "healthbar.h"
+#include "item_catalog.h"
 #include "net_client.h"
 #include "particles.h"
 #include "raygui.h"
@@ -14,11 +15,7 @@
 
 using namespace std::chrono_literals;
 
-static const char *LOG_SRC = "GameClient";
-
-GameClient::GameClient(Args args) : args(args)
-{
-};
+const char *GameClient::LOG_SRC = "GameClient";
 
 ErrorType GameClient::Run(const char *hostname, unsigned short port)
 {
@@ -67,6 +64,7 @@ E_START
     SpritesheetCatalog spritesheetCatalog{};
     spritesheetCatalog.Load();
     particles_init();
+    ItemCatalog::instance.Load();
 
     mus_background = LoadMusicStream("resources/fluquor_copyright.ogg");
     mus_background.looping = true;
@@ -639,7 +637,7 @@ E_START
 
             PUSH_TEXT("Connected clients:", WHITE);
 
-            for (auto &kv : g_net_server.clients) {
+            for (auto &kv : gameServer.clients) {
                 text = TextFormatIP(kv.second.address);
                 PUSH_TEXT(text, WHITE);
             }

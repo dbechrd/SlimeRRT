@@ -17,5 +17,6 @@ struct Body3D {
 
     Vector2 BottomCenter() const;
     Vector2 GroundPosition() const;
+    bool OnGround() const;
     void Update(double now, double dt);
 };

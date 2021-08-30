@@ -14,3 +14,7 @@ void run_tests()
     bit_stream_test();
     net_message_test();
 }
+
+#include "bitstream_test.cpp"
+#include "maths_test.cpp"
+#include "net_message_test.cpp"

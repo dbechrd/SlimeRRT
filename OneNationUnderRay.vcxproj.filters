@@ -29,7 +29,6 @@
     <ClCompile Include="src\tilemap.cpp" />
     <ClCompile Include="src\tileset.cpp" />
     <ClCompile Include="src\world.cpp" />
-    <ClCompile Include="src\zed_net.cpp" />
     <ClCompile Include="test\maths_test.cpp" />
     <ClCompile Include="src\error.cpp" />
     <ClCompile Include="src\maths.cpp" />
@@ -41,6 +40,7 @@
     <ClCompile Include="src\game_server.cpp" />
     <ClCompile Include="src\args.cpp" />
     <ClCompile Include="src\game_client.cpp" />
+    <ClCompile Include="src\zed_net.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\bit_stream.h" />

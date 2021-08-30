@@ -10,6 +10,7 @@ struct GameServer {
     ErrorType Run();
 
 private:
+    static const char *LOG_SRC;
     Args args;
     World world         {};
     NetServer netServer {};

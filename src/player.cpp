@@ -79,7 +79,7 @@ Vector3 Player::GetAttachPoint(AttachPoint attachPoint) const
 const Item &Player::GetSelectedItem() const
 {
     const ItemStack &selectedStack = inventory.slots[(int)inventory.selectedSlot];
-    const Item &selectedItem = g_itemCatalog.FindById(selectedStack.id);
+    const Item &selectedItem = ItemCatalog::instance.FindById(selectedStack.id);
     return selectedItem;
 }
 

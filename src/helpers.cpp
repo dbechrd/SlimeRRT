@@ -28,21 +28,3 @@ void DrawTextFont(Font font, const char *text, float posX, float posY, int fontS
         DrawTextEx(font, text, position, (float)fontSize, (float)spacing, color);
     }
 }
-
-#define DLB_RAND_IMPLEMENTATION
-#include "dlb_rand.h"
-
-#define RAYGUI_IMPLEMENTATION
-#include "raygui.h"
-
-#define GUI_TEXTBOX_EXTENDED_IMPLEMENTATION
-#include "gui_textbox_extended.h"
-
-#if 0
-#pragma warning(push)
-#pragma warning(disable: 4244)  // conversion from 'int' to 'float'
-#pragma warning(disable: 4267)  // conversion from 'size_t' to 'int'
-#define GUI_TEXTBOX_EXTENDED_IMPLEMENTATION
-#include "gui_textbox_extended.h"
-#pragma warning(pop)
-#endif

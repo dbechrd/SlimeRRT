@@ -8,7 +8,7 @@
 #include <cstring>
 #include <new>
 
-static const char *LOG_SRC = "Chat";
+const char *ChatHistory::LOG_SRC = "Chat";
 
 void ChatHistory::PushNetMessage(const NetMessage_ChatMessage &netChat)
 {

@@ -1,49 +1,11 @@
 ﻿#include "args.h"
-#include "bit_stream.h"
-#include "chat.h"
-#include "controller.h"
-#include "draw_command.h"
 #include "error.h"
 #include "game_client.h"
 #include "game_server.h"
-#include "healthbar.h"
-#include "helpers.h"
-#include "item_catalog.h"
-#include "maths.h"
-#include "net_client.h"
-#include "net_server.h"
-#include "particles.h"
-#include "particle_fx.h"
-#include "player.h"
-#include "slime.h"
-#include "sound_catalog.h"
-#include "spritesheet.h"
-#include "spritesheet_catalog.h"
-#include "tileset.h"
-#include "tilemap.h"
-#include "rtree.h"
-#include "world.h"
+#include "zed_net.h"
 #include "../test/tests.h"
 
-#include "dlb_rand.h"
-#include "raylib.h"
-#include "raygui.h"
-#include "gui_textbox_extended.h"
-#include "zed_net.h"
-
-#include <cassert>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <ctime>
-
-#include <array>
 #include <future>
-#include <thread>
-
-using namespace std::chrono_literals;
-
-static const char *LOG_SRC = "Main";
 
 int main(int argc, char *argv[])
 {
@@ -96,3 +58,57 @@ int main(int argc, char *argv[])
 #define DLB_MURMUR3_IMPLEMENTATION
 #include "dlb_murmur3.h"
 #pragma warning(pop)
+
+#define DLB_RAND_IMPLEMENTATION
+#include "dlb_rand.h"
+
+#define RAYGUI_IMPLEMENTATION
+#include "raygui.h"
+
+#define GUI_TEXTBOX_EXTENDED_IMPLEMENTATION
+#include "gui_textbox_extended.h"
+
+#if 0
+#pragma warning(push)
+#pragma warning(disable: 4244)  // conversion from 'int' to 'float'
+#pragma warning(disable: 4267)  // conversion from 'size_t' to 'int'
+#define GUI_TEXTBOX_EXTENDED_IMPLEMENTATION
+#include "gui_textbox_extended.h"
+#pragma warning(pop)
+#endif
+
+#include "args.cpp"
+#include "bit_stream.cpp"
+#include "body.cpp"
+#include "chat.cpp"
+#include "controller.cpp"
+#include "drawable.cpp"
+#include "draw_command.cpp"
+#include "error.cpp"
+#include "game_client.cpp"
+#include "game_server.cpp"
+#include "healthbar.cpp"
+#include "helpers.cpp"
+#include "item.cpp"
+#include "item_catalog.cpp"
+#include "maths.cpp"
+#include "net_client.cpp"
+#include "net_server.cpp"
+#include "net_message.cpp"
+#include "packet.cpp"
+#include "particles.cpp"
+#include "particle_fx_blood.cpp"
+#include "particle_fx_gold.cpp"
+#include "particle_fx_goo.cpp"
+#include "player.cpp"
+#include "player_inventory.cpp"
+#include "shadow.cpp"
+#include "slime.cpp"
+#include "sound_catalog.cpp"
+#include "sprite.cpp"
+#include "spritesheet.cpp"
+#include "spritesheet_catalog.cpp"
+#include "tilemap.cpp"
+#include "tileset.cpp"
+#include "world.cpp"
+#include "../test/tests.cpp"

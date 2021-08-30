@@ -50,6 +50,8 @@ struct NetServer {
     void CloseSocket();
 
 private:
+    static const char *LOG_SRC;
+
     ErrorType SendRaw(const NetServerClient *client, const char *data, size_t size);
     ErrorType SendMsg(const NetServerClient *client, const NetMessage &message);
     ErrorType BroadcastRaw(const char *data, size_t size);

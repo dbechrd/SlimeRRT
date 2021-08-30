@@ -18,4 +18,7 @@ struct ChatMessage {
 struct ChatHistory : RingBuffer<ChatMessage> {
     ChatHistory() : RingBuffer(CHAT_MESSAGE_HISTORY) {}
     void PushNetMessage(const NetMessage_ChatMessage &netChat);
+
+private:
+    static const char *LOG_SRC;
 };
