@@ -57,7 +57,7 @@ E_START
         printf("ERROR: Failed to initialized audio device\n");
     }
     // NOTE: Minimum of 0.001 seems reasonable (0.0001 is still audible on max volume)
-    SetMasterVolume(0.01f);
+    //SetMasterVolume(0.2f); // 0.01f);
 
     DrawList drawList{};
     sound_catalog_init();
@@ -66,14 +66,21 @@ E_START
     particles_init();
     ItemCatalog::instance.Load();
 
+    float mus_background_vmin = 0.02f;
+    float mus_background_vmax = 0.2f;
     mus_background = LoadMusicStream("resources/fluquor_copyright.ogg");
     mus_background.looping = true;
     PlayMusicStream(mus_background);
-    SetMusicVolume(mus_background, 0.02f);
+    SetMusicVolume(mus_background, mus_background_vmax);
     UpdateMusicStream(mus_background);
 
+    float mus_whistle_vmin = 0.0f;
+    float mus_whistle_vmax = 1.0f;
     mus_whistle = LoadMusicStream("resources/whistle.ogg");
+    SetMusicVolume(mus_whistle, mus_whistle_vmin);
     mus_whistle.looping = true;
+
+    float whistleAlpha = 0.0f;
 
     Image checkerboardImage = GenImageChecked(monitorWidth, monitorHeight, 32, 32, LIGHTGRAY, GRAY);
     checkboardTexture = LoadTextureFromImage(checkerboardImage);
@@ -267,7 +274,7 @@ E_START
             if (IsKeyPressed(KEY_F)) {
                 cameraFollowPlayer = !cameraFollowPlayer;
             }
-
+#if DEMO_VIEW_RTREE
             if (IsKeyDown(KEY_N)) {
                 if (next_rect_to_add < RECT_COUNT && (GetTime() - lastRectAddedAt > 0.1)) {
                     AABB aabb{};
@@ -282,7 +289,7 @@ E_START
             } else {
                 lastRectAddedAt = 0;
             }
-
+#endif
             // Camera reset (zoom and rotation)
             if (cameraReset || IsKeyPressed(KEY_R)) {
                 camera.target = Vector2{ roundf(camera.target.x), roundf(camera.target.y) };
@@ -297,7 +304,8 @@ E_START
                 world.Sim(now, dt, input, coinSpriteDef);
                 camera.target = charlie.body.GroundPosition();
             } else {
-                const int cameraSpeed = 5;
+                static float cameraSpeed = 5.0f;
+                cameraSpeed += GetMouseWheelMove();
                 if (IsKeyDown(KEY_A)) camera.target.x -= cameraSpeed / camera.zoom;
                 if (IsKeyDown(KEY_D)) camera.target.x += cameraSpeed / camera.zoom;
                 if (IsKeyDown(KEY_W)) camera.target.y -= cameraSpeed / camera.zoom;
@@ -317,12 +325,18 @@ E_START
             // Camera zoom controls
 #if 0
             camera.zoom += GetMouseWheelMove() * 0.1f * camera.zoom;
-#else
+#elif 0
             const float mouseWheelMove = GetMouseWheelMove();
             if (mouseWheelMove) {
                 //printf("zoom: %f, log: %f\n", camera.zoom, log10f(camera.zoom));
                 camera.zoom *= mouseWheelMove > 0.0f ? 2.0f : 0.5f;
             }
+#else
+            static bool zoomOut = false;
+            if (IsKeyPressed(KEY_Z)) {
+                zoomOut = !zoomOut;
+            }
+            camera.zoom = zoomOut ? 0.5f : 1.0f;
 #endif
         }
 
@@ -345,10 +359,20 @@ E_START
         const float invZoom = 1.0f / camera.zoom;
 #endif
 
-        if (charlie.body.idle && !IsMusicPlaying(mus_whistle)) {
-            PlayMusicStream(mus_whistle);
-        } else if (!charlie.body.idle && IsMusicPlaying(mus_whistle)) {
-            StopMusicStream(mus_whistle);
+        if (charlie.body.idle && whistleAlpha < 1.0f) {
+            whistleAlpha = CLAMP(whistleAlpha + 0.005f, 0.0f, 1.0f);
+            SetMusicVolume(mus_background, LERP(mus_background_vmin, mus_background_vmax, 1.0f - whistleAlpha));
+            SetMusicVolume(mus_whistle, LERP(mus_whistle_vmin, mus_whistle_vmax, whistleAlpha));
+            if (!IsMusicPlaying(mus_whistle)) {
+                PlayMusicStream(mus_whistle);
+            }
+        } else if (!charlie.body.idle && whistleAlpha > 0.0f) {
+            whistleAlpha = CLAMP(whistleAlpha - 0.01f, 0.0f, 1.0f);
+            SetMusicVolume(mus_background, LERP(mus_background_vmin, mus_background_vmax, 1.0f - whistleAlpha));
+            SetMusicVolume(mus_whistle, LERP(mus_whistle_vmin, mus_whistle_vmax, whistleAlpha));
+            if (whistleAlpha == 0.0f) {
+                StopMusicStream(mus_whistle);
+            }
         }
 
         //----------------------------------------------------------------------------------

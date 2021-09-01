@@ -5,6 +5,7 @@
 struct Body3D {
     Vector3 acceleration {};
     Vector3 velocity     {};
+    Vector3 prevPosition {};
     Vector3 position     {};
     float rotation       {};
     float restitution    {};  // 0 = no bounce    1 = 100% bounce
@@ -18,5 +19,6 @@ struct Body3D {
     Vector2 BottomCenter() const;
     Vector2 GroundPosition() const;
     bool OnGround() const;
+    bool Resting() const;
     void Update(double now, double dt);
 };

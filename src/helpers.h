@@ -8,7 +8,7 @@
 // Feature flags
 //------------------------------------------------------------------------------
 #define CULL_ON_PUSH 1
-#define DEMO_VIEW_RTREE 1
+#define DEMO_VIEW_RTREE 0
 #define DEMO_VIEW_CULLING 0
 #define DEMO_AI_TRACKING 0
 #define DEMO_BODY_RECT 0
@@ -35,6 +35,7 @@
 // Macros
 //------------------------------------------------------------------------------
 #define CLAMP(x, min, max) (MAX((min), MIN((x), (max))))
+#define LERP(a, b, alpha) ((a) * (1.0f - (alpha)) + b * (alpha))
 #define SQUARED(x) ((x)*(x))
 
 // NOTE: This defines 1 meter = 64 pixels
