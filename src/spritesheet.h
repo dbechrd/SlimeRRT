@@ -1,7 +1,7 @@
 #pragma once
 #include "direction.h"
 #include "string_view.h"
-#include "raylib.h"
+#include "raylib/raylib.h"
 #include <vector>
 
 struct SpriteFrame {

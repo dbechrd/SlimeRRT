@@ -2,7 +2,7 @@
 #include "error.h"
 #include "net_message.h"
 #include "packet.h"
-#include "raylib.h"
+#include "raylib/raylib.h"
 #include <cassert>
 #include <cstdlib>
 #include <cstring>

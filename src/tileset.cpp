@@ -1,5 +1,5 @@
 #include "tileset.h"
-#include "raylib.h"
+#include "raylib/raylib.h"
 #include <cassert>
 #include <stdlib.h>
 

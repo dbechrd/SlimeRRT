@@ -1,4 +1,5 @@
 #pragma once
+#include "loot_table.h"
 
 struct Combat {
     float maxHitPoints     {};
@@ -6,4 +7,5 @@ struct Combat {
     float meleeDamage      {};  // TODO: add min/max and randomly choose?
     double attackStartedAt {};
     double attackDuration  {};
+    LootTable lootTable    {};
 };

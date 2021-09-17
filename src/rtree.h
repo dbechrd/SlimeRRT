@@ -1,6 +1,6 @@
 #pragma once
 #include "maths.h"
-#include "raylib.h"
+#include "raylib/raylib.h"
 #include <cassert>
 #include <array>
 #include <vector>

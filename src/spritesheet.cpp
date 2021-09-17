@@ -1,7 +1,7 @@
 #include "spritesheet.h"
 #include "body.h"
 #include "helpers.h"
-#include "raylib.h"
+#include "raylib/raylib.h"
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
@@ -51,16 +51,18 @@
     FILENAME
 
 
-enum class TokenType {
-    Unknown,
-    Animation,
-    Frame,
-    Spritesheet,
-    Sprite,
-};
+
 
 struct Token {
-    TokenType type;
+    enum class Type {
+        Unknown,
+        Animation,
+        Frame,
+        Spritesheet,
+        Sprite,
+    };
+
+    Token::Type type;
     StringView token;
 };
 
@@ -76,7 +78,7 @@ struct Scanner {
     void DiscardNewlines();
     void DiscardComment();
     void DiscardWhitespaceNewlinesComments();
-    TokenType GetIdentifierType(StringView tok);
+    Token::Type GetIdentifierType(StringView tok);
     Token ParseIdentifier();
     bool ParseHeader(Spritesheet &spritesheet);
     bool ParseFrame(SpriteFrame &frame);
@@ -290,18 +292,18 @@ void Scanner::DiscardWhitespaceNewlinesComments()
     }
 }
 
-TokenType Scanner::GetIdentifierType(StringView tok)
+Token::Type Scanner::GetIdentifierType(StringView tok)
 {
     assert(tok.length);
     assert(tok.text);
 
-    TokenType type = TokenType::Unknown;
+    Token::Type type = Token::Type::Unknown;
 
     // TODO: Hash table
-    if      (!strncmp(tok.text, "animation",   tok.length)) { type = TokenType::Animation;   }
-    else if (!strncmp(tok.text, "frame",       tok.length)) { type = TokenType::Frame;       }
-    else if (!strncmp(tok.text, "sprite",      tok.length)) { type = TokenType::Sprite;      }
-    else if (!strncmp(tok.text, "spritesheet", tok.length)) { type = TokenType::Spritesheet; }
+    if      (!strncmp(tok.text, "animation",   tok.length)) { type = Token::Type::Animation;   }
+    else if (!strncmp(tok.text, "frame",       tok.length)) { type = Token::Type::Frame;       }
+    else if (!strncmp(tok.text, "sprite",      tok.length)) { type = Token::Type::Sprite;      }
+    else if (!strncmp(tok.text, "spritesheet", tok.length)) { type = Token::Type::Spritesheet; }
 
     return type;
 }
@@ -311,7 +313,7 @@ Token Scanner::ParseIdentifier()
     Token tok{};
     tok.token = ConsumeString_Alpha();
     tok.type = GetIdentifierType(tok.token);
-    if (tok.type == TokenType::Unknown) {
+    if (tok.type == Token::Type::Unknown) {
         // TODO: Report better error info (line/column)
         TraceLog(LOG_ERROR, "Encountered unrecognized tokifer '%.*s' in file '%s'.\n", tok.token.length,
             tok.token.text, fileName);
@@ -517,13 +519,13 @@ bool Scanner::ParseSpritesheet(Spritesheet &spritesheet)
             ALPHA {
                 Token tok = ParseIdentifier();
                 switch (tok.type) {
-                    case TokenType::Spritesheet: {
+                    case Token::Type::Spritesheet: {
                         if (!ParseHeader(spritesheet)) {
                             return false;
                         }
                         break;
                     }
-                    case TokenType::Frame: {
+                    case Token::Type::Frame: {
                         SpriteFrame &frame = spritesheet.frames.emplace_back();
                         if (!ParseFrame(frame)) {
                             return false;
@@ -531,7 +533,7 @@ bool Scanner::ParseSpritesheet(Spritesheet &spritesheet)
                         framesParsed++;
                         break;
                     }
-                    case TokenType::Animation: {
+                    case Token::Type::Animation: {
                         SpriteAnim &animation = spritesheet.animations.emplace_back();
                         if (!ParseAnimation(animation)) {
                             return false;
@@ -539,7 +541,7 @@ bool Scanner::ParseSpritesheet(Spritesheet &spritesheet)
                         animationsParsed++;
                         break;
                     }
-                    case TokenType::Sprite: {
+                    case Token::Type::Sprite: {
                         SpriteDef &sprite = spritesheet.sprites.emplace_back(&spritesheet);
                         if (!ParseSprite(sprite)) {
                             return false;

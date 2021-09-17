@@ -1,6 +1,6 @@
 #include "sound_catalog.h"
 #include "helpers.h"
-#include "raylib.h"
+#include "raylib/raylib.h"
 #include <cassert>
 
 static Sound soundCatalog[(int)SoundID::Count];

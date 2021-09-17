@@ -1,6 +1,6 @@
 #pragma once
 #include "helpers.h"
-#include "raylib.h"
+#include "raylib/raylib.h"
 
 struct Body3D {
     Vector3 acceleration {};

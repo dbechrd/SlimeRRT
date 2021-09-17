@@ -4,12 +4,21 @@
 #include "item_catalog.h"
 #include "net_client.h"
 #include "particles.h"
-#include "raygui.h"
-#include "raylib.h"
 #include "rtree.h"
 #include "sound_catalog.h"
 #include "spritesheet_catalog.h"
 #include "dlb_types.h"
+
+#include "raylib/raygui.h"
+#include "raylib/raylib.h"
+#define GRAPHICS_API_OPENGL_33
+#include "raylib/rlgl.h"
+
+#include "imgui/imgui.h"
+#include "imgui/imgui_impl_opengl3.h"
+#include "imgui/imgui_impl_glfw.h"
+#include "GLFW/glfw3.h"
+
 #include <chrono>
 #include <future>
 
@@ -19,6 +28,7 @@ const char *GameClient::LOG_SRC = "GameClient";
 
 ErrorType GameClient::Run(const char *hostname, unsigned short port)
 {
+    World lobby{};
     Texture minimapTex{};
     Texture tilesetTex{};
     Texture checkboardTexture{};
@@ -27,6 +37,23 @@ ErrorType GameClient::Run(const char *hostname, unsigned short port)
     Font fonts[3]{};
 
 E_START
+    // Setup Dear ImGui context
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO();
+    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+
+    // Setup Dear ImGui style
+    ImGui::StyleColorsDark();
+
+    GLFWwindow *glfwWindow = glfwGetCurrentContext();
+    assert(glfwWindow);
+
+    // Setup Platform/Renderer backends
+    ImGui_ImplGlfw_InitForOpenGL(glfwWindow, true);
+    ImGui_ImplOpenGL3_Init("#version 130");
+
     strncpy(netClient.username, "CLIENT", ARRAY_SIZE(netClient.username));
     netClient.usernameLength = strnlen(netClient.username, ARRAY_SIZE(netClient.username));
 
@@ -91,13 +118,16 @@ E_START
 
     Tileset tileset{ &tilesetTex, 32, 32, (int)TileType::Count };
 
+    tilemap_generate_lobby(&lobby.map);
+    world = &lobby;
+
     {
         Image minimapImg{};
         // NOTE: This is the client-side world map. Fog of war until tile types known?
-        minimapImg.width = (int)world.map.width;
-        minimapImg.height = (int)world.map.height;
+        minimapImg.width = (int)world->map.width;
+        minimapImg.height = (int)world->map.height;
         minimapImg.mipmaps = 1;
-        minimapImg.format = UNCOMPRESSED_R8G8B8A8;
+        minimapImg.format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
         assert(sizeof(Color) == 4);
         minimapImg.data = calloc((size_t)minimapImg.width * minimapImg.height, sizeof(Color));
         assert(minimapImg.data);
@@ -109,13 +139,13 @@ E_START
         tileColors[(int)TileType::Wood    ] = BROWN;
         tileColors[(int)TileType::Concrete] = GRAY;
 
-        const size_t height = world.map.height;
-        const size_t width = world.map.width;
+        const size_t height = world->map.height;
+        const size_t width = world->map.width;
 
         Color *minimapPixel = (Color *)minimapImg.data;
         for (size_t y = 0; y < height; y += 1) {
             for (size_t x = 0; x < width; x += 1) {
-                const Tile *tile = &world.map.tiles[y * world.map.width + x];
+                const Tile *tile = &world->map.tiles[y * world->map.width + x];
                 // Draw all tiles as different colored pixels
                 assert((int)tile->tileType >= 0);
                 assert((int)tile->tileType < (int)TileType::Count);
@@ -129,8 +159,8 @@ E_START
     }
 
     const Vector3 worldSpawn = {
-        (float)world.map.width / 2.0f * world.map.tileWidth,
-        (float)world.map.height / 2.0f * world.map.tileHeight,
+        (float)world->map.width / 2.0f * world->map.tileWidth,
+        (float)world->map.height / 2.0f * world->map.tileHeight,
         0.0f
     };
 
@@ -171,7 +201,7 @@ E_START
     camera.zoom = 1.0f;
 
     bool cameraReset = false;
-    bool cameraFollowPlayer = true;
+    bool cameraFree = false;
 
     // TODO: Move sprite loading to somewhere more sane
     const Spritesheet &charlieSpritesheet = spritesheetCatalog.spritesheets[(int)SpritesheetID::Charlie];
@@ -188,18 +218,23 @@ E_START
 
     Player charlie("Charlie", *charlieSpriteDef);
     charlie.body.position = worldSpawn;
-    world.player = &charlie;
+    world->player = &charlie;
 
     {
         const float slimeRadius = 50.0f;
-        const size_t mapPixelsX = world.map.width * world.map.tileWidth;
-        const size_t mapPixelsY = world.map.height * world.map.tileHeight;
+        const size_t mapPixelsX = world->map.width * world->map.tileWidth;
+        const size_t mapPixelsY = world->map.height * world->map.tileHeight;
         const float maxX = mapPixelsX - slimeRadius;
         const float maxY = mapPixelsY - slimeRadius;
-        for (size_t i = 0; i < 256; i++) {
-            //world.slimes.emplace_back(nullptr, *slimeSpriteDef);
-            world.slimes.emplace_back(Slime{ nullptr, *slimeSpriteDef });
-            Slime &slime = world.slimes.back();
+        for (size_t i = 0; i < 1; i++) {
+            world->slimes.emplace_back("Sam", slimeSpriteDef);
+            //world->slimes.emplace_back(Slime{ nullptr, *slimeSpriteDef });
+            Slime &slime = world->slimes.back();
+            slime.combat.maxHitPoints = 100000.0f;
+            slime.combat.hitPoints = slime.combat.maxHitPoints;
+            slime.combat.meleeDamage = 0.0f;
+            slime.combat.lootTable.minCoins = 1;
+            slime.combat.lootTable.maxCoins = 100000;
             slime.body.position.x = dlb_rand32f_range(slimeRadius, maxX);
             slime.body.position.y = dlb_rand32f_range(slimeRadius, maxY);
         }
@@ -214,16 +249,32 @@ E_START
     bool chatActive = false;
     //---------------------------------------------------------------------------------------
 
-    // Main game loop
-    while (!WindowShouldClose())     {
-        bool escape = IsKeyPressed(KEY_ESCAPE);
-        bool findMouseTile = false;
+#define KEY_DOWN(key)
 
+    // Main game loop
+    while (!WindowShouldClose()) {
         // NOTE: Limit delta time to 2 frames worth of updates to prevent chaos for large dt (e.g. when debugging)
         const double dtMax = (1.0 / targetFPS) * 2;
         const double now = GetTime();
         dt = MIN(now - frameStart, dtMax);
         frameStart = now;
+
+        const bool imguiUsingMouse = io.WantCaptureMouse;
+        const bool imguiUsingKeyboard = io.WantCaptureKeyboard;
+        PlayerControllerState input = PlayerControllerState::Query(!io.WantCaptureMouse, !io.WantCaptureKeyboard, cameraFree);
+
+        // Start the Dear ImGui frame
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+
+        static bool show_demo_window = false;
+        if (show_demo_window) {
+            ImGui::ShowDemoWindow(&show_demo_window);
+        }
+
+        bool escape = input.escape;
+        bool findMouseTile = false;
 
         // HACK: No way to check if Raylib is currently recording.. :(
         if (gifRecording) {
@@ -242,9 +293,9 @@ E_START
         UpdateMusicStream(mus_whistle);
 
         if (!chatActive) {
-            findMouseTile = IsKeyDown(KEY_LEFT_ALT);
+            findMouseTile = input.dbg_findMouseTile;
 
-            if (IsKeyPressed(KEY_F11)) {
+            if (input.screenshot) {
                 time_t t = time(NULL);
                 struct tm tm = *localtime(&t);
                 char screenshotName[64]{};
@@ -255,7 +306,11 @@ E_START
                 TakeScreenshot(screenshotName);
             }
 
-            if (IsKeyPressed(KEY_SEVEN)) {
+            if (input.dbg_imgui) {
+                show_demo_window = !show_demo_window;
+            }
+
+            if (input.dbg_nextFont) {
                 fontIdx++;
                 if (fontIdx >= ARRAY_SIZE(fonts)) {
                     fontIdx = 0;
@@ -263,19 +318,19 @@ E_START
                 }
             }
 
-            if (IsKeyPressed(KEY_V)) {
+            if (input.dbg_toggleVsync) {
                 IsWindowState(FLAG_VSYNC_HINT) ? ClearWindowState(FLAG_VSYNC_HINT) : SetWindowState(FLAG_VSYNC_HINT);
             }
 
-            if (IsKeyPressed(KEY_C)) {
+            if (input.dbg_chatMessage) {
                 netClient.SendChatMessage(CSTR("User pressed the C key."));
             }
 
-            if (IsKeyPressed(KEY_F)) {
-                cameraFollowPlayer = !cameraFollowPlayer;
+            if (input.dbg_toggleFreecam) {
+                cameraFree = !cameraFree;
             }
 #if DEMO_VIEW_RTREE
-            if (IsKeyDown(KEY_N)) {
+            if (input.dbg_nextRtreeRect) {
                 if (next_rect_to_add < RECT_COUNT && (GetTime() - lastRectAddedAt > 0.1)) {
                     AABB aabb{};
                     aabb.min.x = floorf(rects[next_rect_to_add].x);
@@ -290,54 +345,52 @@ E_START
                 lastRectAddedAt = 0;
             }
 #endif
+            const float cameraSpeedDefault = 5.0f;
+            static float cameraSpeed = cameraSpeedDefault;
+
             // Camera reset (zoom and rotation)
-            if (cameraReset || IsKeyPressed(KEY_R)) {
-                camera.target = Vector2{ roundf(camera.target.x), roundf(camera.target.y) };
+            if (cameraReset || input.cameraReset) {
                 camera.offset = Vector2{ roundf(screenWidth / 2.0f), roundf(screenHeight / 2.0f) };
+                camera.target = Vector2{ roundf(camera.target.x), roundf(camera.target.y) };
                 camera.rotation = 0.0f;
                 camera.zoom = 1.0f;
+                cameraSpeed = cameraSpeedDefault;
                 cameraReset = 0;
             }
 
-            if (cameraFollowPlayer) {
-                PlayerControllerState input = PlayerControllerState::Query();
-                world.Sim(now, dt, input, coinSpriteDef);
+            if (!cameraFree) {
+                world->Sim(now, dt, input, coinSpriteDef);
                 camera.target = charlie.body.GroundPosition();
+                camera.rotation = 0.0f;
+                camera.zoom = 1.0f;
+                cameraSpeed = cameraSpeedDefault;
             } else {
-                static float cameraSpeed = 5.0f;
-                cameraSpeed += GetMouseWheelMove();
-                if (IsKeyDown(KEY_A)) camera.target.x -= cameraSpeed / camera.zoom;
-                if (IsKeyDown(KEY_D)) camera.target.x += cameraSpeed / camera.zoom;
-                if (IsKeyDown(KEY_W)) camera.target.y -= cameraSpeed / camera.zoom;
-                if (IsKeyDown(KEY_S)) camera.target.y += cameraSpeed / camera.zoom;
-            }
-
-            // Camera rotation controls
-            //if (IsKeyPressed(KEY_Q)) {
-            //    camera.rotation -= 45.0f;
-            //    if (camera.rotation < 0.0f) camera.rotation += 360.0f;
-            //}
-            //else if (IsKeyPressed(KEY_E)) {
-            //    camera.rotation += 45.0f;
-            //    if (camera.rotation >= 360.0f) camera.rotation -= 360.0f;
-            //}
-
-            // Camera zoom controls
+                cameraSpeed += input.cameraSpeedDelta;
+                if (input.cameraWest)  camera.target.x -= cameraSpeed / camera.zoom;
+                if (input.cameraEast)  camera.target.x += cameraSpeed / camera.zoom;
+                if (input.cameraNorth) camera.target.y -= cameraSpeed / camera.zoom;
+                if (input.cameraSouth) camera.target.y += cameraSpeed / camera.zoom;
+                if (input.cameraRotateCW) {
+                    camera.rotation += 45.0f;
+                    if (camera.rotation >= 360.0f) camera.rotation -= 360.0f;
+                } else if (input.cameraRotateCCW) {
+                    camera.rotation -= 45.0f;
+                    if (camera.rotation < 0.0f) camera.rotation += 360.0f;
+                }
+                // Camera zoom controls
 #if 0
-            camera.zoom += GetMouseWheelMove() * 0.1f * camera.zoom;
+                camera.zoom += input.cameraZoomDelta * 0.1f * camera.zoom;
 #elif 0
-            const float mouseWheelMove = GetMouseWheelMove();
-            if (mouseWheelMove) {
-                //printf("zoom: %f, log: %f\n", camera.zoom, log10f(camera.zoom));
-                camera.zoom *= mouseWheelMove > 0.0f ? 2.0f : 0.5f;
-            }
+                if (input.cameraZoomDelta) {
+                    //printf("zoom: %f, log: %f\n", camera.zoom, log10f(camera.zoom));
+                    camera.zoom *= input.cameraZoomDelta > 0.0f ? 2.0f : 0.5f;
+                }
 #else
-            static bool zoomOut = false;
-            if (IsKeyPressed(KEY_Z)) {
-                zoomOut = !zoomOut;
-            }
-            camera.zoom = zoomOut ? 0.5f : 1.0f;
+                static bool zoomOut = false;
+                if (input.cameraZoomOut) zoomOut = !zoomOut;
+                camera.zoom = zoomOut ? 0.5f : 1.0f;
 #endif
+            }
         }
 
 #if 1
@@ -405,10 +458,10 @@ E_START
         size_t tilesDrawn = 0;
 
         {
-            const float tileWidthMip = (float)(world.map.tileWidth * zoomMipLevel);
-            const float tileHeightMip = (float)(world.map.tileHeight * zoomMipLevel);
-            const size_t height = world.map.height;
-            const size_t width = world.map.width;
+            const float tileWidthMip = (float)(world->map.tileWidth * zoomMipLevel);
+            const float tileHeightMip = (float)(world->map.tileHeight * zoomMipLevel);
+            const size_t height = world->map.height;
+            const size_t width = world->map.width;
             const Rectangle *tileRects = tileset.textureRects;
             const float camLeft = cameraRect.x;
             const float camTop = cameraRect.y;
@@ -417,7 +470,7 @@ E_START
 
             for (size_t y = 0; y < height; y += zoomMipLevel) {
                 for (size_t x = 0; x < width; x += zoomMipLevel) {
-                    const Tile *tile = &world.map.tiles[y * world.map.width + x];
+                    const Tile *tile = &world->map.tiles[y * world->map.width + x];
                     const Vector2 tilePos = tile->position;
                     if (tilePos.x + tileWidthMip >= camLeft &&
                         tilePos.y + tileHeightMip >= camTop &&
@@ -440,14 +493,14 @@ E_START
 
         Tile *mouseTile = 0;
         if (findMouseTile) {
-            mouseTile = tilemap_at_world_try(&world.map, (int)mousePosWorld.x, (int)mousePosWorld.y);
+            mouseTile = tilemap_at_world_try(&world->map, (int)mousePosWorld.x, (int)mousePosWorld.y);
             if (mouseTile) {
                 // Draw red outline on hovered tile
                 Rectangle mouseTileRect{
                     mouseTile->position.x,
                     mouseTile->position.y,
-                    (float)world.map.tileWidth * zoomMipLevel,
-                    (float)world.map.tileHeight * zoomMipLevel
+                    (float)world->map.tileWidth * zoomMipLevel,
+                    (float)world->map.tileHeight * zoomMipLevel
                 };
                 DrawRectangleLinesEx(mouseTileRect, 1 * (int)invZoom, RED);
             }
@@ -460,7 +513,7 @@ E_START
             drawList.Push(charlie);
 
             // Queue slimes for drawing
-            for (const Slime &slime : world.slimes) {
+            for (const Slime &slime : world->slimes) {
                 if (slime.combat.hitPoints) {
                     drawList.Push(slime);
                 }
@@ -551,7 +604,7 @@ E_START
             DrawTextFont(fonts[fontIdx], TextFormat("tilePos : %.02f, %.02f", mouseTile->position.x, mouseTile->position.y),
                 tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, fontHeight, BLACK);
             lineOffset += fontHeight;
-            DrawTextFont(fonts[fontIdx], TextFormat("tileSize: %zu, %zu", world.map.tileWidth, world.map.tileHeight),
+            DrawTextFont(fonts[fontIdx], TextFormat("tileSize: %zu, %zu", world->map.tileWidth, world->map.tileHeight),
                 tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, fontHeight, BLACK);
             lineOffset += fontHeight;
             DrawTextFont(fonts[fontIdx], TextFormat("tileType: %d", mouseTile->tileType),
@@ -676,6 +729,7 @@ E_START
                 const float margin = 6.0f;   // left/bottom margin
                 const float pad = 4.0f;      // left/bottom pad
 
+#if 0
                 {
                     static bool dialog = true;
                     dialog = dialog || IsKeyPressed(KEY_GRAVE);
@@ -734,6 +788,7 @@ E_START
                         }
                     }
                 }
+#endif
 
                 const int linesOfText = (int)netClient.chatHistory.Count();
                 const float chatWidth = 420.0f;
@@ -773,7 +828,7 @@ E_START
                 Rectangle chatInputRect = { margin, screenHeight - margin - inputBoxHeight, chatWidth, inputBoxHeight };
                 //GuiTextBox(inputBox, chatInputText, CHAT_MESSAGE_LENGTH_MAX, true);
                 //GuiTextBoxEx(inputBox, chatInputText, CHAT_MESSAGE_LENGTH_MAX, true);
-                if (GuiTextBoxAdvanced(&chatInputState, chatInputRect, chatInputText, &chatInputTextLen, CHAT_MESSAGE_LENGTH_MAX, false)) {
+                if (GuiTextBoxAdvanced(&chatInputState, chatInputRect, chatInputText, &chatInputTextLen, CHAT_MESSAGE_LENGTH_MAX, io.WantCaptureKeyboard)) {
                     size_t messageLength = chatInputTextLen;
                     if (messageLength) {
                         netClient.SendChatMessage(chatInputText, messageLength);
@@ -791,13 +846,16 @@ E_START
             }
 
             // HACK: Check for this *after* rendering chat to avoid pressing "t" causing it to show up in the chat box
-            if (!chatActive && IsKeyDown(KEY_T)) {
+            if (!chatActive && !io.WantCaptureKeyboard && IsKeyDown(KEY_T)) {
                 chatActive = true;
                 GuiSetActiveTextbox(&chatInputState);
             }
         }
 #undef PUSH_TEXT
 
+        rlDrawRenderBatchActive();
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         EndDrawing();
         //----------------------------------------------------------------------------------
 
@@ -815,6 +873,11 @@ E_CLEANUP
     UnloadMusicStream(mus_background);
     UnloadMusicStream(mus_whistle);
     CloseAudioDevice();
+
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+
     CloseWindow();
     for (size_t i = 0; i < ARRAY_SIZE(fonts); i++) {
         UnloadFont(fonts[i]);

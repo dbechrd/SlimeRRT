@@ -57,7 +57,7 @@ void Player::Draw() const
     Shadow::Draw((int)playerGroundPos.x, (int)playerGroundPos.y, 16.0f, -6.0f);
 
     sprite_draw_body(sprite, body, WHITE);
-    HealthBar::Draw(10, sprite, body, combat.hitPoints, combat.maxHitPoints);
+    HealthBar::Draw(10, sprite, body, name, combat.hitPoints, combat.maxHitPoints);
 }
 
 Vector3 Player::GetAttachPoint(AttachPoint attachPoint) const
@@ -143,7 +143,8 @@ bool Player::Attack(double now, double dt)
 
     if (actionState == ActionState::None) {
         actionState = ActionState::Attacking;
-        body.lastUpdated = now;
+        //body.lastUpdated = now;
+        body.lastMoved = now;
         combat.attackStartedAt = now;
         combat.attackDuration = 0.1;
 

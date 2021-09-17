@@ -1,5 +1,5 @@
 #include "helpers.h"
-#include "raylib.h"
+#include "raylib/raylib.h"
 
 static Color ShadowColor(const Color color)
 {

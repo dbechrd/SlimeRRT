@@ -42,6 +42,7 @@ struct Tilemap {
     Tile *  tiles      {};  // array of tile data
 };
 
+void tilemap_generate_lobby (Tilemap *map);
 void tilemap_generate       (Tilemap *map, dlb_rand32_t *rng);
 void tilemap_generate_ex    (Tilemap *map, size_t width, size_t height, size_t tileWidth, size_t tileHeight, dlb_rand32_t *rng);
 void tilemap_free           (Tilemap *map);

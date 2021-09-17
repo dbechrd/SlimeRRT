@@ -1,5 +1,5 @@
 #include "shadow.h"
-#include "raylib.h"
+#include "raylib/raylib.h"
 
 void Shadow::Draw(int x, int y, float radius, float yOffset)
 {

@@ -19,10 +19,6 @@ World::World()
 {
     rtt_seed = 16; //time(NULL);
     dlb_rand32_seed_r(&rtt_rand, rtt_seed, rtt_seed);
-
-    //tilemap_generate_ex(&tilemap, 128, 128, &tileset);
-    tilemap_generate_ex(&map, 256, 256, 32, 32, &rtt_rand);
-    //tilemap_generate_ex(&tilemap, 512, 512, &tileset);
 }
 
 World::~World()
@@ -161,7 +157,7 @@ void World::Sim(double now, double dt, const PlayerControllerState input, const 
                     if (!slime.combat.hitPoints) {
                         //sound_catalog_play(SoundID::Squeak, 0.75f + dlb_rand32f_variance(0.2f));
 
-                        int coins = dlb_rand32i_range(1, 4) * (int)slime.sprite.scale;
+                        int coins = dlb_rand32i_range(slime.combat.lootTable.minCoins, slime.combat.lootTable.maxCoins) * (int)slime.sprite.scale;
                         // TODO(design): Convert coins to higher currency if stack fills up?
                         player->inventory.slots[(int)PlayerInventorySlot::Coins].stackCount += coins;
                         player->stats.coinsCollected += coins;

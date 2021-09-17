@@ -41,6 +41,7 @@
     <ClCompile Include="src\args.cpp" />
     <ClCompile Include="src\game_client.cpp" />
     <ClCompile Include="src\zed_net.cpp" />
+    <ClCompile Include="include\imgui\unity.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\bit_stream.h" />
@@ -81,5 +82,6 @@
     <ClInclude Include="src\args.h" />
     <ClInclude Include="src\game_client.h" />
     <ClInclude Include="src\ring_buffer.h" />
+    <ClInclude Include="src\loot_table.h" />
   </ItemGroup>
 </Project>

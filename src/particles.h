@@ -4,9 +4,7 @@
 #include "drawable.h"
 #include "sprite.h"
 #include "spritesheet.h"
-#include "raylib.h"
-
-#define MAX_PARTICLES 16384
+#include "raylib/raylib.h"
 
 struct ParticleEffect;
 

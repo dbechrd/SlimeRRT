@@ -3,7 +3,7 @@
 #include "helpers.h"
 #include "packet.h"
 #include "error.h"
-#include "raylib.h"
+#include "raylib/raylib.h"
 #include "dlb_types.h"
 #include <cassert>
 #include <cstdlib>

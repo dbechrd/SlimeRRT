@@ -2,7 +2,7 @@
 #include "bit_stream.h"
 #include "chat.h"
 #include "world.h"
-#include "raylib.h"
+#include "raylib/raylib.h"
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>

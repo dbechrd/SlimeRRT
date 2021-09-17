@@ -1,4 +1,74 @@
-﻿#include "args.h"
+﻿// -- windows.h flags --
+#define VC_EXTRALEAN
+#define WIN32_LEAN_AND_MEAN
+#define NOGDICAPMASKS
+#define NOVIRTUALKEYCODES
+#define NOWINMESSAGES
+#define OWINSTYLES
+#define NOSYSMETRICS
+#define NOMENUS
+#define NOICONS
+#define NOKEYSTATES
+#define NOSYSCOMMANDS
+#define NORASTEROPS
+#define NOSHOWWINDOW
+#define OEMRESOURCE
+#define NOATOM
+#define NOCLIPBOARD
+#define NOCOLOR
+#define NOCTLMGR
+#define NODRAWTEXT
+#define NOGDI
+#define NOKERNEL
+#define NOUSER
+#define NONLS
+#define NOMB
+#define NOMEMMGR
+#define NOMETAFILE
+#define NOMINMAX
+#define NOMSG
+#define NOOPENFILE
+#define NOSCROLL
+#define NOSERVICE
+#define NOSOUND
+#define NOTEXTMETRIC
+#define NOWH
+#define NOWINOFFSETS
+#define NOCOMM
+#define NOKANJI
+#define NOHELP
+#define NOPROFILER
+#define NODEFERWINDOWPOS
+#define NOMCX
+#define NOIME
+// -- mmsystem.h flags --
+#define MMNODRV
+#define MMNOSOUND
+#define MMNOWAVE
+#define MMNOMIDI
+#define MMNOAUX
+#define MMNOMIXER
+//#define MMNOTIMER
+#define MMNOJOY
+#define MMNOMCI
+#define MMNOMMIO
+#define MMNOMMSYSTEM
+// -- winsock2.h flags --
+#define _WINSOCK_DEPRECATED_NO_WARNINGS
+#pragma warning(push)
+#pragma warning(disable:4100)
+#pragma warning(disable:4245)
+#pragma warning(disable:4701)
+#pragma warning(disable:4996)
+#pragma warning(disable:6385)
+#pragma warning(disable:26812)
+#define ENET_IMPLEMENTATION
+#include "enet_zpl.h"
+#pragma warning(pop)
+#undef far
+#undef near
+
+#include "args.h"
 #include "error.h"
 #include "game_client.h"
 #include "game_server.h"
@@ -31,7 +101,12 @@ int main(int argc, char *argv[])
 
     if (zed_net_init() < 0) {
         const char *err = zed_net_get_error();
-        TraceLog(LOG_FATAL, "Failed to initialize network utilities. Error: %s\n", err);
+        TraceLog(LOG_FATAL, "Failed to initialize network utilities (zed). Error: %s\n", err);
+    }
+
+    int enet_code = enet_initialize();
+    if (enet_code < 0) {
+        TraceLog(LOG_FATAL, "Failed to initialize network utilities (enet). Error code: %d\n", enet_code);
     }
 
     GameServer gameServer{ args };
@@ -49,6 +124,7 @@ int main(int argc, char *argv[])
     //--------------------------------
     // Clean up
     //--------------------------------
+    enet_deinitialize();
     zed_net_shutdown();
     return 0;
 }
@@ -63,7 +139,7 @@ int main(int argc, char *argv[])
 #include "dlb_rand.h"
 
 #define RAYGUI_IMPLEMENTATION
-#include "raygui.h"
+#include "raylib/raygui.h"
 
 #define GUI_TEXTBOX_EXTENDED_IMPLEMENTATION
 #include "gui_textbox_extended.h"
@@ -91,6 +167,7 @@ int main(int argc, char *argv[])
 #include "helpers.cpp"
 #include "item.cpp"
 #include "item_catalog.cpp"
+#include "loot_table.h"
 #include "maths.cpp"
 #include "net_client.cpp"
 #include "net_server.cpp"

@@ -11,13 +11,31 @@ struct PlayerState {
 };
 
 struct PlayerControllerState {
-    bool walkNorth {};
-    bool walkEast  {};
-    bool walkSouth {};
-    bool walkWest  {};
-    bool run       {};
-    bool attack    {};
+    bool escape      {};
+    bool walkNorth   {};
+    bool walkEast    {};
+    bool walkSouth   {};
+    bool walkWest    {};
+    bool cameraNorth {};
+    bool cameraEast  {};
+    bool cameraSouth {};
+    bool cameraWest  {};
+    bool cameraRotateCW{};
+    bool cameraRotateCCW{};
+    bool cameraZoomOut{};
+    float cameraSpeedDelta {};
+    bool cameraReset{};
+    bool run         {};
+    bool attack      {};
     bool selectSlot[(int)PlayerInventorySlot::Count]{};
+    bool screenshot  {};
+    bool dbg_findMouseTile{};
+    bool dbg_imgui{};
+    bool dbg_nextFont{};
+    bool dbg_toggleVsync{};
+    bool dbg_chatMessage{};
+    bool dbg_toggleFreecam{};
+    bool dbg_nextRtreeRect{};
 
-    static PlayerControllerState Query();
+    static PlayerControllerState Query(bool ignoreMouse, bool ignoreKeyboard, bool freeCamera);
 };

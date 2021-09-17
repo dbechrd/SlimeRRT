@@ -1,7 +1,7 @@
 #pragma once
 #include "direction.h"
 #include "spritesheet.h"
-#include "raylib.h"
+#include "raylib/raylib.h"
 
 struct Sprite {
 public:

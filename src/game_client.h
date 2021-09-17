@@ -11,7 +11,7 @@ struct GameClient{
 
 private:
     static const char *LOG_SRC;
-    Args args;
-    World world         {};
+    Args      args;
+    World *   world     {};
     NetClient netClient {};
 };

@@ -11,7 +11,7 @@
 
 #define SLIME_MAX_SCALE 3.0f
 
-Slime::Slime(const char *slimeName, const SpriteDef &spriteDef)
+Slime::Slime(const char *slimeName, const SpriteDef *spriteDef)
 {
     name = slimeName;
     action = Action::None;
@@ -19,12 +19,14 @@ Slime::Slime(const char *slimeName, const SpriteDef &spriteDef)
     body.drag = 0.95f;
     body.friction = 0.95f;
     body.lastUpdated = GetTime();
-    sprite.spriteDef = &spriteDef;
+    sprite.spriteDef = spriteDef;
     sprite.scale = 1.0f;
     sprite.direction = Direction::South;
     combat.maxHitPoints = 5.0f;
     combat.hitPoints = combat.maxHitPoints;
     combat.meleeDamage = 3.0f;
+    combat.lootTable.minCoins = 1;
+    combat.lootTable.maxCoins = 4;
     randJumpIdle = 0.0;
 }
 
@@ -50,7 +52,7 @@ void Slime::Draw() const
     Shadow::Draw((int)slimeBC.x, (int)slimeBC.y, 16.0f * sprite.scale, -8.0f * sprite.scale);
 
     sprite_draw_body(sprite, body, Fade(WHITE, 0.7f));
-    HealthBar::Draw(10, sprite, body, combat.hitPoints, combat.maxHitPoints);
+    HealthBar::Draw(10, sprite, body, name, combat.hitPoints, combat.maxHitPoints);
 }
 
 void Slime::UpdateDirection(Vector2 offset)

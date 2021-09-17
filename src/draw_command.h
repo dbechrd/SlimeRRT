@@ -1,6 +1,6 @@
 #pragma once
 #include "drawable.h"
-#include "raylib.h"
+#include "raylib/raylib.h"
 #include <vector>
 
 struct DrawCommand {

@@ -22,7 +22,7 @@ struct Slime : public Drawable {
     Action      action       {};
     double      randJumpIdle {};
 
-    Slime(const char *slimeName, const SpriteDef &spriteDef);
+    Slime(const char *slimeName, const SpriteDef *spriteDef);
 
     float Depth() const override;
     bool Cull(const Rectangle &cullRect) const override;

@@ -11,6 +11,7 @@
 #include <cstring>
 
 #define MAX_EFFECTS   32
+#define MAX_PARTICLES 1024
 
 static Particle *particles;
 static Particle *particlesFree;
@@ -38,14 +39,18 @@ void particles_init(void)
     }
 
     // Initialze intrusive free lists
-    for (size_t i = 0; i < MAX_PARTICLES - 1; i++) {
+    for (size_t i = 0; i < MAX_PARTICLES; i++) {
         new(particles + i) Particle{};
-        particles[i].next = &particles[i + 1];
+        if (i < MAX_PARTICLES - 1) {
+            particles[i].next = &particles[i + 1];
+        }
     }
     particlesFree = particles;
-    for (size_t i = 0; i < MAX_EFFECTS - 1; i++) {
+    for (size_t i = 0; i < MAX_EFFECTS; i++) {
         new(effects + i) ParticleEffect{};
-        effects[i].next = &effects[i + 1];
+        if (i < MAX_EFFECTS - 1) {
+            effects[i].next = &effects[i + 1];
+        }
     }
     effectsFree = effects;
 }
@@ -65,8 +70,8 @@ static Particle *particle_alloc(void)
     // Allocate effect
     Particle *particle = particlesFree;
     if (!particle) {
-        assert(!"Particle pool is full");
-        TraceLog(LOG_ERROR, "Particle pool is full; discarding particle.\n");
+        //assert(!"Particle pool is full");
+        //TraceLog(LOG_ERROR, "Particle pool is full; discarding particle.\n");
         return 0;
     }
     particlesFree = particle->next;
@@ -108,8 +113,8 @@ ParticleEffect *particle_effect_create(ParticleEffectType type, size_t particleC
     // Allocate effect
     ParticleEffect *effect = effectsFree;
     if (!effect) {
-        assert(!"Particle effect pool is full");
-        TraceLog(LOG_ERROR, "Particle effect pool is full; discarding particle effect.\n");
+        //assert(!"Particle effect pool is full");
+        //TraceLog(LOG_ERROR, "Particle effect pool is full; discarding particle effect.\n");
         return 0;
     }
     effectsFree = effect->next;
