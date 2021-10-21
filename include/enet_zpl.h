@@ -5981,7 +5981,8 @@ extern "C" {
             NULL,
             NULL) == SOCKET_ERROR
         ) {
-            return (WSAGetLastError() == WSAEWOULDBLOCK) ? 0 : -1;
+            int err = WSAGetLastError();
+            return (err == WSAEWOULDBLOCK) ? 0 : -1;
         }
 
         return (int) sentLength;

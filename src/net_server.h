@@ -3,40 +3,45 @@
 #include "error.h"
 #include "packet.h"
 #include "dlb_murmur3.h"
-#include "zed_net.h"
 #include <cstdint>
 #include <unordered_map>
 
 #define NET_SERVER_CLIENTS_MAX 4
 #define NET_SERVER_PACKET_HISTORY_MAX 256
 
-struct ZedNetAddressHash {
-    std::size_t operator()(const zed_net_address_t &address) const
+struct NetAddressHash {
+    std::size_t operator()(const ENetAddress &address) const
     {
         return (size_t)dlb_murmur3(&address.host, sizeof(address.host)) ^
               ((size_t)dlb_murmur3(&address.port, sizeof(address.port)) << 1);
     }
 };
 
-struct ZedNetAddressEqual {
-    bool operator()(const zed_net_address_t &lhs, const zed_net_address_t &rhs) const
+struct NetAddressEqual {
+    bool operator()(const ENetAddress &lhs, const ENetAddress &rhs) const
     {
-        return lhs.host == rhs.host &&
+        return lhs.host.u.Word[0] == rhs.host.u.Word[0] &&
+               lhs.host.u.Word[1] == rhs.host.u.Word[1] &&
+               lhs.host.u.Word[2] == rhs.host.u.Word[2] &&
+               lhs.host.u.Word[3] == rhs.host.u.Word[3] &&
+               lhs.host.u.Word[4] == rhs.host.u.Word[4] &&
+               lhs.host.u.Word[5] == rhs.host.u.Word[5] &&
+               lhs.host.u.Word[6] == rhs.host.u.Word[6] &&
+               lhs.host.u.Word[7] == rhs.host.u.Word[7] &&
                lhs.port == rhs.port;
     }
 };
 
 struct NetServerClient {
-    zed_net_address_t address                       {};
-    double            last_packet_received_at       {};
-    size_t            usernameLength                {};
-    char              username[USERNAME_LENGTH_MAX] {};
+    ENetPeer *peer                          {};
+    double    last_packet_received_at       {};
+    size_t    usernameLength                {};
+    char      username[USERNAME_LENGTH_MAX] {};
 };
 
 struct NetServer {
-    unsigned short   port            {};
-    zed_net_socket_t socket          {};
-    std::unordered_map<zed_net_address_t, NetServerClient, ZedNetAddressHash, ZedNetAddressEqual> clients{};
+    ENetHost *server{};
+    std::unordered_map<ENetAddress, NetServerClient, NetAddressHash, NetAddressEqual> clients{};
     
     // TODO: Could have a packet history by message type? This would allow us
     // to only store history of important messages, and/or have different

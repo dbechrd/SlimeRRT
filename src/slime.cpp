@@ -25,8 +25,7 @@ Slime::Slime(const char *slimeName, const SpriteDef *spriteDef)
     combat.maxHitPoints = 5.0f;
     combat.hitPoints = combat.maxHitPoints;
     combat.meleeDamage = 3.0f;
-    combat.lootTable.minCoins = 1;
-    combat.lootTable.maxCoins = 4;
+    combat.lootTableId = LootTableID::LT_Slime;
     randJumpIdle = 0.0;
 }
 

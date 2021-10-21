@@ -72,7 +72,6 @@
 #include "error.h"
 #include "game_client.h"
 #include "game_server.h"
-#include "zed_net.h"
 #include "../test/tests.h"
 
 #include <future>
@@ -99,11 +98,6 @@ int main(int argc, char *argv[])
     SetWindowState(FLAG_WINDOW_RESIZABLE);
     SetExitKey(0);  // Disable default Escape exit key, we'll handle escape ourselves
 
-    if (zed_net_init() < 0) {
-        const char *err = zed_net_get_error();
-        TraceLog(LOG_FATAL, "Failed to initialize network utilities (zed). Error: %s\n", err);
-    }
-
     int enet_code = enet_initialize();
     if (enet_code < 0) {
         TraceLog(LOG_FATAL, "Failed to initialize network utilities (enet). Error code: %d\n", enet_code);
@@ -118,14 +112,14 @@ int main(int argc, char *argv[])
 #if 0
     gameClient.Run("slime.theprogrammingjunkie.com", 4040);
 #else
-    gameClient.Run("127.0.0.1", 4040);
+    //gameClient.Run("127.0.0.1", SERVER_PORT);
+    gameClient.Run("localhost", SERVER_PORT);
 #endif
 
     //--------------------------------
     // Clean up
     //--------------------------------
     enet_deinitialize();
-    zed_net_shutdown();
     return 0;
 }
 
@@ -167,7 +161,7 @@ int main(int argc, char *argv[])
 #include "helpers.cpp"
 #include "item.cpp"
 #include "item_catalog.cpp"
-#include "loot_table.h"
+#include "loot_table.cpp"
 #include "maths.cpp"
 #include "net_client.cpp"
 #include "net_server.cpp"

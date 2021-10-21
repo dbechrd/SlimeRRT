@@ -19,27 +19,52 @@ NetClient::~NetClient()
 ErrorType NetClient::OpenSocket()
 {
 E_START
-    if (zed_net_udp_socket_open_localhost(&socket, 0, 1) < 0) {
-        const char *err = zed_net_get_error();
-        E_FATAL(ErrorType::SockOpenFailed, "Failed to open socket. Zed: %s", err);
+    client = enet_host_create(nullptr, 1, 1, 0, 0);
+    if (!client) {
+        E_FATAL(ErrorType::HostCreateFailed, "Failed to create host.");
     }
-    assert(socket.handle);
+    // TODO(dlb)[cleanup]: This probably isn't providing any additional value on top of if (!client) check
+    assert(client->socket);
 E_CLEAN_END
 }
 
 ErrorType NetClient::Connect(const char *hostname, unsigned short port)
 {
 E_START
-    if (zed_net_get_address(&server, hostname, port) < 0) {
-        // TODO: Handle server connect failure gracefully (e.g. user could have typed wrong ip or port).
-        const char *err = zed_net_get_error();
-        E_FATAL(ErrorType::SockConnFailed, "Failed to connect to server %s:%hu. Zed: %s", hostname, port, err);
+    ENetAddress address{};
+    enet_address_set_host(&address, hostname);
+    address.port = port;
+
+    server = enet_host_connect(client, &address, 1, 0);
+
+    int svc = 0;
+    ENetEvent event{};
+
+    /* Wait up to 5 seconds for the connection attempt to succeed. */
+    float start = GetTime();
+    float dt = 0.0f;
+    do {
+        svc = enet_host_service(client, &event, 50);
+    } while (!svc && dt < 5000.0f);
+
+    if (svc > 0 && event.type == ENET_EVENT_TYPE_CONNECT) {
+        serverHostname = hostname;
+        E_INFO("[NetClient] Connected to server %s:%hu.", hostname, port);
+    } else {
+        /* Either the 5 seconds are up or a disconnect event was */
+        /* received. Reset the peer in the event the 5 seconds   */
+        /* had run out without any significant event.            */
+        enet_peer_reset(server);
+        E_FATAL(ErrorType::PeerConnectFailed, "Failed to connect to server %s:%hu.", hostname, port);
     }
-    assert(server.host);
-    assert(server.port);
+
+    ///////////////////////////////////////////////////////////////////////////
+
+    // TODO(dlb): Connecting to server and sending Identify packet probably
+    // shouldn't be in the same place??
+
     assert(usernameLength);
     assert(username);
-
     NetMessage_Identify userIdent{};
     userIdent.username = username;
     userIdent.usernameLength = usernameLength;
@@ -47,33 +72,40 @@ E_START
     char rawPacket[PACKET_SIZE_MAX] = {};
     size_t rawBytes = userIdent.Serialize((uint32_t *)rawPacket, sizeof(rawPacket));
 
-    if (zed_net_udp_socket_send(&socket, server, rawPacket, (int)rawBytes) < 0) {
-        const char *err = zed_net_get_error();
-        E_FATAL(ErrorType::SockSendFailed, "Failed to send connection request. Zed: %s", err);
+    ENetPacket *packet = enet_packet_create(rawPacket, rawBytes, ENET_PACKET_FLAG_RELIABLE);
+    if (!packet) {
+        E_FATAL(ErrorType::PacketCreateFailed, "Failed to create packet.");
     }
-    serverHostname = hostname;
+    if (enet_peer_send(server, 0, packet) < 0) {
+        E_FATAL(ErrorType::PeerSendFailed, "Failed to send connection request.");
+    }
 E_CLEAN_END
 }
 
 ErrorType NetClient::Send(const char *data, size_t size)
 {
 E_START
-    assert(socket.handle);
+    assert(server);
+    assert(server->address.port);
     assert(data);
-    // TODO: Account for header size, determine MTU we want to aim for, and perhaps do auto-segmentation somewhere
     assert(size);
     assert(size <= PACKET_SIZE_MAX);
 
-    if (zed_net_udp_socket_send(&socket, server, data, (int)size) < 0) {
-        const char *err = zed_net_get_error();
-        E_FATAL(ErrorType::SockSendFailed, "Failed to send data. Zed: %s", err);
+    // TODO(dlb): Don't always use reliable flag.. figure out what actually needs to be reliable (e.g. chat)
+    ENetPacket *packet = enet_packet_create(data, size, ENET_PACKET_FLAG_RELIABLE);
+    if (!packet) {
+        E_FATAL(ErrorType::PacketCreateFailed, "Failed to create packet.");
+    }
+    if (enet_peer_send(server, 0, packet) < 0) {
+        E_FATAL(ErrorType::PeerSendFailed, "Failed to send connection request.");
     }
 E_CLEAN_END
 }
 
 ErrorType NetClient::SendChatMessage(const char *message, size_t messageLength)
 {
-    assert(socket.handle);
+    assert(server);
+    assert(server->address.port);
     assert(message);
 
     // TODO: Account for header size, determine MTU we want to aim for, and perhaps do auto-segmentation somewhere
@@ -98,9 +130,9 @@ ErrorType NetClient::SendChatMessage(const char *message, size_t messageLength)
 
 void NetClient::ProcessMsg(Packet &packet)
 {
-    packet.message = &NetMessage::Deserialize((uint32_t *)packet.rawBytes, sizeof(packet.rawBytes));
+    packet.netMessage = &NetMessage::Deserialize((uint32_t *)packet.rawBytes.data, packet.rawBytes.dataLength);
 
-    switch (packet.message->type) {
+    switch (packet.netMessage->type) {
         case NetMessage::Type::Welcome: {
             // TODO: Store salt sent from server instead.. handshake stuffs
             //const char *username = "user";
@@ -108,12 +140,12 @@ void NetClient::ProcessMsg(Packet &packet)
             //memcpy(username, username, usernameLength);
             break;
         } case NetMessage::Type::ChatMessage: {
-            NetMessage_ChatMessage &chatMsg = static_cast<NetMessage_ChatMessage &>(*packet.message);
+            NetMessage_ChatMessage &chatMsg = static_cast<NetMessage_ChatMessage &>(*packet.netMessage);
             chatHistory.PushNetMessage(chatMsg);
             break;
         }
         default: {
-            TraceLog(LOG_WARNING, "[NetClient] Unrecognized message type: %d", packet.message->type);
+            TraceLog(LOG_WARNING, "[NetClient] Unrecognized message type: %d", packet.netMessage->type);
             break;
         }
     }
@@ -121,56 +153,79 @@ void NetClient::ProcessMsg(Packet &packet)
 
 ErrorType NetClient::Receive()
 {
-E_START
-    assert(socket.handle);
+    assert(server);
+    assert(server->address.port);
 
     // TODO: Do I need to limit the amount of network data processed each "frame" to prevent the simulation from
     // falling behind? How easy is it to overload the server in this manner? Limiting it just seems like it would
     // cause unnecessary latency and bigger problems.. so perhaps just "drop" the remaining packets (i.e. receive
     // the data but don't do anything with it)?
-    int bytes = 0;
+    int svc = 0;
     do {
-        zed_net_address_t sender = {};
-        Packet &packet = packetHistory.Alloc();
-        bytes = zed_net_udp_socket_receive(&socket, &sender, CSTR0(packet.rawBytes));
-        if (bytes < 0) {
-            // TODO: Ignore this.. or log it? zed_net doesn't pass through any useful error messages to diagnose this.
-            const char *err = zed_net_get_error();
-            E_FATAL(ErrorType::SockRecvFailed, "Failed to receive network data. Zed: %s", err);
-        }
+        ENetEvent event{};
+        svc = enet_host_service(client, &event, 0);
+        if (svc > 0) {
+            switch (event.type) {
+                case ENET_EVENT_TYPE_CONNECT: {
+                    E_INFO("Connected to server %x:%u.\n",
+                        event.peer->address.host,
+                        event.peer->address.port);
+                    // TODO: Store any relevant client information here.
+                    //event.peer->data = "Client information";
+                    break;
+                } case ENET_EVENT_TYPE_RECEIVE: {
+                    E_INFO("A packet of length %u containing %s was received from %s on channel %u.\n",
+                        event.packet->dataLength,
+                        event.packet->data,
+                        event.peer->data,
+                        event.channelID);
 
-        if (bytes > 0) {
-            packet.srcAddress = sender;
-            delete packet.message;
-            memset(packet.rawBytes + bytes, 0, PACKET_SIZE_MAX - (size_t)bytes);
+                    Packet &packet = packetHistory.Alloc();
+                    packet.srcAddress = event.peer->address;
+                    packet.timestampStr[0] = '1';  // TODO: Real timestamp? How to get from ENet?
+                    packet.rawBytes.data = calloc(event.packet->dataLength, sizeof(uint8_t));
+                    memcpy(packet.rawBytes.data, event.packet->data, event.packet->dataLength);
+                    packet.rawBytes.dataLength = event.packet->dataLength;
 
-            // TODO: Refactor this out into helper function somewhere (it's also in net_server.c)
-            time_t t = time(NULL);
-            struct tm tm = *localtime(&t);
-            int len = snprintf(packet.timestampStr, sizeof(packet.timestampStr), "%02d:%02d:%02d", tm.tm_hour,
-                tm.tm_min, tm.tm_sec);
-            assert(len < sizeof(packet.timestampStr));
+                    // TODO: Refactor this out into helper function somewhere (it's also in net_client.c)
+                    time_t t = time(NULL);
+                    struct tm tm = *localtime(&t);
+                    int len = snprintf(packet.timestampStr, sizeof(packet.timestampStr), "%02d:%02d:%02d", tm.tm_hour,
+                        tm.tm_min, tm.tm_sec);
+                    assert(len < sizeof(packet.timestampStr));
 
-            const char *senderStr = TextFormatIP(sender);
-            if (sender.host != server.host || sender.port != server.port) {
-                E_INFO("STRANGER DANGER! Ingnoring unsolicited packet received from %s.\n", senderStr);
-                continue;
+                    // TODO: Could Packet just point to ENetPacket instead of copying and destroying?
+                    // When would ENetPacket get destroyed? Would that confuse ENet in some way?
+                    enet_packet_destroy(event.packet);
+
+                    ProcessMsg(packet);
+                    //TraceLog(LOG_INFO, "[NetClient] RECV\n  %s said %s", senderStr, packet.rawBytes);
+
+                    break;
+
+                } case ENET_EVENT_TYPE_DISCONNECT: {
+                    E_INFO("Disconnected from server %x:%u.\n",
+                        event.peer->address.host,
+                        event.peer->address.port);
+                    //TODO: Reset the peer's client information.
+                    //event.peer->data = NULL;
+                } default: {
+                    assert(!"unhandled event type");
+                }
             }
-
-            ProcessMsg(packet);
-            //TraceLog(LOG_INFO, "[NetClient] RECV\n  %s said %s", senderStr, packet.rawBytes);
         }
-    } while (bytes > 0);
-E_CLEAN_END
+    } while (svc > 0);
+
+    return ErrorType::Success;
 }
 
 void NetClient::Disconnect()
 {
-    // TODO: Send disconnect message to server
+    enet_peer_disconnect(server, 1);
 }
 
 void NetClient::CloseSocket()
 {
     Disconnect();
-    zed_net_socket_close(&socket);
+    enet_host_destroy(client);
 }

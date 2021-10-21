@@ -13,8 +13,8 @@ static size_t rrt_nearest_idx(Tilemap *map, Vector2 p);
 void tilemap_generate_lobby(Tilemap *map)
 {
     assert(map);
-    map->width = 32;
-    map->height = 32;
+    map->width = 84;
+    map->height = 64;
     map->tileWidth = 32;
     map->tileHeight = 32;
 
@@ -26,8 +26,12 @@ void tilemap_generate_lobby(Tilemap *map)
             const Vector2 position = v2_init((float)x * map->tileWidth, (float)y * map->tileHeight);
             Tile *tile = tilemap_at(map, x, y);
             tile->position = position;
-            const int border_width = 2;
-            if (y < border_width || x < border_width || y >= map->height - border_width || x >= map->width - border_width) {
+            const int cx = x - (int)map->width / 2;
+            const int cy = y - (int)map->height / 2;
+            const int island_radius = 16;
+            if (cx*cx + cy*cy > island_radius*island_radius) {
+            //const int border_width = 26;
+            //if (y < border_width || x < border_width || y >= map->height - border_width || x >= map->width - border_width) {
                 tile->tileType = TileType::Water;
             } else {
                 tile->tileType = TileType::Grass;

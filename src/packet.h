@@ -1,15 +1,14 @@
 #pragma once
 #include "helpers.h"
 #include "net_message.h"
-#include "zed_net.h"
+#include "enet_zpl.h"
 #include <vector>
 
 struct Packet {
-    zed_net_address_t srcAddress       {};
-    char              timestampStr[12] {};  // hh:MM:SS AM
-    char              rawBytes[PACKET_SIZE_MAX]{};
-    NetMessage *      message          {};
+    ENetAddress srcAddress       {};
+    ENetBuffer  rawBytes         {};
+    char        timestampStr[12] {};  // hh:MM:SS AM
+    NetMessage *netMessage       {};
 };
 
-const char *TextFormatIP(zed_net_address_t address);
-
+const char *TextFormatIP(ENetAddress address);

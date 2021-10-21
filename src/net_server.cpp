@@ -22,13 +22,17 @@ NetServer::~NetServer()
 ErrorType NetServer::OpenSocket(unsigned short socketPort)
 {
 E_START
-    if (zed_net_udp_socket_open_localhost(&socket, socketPort, 0) < 0) {
-        const char *err = zed_net_get_error();
-        E_FATAL(ErrorType::SockOpenFailed, "Failed to open socket on port %hu. Zed: %s", port, err);
-    }
+    ENetAddress address{};
+    //address.host = ENET_HOST_ANY;
+    address.host = enet_v4_localhost;
+    address.port = socketPort;
 
-    assert(socket.handle);
-    port = socketPort;
+    server = enet_host_create(&address, 32, 1, 0, 0);
+    if (!server) {
+        E_FATAL(ErrorType::HostCreateFailed, "Failed to create host.");
+    }
+    // TODO(dlb)[cleanup]: This probably isn't providing any additional value on top of if (!server) check
+    assert(server->socket);
 E_CLEAN_END
 }
 
@@ -36,14 +40,18 @@ ErrorType NetServer::SendRaw(const NetServerClient *client, const char *data, si
 {
 E_START
     assert(client);
-    assert(client->address.host);
+    assert(client->peer);
+    assert(client->peer->address.port);
     assert(data);
-    // TODO: Account for header size, determine MTU we want to aim for, and perhaps do auto-segmentation somewhere
     assert(size <= PACKET_SIZE_MAX);
 
-    if (zed_net_udp_socket_send(&socket, client->address, data, (int)size) < 0) {
-        const char *err = zed_net_get_error();
-        E_FATAL(ErrorType::SockSendFailed, "Failed to send data. Zed: %s", err);
+    // TODO(dlb): Don't always use reliable flag.. figure out what actually needs to be reliable (e.g. chat)
+    ENetPacket *packet = enet_packet_create(data, size, ENET_PACKET_FLAG_RELIABLE);
+    if (!packet) {
+        E_FATAL(ErrorType::PacketCreateFailed, "Failed to create packet.");
+    }
+    if (enet_peer_send(client->peer, 0, packet) < 0) {
+        E_FATAL(ErrorType::PeerSendFailed, "Failed to send connection request.");
     }
 E_CLEAN_END
 }
@@ -67,7 +75,8 @@ ErrorType NetServer::BroadcastRaw(const char *data, size_t size)
 
     // Broadcast message to all connected clients
     for (auto &kv : clients) {
-        assert(kv.second.address.host);
+        assert(kv.second.peer);
+        assert(kv.second.peer->address.port);
         ErrorType code = SendRaw(&kv.second, data, size);
         if (code != ErrorType::Success) {
             TraceLog(LOG_ERROR, "[NetServer] BROADCAST\n  %.*s", size, data);
@@ -106,7 +115,7 @@ E_START
     // - player list
 
     {
-        E_INFO("Sending welcome basket to %s\n", TextFormatIP(client->address));
+        E_INFO("Sending welcome basket to %s\n", TextFormatIP(client->peer->address));
         NetMessage_Welcome userJoinedNotification{};
         E_CHECK(SendMsg(client, userJoinedNotification), "Failed to send welcome basket");
     }
@@ -130,16 +139,16 @@ E_CLEAN_END
 
 void NetServer::ProcessMsg(NetServerClient *client, Packet &packet)
 {
-    packet.message = &NetMessage::Deserialize((uint32_t *)packet.rawBytes, sizeof(packet.rawBytes));
+    packet.netMessage = &NetMessage::Deserialize((uint32_t *)packet.rawBytes.data, packet.rawBytes.dataLength);
 
-    switch (packet.message->type) {
+    switch (packet.netMessage->type) {
         case NetMessage::Type::Identify: {
-            NetMessage_Identify &identMsg = static_cast<NetMessage_Identify &>(*packet.message);
+            NetMessage_Identify &identMsg = static_cast<NetMessage_Identify &>(*packet.netMessage);
             client->usernameLength = MIN(identMsg.usernameLength, USERNAME_LENGTH_MAX);
             memcpy(client->username, identMsg.username, client->usernameLength);
             break;
         } case NetMessage::Type::ChatMessage: {
-            NetMessage_ChatMessage &chatMsg = static_cast<NetMessage_ChatMessage &>(*packet.message);
+            NetMessage_ChatMessage &chatMsg = static_cast<NetMessage_ChatMessage &>(*packet.netMessage);
 
             // TODO(security): Validate some session token that's not known to other people to prevent impersonation
             //assert(chatMsg.usernameLength == client->usernameLength);
@@ -161,82 +170,94 @@ void NetServer::ProcessMsg(NetServerClient *client, Packet &packet)
 
 ErrorType NetServer::Listen()
 {
-E_START
-    assert(socket.handle);
+    assert(server->address.port);
 
     // TODO: Do I need to limit the amount of network data processed each "frame" to prevent the simulation from
     // falling behind? How easy is it to overload the server in this manner? Limiting it just seems like it would
     // cause unnecessary latency and bigger problems.. so perhaps just "drop" the remaining packets (i.e. receive
     // the data but don't do anything with it)?
-    int bytes = 0;
-    do {
-        zed_net_address_t sender{};
-        Packet &packet = packetHistory.Alloc();
-        bytes = zed_net_udp_socket_receive(&socket, &sender, CSTR0(packet.rawBytes));
-        if (bytes < 0) {
-            // TODO: Ignore this.. or log it? zed_net doesn't pass through any useful error messages to diagnose this.
-            const char *err = zed_net_get_error();
-            E_FATAL(ErrorType::SockRecvFailed, "Failed to receive network data. Zed: %s", err);
-        }
 
-        if (bytes > 0) {
-            packet.srcAddress = sender;
-            delete packet.message;
-            memset(packet.rawBytes + bytes, 0, PACKET_SIZE_MAX - (size_t)bytes);
-#if 0
-            time_t t = time(NULL);
-            const struct tm *utc = gmtime(&t);
-            size_t timeBytes = strftime(CSTR0(packet.timestampStr), "%I:%M:%S %p", utc); // 02:15:42 PM
-#endif
-            NetServerClient *client = 0;
-            auto kv = clients.find(sender);
-            if (kv == clients.end()) {
-                if (clients.size() >= NET_SERVER_CLIENTS_MAX) {
-                    // Send "server full" response to sender
-                    if (zed_net_udp_socket_send(&socket, sender, CSTR("SERVER FULL")) < 0) {
-                        const char *err = zed_net_get_error();
-                        TraceLog(LOG_ERROR, "[NetServer] Failed to send network data. Zed: %s", err);
+    // TODO(dlb): How long should this wait between calls?
+    int svc = 0;
+    do {
+        ENetEvent event{};
+        svc = enet_host_service(server, &event, 50);
+        if (svc > 0) {
+            switch (event.type) {
+                case ENET_EVENT_TYPE_CONNECT: {
+                    E_INFO("A new client connected from %x:%u.\n",
+                        event.peer->address.host,
+                        event.peer->address.port);
+                    // TODO: Store any relevant client information here.
+                    //event.peer->data = "Client information";
+                    break;
+                } case ENET_EVENT_TYPE_RECEIVE: {
+                    E_INFO("A packet of length %u containing %s was received from %s on channel %u.\n",
+                        event.packet->dataLength,
+                        event.packet->data,
+                        event.peer->data,
+                        event.channelID);
+
+                    Packet &packet = packetHistory.Alloc();
+                    packet.srcAddress = event.peer->address;
+                    packet.timestampStr[0] = '1';  // TODO: Real timestamp? How to get from ENet?
+                    packet.rawBytes.data = calloc(event.packet->dataLength, sizeof(uint8_t));
+                    memcpy(packet.rawBytes.data, event.packet->data, event.packet->dataLength);
+                    packet.rawBytes.dataLength = event.packet->dataLength;
+
+                    // TODO: Refactor this out into helper function somewhere (it's also in net_client.c)
+                    time_t t = time(NULL);
+                    struct tm tm = *localtime(&t);
+                    int len = snprintf(packet.timestampStr, sizeof(packet.timestampStr), "%02d:%02d:%02d", tm.tm_hour,
+                        tm.tm_min, tm.tm_sec);
+                    assert(len < sizeof(packet.timestampStr));
+
+                    // TODO: Could Packet just point to ENetPacket instead of copying and destroying?
+                    // When would ENetPacket get destroyed? Would that confuse ENet in some way?
+                    enet_packet_destroy(event.packet);
+
+                    NetServerClient *client = 0;
+                    auto kv = clients.find(event.peer->address);
+                    if (kv == clients.end()) {
+                        client = &clients[event.peer->address];
+                        client->peer = event.peer;
+                    } else {
+                        client = &kv->second;
                     }
 
-                    TraceLog(LOG_INFO, "[NetServer] Server full, client denied.");
-                    continue;
+                    if (!client->last_packet_received_at) {
+                        SendWelcomeBasket(client);
+                    }
+                    client->last_packet_received_at = GetTime();
+
+                    ProcessMsg(client, packet);
+                    //TraceLog(LOG_INFO, "[NetClient] RECV\n  %s said %s", senderStr, packet.rawBytes);
+
+                    break;
+
+                } case ENET_EVENT_TYPE_DISCONNECT: {
+                    E_INFO("%x:%u disconnected.\n",
+                        event.peer->address.host,
+                        event.peer->address.port);
+                    //TODO: Reset the peer's client information.
+                    //event.peer->data = NULL;
+                } default: {
+                    assert(!"unhandled event type");
                 }
-
-                client = &clients[sender];
-                client->address = sender;
-            } else {
-                client = &kv->second;
             }
-
-            if (!client->last_packet_received_at) {
-                SendWelcomeBasket(client);
-            }
-            client->last_packet_received_at = GetTime();
-
-#if 0
-            const char *senderStr = TextFormatIP(sender);
-            //TraceLog(LOG_INFO, "[NetServer] RECV %s\n  %s", senderStr, packet.rawBytes);
-            TraceLog(LOG_INFO, "[NetServer] Sending ACK to %s\n", senderStr);
-            if (zed_net_udp_socket_send(&socket, client->address, CSTR("ACK")) < 0) {
-                const char *err = zed_net_get_error();
-                TraceLog(LOG_ERROR, "[NetServer] Failed to send network data. Zed: %s", err);
-            }
-#endif
-
-            ProcessMsg(client, packet);
-            //TraceLog(LOG_INFO, "[NetClient] RECV\n  %s said %s", senderStr, packet.rawBytes);
         }
-    } while (bytes > 0);
+    } while (svc >= 0);
 
-    assert(1);
-E_CLEAN_END
+    return ErrorType::Success;
 }
 
 void NetServer::CloseSocket()
 {
-    // TODO: Notify all clients that the server is stopping
+    // Notify all clients that the server is stopping
+    for (int i = 0; i < server->peerCount; i++) {
+        enet_peer_disconnect(&server->peers[i], 0);
+    }
 
-    zed_net_socket_close(&socket);
+    enet_host_destroy(server);
     clients.clear();
-    port = 0;
 }

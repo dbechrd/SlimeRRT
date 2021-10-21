@@ -30,6 +30,11 @@ uint32_t dlb_rand32u_r(dlb_rand32_t *rng);
 // Return random uint in range [0, UINT_MAX]
 uint32_t dlb_rand32u(void);
 
+// Return random uint in range [min, max], inclusive max
+uint32_t dlb_rand32u_range_r(dlb_rand32_t *rng, uint32_t min, uint32_t max);
+// Return random uint in range [min, max], inclusive max
+uint32_t dlb_rand32u_range(uint32_t min, uint32_t max);
+
 // Return random int in range [INT_MIN, INT_MAX], inclusive max
 int32_t dlb_rand32i_r(dlb_rand32_t *rng);
 // Return random int in range [INT_MIN, INT_MAX], inclusive max
@@ -279,6 +284,22 @@ uint32_t dlb_rand32u(void)
     return randu;
 }
 
+// Return random uint in range [min, max], inclusive max
+uint32_t dlb_rand32u_range_r(dlb_rand32_t *rng, uint32_t min, uint32_t max)
+{
+    // Map signed ints to unsigned range before subtracting (max - min) to prevent overflow
+    const uint32_t range = max - min;
+    const uint32_t randu = pcg32_boundedrand_r(rng, range + 1) + min;
+    return randu;
+}
+
+// Return random int in range [min, max], inclusive max
+uint32_t dlb_rand32u_range(uint32_t min, uint32_t max)
+{
+    const uint32_t randu = dlb_rand32u_range_r(&pcg32_global, min, max);
+    return randu;
+}
+
 // Return random int in range [INT_MIN, INT_MAX], inclusive max
 int32_t dlb_rand32i_r(dlb_rand32_t *rng)
 {
@@ -299,7 +320,7 @@ int32_t dlb_rand32i_range_r(dlb_rand32_t *rng, int32_t min, int32_t max)
     // Map signed ints to unsigned range before subtracting (max - min) to prevent overflow
     const uint32_t u_zero = 1U + INT_MAX;
     const uint32_t range = (max + u_zero) - (min + u_zero);
-    const int32_t randi = pcg32_boundedrand_r(rng, range + 1) + min;
+    const int32_t randi = (int32_t)pcg32_boundedrand_r(rng, range + 1) + min;
     return randi;
 }
 

@@ -3,12 +3,12 @@
 
 enum class ErrorType {
     Success    = 0,  // No error occurred
-    AllocFailed   ,  // Failed to allocate memory
-    ENetInitFailed,  // Failed to initialize ENet
-    SockOpenFailed,  // Failed to open socket (e.g. port already in use)
-    SockConnFailed,  // Failed to connect to server
-    SockRecvFailed,  // Failed to receive data via socket
-    SockSendFailed,  // Failed to send data via socket
+    AllocFailed,     // Failed to allocate memory
+    ENetInitFailed,
+    HostCreateFailed,
+    PacketCreateFailed,
+    PeerConnectFailed,
+    PeerSendFailed,
     Count
 };
 

@@ -157,7 +157,9 @@ void World::Sim(double now, double dt, const PlayerControllerState input, const 
                     if (!slime.combat.hitPoints) {
                         //sound_catalog_play(SoundID::Squeak, 0.75f + dlb_rand32f_variance(0.2f));
 
-                        int coins = dlb_rand32i_range(slime.combat.lootTable.minCoins, slime.combat.lootTable.maxCoins) * (int)slime.sprite.scale;
+                        uint32_t coins = loot_table_roll_coins(slime.combat.lootTableId, (int)slime.sprite.scale);
+                        assert(coins);
+
                         // TODO(design): Convert coins to higher currency if stack fills up?
                         player->inventory.slots[(int)PlayerInventorySlot::Coins].stackCount += coins;
                         player->stats.coinsCollected += coins;

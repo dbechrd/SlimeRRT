@@ -40,6 +40,7 @@ PlayerControllerState PlayerControllerState::Query(bool processMouse, bool proce
             input.walkSouth = IsKeyDown(KEY_S) && !IsKeyDown(KEY_W);
             input.walkWest = IsKeyDown(KEY_A) && !IsKeyDown(KEY_D);
             input.run = IsKeyDown(KEY_LEFT_SHIFT);
+            // TODO(dlb): What happens when player selects two inventory slots at the same time?
             input.selectSlot[(int)PlayerInventorySlot::Slot_0] = IsKeyPressed(KEY_ONE);
             input.selectSlot[(int)PlayerInventorySlot::Slot_1] = IsKeyPressed(KEY_TWO);
             input.selectSlot[(int)PlayerInventorySlot::Slot_2] = IsKeyPressed(KEY_THREE);

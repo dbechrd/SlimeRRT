@@ -1,17 +1,16 @@
 #pragma once
 #include "packet.h"
 #include "chat.h"
-#include "zed_net.h"
 #include "dlb_types.h"
 
 #define NET_CLIENT_PACKET_HISTORY_MAX 256
 
 struct NetClient {
-    const char *       serverHostname {};
-    zed_net_address_t  server         {};
-    zed_net_socket_t   socket         {};
-    size_t             usernameLength {};
-    char               username[USERNAME_LENGTH_MAX]{};
+    const char *serverHostname {};
+    ENetHost   *client         {};
+    ENetPeer   *server         {};
+    size_t      usernameLength {};
+    char        username[USERNAME_LENGTH_MAX]{};
 
     // TODO: Could have a packet history by message type? This would allow us
     // to only store history of important messages, and/or have different

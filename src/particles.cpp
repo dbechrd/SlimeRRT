@@ -249,8 +249,7 @@ bool Particle::Cull(const Rectangle &cullRect) const
 
     if (sprite.spriteDef) {
         cull = sprite_cull_body(sprite, body, cullRect);
-    }
-    else {
+    } else {
         const Vector2 particleBC = body.BottomCenter();
         cull = !CheckCollisionCircleRec(particleBC, sprite.scale, cullRect);
     }
@@ -262,8 +261,7 @@ void Particle::Draw() const
 {
     if (sprite.spriteDef) {
         sprite_draw_body(sprite, body, color);
-    }
-    else {
+    } else {
         DrawCircle(
             (int)body.position.x,
             (int)(body.position.y - body.position.z),

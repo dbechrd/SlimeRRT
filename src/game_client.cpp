@@ -2,6 +2,7 @@
 #include "game_client.h"
 #include "healthbar.h"
 #include "item_catalog.h"
+#include "loot_table.h"
 #include "net_client.h"
 #include "particles.h"
 #include "rtree.h"
@@ -92,12 +93,13 @@ E_START
     spritesheetCatalog.Load();
     particles_init();
     ItemCatalog::instance.Load();
+    loot_table_init();
 
     float mus_background_vmin = 0.02f;
     float mus_background_vmax = 0.2f;
     mus_background = LoadMusicStream("resources/fluquor_copyright.ogg");
     mus_background.looping = true;
-    PlayMusicStream(mus_background);
+    //PlayMusicStream(mus_background);
     SetMusicVolume(mus_background, mus_background_vmax);
     UpdateMusicStream(mus_background);
 
@@ -226,18 +228,18 @@ E_START
         const size_t mapPixelsY = world->map.height * world->map.tileHeight;
         const float maxX = mapPixelsX - slimeRadius;
         const float maxY = mapPixelsY - slimeRadius;
-        for (size_t i = 0; i < 1; i++) {
-            world->slimes.emplace_back("Sam", slimeSpriteDef);
-            //world->slimes.emplace_back(Slime{ nullptr, *slimeSpriteDef });
-            Slime &slime = world->slimes.back();
-            slime.combat.maxHitPoints = 100000.0f;
-            slime.combat.hitPoints = slime.combat.maxHitPoints;
-            slime.combat.meleeDamage = 0.0f;
-            slime.combat.lootTable.minCoins = 1;
-            slime.combat.lootTable.maxCoins = 100000;
-            slime.body.position.x = dlb_rand32f_range(slimeRadius, maxX);
-            slime.body.position.y = dlb_rand32f_range(slimeRadius, maxY);
-        }
+
+        world->slimes.emplace_back("Sam", slimeSpriteDef);
+        //world->slimes.emplace_back(Slime{ nullptr, *slimeSpriteDef });
+        Slime &sam = world->slimes.back();
+        sam.combat.maxHitPoints = 100000.0f;
+        sam.combat.hitPoints = sam.combat.maxHitPoints;
+        sam.combat.meleeDamage = 0.0f;
+        sam.combat.lootTableId = LootTableID::LT_Sam;
+        sam.body.position.x = dlb_rand32f_range(slimeRadius, maxX);
+        sam.body.position.y = dlb_rand32f_range(slimeRadius, maxY);
+        sam.body.position = v3_add(worldSpawn, { 0, -300.0f, 0 });
+        sam.sprite.scale = 2.0f;
     }
 
     double frameStart = GetTime();
@@ -316,6 +318,10 @@ E_START
                     fontIdx = 0;
                     GuiSetFont(fonts[fontIdx]);
                 }
+            }
+
+            if (IsKeyPressed(KEY_F10)) {
+                ToggleFullscreen();
             }
 
             if (input.dbg_toggleVsync) {
@@ -575,7 +581,7 @@ E_START
 
 #if DEMO_AI_TRACKING
         {
-            Vector2 charlieCenter = player_get_bottom_center(&charlie);
+            Vector3 charlieCenter = sprite_world_center(charlie.sprite, charlie.body.position, charlie.sprite.scale);
             DrawCircle((int)charlieCenter.x, (int)charlieCenter.y, 640.0f, Fade(ORANGE, 0.5f));
         }
 #endif
@@ -870,6 +876,7 @@ E_CLEANUP
     UnloadTexture(checkboardTexture);
     sound_catalog_free();
     particles_free();
+    loot_table_free();
     UnloadMusicStream(mus_background);
     UnloadMusicStream(mus_whistle);
     CloseAudioDevice();

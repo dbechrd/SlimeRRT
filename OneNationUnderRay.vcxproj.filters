@@ -40,8 +40,8 @@
     <ClCompile Include="src\game_server.cpp" />
     <ClCompile Include="src\args.cpp" />
     <ClCompile Include="src\game_client.cpp" />
-    <ClCompile Include="src\zed_net.cpp" />
     <ClCompile Include="include\imgui\unity.cpp" />
+    <ClCompile Include="src\loot_table.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\bit_stream.h" />
