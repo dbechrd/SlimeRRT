@@ -35,6 +35,11 @@ do { \
     TraceLog(LOG_INFO, "[%s]: " format "\n", LOG_SRC, __VA_ARGS__); \
 } while(0);
 
+#define E_WARN(format, ...) \
+do { \
+    TraceLog(LOG_WARNING, "[%s]: " format "\n", LOG_SRC, __VA_ARGS__); \
+} while(0);
+
 //#define E_ERROR(err_code, format, ...) \
 //    E_LOG_TYPE(LOG_ERROR, err_code, format, __VA_ARGS__);
 

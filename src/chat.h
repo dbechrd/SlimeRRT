@@ -7,8 +7,7 @@
 #include <vector>
 
 struct ChatMessage {
-    // TODO: Send consistent chat timestamp from server
-    //double timestamp;
+    char   timestampStr[12]                 {};  // hh:MM:SS AM
     size_t usernameLength                   {};
     char   username[USERNAME_LENGTH_MAX]    {};
     size_t messageLength                    {};

@@ -90,35 +90,29 @@ int main(int argc, char *argv[])
     //--------------------------------------------------------------------------------------
     error_init();
 
-    const char *title = "Attack the slimes!";
-    if (args.server) {
-        title = "[Open to LAN] Attack the slimes!";
-    }
-    InitWindow(1600, 900, title);
-    SetWindowState(FLAG_WINDOW_RESIZABLE);
-    SetExitKey(0);  // Disable default Escape exit key, we'll handle escape ourselves
-
     int enet_code = enet_initialize();
     if (enet_code < 0) {
         TraceLog(LOG_FATAL, "Failed to initialize network utilities (enet). Error code: %d\n", enet_code);
     }
 
-    GameServer gameServer{ args };
-    std::future gameServerFuture = std::async(std::launch::async, [&gameServer] {
-        return gameServer.Run();
+    std::thread serverThread([&args] {
+        if (args.server) {
+            GameServer gameServer{ args };
+            gameServer.Run();
+        }
     });
 
-    GameClient gameClient{ args };
-#if 0
-    gameClient.Run("slime.theprogrammingjunkie.com", 4040);
-#else
-    //gameClient.Run("127.0.0.1", SERVER_PORT);
-    gameClient.Run("localhost", SERVER_PORT);
-#endif
+    if (!args.server) {
+        GameClient gameClient{ args };
+        //gameClient.Run("slime.theprogrammingjunkie.com", SERVER_PORT);
+        //gameClient.Run("127.0.0.1", SERVER_PORT);
+        gameClient.Run("localhost", SERVER_PORT);
+    }
 
     //--------------------------------
     // Clean up
     //--------------------------------
+    serverThread.join();
     enet_deinitialize();
     return 0;
 }
@@ -132,8 +126,11 @@ int main(int argc, char *argv[])
 #define DLB_RAND_IMPLEMENTATION
 #include "dlb_rand.h"
 
+#pragma warning(push)
+#pragma warning(disable:26812)
 #define RAYGUI_IMPLEMENTATION
 #include "raylib/raygui.h"
+#pragma warning(pop)
 
 #define GUI_TEXTBOX_EXTENDED_IMPLEMENTATION
 #include "gui_textbox_extended.h"

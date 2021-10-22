@@ -7,6 +7,7 @@
 struct Packet {
     ENetAddress srcAddress       {};
     ENetBuffer  rawBytes         {};
+    enet_uint32 timestamp        {};
     char        timestampStr[12] {};  // hh:MM:SS AM
     NetMessage *netMessage       {};
 };

@@ -67,8 +67,8 @@ struct NetMessage_Identify : public NetMessage {
     size_t       usernameLength {};
     const char * username       {};
     // TODO: Encrypt packet
-    //size_t passwordLength;
-    //const char *password;
+    size_t       passwordLength {};
+    const char * password       {};
 
     NetMessage_Identify() : NetMessage(Type::Identify) {};
     using NetMessage::Serialize;
@@ -90,10 +90,11 @@ protected:
 };
 
 struct NetMessage_ChatMessage : public NetMessage  {
-    size_t       usernameLength {};
-    const char * username       {};
-    size_t       messageLength  {};
-    const char * message        {};
+    char         timestampStr[12] {};  // hh:MM:SS AM
+    size_t       usernameLength   {};
+    const char * username         {};
+    size_t       messageLength    {};
+    const char * message          {};
 
     NetMessage_ChatMessage() : NetMessage(Type::ChatMessage) {};
     using NetMessage::Serialize;

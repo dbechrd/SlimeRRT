@@ -54,6 +54,15 @@ void NetMessage_Identify::Serialize(BitStreamWriter &writer) const
         writer.Write(username[i], 8);
     }
     writer.Flush();
+
+    assert(passwordLength <= PASSWORD_LENGTH_MAX);
+    writer.Write((uint32_t)passwordLength, 5);
+    writer.Align();
+
+    for (size_t i = 0; i < passwordLength; i++) {
+        writer.Write(password[i], 8);
+    }
+    writer.Flush();
 }
 
 void NetMessage_Welcome::Serialize(BitStreamWriter &writer) const
@@ -92,6 +101,15 @@ void NetMessage_Identify::Deserialize(BitStreamReader &reader)
 
     username = reader.BufferPtr();
     for (size_t i = 0; i < usernameLength; i++) {
+        reader.Read(8);
+    }
+
+    passwordLength = reader.Read(5);
+    assert(passwordLength <= PASSWORD_LENGTH_MAX);
+    reader.Align();
+
+    password = reader.BufferPtr();
+    for (size_t i = 0; i < passwordLength; i++) {
         reader.Read(8);
     }
 }

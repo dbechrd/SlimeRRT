@@ -10,7 +10,7 @@ struct NetClient {
     ENetHost   *client         {};
     ENetPeer   *server         {};
     size_t      usernameLength {};
-    char        username[USERNAME_LENGTH_MAX]{};
+    const char *username       {};
 
     // TODO: Could have a packet history by message type? This would allow us
     // to only store history of important messages, and/or have different
@@ -21,6 +21,7 @@ struct NetClient {
     NetClient::~NetClient();
     ErrorType OpenSocket();
     ErrorType Connect(const char *hostname, unsigned short port);
+    ErrorType Auth(const char *username, const char *password);
     ErrorType SendChatMessage(const char *message, size_t messageLength);
     ErrorType Receive();
     void Disconnect();

@@ -26,6 +26,7 @@
 #define SERVER_USERNAME     "SERVER"
 #define PACKET_SIZE_MAX     1024
 #define USERNAME_LENGTH_MAX 32
+#define PASSWORD_LENGTH_MAX 32
 
 #define CHAT_MESSAGE_HISTORY    16 //64
 #define CHAT_MESSAGE_LENGTH_MAX 500  // not including nil terminator, must be < CHAT_MESSAGE_BUFFER_LEN

@@ -38,6 +38,14 @@ ErrorType GameClient::Run(const char *hostname, unsigned short port)
     Font fonts[3]{};
 
 E_START
+    const char *title = "Attack the slimes!";
+    if (args.server) {
+        title = "[Open to LAN] Attack the slimes!";
+    }
+    InitWindow(1600, 900, title);
+    SetWindowState(FLAG_WINDOW_RESIZABLE);
+    SetExitKey(0);  // Disable default Escape exit key, we'll handle escape ourselves
+
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -54,9 +62,6 @@ E_START
     // Setup Platform/Renderer backends
     ImGui_ImplGlfw_InitForOpenGL(glfwWindow, true);
     ImGui_ImplOpenGL3_Init("#version 130");
-
-    strncpy(netClient.username, "CLIENT", ARRAY_SIZE(netClient.username));
-    netClient.usernameLength = strnlen(netClient.username, ARRAY_SIZE(netClient.username));
 
     E_CHECK(netClient.OpenSocket(), "Failed to open client socket");
     E_CHECK(netClient.Connect(hostname, port), "Failed to connect client");
@@ -816,10 +821,10 @@ E_START
                     assert(chatMsg.messageLength);
 
                     if (chatMsg.usernameLength == 6 && !strncmp(chatMsg.username, "SERVER", chatMsg.usernameLength)) {
-                        chatText = TextFormat("[%s]<SERVER>: %.*s", "00:00:00", chatMsg.messageLength, chatMsg.message);
+                        chatText = TextFormat("[%s]<SERVER>: %.*s", chatMsg.timestampStr, chatMsg.messageLength, chatMsg.message);
                         chatColor = RED;
                     } else {
-                        chatText = TextFormat("[%s][%.*s]: %.*s", "00:00:00", chatMsg.usernameLength, chatMsg.username,
+                        chatText = TextFormat("[%s][%.*s]: %.*s", chatMsg.timestampStr, chatMsg.usernameLength, chatMsg.username,
                             chatMsg.messageLength, chatMsg.message);
                         chatColor = WHITE;
                     }

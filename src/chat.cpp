@@ -14,6 +14,9 @@ void ChatHistory::PushNetMessage(const NetMessage_ChatMessage &netChat)
 {
     ChatMessage &chat = Alloc();
 
+    assert(sizeof(chat.timestampStr) == sizeof(netChat.timestampStr));
+    memcpy(chat.timestampStr, netChat.timestampStr, sizeof(netChat.timestampStr));
+
     assert(netChat.usernameLength <= USERNAME_LENGTH_MAX);
     chat.usernameLength = MIN(netChat.usernameLength, USERNAME_LENGTH_MAX);
     memcpy(chat.username, netChat.username, chat.usernameLength);

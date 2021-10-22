@@ -122,8 +122,8 @@ E_START
 
     {
         // TODO: Save from identify packet into NetServerClient, then user client->username
-        const char *username = "username";
-        size_t usernameLength = strlen(username);
+        const char *username = client->username;
+        size_t usernameLength = client->usernameLength;
         const char *message = TextFormat("%.*s joined the game.", usernameLength, username);
         size_t messageLength = strlen(message);
 
@@ -181,7 +181,7 @@ ErrorType NetServer::Listen()
     int svc = 0;
     do {
         ENetEvent event{};
-        svc = enet_host_service(server, &event, 50);
+        svc = enet_host_service(server, &event, 10);
         if (svc > 0) {
             switch (event.type) {
                 case ENET_EVENT_TYPE_CONNECT: {
@@ -200,7 +200,7 @@ ErrorType NetServer::Listen()
 
                     Packet &packet = packetHistory.Alloc();
                     packet.srcAddress = event.peer->address;
-                    packet.timestampStr[0] = '1';  // TODO: Real timestamp? How to get from ENet?
+                    packet.timestamp = enet_time_get();
                     packet.rawBytes.data = calloc(event.packet->dataLength, sizeof(uint8_t));
                     memcpy(packet.rawBytes.data, event.packet->data, event.packet->dataLength);
                     packet.rawBytes.dataLength = event.packet->dataLength;
@@ -232,7 +232,6 @@ ErrorType NetServer::Listen()
 
                     ProcessMsg(client, packet);
                     //TraceLog(LOG_INFO, "[NetClient] RECV\n  %s said %s", senderStr, packet.rawBytes);
-
                     break;
 
                 } case ENET_EVENT_TYPE_DISCONNECT: {
@@ -241,8 +240,10 @@ ErrorType NetServer::Listen()
                         event.peer->address.port);
                     //TODO: Reset the peer's client information.
                     //event.peer->data = NULL;
+                    break;
                 } default: {
-                    assert(!"unhandled event type");
+                    E_WARN("Unhandled event type: %d", event.type);
+                    break;
                 }
             }
         }

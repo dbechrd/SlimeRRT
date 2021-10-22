@@ -30,44 +30,28 @@ E_CLEAN_END
 
 ErrorType NetClient::Connect(const char *hostname, unsigned short port)
 {
-E_START
     ENetAddress address{};
     enet_address_set_host(&address, hostname);
     address.port = port;
-
     server = enet_host_connect(client, &address, 1, 0);
+    serverHostname = hostname;
+    return ErrorType::Success;
+}
 
-    int svc = 0;
-    ENetEvent event{};
+ErrorType NetClient::Auth(const char *user, const char *password)
+{
+E_START
+    assert(user);
+    assert(password);
 
-    /* Wait up to 5 seconds for the connection attempt to succeed. */
-    float start = GetTime();
-    float dt = 0.0f;
-    do {
-        svc = enet_host_service(client, &event, 50);
-    } while (!svc && dt < 5000.0f);
+    username = user;
+    usernameLength = strlen(user);
 
-    if (svc > 0 && event.type == ENET_EVENT_TYPE_CONNECT) {
-        serverHostname = hostname;
-        E_INFO("[NetClient] Connected to server %s:%hu.", hostname, port);
-    } else {
-        /* Either the 5 seconds are up or a disconnect event was */
-        /* received. Reset the peer in the event the 5 seconds   */
-        /* had run out without any significant event.            */
-        enet_peer_reset(server);
-        E_FATAL(ErrorType::PeerConnectFailed, "Failed to connect to server %s:%hu.", hostname, port);
-    }
-
-    ///////////////////////////////////////////////////////////////////////////
-
-    // TODO(dlb): Connecting to server and sending Identify packet probably
-    // shouldn't be in the same place??
-
-    assert(usernameLength);
-    assert(username);
     NetMessage_Identify userIdent{};
     userIdent.username = username;
     userIdent.usernameLength = usernameLength;
+    userIdent.password = password;
+    userIdent.passwordLength = strlen(password);
 
     char rawPacket[PACKET_SIZE_MAX] = {};
     size_t rawBytes = userIdent.Serialize((uint32_t *)rawPacket, sizeof(rawPacket));
@@ -141,11 +125,12 @@ void NetClient::ProcessMsg(Packet &packet)
             break;
         } case NetMessage::Type::ChatMessage: {
             NetMessage_ChatMessage &chatMsg = static_cast<NetMessage_ChatMessage &>(*packet.netMessage);
+            memcpy(chatMsg.timestampStr, packet.timestampStr, sizeof(packet.timestampStr));
             chatHistory.PushNetMessage(chatMsg);
             break;
         }
         default: {
-            TraceLog(LOG_WARNING, "[NetClient] Unrecognized message type: %d", packet.netMessage->type);
+            E_WARN("Unrecognized message type: %d", packet.netMessage->type);
             break;
         }
     }
@@ -164,14 +149,25 @@ ErrorType NetClient::Receive()
     do {
         ENetEvent event{};
         svc = enet_host_service(client, &event, 0);
-        if (svc > 0) {
+
+        if (server->state == ENET_PEER_STATE_CONNECTING &&
+            !server->lastReceiveTime &&
+            (enet_time_get() - server->lastSendTime) > 5000)
+        {
+            E_WARN("Failed to connect to server %s:%hu.", serverHostname, server->host->address.port);
+            enet_peer_reset(server);
+            //E_FATAL(ErrorType::PeerConnectFailed, "Failed to connect to server %s:%hu.", hostname, port);
+        }
+
+        if (server->state && svc > 0) {
             switch (event.type) {
                 case ENET_EVENT_TYPE_CONNECT: {
-                    E_INFO("Connected to server %x:%u.\n",
+                    E_INFO("Connected to server %x:%hu.\n",
                         event.peer->address.host,
                         event.peer->address.port);
                     // TODO: Store any relevant client information here.
                     //event.peer->data = "Client information";
+                    Auth("dandy", "abc");
                     break;
                 } case ENET_EVENT_TYPE_RECEIVE: {
                     E_INFO("A packet of length %u containing %s was received from %s on channel %u.\n",
@@ -182,7 +178,7 @@ ErrorType NetClient::Receive()
 
                     Packet &packet = packetHistory.Alloc();
                     packet.srcAddress = event.peer->address;
-                    packet.timestampStr[0] = '1';  // TODO: Real timestamp? How to get from ENet?
+                    packet.timestamp = enet_time_get();
                     packet.rawBytes.data = calloc(event.packet->dataLength, sizeof(uint8_t));
                     memcpy(packet.rawBytes.data, event.packet->data, event.packet->dataLength);
                     packet.rawBytes.dataLength = event.packet->dataLength;
@@ -202,13 +198,13 @@ ErrorType NetClient::Receive()
                     //TraceLog(LOG_INFO, "[NetClient] RECV\n  %s said %s", senderStr, packet.rawBytes);
 
                     break;
-
                 } case ENET_EVENT_TYPE_DISCONNECT: {
                     E_INFO("Disconnected from server %x:%u.\n",
                         event.peer->address.host,
                         event.peer->address.port);
                     //TODO: Reset the peer's client information.
                     //event.peer->data = NULL;
+                    break;
                 } default: {
                     assert(!"unhandled event type");
                 }
