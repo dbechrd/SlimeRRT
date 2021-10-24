@@ -3484,7 +3484,7 @@ void GuiLoadStyle(const char *fileName)
                     {
                         // Style property: p <control_id> <property_id> <property_value> <property_name>
 
-                        sscanf(buffer, "p %d %d 0x%x", &controlId, &propertyId, &propertyValue);
+                        (void)sscanf(buffer, "p %d %d 0x%x", &controlId, &propertyId, &propertyValue);
 
                         GuiSetStyle(controlId, propertyId, (int)propertyValue);
 
@@ -3496,7 +3496,7 @@ void GuiLoadStyle(const char *fileName)
                         int fontSize = 0;
                         char charmapFileName[256] = { 0 };
                         char fontFileName[256] = { 0 };
-                        sscanf(buffer, "f %d %s %[^\r\n]s", &fontSize, charmapFileName, fontFileName);
+                        (void)sscanf(buffer, "f %d %s %[^\r\n]s", &fontSize, charmapFileName, fontFileName);
 
                         Font font = { 0 };
 

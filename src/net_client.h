@@ -6,11 +6,14 @@
 #define NET_CLIENT_PACKET_HISTORY_MAX 256
 
 struct NetClient {
-    const char *serverHostname {};
-    ENetHost   *client         {};
-    ENetPeer   *server         {};
-    size_t      usernameLength {};
-    const char *username       {};
+    const char     *serverHost     {};
+    unsigned short  serverPort     {};
+    ENetHost       *client         {};
+    ENetPeer       *server         {};
+    size_t          usernameLength {};
+    const char     *username       {};
+    size_t          passwordLength {};
+    const char     *password       {};
 
     // TODO: Could have a packet history by message type? This would allow us
     // to only store history of important messages, and/or have different
@@ -20,8 +23,7 @@ struct NetClient {
 
     NetClient::~NetClient();
     ErrorType OpenSocket();
-    ErrorType Connect(const char *hostname, unsigned short port);
-    ErrorType Auth(const char *username, const char *password);
+    ErrorType Connect(const char *serverHost, unsigned short serverPort, const char *user, const char *password);
     ErrorType SendChatMessage(const char *message, size_t messageLength);
     ErrorType Receive();
     void Disconnect();
@@ -30,6 +32,7 @@ struct NetClient {
 private:
     static const char *LOG_SRC;
 
+    ErrorType Auth();
     ErrorType Send(const char *data, size_t size);
     void ProcessMsg(Packet &packet);
 };

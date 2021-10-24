@@ -72,6 +72,7 @@
 #include "error.h"
 #include "game_client.h"
 #include "game_server.h"
+#include "server_cli.h"
 #include "../test/tests.h"
 
 #include <future>
@@ -102,7 +103,10 @@ int main(int argc, char *argv[])
         }
     });
 
-    if (!args.server) {
+    if (args.server) {
+        ServerCLI serverCli{ args };
+        serverCli.Run("localhost", SERVER_PORT);
+    } else {
         GameClient gameClient{ args };
         //gameClient.Run("slime.theprogrammingjunkie.com", SERVER_PORT);
         //gameClient.Run("127.0.0.1", SERVER_PORT);
@@ -127,6 +131,7 @@ int main(int argc, char *argv[])
 #include "dlb_rand.h"
 
 #pragma warning(push)
+#pragma warning(disable:6031)  // Return value ignored
 #pragma warning(disable:26812)
 #define RAYGUI_IMPLEMENTATION
 #include "raylib/raygui.h"
@@ -170,6 +175,7 @@ int main(int argc, char *argv[])
 #include "particle_fx_goo.cpp"
 #include "player.cpp"
 #include "player_inventory.cpp"
+#include "server_cli.cpp"
 #include "shadow.cpp"
 #include "slime.cpp"
 #include "sound_catalog.cpp"

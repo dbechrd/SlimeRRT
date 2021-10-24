@@ -28,24 +28,33 @@ E_START
 E_CLEAN_END
 }
 
-ErrorType NetClient::Connect(const char *hostname, unsigned short port)
+#pragma warning(push)
+#pragma warning(disable:4458)  // parameter hides class member
+#pragma warning(disable:4996)  // enet_address_set_host_old deprecated
+ErrorType NetClient::Connect(const char *serverHost, unsigned short serverPort, const char *username, const char *password)
 {
     ENetAddress address{};
-    enet_address_set_host(&address, hostname);
-    address.port = port;
+    enet_address_set_host(&address, serverHost);
+    address.port = serverPort;
     server = enet_host_connect(client, &address, 1, 0);
-    serverHostname = hostname;
+    this->serverHost = serverHost;
+    this->serverPort = serverPort;
+
+    usernameLength = strlen(username);
+    passwordLength = strlen(password);
+    this->username = username;
+    this->password = (const char *)calloc(passwordLength + 1, sizeof(*this->password));
+    memcpy((void *)this->password, password, passwordLength);
+
     return ErrorType::Success;
 }
+#pragma warning(pop)
 
-ErrorType NetClient::Auth(const char *user, const char *password)
+ErrorType NetClient::Auth()
 {
 E_START
-    assert(user);
+    assert(username);
     assert(password);
-
-    username = user;
-    usernameLength = strlen(user);
 
     NetMessage_Identify userIdent{};
     userIdent.username = username;
@@ -63,6 +72,12 @@ E_START
     if (enet_peer_send(server, 0, packet) < 0) {
         E_FATAL(ErrorType::PeerSendFailed, "Failed to send connection request.");
     }
+
+    // Clear password from memory
+    memset((void *)password, 0, passwordLength);
+    free((void *)password);
+    password = nullptr;
+    passwordLength = 0;
 E_CLEAN_END
 }
 
@@ -154,7 +169,7 @@ ErrorType NetClient::Receive()
             !server->lastReceiveTime &&
             (enet_time_get() - server->lastSendTime) > 5000)
         {
-            E_WARN("Failed to connect to server %s:%hu.", serverHostname, server->host->address.port);
+            E_WARN("Failed to connect to server %s:%hu.", serverHost, server->host->address.port);
             enet_peer_reset(server);
             //E_FATAL(ErrorType::PeerConnectFailed, "Failed to connect to server %s:%hu.", hostname, port);
         }
@@ -162,18 +177,19 @@ ErrorType NetClient::Receive()
         if (server->state && svc > 0) {
             switch (event.type) {
                 case ENET_EVENT_TYPE_CONNECT: {
-                    E_INFO("Connected to server %x:%hu.\n",
+                    E_INFO("Connected to server %x:%hu.",
                         event.peer->address.host,
                         event.peer->address.port);
                     // TODO: Store any relevant client information here.
                     //event.peer->data = "Client information";
-                    Auth("dandy", "abc");
+                    Auth();
                     break;
                 } case ENET_EVENT_TYPE_RECEIVE: {
-                    E_INFO("A packet of length %u containing %s was received from %s on channel %u.\n",
+                    E_INFO("A packet of length %u was received from %x:%u on channel %u.",
                         event.packet->dataLength,
                         event.packet->data,
-                        event.peer->data,
+                        event.peer->address.host,
+                        event.peer->address.port,
                         event.channelID);
 
                     Packet &packet = packetHistory.Alloc();
@@ -199,7 +215,7 @@ ErrorType NetClient::Receive()
 
                     break;
                 } case ENET_EVENT_TYPE_DISCONNECT: {
-                    E_INFO("Disconnected from server %x:%u.\n",
+                    E_INFO("Disconnected from server %x:%u.",
                         event.peer->address.host,
                         event.peer->address.port);
                     //TODO: Reset the peer's client information.
@@ -223,5 +239,6 @@ void NetClient::Disconnect()
 void NetClient::CloseSocket()
 {
     Disconnect();
+    enet_host_service(client, nullptr, 0);
     enet_host_destroy(client);
 }

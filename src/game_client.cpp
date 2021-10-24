@@ -27,7 +27,7 @@ using namespace std::chrono_literals;
 
 const char *GameClient::LOG_SRC = "GameClient";
 
-ErrorType GameClient::Run(const char *hostname, unsigned short port)
+ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
 {
     World lobby{};
     Texture minimapTex{};
@@ -64,7 +64,7 @@ E_START
     ImGui_ImplOpenGL3_Init("#version 130");
 
     E_CHECK(netClient.OpenSocket(), "Failed to open client socket");
-    E_CHECK(netClient.Connect(hostname, port), "Failed to connect client");
+    E_CHECK(netClient.Connect(serverHost, serverPort, "GameClient", "client_password"), "Failed to connect client");
 
     const int fontHeight = 14;
     fonts[0] = GetFontDefault();
@@ -876,6 +876,7 @@ E_START
         }
     }
 E_CLEANUP
+    // TODO: Wrap these in classes to use destructors?
     UnloadTexture(minimapTex);
     UnloadTexture(tilesetTex);
     UnloadTexture(checkboardTexture);

@@ -177,25 +177,27 @@ ErrorType NetServer::Listen()
     // cause unnecessary latency and bigger problems.. so perhaps just "drop" the remaining packets (i.e. receive
     // the data but don't do anything with it)?
 
-    // TODO(dlb): How long should this wait between calls?
+    bool running = true;
     int svc = 0;
     do {
         ENetEvent event{};
-        svc = enet_host_service(server, &event, 10);
+        // TODO(dlb): How long should this wait between calls?
+        svc = enet_host_service(server, &event, 0);
         if (svc > 0) {
             switch (event.type) {
                 case ENET_EVENT_TYPE_CONNECT: {
-                    E_INFO("A new client connected from %x:%u.\n",
+                    E_INFO("A new client connected from %x:%u.",
                         event.peer->address.host,
                         event.peer->address.port);
                     // TODO: Store any relevant client information here.
                     //event.peer->data = "Client information";
                     break;
                 } case ENET_EVENT_TYPE_RECEIVE: {
-                    E_INFO("A packet of length %u containing %s was received from %s on channel %u.\n",
+                    E_INFO("A packet of length %u was received from %x:%u on channel %u.",
                         event.packet->dataLength,
                         event.packet->data,
-                        event.peer->data,
+                        event.peer->address.host,
+                        event.peer->address.port,
                         event.channelID);
 
                     Packet &packet = packetHistory.Alloc();
@@ -235,11 +237,14 @@ ErrorType NetServer::Listen()
                     break;
 
                 } case ENET_EVENT_TYPE_DISCONNECT: {
-                    E_INFO("%x:%u disconnected.\n",
+                    E_INFO("%x:%u disconnected.",
                         event.peer->address.host,
                         event.peer->address.port);
                     //TODO: Reset the peer's client information.
                     //event.peer->data = NULL;
+                    if (server->connectedPeers == 0) {
+                        running = false;
+                    }
                     break;
                 } default: {
                     E_WARN("Unhandled event type: %d", event.type);
@@ -247,7 +252,7 @@ ErrorType NetServer::Listen()
                 }
             }
         }
-    } while (svc >= 0);
+    } while (running && svc >= 0);
 
     return ErrorType::Success;
 }
@@ -258,7 +263,7 @@ void NetServer::CloseSocket()
     for (int i = 0; i < server->peerCount; i++) {
         enet_peer_disconnect(&server->peers[i], 0);
     }
-
+    enet_host_service(server, nullptr, 0);
     enet_host_destroy(server);
     clients.clear();
 }
