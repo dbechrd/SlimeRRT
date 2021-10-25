@@ -24,7 +24,7 @@ void error_init();
 
 #define E_FATAL(err_code, format, ...) \
 do { \
-    TraceLog(LOG_FATAL, "[%s:%d]\n[%s][%s (%d)]: " format "\n", \
+    TraceLog(LOG_FATAL, "[FATAL][%s:%d]\n[%s][%s (%d)]: " format, \
         __FILE__, __LINE__, LOG_SRC, #err_code, (int)err_code, __VA_ARGS__); fflush(stdout); \
     e__code = (err_code); \
     goto e_cleanup; \
@@ -32,12 +32,13 @@ do { \
 
 #define E_INFO(format, ...) \
 do { \
-    TraceLog(LOG_INFO, "[%s]: " format "\n", LOG_SRC, __VA_ARGS__); fflush(stdout); \
+    TraceLog(LOG_INFO, "[INFO][%s]: " format, LOG_SRC, __VA_ARGS__); fflush(stdout); \
 } while(0);
 
+// TODO: Why the fuck doesn't LOG_WARNING work??
 #define E_WARN(format, ...) \
 do { \
-    TraceLog(LOG_WARNING, "[%s]: " format "\n", LOG_SRC, __VA_ARGS__); fflush(stdout); \
+    TraceLog(LOG_INFO, "[WARN][%s]: " format, LOG_SRC, __VA_ARGS__); fflush(stdout); \
 } while(0);
 
 //#define E_ERROR(err_code, format, ...) \

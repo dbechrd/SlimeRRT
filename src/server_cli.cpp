@@ -31,12 +31,16 @@ E_START
     tilemap_generate_lobby(&lobby.map);
     world = &lobby;
 #endif
-
     bool running = true;
+
+    std::thread serverThread([&running, this] {
+        while (running) {
+            netClient.Receive();
+        }
+    });
+
     char command[80];
     while (running) {
-        E_CHECK(netClient.Receive(), "Failed to receive packets");
-
         memset(command, 0, sizeof(command));
         fputs("> ", stdout);
         if (fgets(command, sizeof(command) - 1, stdin)) {
@@ -62,6 +66,8 @@ E_START
             }
         }
     }
+
+    serverThread.join();
 E_CLEANUP
     loot_table_free();
 E_END

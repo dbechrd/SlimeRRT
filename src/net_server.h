@@ -35,6 +35,7 @@ struct NetAddressEqual {
 struct NetServerClient {
     ENetPeer *peer                          {};
     double    last_packet_received_at       {};
+    bool      sent_welcome_basket           {};
     size_t    usernameLength                {};
     char      username[USERNAME_LENGTH_MAX] {};
 };

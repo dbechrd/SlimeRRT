@@ -768,7 +768,7 @@ extern "C" {
         size_t                peerCount;    /**< number of peers allocated for this host */
         size_t                channelLimit; /**< maximum number of channels allowed for connected peers */
         enet_uint32           serviceTime;
-        ENetList              dispatchQueue;
+        ENetList              dispatchQueue; /**< queue of peers that have incoming commands */
         int                   continueSending;
         size_t                packetSize;
         enet_uint16           headerFlags;

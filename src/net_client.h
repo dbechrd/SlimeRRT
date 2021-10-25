@@ -35,4 +35,5 @@ private:
     ErrorType Auth();
     ErrorType Send(const char *data, size_t size);
     void ProcessMsg(Packet &packet);
+    const char *NetClient::ServerStateString();
 };

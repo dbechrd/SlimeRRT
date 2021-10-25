@@ -31,12 +31,22 @@ E_CLEAN_END
 #pragma warning(push)
 #pragma warning(disable:4458)  // parameter hides class member
 #pragma warning(disable:4996)  // enet_address_set_host_old deprecated
+#pragma warning(disable:6387)  // memcpy pointer could be zero
 ErrorType NetClient::Connect(const char *serverHost, unsigned short serverPort, const char *username, const char *password)
 {
+    if (server) {
+        Disconnect();
+    }
+    
     ENetAddress address{};
     enet_address_set_host(&address, serverHost);
     address.port = serverPort;
     server = enet_host_connect(client, &address, 1, 0);
+    assert(server);
+
+    enet_peer_timeout(server, 32, 3000, 5000);
+    enet_host_flush(client);
+
     this->serverHost = serverHost;
     this->serverPort = serverPort;
 
@@ -103,6 +113,12 @@ E_CLEAN_END
 
 ErrorType NetClient::SendChatMessage(const char *message, size_t messageLength)
 {
+    if (!server || server->state != ENET_PEER_STATE_CONNECTED) {
+        E_WARN("Not connected to server. Chat message not sent.");
+        chatHistory.PushMessage(CSTR("Sam"), CSTR("You're not connected to a server. Nobody is listening. :("));
+        return ErrorType::Success;
+    }
+
     assert(server);
     assert(server->address.port);
     assert(message);
@@ -114,8 +130,7 @@ ErrorType NetClient::SendChatMessage(const char *message, size_t messageLength)
 
     // If we don't have a username yet (salt, client id, etc.) then we're not connected and can't send chat messages!
     // This would be weird since if we're not connected how do we see the chat box?
-    assert(usernameLength);
-
+    
     NetMessage_ChatMessage chatMessage{};
     chatMessage.usernameLength = usernameLength;
     chatMessage.username = username;
@@ -151,9 +166,30 @@ void NetClient::ProcessMsg(Packet &packet)
     }
 }
 
+const char *NetClient::ServerStateString()
+{
+    if (!server)                                        return "UNITIALIZED                             ";
+    switch (server->state) {
+        case ENET_PEER_STATE_DISCONNECTED             : return "ENET_PEER_STATE_DISCONNECTED            ";
+        case ENET_PEER_STATE_CONNECTING               : return "ENET_PEER_STATE_CONNECTING              ";
+        case ENET_PEER_STATE_ACKNOWLEDGING_CONNECT    : return "ENET_PEER_STATE_ACKNOWLEDGING_CONNECT   ";
+        case ENET_PEER_STATE_CONNECTION_PENDING       : return "ENET_PEER_STATE_CONNECTION_PENDING      ";
+        case ENET_PEER_STATE_CONNECTION_SUCCEEDED     : return "ENET_PEER_STATE_CONNECTION_SUCCEEDED    ";
+        case ENET_PEER_STATE_CONNECTED                : return "ENET_PEER_STATE_CONNECTED               ";
+        case ENET_PEER_STATE_DISCONNECT_LATER         : return "ENET_PEER_STATE_DISCONNECT_LATER        ";
+        case ENET_PEER_STATE_DISCONNECTING            : return "ENET_PEER_STATE_DISCONNECTING           ";
+        case ENET_PEER_STATE_ACKNOWLEDGING_DISCONNECT : return "ENET_PEER_STATE_ACKNOWLEDGING_DISCONNECT";
+        case ENET_PEER_STATE_ZOMBIE                   : return "ENET_PEER_STATE_ZOMBIE                  ";
+        default                                       : return "IMPOSSIBLE                              ";
+    }
+}
+
 ErrorType NetClient::Receive()
 {
-    assert(server);
+    if (!server) {
+        return ErrorType::Success;
+    }
+
     assert(server->address.port);
 
     // TODO: Do I need to limit the amount of network data processed each "frame" to prevent the simulation from
@@ -174,7 +210,14 @@ ErrorType NetClient::Receive()
             //E_FATAL(ErrorType::PeerConnectFailed, "Failed to connect to server %s:%hu.", hostname, port);
         }
 
-        if (server->state && svc > 0) {
+        static const char *prevState = 0;
+        const char *curState = ServerStateString();
+        if (curState != prevState) {
+            E_INFO("%s", curState);
+            prevState = curState;
+        }
+
+        if (svc > 0) {
             switch (event.type) {
                 case ENET_EVENT_TYPE_CONNECT: {
                     E_INFO("Connected to server %x:%hu.",
@@ -187,7 +230,6 @@ ErrorType NetClient::Receive()
                 } case ENET_EVENT_TYPE_RECEIVE: {
                     E_INFO("A packet of length %u was received from %x:%u on channel %u.",
                         event.packet->dataLength,
-                        event.packet->data,
                         event.peer->address.host,
                         event.peer->address.port,
                         event.channelID);
@@ -220,6 +262,16 @@ ErrorType NetClient::Receive()
                         event.peer->address.port);
                     //TODO: Reset the peer's client information.
                     //event.peer->data = NULL;
+                    enet_peer_reset(server);
+                    server = nullptr;
+                    break;
+                } case ENET_EVENT_TYPE_DISCONNECT_TIMEOUT: {
+                    E_WARN("Connection timed out for server %x:%hu.",
+                        event.peer->address.host,
+                        event.peer->address.port);
+                    enet_peer_reset(server);
+
+                    chatHistory.PushMessage(CSTR("Sam"), CSTR("Your connection to the server timed out. :("));
                     break;
                 } default: {
                     assert(!"unhandled event type");
@@ -233,7 +285,11 @@ ErrorType NetClient::Receive()
 
 void NetClient::Disconnect()
 {
+    if (!server) return;
+
     enet_peer_disconnect(server, 1);
+    enet_peer_reset(server);
+    server = nullptr;
 }
 
 void NetClient::CloseSocket()

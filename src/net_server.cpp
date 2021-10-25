@@ -24,7 +24,8 @@ ErrorType NetServer::OpenSocket(unsigned short socketPort)
 E_START
     ENetAddress address{};
     //address.host = ENET_HOST_ANY;
-    address.host = enet_v4_localhost;
+    address.host = enet_v4_anyaddr;
+    //address.host = enet_v4_localhost;
     address.port = socketPort;
 
     server = enet_host_create(&address, 32, 1, 0, 0);
@@ -195,7 +196,6 @@ ErrorType NetServer::Listen()
                 } case ENET_EVENT_TYPE_RECEIVE: {
                     E_INFO("A packet of length %u was received from %x:%u on channel %u.",
                         event.packet->dataLength,
-                        event.packet->data,
                         event.peer->address.host,
                         event.peer->address.port,
                         event.channelID);
@@ -227,17 +227,18 @@ ErrorType NetServer::Listen()
                         client = &kv->second;
                     }
 
-                    if (!client->last_packet_received_at) {
+                    if (!client->sent_welcome_basket && client->usernameLength) {
                         SendWelcomeBasket(client);
+                        client->sent_welcome_basket = true;
                     }
-                    client->last_packet_received_at = GetTime();
+                    client->last_packet_received_at = enet_time_get();
 
                     ProcessMsg(client, packet);
                     //TraceLog(LOG_INFO, "[NetClient] RECV\n  %s said %s", senderStr, packet.rawBytes);
                     break;
 
                 } case ENET_EVENT_TYPE_DISCONNECT: {
-                    E_INFO("%x:%u disconnected.",
+                    E_INFO("Client %x:%u disconnected.",
                         event.peer->address.host,
                         event.peer->address.port);
                     //TODO: Reset the peer's client information.
@@ -245,6 +246,12 @@ ErrorType NetServer::Listen()
                     if (server->connectedPeers == 0) {
                         running = false;
                     }
+                    break;
+                } case ENET_EVENT_TYPE_DISCONNECT_TIMEOUT: {
+                    E_WARN("Connection timed out for client %x:%hu.",
+                        event.peer->address.host,
+                        event.peer->address.port);
+                    //enet_peer_reset(??);
                     break;
                 } default: {
                     E_WARN("Unhandled event type: %d", event.type);

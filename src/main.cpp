@@ -108,9 +108,9 @@ int main(int argc, char *argv[])
         serverCli.Run("localhost", SERVER_PORT);
     } else {
         GameClient gameClient{ args };
-        //gameClient.Run("slime.theprogrammingjunkie.com", SERVER_PORT);
+        gameClient.Run("slime.theprogrammingjunkie.com", SERVER_PORT);
         //gameClient.Run("127.0.0.1", SERVER_PORT);
-        gameClient.Run("localhost", SERVER_PORT);
+        //gameClient.Run("localhost", SERVER_PORT);
     }
 
     //--------------------------------

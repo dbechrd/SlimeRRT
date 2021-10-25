@@ -43,6 +43,7 @@ E_START
         title = "[Open to LAN] Attack the slimes!";
     }
     InitWindow(1600, 900, title);
+    //InitWindow(600, 400, title);
     SetWindowState(FLAG_WINDOW_RESIZABLE);
     SetExitKey(0);  // Disable default Escape exit key, we'll handle escape ourselves
 
@@ -64,7 +65,6 @@ E_START
     ImGui_ImplOpenGL3_Init("#version 130");
 
     E_CHECK(netClient.OpenSocket(), "Failed to open client socket");
-    E_CHECK(netClient.Connect(serverHost, serverPort, "GameClient", "client_password"), "Failed to connect client");
 
     const int fontHeight = 14;
     fonts[0] = GetFontDefault();
@@ -90,7 +90,7 @@ E_START
         printf("ERROR: Failed to initialized audio device\n");
     }
     // NOTE: Minimum of 0.001 seems reasonable (0.0001 is still audible on max volume)
-    //SetMasterVolume(0.2f); // 0.01f);
+    SetMasterVolume(0.2f); // 0.01f);
 
     DrawList drawList{};
     sound_catalog_init();
@@ -227,7 +227,7 @@ E_START
     charlie.body.position = worldSpawn;
     world->player = &charlie;
 
-    {
+    if (false) {
         const float slimeRadius = 50.0f;
         const size_t mapPixelsX = world->map.width * world->map.tileWidth;
         const size_t mapPixelsY = world->map.height * world->map.tileHeight;
@@ -334,6 +334,7 @@ E_START
             }
 
             if (input.dbg_chatMessage) {
+                netClient.Connect(serverHost, serverPort, "GameClient", "client_password");
                 netClient.SendChatMessage(CSTR("User pressed the C key."));
             }
 
@@ -802,7 +803,7 @@ E_START
 #endif
 
                 const int linesOfText = (int)netClient.chatHistory.Count();
-                const float chatWidth = 420.0f;
+                const float chatWidth = 800.0f;
                 const float chatHeight = linesOfText * (fontHeight + pad) + pad;
                 const float inputBoxHeight = fontHeight + pad * 2.0f;
                 const float chatX = margin;
@@ -820,9 +821,17 @@ E_START
                     const ChatMessage &chatMsg = netClient.chatHistory.At(i);
                     assert(chatMsg.messageLength);
 
-                    if (chatMsg.usernameLength == 6 && !strncmp(chatMsg.username, "SERVER", chatMsg.usernameLength)) {
-                        chatText = TextFormat("[%s]<SERVER>: %.*s", chatMsg.timestampStr, chatMsg.messageLength, chatMsg.message);
-                        chatColor = RED;
+                    bool fromServer = chatMsg.usernameLength == 6 && !strncmp(chatMsg.username, "SERVER", chatMsg.usernameLength);
+                    bool fromSam = chatMsg.usernameLength == 3 && !strncmp(chatMsg.username, "Sam", chatMsg.usernameLength);
+                    if (fromServer || fromSam)
+                    {
+                        chatText = TextFormat("[%s]<%.*s>: %.*s", chatMsg.timestampStr, chatMsg.usernameLength, chatMsg.username,
+                            chatMsg.messageLength, chatMsg.message);
+                        if (fromServer) {
+                            chatColor = RED;
+                        } else if (fromSam) {
+                            chatColor = GREEN;
+                        }
                     } else {
                         chatText = TextFormat("[%s][%.*s]: %.*s", chatMsg.timestampStr, chatMsg.usernameLength, chatMsg.username,
                             chatMsg.messageLength, chatMsg.message);
