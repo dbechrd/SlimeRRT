@@ -72,7 +72,7 @@ ErrorType NetServer::BroadcastRaw(const char *data, size_t size)
 {
     ErrorType err_code = ErrorType::Success;
 
-    E_INFO("BROADCAST\n  %.*s", size, data);
+    E_INFO("BROADCAST %u bytes", size);
 
     // Broadcast message to all connected clients
     for (auto &kv : clients) {
@@ -80,7 +80,7 @@ ErrorType NetServer::BroadcastRaw(const char *data, size_t size)
         assert(kv.second.peer->address.port);
         ErrorType code = SendRaw(&kv.second, data, size);
         if (code != ErrorType::Success) {
-            TraceLog(LOG_ERROR, "[NetServer] BROADCAST\n  %.*s", size, data);
+            TraceLog(LOG_ERROR, "[NetServer] BROADCAST %u bytes failed", size);
             err_code = code;
             // TODO: Handle error somehow? Retry queue.. or..? Idk.. This seems fatal. Look up why Win32 might fail
         }
