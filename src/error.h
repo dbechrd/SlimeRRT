@@ -3,6 +3,7 @@
 
 enum class ErrorType {
     Success    = 0,  // No error occurred
+    NotConnected,
     AllocFailed,     // Failed to allocate memory
     ENetInitFailed,
     HostCreateFailed,

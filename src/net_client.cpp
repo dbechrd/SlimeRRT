@@ -116,7 +116,7 @@ ErrorType NetClient::SendChatMessage(const char *message, size_t messageLength)
     if (!server || server->state != ENET_PEER_STATE_CONNECTED) {
         E_WARN("Not connected to server. Chat message not sent.");
         chatHistory.PushMessage(CSTR("Sam"), CSTR("You're not connected to a server. Nobody is listening. :("));
-        return ErrorType::Success;
+        return ErrorType::NotConnected;
     }
 
     assert(server);
@@ -225,7 +225,8 @@ ErrorType NetClient::Receive()
                         event.peer->address.port);
                     // TODO: Store any relevant client information here.
                     //event.peer->data = "Client information";
-                    Auth();
+                    //Auth();
+                    chatHistory.PushMessage(CSTR("Sam"), CSTR("Connected to server. :)"));
                     break;
                 } case ENET_EVENT_TYPE_RECEIVE: {
                     E_INFO("A packet of length %u was received from %x:%u on channel %u.",

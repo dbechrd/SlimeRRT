@@ -90,7 +90,8 @@ E_START
         printf("ERROR: Failed to initialized audio device\n");
     }
     // NOTE: Minimum of 0.001 seems reasonable (0.0001 is still audible on max volume)
-    SetMasterVolume(0.2f); // 0.01f);
+    SetMasterVolume(0.01f);
+    //SetMasterVolume(0.2f);
 
     DrawList drawList{};
     sound_catalog_init();
@@ -254,6 +255,8 @@ E_START
     SetWindowState(FLAG_VSYNC_HINT);
     bool gifRecording = false;
     bool chatActive = false;
+
+    bool show_demo_window = false;
     //---------------------------------------------------------------------------------------
 
 #define KEY_DOWN(key)
@@ -275,9 +278,65 @@ E_START
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        static bool show_demo_window = false;
         if (show_demo_window) {
             ImGui::ShowDemoWindow(&show_demo_window);
+        }
+
+        //ImGui::SetNextWindowSize(ImVec2(500, 0));
+        if ((!netClient.server || netClient.server->state != ENET_PEER_STATE_CONNECTED) &&
+            ImGui::BeginPopupModal("Log in", NULL, ImGuiWindowFlags_AlwaysAutoResize))
+        {
+            static char host[SERVER_HOST_LENGTH_MAX]{ "slime.theprogrammingjunkie.com" };
+            static int  port = SERVER_PORT;
+            static char username[USERNAME_LENGTH_MAX];
+            static char password[PASSWORD_LENGTH_MAX];
+
+            ImGui::Text("    Host:");
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(226);
+            ImGui::InputText("##host", host, sizeof(host));
+
+            ImGui::Text("    Port:");
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(89);
+            ImGui::InputInt("##port", &port, 1, 100);
+            port = CLAMP(port, 0, USHRT_MAX);
+
+            ImGui::Text("Username:");
+            ImGui::SameLine();
+            // https://github.com/ocornut/imgui/issues/455#issuecomment-167440172
+            if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && !ImGui::IsAnyItemActive() && !ImGui::IsMouseClicked(0)) {
+                ImGui::SetKeyboardFocusHere();
+            }
+            ImGui::SetNextItemWidth(226);
+            ImGui::InputText("##username", username, sizeof(username));
+
+            ImGui::Text("Password:");
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(226);
+            ImGui::InputText("##password", password, sizeof(password), ImGuiInputTextFlags_Password);
+
+            ImGui::SetCursorPosX(177.0f);
+            ImGui::PushStyleColor(ImGuiCol_Button, 0xFFBF8346);
+            bool login = ImGui::Button("Login", ImVec2(60, 0));
+            ImGui::PopStyleColor();
+            if (login ||
+                IsKeyPressed(io.KeyMap[ImGuiKey_Enter]) ||
+                IsKeyPressed(io.KeyMap[ImGuiKey_KeyPadEnter]))
+            {
+                netClient.Connect(host, (unsigned short)port, username, password);
+                ImGui::CloseCurrentPopup();
+            }
+            
+            ImGui::SameLine();
+            //ImGui::PushStyleColor(ImGuiCol_Button, 0xFF999999);
+            bool cancel = ImGui::Button("Cancel", ImVec2(60, 0));
+            //ImGui::PopStyleColor();
+            if (cancel || IsKeyPressed(io.KeyMap[ImGuiKey_Escape])) {
+                ImGui::CloseCurrentPopup();
+            }
+            
+            ImGui::EndPopup();
         }
 
         bool escape = input.escape;
@@ -334,7 +393,6 @@ E_START
             }
 
             if (input.dbg_chatMessage) {
-                netClient.Connect(serverHost, serverPort, "GameClient", "client_password");
                 netClient.SendChatMessage(CSTR("User pressed the C key."));
             }
 
@@ -781,8 +839,8 @@ E_START
                         case 1:
                         { // Login
                             if (loginBoxTextLen) {
-                                netClient.usernameLength = MIN(ARRAY_SIZE(netClient.username), loginBoxTextLen);
-                                strncpy(netClient.username, loginBoxText, netClient.usernameLength);
+                                //netClient.usernameLength = MIN(ARRAY_SIZE(netClient.username), loginBoxTextLen);
+                                //strncpy(netClient.username, loginBoxText, netClient.usernameLength);
                                 netClient.SendChatMessage(CSTR("Auth!"));
                             }
                             break;
@@ -851,7 +909,13 @@ E_START
                 if (GuiTextBoxAdvanced(&chatInputState, chatInputRect, chatInputText, &chatInputTextLen, CHAT_MESSAGE_LENGTH_MAX, io.WantCaptureKeyboard)) {
                     size_t messageLength = chatInputTextLen;
                     if (messageLength) {
-                        netClient.SendChatMessage(chatInputText, messageLength);
+                        ErrorType sendResult = netClient.SendChatMessage(chatInputText, messageLength);
+                        switch (sendResult) {
+                            case ErrorType::NotConnected: {
+                                ImGui::OpenPopup("Log in");
+                                break;
+                            }
+                        }
                         memset(chatInputText, 0, sizeof(chatInputText));
                         chatInputTextLen = 0;
                     }
