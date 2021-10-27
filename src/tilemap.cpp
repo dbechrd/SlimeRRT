@@ -32,9 +32,9 @@ void tilemap_generate_lobby(Tilemap *map)
             if (cx*cx + cy*cy > island_radius*island_radius) {
             //const int border_width = 26;
             //if (y < border_width || x < border_width || y >= map->height - border_width || x >= map->width - border_width) {
-                tile->tileType = TileType::Concrete;
+                tile->tileType = TileType::Water;
             } else {
-                tile->tileType = TileType::Grass;
+                tile->tileType = TileType::Concrete;
             }
         }
     }

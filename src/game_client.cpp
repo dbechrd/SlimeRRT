@@ -128,6 +128,7 @@ E_START
     Tileset tileset{ &tilesetTex, 32, 32, (int)TileType::Count };
 
     tilemap_generate_lobby(&lobby.map);
+    //tilemap_generate_ex(&lobby.map, 256, 256, 32, 32, &lobby.rtt_rand);
     world = &lobby;
 
     {
@@ -226,7 +227,7 @@ E_START
     charlie.SetSpritesheet(*charlieSpriteDef);
     world->player = &charlie;
 
-    if (false) {
+    {
         const float slimeRadius = 50.0f;
         const size_t mapPixelsX = world->map.width * world->map.tileWidth;
         const size_t mapPixelsY = world->map.height * world->map.tileHeight;
