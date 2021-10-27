@@ -27,6 +27,7 @@ PlayerControllerState PlayerControllerState::Query(bool processMouse, bool proce
             input.cameraRotateCCW = IsKeyDown(KEY_Q) && !IsKeyDown(KEY_E);
             input.cameraZoomOut = IsKeyPressed(KEY_Z);
             input.cameraReset = IsKeyPressed(KEY_R);
+            input.dbg_toggleFreecam = IsKeyPressed(KEY_F);
         }
 
     // Normal gameplay events

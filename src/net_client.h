@@ -1,6 +1,7 @@
 #pragma once
-#include "packet.h"
 #include "chat.h"
+#include "packet.h"
+#include "world.h"
 #include "dlb_types.h"
 
 #define NET_CLIENT_PACKET_HISTORY_MAX 256
@@ -20,6 +21,8 @@ struct NetClient {
     // buffer sizes for different types of message.
     RingBuffer<Packet> packetHistory  { NET_CLIENT_PACKET_HISTORY_MAX };
     ChatHistory        chatHistory    {};
+
+    World serverWorld {};
 
     NetClient::~NetClient();
     ErrorType OpenSocket();

@@ -97,6 +97,7 @@ E_START
     sound_catalog_init();
     SpritesheetCatalog spritesheetCatalog{};
     spritesheetCatalog.Load();
+    g_spritesheetCatalog = &spritesheetCatalog;
     particles_init();
     ItemCatalog::instance.Load();
     loot_table_init();
@@ -166,12 +167,6 @@ E_START
         free(minimapImg.data);
     }
 
-    const Vector3 worldSpawn = {
-        (float)world->map.width / 2.0f * world->map.tileWidth,
-        (float)world->map.height / 2.0f * world->map.tileHeight,
-        0.0f
-    };
-
 #if DEMO_VIEW_RTREE
     const int RECT_COUNT = 100;
     std::array<Rectangle, RECT_COUNT> rects{};
@@ -224,8 +219,11 @@ E_START
     const SpriteDef *coinSpriteDef = coinSpritesheet.FindSprite("coin");
     assert(coinSpriteDef);
 
-    Player charlie("Charlie", *charlieSpriteDef);
-    charlie.body.position = worldSpawn;
+    // NOTE: Don't use this, use world->player. Need to make this on the heap but also deconstructable,
+    // along with all of the other resources randomly on the stack in this function.
+    Player charlie("Charlie");
+    charlie.body.position = world->GetWorldSpawn();
+    charlie.SetSpritesheet(*charlieSpriteDef);
     world->player = &charlie;
 
     if (false) {
@@ -244,7 +242,7 @@ E_START
         sam.combat.lootTableId = LootTableID::LT_Sam;
         sam.body.position.x = dlb_rand32f_range(slimeRadius, maxX);
         sam.body.position.y = dlb_rand32f_range(slimeRadius, maxY);
-        sam.body.position = v3_add(worldSpawn, { 0, -300.0f, 0 });
+        sam.body.position = v3_add(world->GetWorldSpawn(), { 0, -300.0f, 0 });
         sam.sprite.scale = 2.0f;
     }
 
@@ -271,7 +269,10 @@ E_START
 
         const bool imguiUsingMouse = io.WantCaptureMouse;
         const bool imguiUsingKeyboard = io.WantCaptureKeyboard;
-        PlayerControllerState input = PlayerControllerState::Query(!io.WantCaptureMouse, !io.WantCaptureKeyboard, cameraFree);
+
+        const bool processMouse = !imguiUsingMouse;
+        const bool processKeyboard = !imguiUsingKeyboard && !chatActive;
+        PlayerControllerState input = PlayerControllerState::Query(processMouse, processKeyboard, cameraFree);
 
         // Start the Dear ImGui frame
         ImGui_ImplOpenGL3_NewFrame();
@@ -339,7 +340,7 @@ E_START
             ImGui::EndPopup();
         }
 
-        bool escape = input.escape;
+        bool escape = IsKeyPressed(KEY_ESCAPE);
         bool findMouseTile = false;
 
         // HACK: No way to check if Raylib is currently recording.. :(
@@ -348,6 +349,19 @@ E_START
         }
 
         E_CHECK(netClient.Receive(), "Failed to receive packets");
+
+        // We joined a server we need to inherit the server's world
+        // TODO: Fix this very bad idea.
+        if (netClient.server &&
+            netClient.server->state == ENET_PEER_STATE_CONNECTED &&
+            netClient.serverWorld.player)
+        {
+            if (world != &netClient.serverWorld) {
+                world = &netClient.serverWorld;
+            }
+        } else if (world != &lobby) {
+            world = &lobby;
+        }
 
         if (IsWindowResized()) {
             screenWidth = GetScreenWidth();
@@ -358,7 +372,7 @@ E_START
         UpdateMusicStream(mus_background);
         UpdateMusicStream(mus_whistle);
 
-        if (!chatActive) {
+        //if (!chatActive) {
             findMouseTile = input.dbg_findMouseTile;
 
             if (input.screenshot) {
@@ -430,7 +444,7 @@ E_START
 
             if (!cameraFree) {
                 world->Sim(now, dt, input, coinSpriteDef);
-                camera.target = charlie.body.GroundPosition();
+                camera.target = world->player->body.GroundPosition();
                 camera.rotation = 0.0f;
                 camera.zoom = 1.0f;
                 cameraSpeed = cameraSpeedDefault;
@@ -461,7 +475,7 @@ E_START
                 camera.zoom = zoomOut ? 0.5f : 1.0f;
 #endif
             }
-        }
+        //}
 
 #if 1
         const int negZoomMultiplier = 7; // 7x negative zoom (out)
@@ -482,14 +496,14 @@ E_START
         const float invZoom = 1.0f / camera.zoom;
 #endif
 
-        if (charlie.body.idle && whistleAlpha < 1.0f) {
+        if (world->player->body.idle && whistleAlpha < 1.0f) {
             whistleAlpha = CLAMP(whistleAlpha + 0.005f, 0.0f, 1.0f);
             SetMusicVolume(mus_background, LERP(mus_background_vmin, mus_background_vmax, 1.0f - whistleAlpha));
             SetMusicVolume(mus_whistle, LERP(mus_whistle_vmin, mus_whistle_vmax, whistleAlpha));
             if (!IsMusicPlaying(mus_whistle)) {
                 PlayMusicStream(mus_whistle);
             }
-        } else if (!charlie.body.idle && whistleAlpha > 0.0f) {
+        } else if (!world->player->body.idle && whistleAlpha > 0.0f) {
             whistleAlpha = CLAMP(whistleAlpha - 0.01f, 0.0f, 1.0f);
             SetMusicVolume(mus_background, LERP(mus_background_vmin, mus_background_vmax, 1.0f - whistleAlpha));
             SetMusicVolume(mus_whistle, LERP(mus_whistle_vmin, mus_whistle_vmax, whistleAlpha));
@@ -563,7 +577,7 @@ E_START
 
         Tile *mouseTile = 0;
         if (findMouseTile) {
-            mouseTile = tilemap_at_world_try(&world->map, (int)mousePosWorld.x, (int)mousePosWorld.y);
+            mouseTile = tilemap_at_world_try(&world->map, mousePosWorld.x, mousePosWorld.y);
             if (mouseTile) {
                 // Draw red outline on hovered tile
                 Rectangle mouseTileRect{
@@ -580,7 +594,7 @@ E_START
             drawList.EnableCulling(cameraRect);
 
             // Queue player for drawing
-            drawList.Push(charlie);
+            drawList.Push(*world->player);
 
             // Queue slimes for drawing
             for (const Slime &slime : world->slimes) {
@@ -645,7 +659,7 @@ E_START
 
 #if DEMO_AI_TRACKING
         {
-            Vector3 charlieCenter = sprite_world_center(charlie.sprite, charlie.body.position, charlie.sprite.scale);
+            Vector3 charlieCenter = sprite_world_center(world->player->sprite, world->player->body.position, world->player->sprite.scale);
             DrawCircle((int)charlieCenter.x, (int)charlieCenter.y, 640.0f, Fade(ORANGE, 0.5f));
         }
 #endif
@@ -727,20 +741,20 @@ E_START
                 text = TextFormat("%2i fps (%.02f ms)", GetFPS(), GetFrameTime() * 1000.0f);
             }
             PUSH_TEXT(text, WHITE);
-            text = TextFormat("Coins: %d", charlie.inventory.slots[(int)PlayerInventorySlot::Coins].stackCount);
+            text = TextFormat("Coins: %d", world->player->inventory.slots[(int)PlayerInventorySlot::Coins].stackCount);
             PUSH_TEXT(text, YELLOW);
 
-            text = TextFormat("Coins collected   %u", charlie.stats.coinsCollected);
+            text = TextFormat("Coins collected   %u", world->player->stats.coinsCollected);
             PUSH_TEXT(text, LIGHTGRAY);
-            text = TextFormat("Damage dealt      %.2f", charlie.stats.damageDealt);
+            text = TextFormat("Damage dealt      %.2f", world->player->stats.damageDealt);
             PUSH_TEXT(text, LIGHTGRAY);
-            text = TextFormat("Kilometers walked %.2f", charlie.stats.kmWalked);
+            text = TextFormat("Kilometers walked %.2f", world->player->stats.kmWalked);
             PUSH_TEXT(text, LIGHTGRAY);
-            text = TextFormat("Slimes slain      %u", charlie.stats.slimesSlain);
+            text = TextFormat("Slimes slain      %u", world->player->stats.slimesSlain);
             PUSH_TEXT(text, LIGHTGRAY);
-            text = TextFormat("Times fist swung  %u", charlie.stats.timesFistSwung);
+            text = TextFormat("Times fist swung  %u", world->player->stats.timesFistSwung);
             PUSH_TEXT(text, LIGHTGRAY);
-            text = TextFormat("Times sword swung %u", charlie.stats.timesSwordSwung);
+            text = TextFormat("Times sword swung %u", world->player->stats.timesSwordSwung);
             PUSH_TEXT(text, LIGHTGRAY);
 
 #if SHOW_DEBUG_STATS
@@ -879,9 +893,14 @@ E_START
                     const ChatMessage &chatMsg = netClient.chatHistory.At(i);
                     assert(chatMsg.messageLength);
 
-                    bool fromServer = chatMsg.usernameLength == 6 && !strncmp(chatMsg.username, "SERVER", chatMsg.usernameLength);
-                    bool fromSam = chatMsg.usernameLength == 3 && !strncmp(chatMsg.username, "Sam", chatMsg.usernameLength);
-                    if (fromServer || fromSam)
+                    #define CHECK_USERNAME(value) chatMsg.usernameLength == (sizeof(value) - 1) && !strncmp(chatMsg.username, (value), chatMsg.usernameLength);
+                    bool fromServer = CHECK_USERNAME("SERVER");
+                    bool fromSam    = CHECK_USERNAME("Sam");
+                    bool fromDebug  = CHECK_USERNAME("Debug");
+                    bool fromMotd   = CHECK_USERNAME("Message of the day");
+                    #undef CHECK_USERNAME
+
+                    if (fromServer || fromSam || fromDebug || fromMotd)
                     {
                         chatText = TextFormat("[%s]<%.*s>: %.*s", chatMsg.timestampStr, chatMsg.usernameLength, chatMsg.username,
                             chatMsg.messageLength, chatMsg.message);
@@ -889,6 +908,10 @@ E_START
                             chatColor = RED;
                         } else if (fromSam) {
                             chatColor = GREEN;
+                        } else if (fromDebug) {
+                            chatColor = LIGHTGRAY;
+                        } else if (fromMotd) {
+                            chatColor = YELLOW;
                         }
                     } else {
                         chatText = TextFormat("[%s][%.*s]: %.*s", chatMsg.timestampStr, chatMsg.usernameLength, chatMsg.username,

@@ -13,7 +13,8 @@ private:
     ItemCatalog() = default;
     const Item empty{ItemType::Empty, ItemID::Empty, 0};
 
-    std::array<Item *, (int)ItemID::Count> byId {};
+    Item *byId[(size_t)ItemID::Count]     {};
+    //std::array<Item *, (int)ItemID::Count> byId {};
     std::vector<Item_Currency> currencies {};
     std::vector<Item_Weapon>   weapons    {};
 };

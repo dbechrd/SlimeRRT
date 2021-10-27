@@ -37,12 +37,11 @@ E_START
 E_CLEAN_END
 }
 
-ErrorType NetServer::SendRaw(const NetServerClient *client, const char *data, size_t size)
+ErrorType NetServer::SendRaw(const NetServerClient &client, const char *data, size_t size)
 {
 E_START
-    assert(client);
-    assert(client->peer);
-    assert(client->peer->address.port);
+    assert(client.peer);
+    assert(client.peer->address.port);
     assert(data);
     assert(size <= PACKET_SIZE_MAX);
 
@@ -51,13 +50,13 @@ E_START
     if (!packet) {
         E_FATAL(ErrorType::PacketCreateFailed, "Failed to create packet.");
     }
-    if (enet_peer_send(client->peer, 0, packet) < 0) {
+    if (enet_peer_send(client.peer, 0, packet) < 0) {
         E_FATAL(ErrorType::PeerSendFailed, "Failed to send connection request.");
     }
 E_CLEAN_END
 }
 
-ErrorType NetServer::SendMsg(const NetServerClient *client, const NetMessage &message)
+ErrorType NetServer::SendMsg(const NetServerClient &client, const NetMessage &message)
 {
 E_START
     static char rawPacket[PACKET_SIZE_MAX] = {};
@@ -78,7 +77,7 @@ ErrorType NetServer::BroadcastRaw(const char *data, size_t size)
     for (auto &kv : clients) {
         assert(kv.second.peer);
         assert(kv.second.peer->address.port);
-        ErrorType code = SendRaw(&kv.second, data, size);
+        ErrorType code = SendRaw(kv.second, data, size);
         if (code != ErrorType::Success) {
             TraceLog(LOG_ERROR, "[NetServer] BROADCAST %u bytes failed", size);
             err_code = code;
@@ -108,7 +107,7 @@ ErrorType NetServer::BroadcastChatMessage(const char *msg, size_t msgLength)
     return BroadcastMsg(netMsg);
 }
 
-ErrorType NetServer::SendWelcomeBasket(NetServerClient *client)
+ErrorType NetServer::SendWelcomeBasket(NetServerClient &client)
 {
 E_START
     // TODO: Send current state to new client
@@ -116,15 +115,26 @@ E_START
     // - player list
 
     {
-        E_INFO("Sending welcome basket to %s\n", TextFormatIP(client->peer->address));
+        E_INFO("Sending welcome basket to %s\n", TextFormatIP(client.peer->address));
         NetMessage_Welcome userJoinedNotification{};
+        userJoinedNotification.motd = "Welcome to The Lonely Island";
+        userJoinedNotification.motdLength = strlen(userJoinedNotification.motd);
+
+        static uint8_t welcomeMap[64] = { (uint8_t)TileType::Count };
+        if (welcomeMap[0] == (uint8_t)TileType::Count) {
+            for (int i = 0; i < ARRAY_SIZE(welcomeMap); i++) {
+                welcomeMap[i] = i % (uint8_t)TileType::Count;
+            }
+        }
+        userJoinedNotification.tiles = welcomeMap;
+        userJoinedNotification.tilesLength = ARRAY_SIZE(welcomeMap);
         E_CHECK(SendMsg(client, userJoinedNotification), "Failed to send welcome basket");
     }
 
     {
-        // TODO: Save from identify packet into NetServerClient, then user client->username
-        const char *username = client->username;
-        size_t usernameLength = client->usernameLength;
+        // TODO: Save from identify packet into NetServerClient, then user client.username
+        const char *username = client.username;
+        size_t usernameLength = client.usernameLength;
         const char *message = TextFormat("%.*s joined the game.", usernameLength, username);
         size_t messageLength = strlen(message);
 
@@ -138,22 +148,22 @@ E_START
 E_CLEAN_END
 }
 
-void NetServer::ProcessMsg(NetServerClient *client, Packet &packet)
+void NetServer::ProcessMsg(NetServerClient &client, Packet &packet)
 {
     packet.netMessage = &NetMessage::Deserialize((uint32_t *)packet.rawBytes.data, packet.rawBytes.dataLength);
 
     switch (packet.netMessage->type) {
         case NetMessage::Type::Identify: {
             NetMessage_Identify &identMsg = static_cast<NetMessage_Identify &>(*packet.netMessage);
-            client->usernameLength = MIN(identMsg.usernameLength, USERNAME_LENGTH_MAX);
-            memcpy(client->username, identMsg.username, client->usernameLength);
+            client.usernameLength = MIN(identMsg.usernameLength, USERNAME_LENGTH_MAX);
+            memcpy(client.username, identMsg.username, client.usernameLength);
             break;
         } case NetMessage::Type::ChatMessage: {
             NetMessage_ChatMessage &chatMsg = static_cast<NetMessage_ChatMessage &>(*packet.netMessage);
 
             // TODO(security): Validate some session token that's not known to other people to prevent impersonation
-            //assert(chatMsg.usernameLength == client->usernameLength);
-            //assert(!strncmp(chatMsg.username, client->username, client->usernameLength));
+            //assert(chatMsg.usernameLength == client.usernameLength);
+            //assert(!strncmp(chatMsg.username, client.username, client.usernameLength));
 
             // Store chat message in chat history
             chatHistory.PushNetMessage(chatMsg);
@@ -167,6 +177,20 @@ void NetServer::ProcessMsg(NetServerClient *client, Packet &packet)
             break;
         }
     }
+}
+
+NetServerClient &NetServer::FindClient(ENetPeer *peer)
+{
+    NetServerClient *client = (NetServerClient * )peer->data;
+    if (!client) {
+        auto kv = clients.find(peer);
+        if (kv == clients.end()) {
+            client = &clients[peer];
+        } else {
+            client = &kv->second;
+        }
+    }
+    return *client;
 }
 
 ErrorType NetServer::Listen()
@@ -191,7 +215,11 @@ ErrorType NetServer::Listen()
                         event.peer->address.host,
                         event.peer->address.port);
                     // TODO: Store any relevant client information here.
-                    //event.peer->data = "Client information";
+
+                    NetServerClient &client = FindClient(event.peer);
+                    client.peer = event.peer;
+                    client.last_packet_received_at = enet_time_get();
+                    event.peer->data = &client;;
                     break;
                 } case ENET_EVENT_TYPE_RECEIVE: {
                     E_INFO("A packet of length %u was received from %x:%u on channel %u.",
@@ -218,31 +246,23 @@ ErrorType NetServer::Listen()
                     // When would ENetPacket get destroyed? Would that confuse ENet in some way?
                     enet_packet_destroy(event.packet);
 
-                    NetServerClient *client = 0;
-                    auto kv = clients.find(event.peer->address);
-                    if (kv == clients.end()) {
-                        client = &clients[event.peer->address];
-                        client->peer = event.peer;
-                    } else {
-                        client = &kv->second;
-                    }
-
-                    if (!client->sent_welcome_basket && client->usernameLength) {
-                        SendWelcomeBasket(client);
-                        client->sent_welcome_basket = true;
-                    }
-                    client->last_packet_received_at = enet_time_get();
-
+                    NetServerClient &client = FindClient(event.peer);
                     ProcessMsg(client, packet);
-                    //TraceLog(LOG_INFO, "[NetClient] RECV\n  %s said %s", senderStr, packet.rawBytes);
-                    break;
+                    
+                    if (!client.sent_welcome_basket && client.usernameLength) {
+                        SendWelcomeBasket(client);
+                        client.sent_welcome_basket = true;
+                    }
 
+                    client.last_packet_received_at = enet_time_get();
+                    break;
                 } case ENET_EVENT_TYPE_DISCONNECT: {
                     E_INFO("Client %x:%u disconnected.",
                         event.peer->address.host,
                         event.peer->address.port);
                     //TODO: Reset the peer's client information.
                     //event.peer->data = NULL;
+                    new(&clients[event.peer]) NetServerClient{};
                     if (server->connectedPeers == 0) {
                         running = false;
                     }
@@ -252,6 +272,7 @@ ErrorType NetServer::Listen()
                         event.peer->address.host,
                         event.peer->address.port);
                     //enet_peer_reset(??);
+                    new(&clients[event.peer]) NetServerClient{};
                     break;
                 } default: {
                     E_WARN("Unhandled event type: %d", event.type);

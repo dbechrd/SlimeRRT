@@ -15,6 +15,6 @@ struct World {
 
     World();
     ~World();
+    const Vector3 World::GetWorldSpawn();
     void Sim(double now, double dt, const PlayerControllerState input, const SpriteDef *coinSpriteDef);
 };
-

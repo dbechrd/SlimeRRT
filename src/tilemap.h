@@ -26,7 +26,7 @@ struct RRT {
 
 struct Tile {
     TileType tileType {};
-    Vector2  position {};
+    Vector2  position {};  // TODO(dlb)[cleanup]: Do we really need to store this? Could make map much smaller by packing just tile types?
 
     bool IsWalkable() const {
         return tileType != TileType::Water;
@@ -43,10 +43,11 @@ struct Tilemap {
 };
 
 void tilemap_generate_lobby (Tilemap *map);
+void tilemap_generate_tiles (Tilemap *map, uint8_t *tiles, size_t tilesLength);
 void tilemap_generate       (Tilemap *map, dlb_rand32_t *rng);
 void tilemap_generate_ex    (Tilemap *map, size_t width, size_t height, size_t tileWidth, size_t tileHeight, dlb_rand32_t *rng);
 void tilemap_free           (Tilemap *map);
 Tile *tilemap_at            (Tilemap *map, int tileX, int tileY);  // Return tile at grid position x,y, assert on failure
 Tile *tilemap_at_try        (Tilemap *map, int tileX, int tileY);  // Return tile at grid position x,y, if it exists
-Tile *tilemap_at_world      (Tilemap *map, int x, int y);          // Return tile at pixel position in world space, assert on failure
-Tile *tilemap_at_world_try  (Tilemap *map, int x, int y);          // Return tile at pixel position in world space, if it exists
+Tile *tilemap_at_world      (Tilemap *map, float x, float y);      // Return tile at pixel position in world space, assert on failure
+Tile *tilemap_at_world_try  (Tilemap *map, float x, float y);      // Return tile at pixel position in world space, if it exists

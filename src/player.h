@@ -38,7 +38,8 @@ struct Player : public Drawable {
     PlayerInventory inventory   {};
     Stats           stats       {};
 
-    Player(const char *playerName, const SpriteDef &spriteDef);
+    Player(const char *playerName);
+    void SetSpritesheet(const SpriteDef &spriteDef);
 
     float Depth() const override;
     bool Cull(const Rectangle &cullRect) const override;

@@ -32,10 +32,32 @@ void tilemap_generate_lobby(Tilemap *map)
             if (cx*cx + cy*cy > island_radius*island_radius) {
             //const int border_width = 26;
             //if (y < border_width || x < border_width || y >= map->height - border_width || x >= map->width - border_width) {
-                tile->tileType = TileType::Water;
+                tile->tileType = TileType::Concrete;
             } else {
                 tile->tileType = TileType::Grass;
             }
+        }
+    }
+}
+
+void tilemap_generate_tiles(Tilemap *map, uint8_t *tiles, size_t tilesLength)
+{
+    assert(map);
+    map->width = 8;  // TODO: Get this from server packet also
+    map->height = 8;
+    assert(tilesLength == map->width * map->height);
+    map->tileWidth = 32;
+    map->tileHeight = 32;
+
+    map->tiles = (Tile *)calloc(map->width * map->height, sizeof(*map->tiles));
+    assert(map->tiles);
+
+    for (int y = 0; y < map->height; y++) {
+        for (int x = 0; x < map->width; x++) {
+            const Vector2 position = v2_init((float)x * map->tileWidth, (float)y * map->tileHeight);
+            Tile *tile = tilemap_at(map, x, y);
+            tile->position = position;
+            tile->tileType = (TileType)tiles[x * map->width + y];
         }
     }
 }
@@ -129,29 +151,29 @@ Tile *tilemap_at_try(Tilemap *map, int tileX, int tileY)
     return tile;
 }
 
-Tile *tilemap_at_world(Tilemap *map, int x, int y)
+Tile *tilemap_at_world(Tilemap *map, float x, float y)
 {
     assert(x >= 0);
     assert(y >= 0);
     assert(x < (int)map->tileWidth * map->width);
     assert(y < (int)map->tileHeight * map->height);
 
-    int tileX = x / (int)map->tileWidth;
-    int tileY = y / (int)map->tileHeight;
+    int tileX = (int)x / (int)map->tileWidth;
+    int tileY = (int)y / (int)map->tileHeight;
     return tilemap_at(map, tileX, tileY);
 }
 
-Tile *tilemap_at_world_try(Tilemap *map, int x, int y)
+Tile *tilemap_at_world_try(Tilemap *map, float x, float y)
 {
     if (x < 0 || y < 0 ||
-        (size_t)x >= map->tileWidth * map->width ||
-        (size_t)y >= map->tileHeight * map->height)
+        x >= (float)map->tileWidth * map->width ||
+        y >= (float)map->tileHeight * map->height)
     {
         return 0;
     }
 
-    int tileX = x / (int)map->tileWidth;
-    int tileY = y / (int)map->tileHeight;
+    int tileX = (int)x / (int)map->tileWidth;
+    int tileY = (int)y / (int)map->tileHeight;
     return tilemap_at_try(map, tileX, tileY);
 }
 

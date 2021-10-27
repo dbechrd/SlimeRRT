@@ -147,11 +147,27 @@ void NetClient::ProcessMsg(Packet &packet)
     packet.netMessage = &NetMessage::Deserialize((uint32_t *)packet.rawBytes.data, packet.rawBytes.dataLength);
 
     switch (packet.netMessage->type) {
+        // TODO: Auth challenge. Store salt sent from server instead.. handshake stuffs
         case NetMessage::Type::Welcome: {
-            // TODO: Store salt sent from server instead.. handshake stuffs
-            //const char *username = "user";
-            //usernameLength = MIN(strlen(username), USERNAME_LENGTH_MAX);
-            //memcpy(username, username, usernameLength);
+            NetMessage_Welcome &welcomeMsg = static_cast<NetMessage_Welcome &>(*packet.netMessage);
+            chatHistory.PushMessage(CSTR("Message of the day"), welcomeMsg.motd, welcomeMsg.motdLength);
+            
+            // TODO: Move all this stupidity to somewhere less stupid
+            if (welcomeMsg.tilesLength) {
+                tilemap_generate_tiles(&serverWorld.map, welcomeMsg.tiles, welcomeMsg.tilesLength);
+
+                // TODO: Use username (ensure null terminated or add player.nameLength field
+                static Player player("sone_nz");
+                player.body.position = serverWorld.GetWorldSpawn();
+                serverWorld.player = &player;
+                // TODO: Wayyyy better way to check if visual client vs. CLI client than checking global spritesheet
+                if (g_spritesheetCatalog) {
+                    const Spritesheet &charlieSpritesheet = g_spritesheetCatalog->spritesheets[(int)SpritesheetID::Charlie];
+                    const SpriteDef *charlieSpriteDef = charlieSpritesheet.FindSprite("player_sword");
+                    assert(charlieSpriteDef);
+                    player.SetSpritesheet(*charlieSpriteDef);
+                }
+            }
             break;
         } case NetMessage::Type::ChatMessage: {
             NetMessage_ChatMessage &chatMsg = static_cast<NetMessage_ChatMessage &>(*packet.netMessage);
@@ -223,10 +239,10 @@ ErrorType NetClient::Receive()
                     E_INFO("Connected to server %x:%hu.",
                         event.peer->address.host,
                         event.peer->address.port);
-                    // TODO: Store any relevant client information here.
-                    //event.peer->data = "Client information";
-                    //Auth();
-                    chatHistory.PushMessage(CSTR("Sam"), CSTR("Connected to server. :)"));
+
+                    chatHistory.PushMessage(CSTR("Debug"), CSTR("Connected to server. :)"));
+                    Auth();
+
                     break;
                 } case ENET_EVENT_TYPE_RECEIVE: {
                     E_INFO("A packet of length %u was received from %x:%u on channel %u.",

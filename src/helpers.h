@@ -26,6 +26,8 @@
 #define SERVER_PORT            4040
 #define USERNAME_LENGTH_MAX    32
 #define PASSWORD_LENGTH_MAX    32
+#define MOTD_LENGTH_MAX        64
+#define MOTD_MAX_TILES         64
 
 #define PACKET_SIZE_MAX        1024
 #define SERVER_USERNAME        "SERVER"

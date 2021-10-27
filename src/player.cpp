@@ -8,7 +8,7 @@
 #include "spritesheet.h"
 #include <cassert>
 
-Player::Player(const char *playerName, const SpriteDef &spriteDef) : Player()
+Player::Player(const char *playerName) : Player()
 {
     assert(playerName);
 
@@ -16,7 +16,6 @@ Player::Player(const char *playerName, const SpriteDef &spriteDef) : Player()
     actionState = ActionState::None;
     moveState = MoveState::Idle;
     body.lastUpdated = GetTime();
-    sprite.spriteDef = &spriteDef;
     sprite.scale = 1.0f;
     sprite.direction = Direction::South;
     combat.maxHitPoints = 100.0f;
@@ -34,6 +33,11 @@ Player::Player(const char *playerName, const SpriteDef &spriteDef) : Player()
     //stats.coinsCollected = 33;
     //stats.slimesSlain = 44;
     stats = {};
+}
+
+void Player::SetSpritesheet(const SpriteDef &spriteDef)
+{
+    sprite.spriteDef = &spriteDef;
 }
 
 float Player::Depth() const
@@ -174,34 +178,36 @@ void Player::Update(double now, double dt)
         combat.attackDuration = 0;
     }
 
-    // TODO: Less hard-coded way to look up player sprite based on selected item id
-    const Spritesheet *sheet = sprite.spriteDef->spritesheet;
-    assert(sheet->sprites.size() == 5);
+    if (sprite.spriteDef) {
+        // TODO: Less hard-coded way to look up player sprite based on selected item id
+        const Spritesheet *sheet = sprite.spriteDef->spritesheet;
+        assert(sheet->sprites.size() == 5);
 
-    const Item &selectedItem = GetSelectedItem();
-    if (selectedItem.id == ItemID::Weapon_Sword) {
-        switch (actionState) {
-            case ActionState::None: {
-                switch (body.idle) {
-                    // TODO: sprite_by_name("player_sword");
-                    case false: sprite.spriteDef = &sheet->sprites[2]; break;
-                        // TODO: sprite_by_name("player_sword_idle");
-                    case true:  sprite.spriteDef = &sheet->sprites[3]; break;
+        const Item &selectedItem = GetSelectedItem();
+        if (selectedItem.id == ItemID::Weapon_Sword) {
+            switch (actionState) {
+                case ActionState::None: {
+                    switch (body.idle) {
+                        // TODO: sprite_by_name("player_sword");
+                        case false: sprite.spriteDef = &sheet->sprites[2]; break;
+                            // TODO: sprite_by_name("player_sword_idle");
+                        case true:  sprite.spriteDef = &sheet->sprites[3]; break;
+                    }
+                    break;
                 }
-                break;
+                case ActionState::Attacking: {
+                    // sprite_by_name("player_sword_attack");
+                    sprite.spriteDef = &sheet->sprites[4];
+                    break;
+                }
             }
-            case ActionState::Attacking: {
-                // sprite_by_name("player_sword_attack");
-                sprite.spriteDef = &sheet->sprites[4];
-                break;
+        } else {
+            switch (body.idle) {
+                // TODO: sprite_by_name("player_melee");
+                case false: sprite.spriteDef = &sheet->sprites[0]; break;
+                    // TODO: sprite_by_name("player_melee_idle");
+                case true:  sprite.spriteDef = &sheet->sprites[1]; break;
             }
-        }
-    } else {
-        switch (body.idle) {
-            // TODO: sprite_by_name("player_melee");
-            case false: sprite.spriteDef = &sheet->sprites[0]; break;
-                // TODO: sprite_by_name("player_melee_idle");
-            case true:  sprite.spriteDef = &sheet->sprites[1]; break;
         }
     }
 

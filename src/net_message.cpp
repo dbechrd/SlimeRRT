@@ -53,7 +53,7 @@ void NetMessage_Identify::Serialize(BitStreamWriter &writer) const
     for (size_t i = 0; i < usernameLength; i++) {
         writer.Write(username[i], 8);
     }
-    writer.Flush();
+    //writer.Flush();
 
     assert(passwordLength <= PASSWORD_LENGTH_MAX);
     writer.Write((uint32_t)passwordLength, 5);
@@ -68,6 +68,24 @@ void NetMessage_Identify::Serialize(BitStreamWriter &writer) const
 void NetMessage_Welcome::Serialize(BitStreamWriter &writer) const
 {
     NetMessage::Serialize(writer);
+
+    assert(motdLength <= MOTD_LENGTH_MAX);
+    writer.Write((uint32_t)motdLength, 6);
+    writer.Align();
+
+    for (size_t i = 0; i < motdLength; i++) {
+        writer.Write(motd[i], 8);
+    }
+    //writer.Flush();
+
+    assert(tilesLength <= MOTD_MAX_TILES);
+    writer.Write((uint32_t)tilesLength, 7);
+    writer.Align();
+
+    for (size_t i = 0; i < tilesLength; i++) {
+        writer.Write(tiles[i], 8);
+    }
+
     writer.Flush();
 }
 
@@ -116,7 +134,23 @@ void NetMessage_Identify::Deserialize(BitStreamReader &reader)
 
 void NetMessage_Welcome::Deserialize(BitStreamReader &reader)
 {
-    UNUSED(reader);
+    motdLength = reader.Read(6);
+    assert(motdLength <= MOTD_LENGTH_MAX);
+    reader.Align();
+
+    motd = reader.BufferPtr();
+    for (size_t i = 0; i < motdLength; i++) {
+        reader.Read(8);
+    }
+
+    tilesLength = reader.Read(7);
+    assert(tilesLength <= MOTD_MAX_TILES);
+    reader.Align();
+
+    tiles = (uint8_t *)reader.BufferPtr();
+    for (size_t i = 0; i < tilesLength; i++) {
+        reader.Read(8);
+    }
 }
 
 void NetMessage_ChatMessage::Deserialize(BitStreamReader &reader)

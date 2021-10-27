@@ -12,6 +12,11 @@ const char *ChatHistory::LOG_SRC = "Chat";
 
 void ChatHistory::PushNetMessage(const NetMessage_ChatMessage &netChat)
 {
+    assert(netChat.username);
+    assert(netChat.usernameLength);
+    assert(netChat.message);
+    assert(netChat.messageLength);
+
     ChatMessage &chat = Alloc();
 
     assert(sizeof(chat.timestampStr) == sizeof(netChat.timestampStr));
@@ -28,6 +33,11 @@ void ChatHistory::PushNetMessage(const NetMessage_ChatMessage &netChat)
 
 void ChatHistory::PushMessage(const char *username, size_t usernameLength, const char *message, size_t messageLength)
 {
+    assert(username);
+    assert(usernameLength);
+    assert(message);
+    assert(messageLength);
+
     ChatMessage &chat = Alloc();
 
     char timestampStr[12];

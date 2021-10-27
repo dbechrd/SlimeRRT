@@ -26,6 +26,16 @@ World::~World()
     tilemap_free(&map);
 }
 
+const Vector3 World::GetWorldSpawn()
+{
+    Vector3 worldSpawn = {
+        (float)map.width / 2.0f * map.tileWidth,
+        (float)map.height / 2.0f * map.tileHeight,
+        0.0f
+    };
+    return worldSpawn;
+};
+
 void BloodParticlesFollowPlayer(ParticleEffect &effect, void *userData)
 {
     assert(effect.type == ParticleEffectType::Blood);
@@ -73,11 +83,11 @@ void World::Sim(double now, double dt, const PlayerControllerState input, const 
     Vector2 moveOffset = v2_scale(v2_normalize(moveBuffer), METERS_TO_PIXELS(playerSpeed) * (float)dt);
     if (!v2_is_zero(moveOffset)) {
         const Vector2 curPos = player->body.GroundPosition();
-        const Tile *curTile = tilemap_at_world_try(&map, (int)curPos.x, (int)curPos.y);
-        const bool curWalkable = curTile->IsWalkable();
+        const Tile *curTile = tilemap_at_world_try(&map, curPos.x, curPos.y);
+        const bool curWalkable = curTile && curTile->IsWalkable();
 
         Vector2 newPos = v2_add(curPos, moveOffset);
-        Tile *newTile = tilemap_at_world_try(&map, (int)newPos.x, (int)newPos.y);
+        Tile *newTile = tilemap_at_world_try(&map, newPos.x, newPos.y);
 
         // NOTE: This extra logic allows the player to slide when attempting to move diagonally against a wall
         // NOTE: If current tile isn't walkable, allow player to walk off it. This may not be the best solution
@@ -87,23 +97,17 @@ void World::Sim(double now, double dt, const PlayerControllerState input, const 
         // generate something interesting in the center of the world that overwrites procgen, like Don't
         // Starve's fancy arrival portal.
         if (curWalkable) {
-            if (!newTile->IsWalkable()) {
+            if (!newTile || !newTile->IsWalkable()) {
                 // XY unwalkable, try only X offset
                 newPos = curPos;
                 newPos.x += moveOffset.x;
-                newTile = tilemap_at_world_try(&map, (int)newPos.x, (int)newPos.y);
-                if (newTile->IsWalkable()) {
-                    // X offset is walkable
-                    moveOffset.y = 0.0f;
-                } else {
+                newTile = tilemap_at_world_try(&map, newPos.x, newPos.y);
+                if (!newTile || !newTile->IsWalkable()) {
                     // X unwalkable, try only Y offset
                     newPos = curPos;
                     newPos.y += moveOffset.y;
-                    newTile = tilemap_at_world_try(&map, (int)newPos.x, (int)newPos.y);
-                    if (newTile->IsWalkable()) {
-                        // Y offset is walkable
-                        moveOffset.x = 0.0f;
-                    } else {
+                    newTile = tilemap_at_world_try(&map, newPos.x, newPos.y);
+                    if (!newTile || !newTile->IsWalkable()) {
                         // XY, and both slide directions are all unwalkable
                         moveOffset.x = 0.0f;
                         moveOffset.y = 0.0f;
@@ -111,7 +115,13 @@ void World::Sim(double now, double dt, const PlayerControllerState input, const 
                         // TODO: Play wall bonk sound (or splash for water? heh)
                         // TODO: Maybe bounce the player against the wall? This code doesn't do that nicely..
                         //player_move(&charlie, v2_scale(v2_negate(moveOffset), 10.0f));
+                    } else {
+                        // Y offset is walkable
+                        moveOffset.x = 0.0f;
                     }
+                } else {
+                    // X offset is walkable
+                    moveOffset.y = 0.0f;
                 }
             }
         }
@@ -123,6 +133,10 @@ void World::Sim(double now, double dt, const PlayerControllerState input, const 
                 sound_catalog_play(SoundID::Footstep, 1.0f + dlb_rand32f_variance(0.5f));
                 lastFootstep = now;
             }
+        }
+
+        if (player->body.position.x < 0.0f) {
+            assert(!"wtf?");
         }
     }
 

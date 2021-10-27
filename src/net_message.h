@@ -79,7 +79,10 @@ protected:
 };
 
 struct NetMessage_Welcome : public NetMessage  {
-    //size_t unused;
+    size_t       motdLength  {};
+    const char * motd        {};  // message of the day
+    size_t       tilesLength {};
+    uint8_t    * tiles       {};  // TODO(dlb): World data probably shouldn't be in welcome message
 
     NetMessage_Welcome() : NetMessage(Type::Welcome) {};
     using NetMessage::Serialize;

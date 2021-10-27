@@ -1,2 +1,3 @@
 @echo off
-start OneNationUnderRay_dbg.exe -s 4040
+cp OneNationUnderRay_dbg.exe OneNationUnderRay_dbg_cpy.exe
+start OneNationUnderRay_dbg_cpy.exe -s 4040
