@@ -58,3 +58,56 @@ void ChatHistory::PushMessage(const char *username, size_t usernameLength, const
     chat.messageLength = MIN(messageLength, CHAT_MESSAGE_LENGTH_MAX);
     memcpy(chat.message, message, chat.messageLength);
 }
+
+void ChatHistory::Render(Font &font, ChatHistory &chatHistory, Rectangle rect)
+{
+    size_t chatHistoryMsgCount = chatHistory.Count();
+    if (!chatHistoryMsgCount) {
+        return;
+    }
+
+    const float margin = 6.0f;   // left/bottom margin
+    const float pad = 4.0f;      // left/bottom pad
+
+    // NOTE: The chat history renders from the bottom up (most recent message first)
+    float cursorY = (rect.y + rect.height) - pad - font.baseSize;
+    const char *chatText = 0;
+    Color chatColor = WHITE;
+
+    DrawRectangleRec(rect, Fade(DARKGRAY, 0.8f));
+    DrawRectangleLinesEx(rect, 1, Fade(BLACK, 0.8f));
+    //DrawRectangle((int)chatX, (int)chatY, (int)chatWidth, (int)chatHeight, Fade(DARKGRAY, 0.8f));
+    //DrawRectangleLines((int)chatX, (int)chatY, (int)chatWidth, (int)chatHeight, Fade(BLACK, 0.8f));
+
+    for (int i = (int)chatHistoryMsgCount - 1; i >= 0; i--) {
+        const ChatMessage &chatMsg = chatHistory.At(i);
+        assert(chatMsg.messageLength);
+
+#define CHECK_USERNAME(value) chatMsg.usernameLength == (sizeof(value) - 1) && !strncmp(chatMsg.username, (value), chatMsg.usernameLength);
+        bool fromServer = CHECK_USERNAME("SERVER");
+        bool fromSam = CHECK_USERNAME("Sam");
+        bool fromDebug = CHECK_USERNAME("Debug");
+        bool fromMotd = CHECK_USERNAME("Message of the day");
+#undef CHECK_USERNAME
+
+        if (fromServer || fromSam || fromDebug || fromMotd) {
+            chatText = TextFormat("[%s]<%.*s>: %.*s", chatMsg.timestampStr, chatMsg.usernameLength, chatMsg.username,
+                chatMsg.messageLength, chatMsg.message);
+            if (fromServer) {
+                chatColor = RED;
+            } else if (fromSam) {
+                chatColor = GREEN;
+            } else if (fromDebug) {
+                chatColor = LIGHTGRAY;
+            } else if (fromMotd) {
+                chatColor = YELLOW;
+            }
+        } else {
+            chatText = TextFormat("[%s][%.*s]: %.*s", chatMsg.timestampStr, chatMsg.usernameLength, chatMsg.username,
+                chatMsg.messageLength, chatMsg.message);
+            chatColor = WHITE;
+        }
+        DrawTextFont(font, chatText, margin + pad, cursorY, font.baseSize, chatColor);
+        cursorY -= font.baseSize + pad;
+    }
+}

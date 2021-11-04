@@ -76,7 +76,7 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
     Texture checkboardTexture{};
     Music mus_background{};
     Music mus_whistle{};
-    Font fonts[3]{};
+    Font font{};
 
 E_START
     const char *title = "Attack the slimes!";
@@ -108,16 +108,12 @@ E_START
     E_CHECK(netClient.OpenSocket(), "Failed to open client socket");
 
     const int fontHeight = 14;
-    fonts[0] = GetFontDefault();
-    fonts[1] = LoadFontEx("C:/Windows/Fonts/consola.ttf", fontHeight, 0, 0);
-    fonts[2] = LoadFontEx("resources/UbuntuMono-Regular.ttf", fontHeight, 0, 0);
-    for (size_t i = 0; i < ARRAY_SIZE(fonts); i++) {
-        assert(fonts[i].texture.id);
-    }
-    size_t fontIdx = 1;
-    GuiSetFont(fonts[fontIdx]);
+    font = LoadFontEx("C:/Windows/Fonts/consola.ttf", fontHeight, 0, 0);
+    //font = LoadFontEx("resources/UbuntuMono-Regular.ttf", fontHeight, 0, 0);
+    assert(font.texture.id);
+    GuiSetFont(font);
 
-    HealthBar::SetFont(fonts[0]);
+    HealthBar::SetFont(GetFontDefault());
 
     int screenWidth = GetScreenWidth();
     int screenHeight = GetScreenHeight();
@@ -325,6 +321,8 @@ E_START
             ImGui::SetNextItemWidth(226);
             ImGui::InputText("##password", password, sizeof(password), ImGuiInputTextFlags_Password);
 
+            bool closePopup = false;
+
             ImGui::SetCursorPosX(177.0f);
             ImGui::PushStyleColor(ImGuiCol_Button, 0xFFBF8346);
             bool login = ImGui::Button("Login", ImVec2(60, 0));
@@ -334,8 +332,7 @@ E_START
                 IsKeyPressed(io.KeyMap[ImGuiKey_KeyPadEnter]))
             {
                 netClient.Connect(host, (unsigned short)port, username, password);
-                ImGui::CloseCurrentPopup();
-                chatActive = false;
+                closePopup = true;
             }
             
             ImGui::SameLine();
@@ -343,9 +340,15 @@ E_START
             bool cancel = ImGui::Button("Cancel", ImVec2(60, 0));
             //ImGui::PopStyleColor();
             if (cancel || IsKeyPressed(io.KeyMap[ImGuiKey_Escape])) {
-                ImGui::CloseCurrentPopup();
+                closePopup = true;
             }
             
+            if (closePopup) {
+                ImGui::CloseCurrentPopup();
+                memset(username, 0, sizeof(username));
+                memset(password, 0, sizeof(password));
+            }
+
             ImGui::EndPopup();
         }
 
@@ -400,14 +403,6 @@ E_START
 
             if (input.dbg_imgui) {
                 show_demo_window = !show_demo_window;
-            }
-
-            if (input.dbg_nextFont) {
-                fontIdx++;
-                if (fontIdx >= ARRAY_SIZE(fonts)) {
-                    fontIdx = 0;
-                    GuiSetFont(fonts[fontIdx]);
-                }
             }
 
             if (IsKeyPressed(KEY_F10)) {
@@ -702,13 +697,13 @@ E_START
             DrawRectangleLinesEx(tooltipRect, 1, Fade(BLACK, 0.8f));
 
             int lineOffset = 0;
-            DrawTextFont(fonts[fontIdx], TextFormat("tilePos : %.02f, %.02f", mouseTileX, mouseTileY),
+            DrawTextFont(font, TextFormat("tilePos : %.02f, %.02f", mouseTileX, mouseTileY),
                 tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, fontHeight, BLACK);
             lineOffset += fontHeight;
-            DrawTextFont(fonts[fontIdx], TextFormat("tileSize: %zu, %zu", tileset.tileWidth, tileset.tileHeight),
+            DrawTextFont(font, TextFormat("tileSize: %zu, %zu", tileset.tileWidth, tileset.tileHeight),
                 tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, fontHeight, BLACK);
             lineOffset += fontHeight;
-            DrawTextFont(fonts[fontIdx], TextFormat("tileType: %d", mouseTile->tileType),
+            DrawTextFont(font, TextFormat("tileType: %d", mouseTile->tileType),
                 tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, fontHeight, BLACK);
             lineOffset += fontHeight;
         }
@@ -729,14 +724,14 @@ E_START
         float hudCursorY = 0;
 
 #define PUSH_TEXT(text, color) \
-    DrawTextFont(fonts[fontIdx], text, margin + pad, hudCursorY, fontHeight, color); \
+    DrawTextFont(font, text, margin + pad, hudCursorY, fontHeight, color); \
     hudCursorY += fontHeight + pad; \
 
         // Render HUD
         {
             int linesOfText = 8;
 #if SHOW_DEBUG_STATS
-            linesOfText += 7;
+            linesOfText += 6;
 #endif
             const float margin = 6.0f;   // left/top margin
             const float pad = 4.0f;      // left/top pad
@@ -783,8 +778,6 @@ E_START
             PUSH_TEXT(text, GRAY);
             text = TextFormat("Tiles visible %zu", tilesDrawn);
             PUSH_TEXT(text, GRAY);
-            text = TextFormat("Font index    %zu", fontIdx);
-            PUSH_TEXT(text, GRAY);
             text = TextFormat("Particle FX   %zu", particle_effects_active());
             PUSH_TEXT(text, GRAY);
             text = TextFormat("Particles     %zu", particles_active());
@@ -821,126 +814,28 @@ E_START
             }
         }
 #endif
+#undef PUSH_TEXT
 
-        // Render chat history
         {
             const float margin = 6.0f;   // left/bottom margin
             const float pad = 4.0f;      // left/bottom pad
-
+            const float inputBoxHeight = font.baseSize + pad * 2.0f;
             const int linesOfText = (int)netClient.chatHistory.Count();
             const float chatWidth = 800.0f;
-            const float chatHeight = linesOfText * (fontHeight + pad) + pad;
-            const float inputBoxHeight = fontHeight + pad * 2.0f;
+            const float chatHeight = linesOfText * (font.baseSize + pad) + pad;
             const float chatX = margin;
             const float chatY = screenHeight - margin - inputBoxHeight - chatHeight;
 
-            // NOTE: The chat history renders from the bottom up (most recent message first)
-            float cursorY = (chatY + chatHeight) - pad - fontHeight;
-            const char *chatText = 0;
-            Color chatColor = WHITE;
+            // Render chat history
+            netClient.chatHistory.Render(font, netClient.chatHistory, { chatX, chatY, chatWidth, chatHeight });
 
-            DrawRectangle((int)chatX, (int)chatY, (int)chatWidth, (int)chatHeight, Fade(DARKGRAY, 0.8f));
-            DrawRectangleLines((int)chatX, (int)chatY, (int)chatWidth, (int)chatHeight, Fade(BLACK, 0.8f));
-
-            for (int i = (int)netClient.chatHistory.Count() - 1; i >= 0; i--) {
-                const ChatMessage &chatMsg = netClient.chatHistory.At(i);
-                assert(chatMsg.messageLength);
-
-#define CHECK_USERNAME(value) chatMsg.usernameLength == (sizeof(value) - 1) && !strncmp(chatMsg.username, (value), chatMsg.usernameLength);
-                bool fromServer = CHECK_USERNAME("SERVER");
-                bool fromSam = CHECK_USERNAME("Sam");
-                bool fromDebug = CHECK_USERNAME("Debug");
-                bool fromMotd = CHECK_USERNAME("Message of the day");
-#undef CHECK_USERNAME
-
-                if (fromServer || fromSam || fromDebug || fromMotd)                     {
-                    chatText = TextFormat("[%s]<%.*s>: %.*s", chatMsg.timestampStr, chatMsg.usernameLength, chatMsg.username,
-                        chatMsg.messageLength, chatMsg.message);
-                    if (fromServer) {
-                        chatColor = RED;
-                    } else if (fromSam) {
-                        chatColor = GREEN;
-                    } else if (fromDebug) {
-                        chatColor = LIGHTGRAY;
-                    } else if (fromMotd) {
-                        chatColor = YELLOW;
-                    }
-                } else {
-                    chatText = TextFormat("[%s][%.*s]: %.*s", chatMsg.timestampStr, chatMsg.usernameLength, chatMsg.username,
-                        chatMsg.messageLength, chatMsg.message);
-                    chatColor = WHITE;
-                }
-                DrawTextFont(fonts[fontIdx], chatText, margin + pad, cursorY, fontHeight, chatColor);
-                cursorY -= fontHeight + pad;
-            }
-
+            // Render chat input box
             static GuiTextBoxAdvancedState chatInputState;
             if (chatActive) {
-#if 0
-                {
-                    static bool dialog = true;
-                    dialog = dialog || IsKeyPressed(KEY_GRAVE);
-
-                    if (dialog) {
-                        static float loginBoxW = 230.0f;
-                        static float loginBoxH = 105.0f;
-
-                        float mouseWheelMove = GetMouseWheelMove();
-                        float *scrollFloat = IsKeyDown(KEY_LEFT_SHIFT) ? &loginBoxW : &loginBoxH;
-                        if (mouseWheelMove > 0.0f) {
-                            *scrollFloat += 25.0f;
-                        } else if (mouseWheelMove < 0.0f) {
-                            *scrollFloat = MAX(scrollFloat == &loginBoxH ? 104.0f : 223.0f, *scrollFloat - 25.0f);
-                        }
-
-                        Rectangle loginBoxRect = {
-                            screenWidth / 2.0f - loginBoxW / 2.0f,
-                            screenHeight / 2.0f - loginBoxH / 2.0f,
-                            loginBoxW,
-                            loginBoxH
-                        };
-
-                        static int loginBoxTextLen = 0;
-                        static char loginBoxText[USERNAME_LENGTH_MAX + 1];
-                        static GuiTextBoxAdvancedState loginBoxState;
-
-                        int button = GuiTextInputBoxAdvanced(&loginBoxState, loginBoxRect, "Log In",
-                            "Please enter your username:", "Login;Cancel", 1, loginBoxText, &loginBoxTextLen,
-                            sizeof(loginBoxText), false);
-                        switch (button) {
-                        case 0:
-                        { // [X]
-                            dialog = false;
-                            break;
-                        }
-                        case 1:
-                        { // Login
-                            if (loginBoxTextLen) {
-                                //netClient.usernameLength = MIN(ARRAY_SIZE(netClient.username), loginBoxTextLen);
-                                //strncpy(netClient.username, loginBoxText, netClient.usernameLength);
-                                netClient.SendChatMessage(CSTR("Auth!"));
-                            }
-                            break;
-                        }
-                        case 2:
-                        { // Cancel
-                            dialog = false;
-                            break;
-                        }
-                        }
-
-                        if (escape || button >= 0) {
-                            memset(loginBoxText, 0, sizeof(loginBoxText));
-                            loginBoxTextLen = 0;
-                        }
-                    }
-                }
-#endif
-
                 static int chatInputTextLen = 0;
                 static char chatInputText[CHAT_MESSAGE_BUFFER_LEN];
                 assert(CHAT_MESSAGE_LENGTH_MAX < CHAT_MESSAGE_BUFFER_LEN);
-
+                
                 Rectangle chatInputRect = { margin, screenHeight - margin - inputBoxHeight, chatWidth, inputBoxHeight };
                 //GuiTextBox(inputBox, chatInputText, CHAT_MESSAGE_LENGTH_MAX, true);
                 //GuiTextBoxEx(inputBox, chatInputText, CHAT_MESSAGE_LENGTH_MAX, true);
@@ -949,10 +844,11 @@ E_START
                     if (messageLength) {
                         ErrorType sendResult = netClient.SendChatMessage(chatInputText, messageLength);
                         switch (sendResult) {
-                            case ErrorType::NotConnected: {
-                                ImGui::OpenPopup("Log in");
-                                break;
-                            }
+                        case ErrorType::NotConnected:
+                        {
+                            ImGui::OpenPopup("Log in");
+                            break;
+                        }
                         }
                         memset(chatInputText, 0, sizeof(chatInputText));
                         chatInputTextLen = 0;
@@ -973,7 +869,6 @@ E_START
                 GuiSetActiveTextbox(&chatInputState);
             }
         }
-#undef PUSH_TEXT
 
         rlDrawRenderBatchActive();
         ImGui::Render();
@@ -1003,8 +898,6 @@ E_CLEANUP
     ImGui::DestroyContext();
 
     CloseWindow();
-    for (size_t i = 0; i < ARRAY_SIZE(fonts); i++) {
-        UnloadFont(fonts[i]);
-    }
+    UnloadFont(font);
 E_END
 }

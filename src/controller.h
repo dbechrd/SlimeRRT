@@ -31,7 +31,6 @@ struct PlayerControllerState {
     bool  screenshot        {};
     bool  dbg_findMouseTile {};
     bool  dbg_imgui         {};
-    bool  dbg_nextFont      {};
     bool  dbg_toggleVsync   {};
     bool  dbg_chatMessage   {};
     bool  dbg_toggleFreecam {};

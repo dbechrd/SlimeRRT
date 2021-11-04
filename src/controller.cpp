@@ -51,7 +51,6 @@ PlayerControllerState PlayerControllerState::Query(bool processMouse, bool proce
             input.selectSlot[(int)PlayerInventorySlot::Slot_6] = IsKeyPressed(KEY_SEVEN);
             input.screenshot = IsKeyPressed(KEY_F11);
             input.dbg_findMouseTile = IsKeyDown(KEY_LEFT_ALT);
-            input.dbg_nextFont = IsKeyPressed(KEY_SEVEN);
             input.dbg_toggleVsync = IsKeyPressed(KEY_V);
             input.dbg_chatMessage = IsKeyPressed(KEY_C);
             input.dbg_toggleFreecam = IsKeyPressed(KEY_F);
