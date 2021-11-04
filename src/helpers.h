@@ -22,15 +22,16 @@
 //------------------------------------------------------------------------------
 // Constants
 //------------------------------------------------------------------------------
-#define SERVER_HOST_LENGTH_MAX 64
-#define SERVER_PORT            4040
-#define USERNAME_LENGTH_MAX    32
-#define PASSWORD_LENGTH_MAX    32
-#define MOTD_LENGTH_MAX        64
-#define MOTD_MAX_TILES         64
+#define SERVER_HOST_LENGTH_MAX  64
+#define SERVER_PORT             4040
+#define USERNAME_LENGTH_MAX     32
+#define PASSWORD_LENGTH_MAX     32
+#define MOTD_LENGTH_MAX         64
+#define WORLD_MAX_TILES         UINT16_MAX
 
-#define PACKET_SIZE_MAX        1024
-#define SERVER_USERNAME        "SERVER"
+//#define PACKET_SIZE_MAX        1024
+#define PACKET_SIZE_MAX         UINT16_MAX * 2
+#define SERVER_USERNAME         "SERVER"
 #define CHAT_MESSAGE_HISTORY    16 //64
 #define CHAT_MESSAGE_LENGTH_MAX 500  // not including nil terminator, must be < CHAT_MESSAGE_BUFFER_LEN
 #define CHAT_MESSAGE_BUFFER_LEN 512  // including nil terminator

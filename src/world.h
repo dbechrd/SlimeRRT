@@ -10,7 +10,8 @@ struct World {
     uint64_t           rtt_seed {};
     dlb_rand32_t       rtt_rand {};
     Tilemap            map      {};
-    Player *           player   {};
+    Tileset           *tileset  {};
+    Player            *player   {};
     std::vector<Slime> slimes   {};
 
     World();

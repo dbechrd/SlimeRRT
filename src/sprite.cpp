@@ -126,8 +126,8 @@ static void sprite_draw(const Sprite &sprite, Rectangle dest, Color color)
 
 #if DEMO_BODY_RECT
     // DEBUG: Draw bottom bottomCenter
-    Vector2 groundPos = body_ground_position(body);
-    DrawCircle((int)groundPos.x, (int)groundPos.y, 4.0f, RED);
+    //Vector2 groundPos = sprite_world_center;
+    //DrawCircle((int)groundPos.x, (int)groundPos.y, 4.0f, RED);
 #endif
 }
 

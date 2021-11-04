@@ -116,19 +116,12 @@ E_START
 
     {
         E_INFO("Sending welcome basket to %s\n", TextFormatIP(client.peer->address));
-        NetMessage_Welcome userJoinedNotification{};
-        userJoinedNotification.motd = "Welcome to The Lonely Island";
-        userJoinedNotification.motdLength = strlen(userJoinedNotification.motd);
-
-        static uint8_t welcomeMap[64] = { (uint8_t)TileType::Count };
-        if (welcomeMap[0] == (uint8_t)TileType::Count) {
-            for (int i = 0; i < ARRAY_SIZE(welcomeMap); i++) {
-                welcomeMap[i] = i % (uint8_t)TileType::Count;
-            }
-        }
-        userJoinedNotification.tiles = welcomeMap;
-        userJoinedNotification.tilesLength = ARRAY_SIZE(welcomeMap);
-        E_CHECK(SendMsg(client, userJoinedNotification), "Failed to send welcome basket");
+        NetMessage_Welcome userWelcomeBasket{};
+        userWelcomeBasket.motd = "Welcome to The Lonely Island";
+        userWelcomeBasket.motdLength = strlen(userWelcomeBasket.motd);
+        userWelcomeBasket.width = serverWorld.map.width;
+        userWelcomeBasket.height = serverWorld.map.height;
+        E_CHECK(SendMsg(client, userWelcomeBasket), "Failed to send welcome basket");
     }
 
     {
@@ -143,7 +136,27 @@ E_START
         userJoinedNotification.usernameLength = sizeof("SERVER") - 1;
         userJoinedNotification.messageLength = messageLength;
         userJoinedNotification.message = message;
-        E_CHECK(BroadcastMsg(userJoinedNotification), "Failed to send join notification");
+        E_CHECK(BroadcastMsg(userJoinedNotification), "Failed to broadcast join notification");
+    }
+
+    {
+        E_INFO("Sending world chunks to %s\n", TextFormatIP(client.peer->address));
+        NetMessage_WorldChunk userWorldChunk{};
+        userWorldChunk.offsetX = 0;
+        userWorldChunk.offsetY = 0;
+        userWorldChunk.rowWidth = 8;
+
+        size_t tileCount = serverWorld.map.width * serverWorld.map.height;
+        uint8_t *serverMapTiles = (uint8_t *)calloc(tileCount, sizeof(*serverMapTiles));
+        for (size_t i = 0; i < tileCount; i++) {
+            assert((uint32_t)serverWorld.map.tiles[i].tileType < (uint32_t)UINT8_MAX);
+            serverMapTiles[i] = (uint8_t)serverWorld.map.tiles[i].tileType;
+        }
+
+        userWorldChunk.tiles = serverMapTiles;
+        userWorldChunk.tilesLength = tileCount;
+        E_CHECK(SendMsg(client, userWorldChunk), "Failed to send world chunks");
+        free(serverMapTiles);
     }
 E_CLEAN_END
 }

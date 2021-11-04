@@ -12,6 +12,5 @@ struct GameServer {
 private:
     static const char *LOG_SRC;
     Args      args;
-    World *   world     {};
     NetServer netServer {};
 };

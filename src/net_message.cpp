@@ -14,7 +14,7 @@ size_t NetMessage::Serialize(uint32_t *buffer, size_t bufferLength) const
 NetMessage &NetMessage::Deserialize(uint32_t *buffer, size_t bufferLength)
 {
     BitStreamReader reader(buffer, bufferLength);
-    NetMessage::Type type = (NetMessage::Type)reader.Read(2);
+    NetMessage::Type type = (NetMessage::Type)reader.Read(3);
     reader.Align();
 
     NetMessage *msg = nullptr;
@@ -24,6 +24,9 @@ NetMessage &NetMessage::Deserialize(uint32_t *buffer, size_t bufferLength)
             break;
         } case NetMessage::Type::Welcome: {
             msg = new NetMessage_Welcome();
+            break;
+        } case NetMessage::Type::WorldChunk: {
+            msg = new NetMessage_WorldChunk();
             break;
         } case NetMessage::Type::ChatMessage: {
             msg = new NetMessage_ChatMessage();
@@ -38,7 +41,7 @@ NetMessage &NetMessage::Deserialize(uint32_t *buffer, size_t bufferLength)
 
 void NetMessage::Serialize(BitStreamWriter &writer) const
 {
-    writer.Write((int)type, 2);
+    writer.Write((int)type, 3);
     writer.Align();
 }
 
@@ -53,7 +56,6 @@ void NetMessage_Identify::Serialize(BitStreamWriter &writer) const
     for (size_t i = 0; i < usernameLength; i++) {
         writer.Write(username[i], 8);
     }
-    //writer.Flush();
 
     assert(passwordLength <= PASSWORD_LENGTH_MAX);
     writer.Write((uint32_t)passwordLength, 5);
@@ -62,6 +64,7 @@ void NetMessage_Identify::Serialize(BitStreamWriter &writer) const
     for (size_t i = 0; i < passwordLength; i++) {
         writer.Write(password[i], 8);
     }
+
     writer.Flush();
 }
 
@@ -76,10 +79,30 @@ void NetMessage_Welcome::Serialize(BitStreamWriter &writer) const
     for (size_t i = 0; i < motdLength; i++) {
         writer.Write(motd[i], 8);
     }
-    //writer.Flush();
 
-    assert(tilesLength <= MOTD_MAX_TILES);
-    writer.Write((uint32_t)tilesLength, 7);
+    assert(width * height <= WORLD_MAX_TILES);
+    writer.Write((uint32_t)width, 8);
+    writer.Align();
+    writer.Write((uint32_t)height, 8);
+    writer.Align();
+
+    writer.Flush();
+}
+
+void NetMessage_WorldChunk::Serialize(BitStreamWriter &writer) const
+{
+    NetMessage::Serialize(writer);
+
+    // TODO: Assert offsets/rowWidth are in a sane range?
+    assert(tilesLength <= WORLD_MAX_TILES);
+    
+    writer.Write((uint32_t)offsetX, 8);
+    writer.Align();
+    writer.Write((uint32_t)offsetY, 8);
+    writer.Align();
+    writer.Write((uint32_t)rowWidth, 8);
+    writer.Align();
+    writer.Write((uint32_t)tilesLength, 16);
     writer.Align();
 
     for (size_t i = 0; i < tilesLength; i++) {
@@ -108,6 +131,7 @@ void NetMessage_ChatMessage::Serialize(BitStreamWriter &writer) const
     for (size_t i = 0; i < messageLength; i++) {
         writer.Write(message[i], 8);
     }
+
     writer.Flush();
 }
 
@@ -143,9 +167,26 @@ void NetMessage_Welcome::Deserialize(BitStreamReader &reader)
         reader.Read(8);
     }
 
-    tilesLength = reader.Read(7);
-    assert(tilesLength <= MOTD_MAX_TILES);
-    reader.Align();
+    width = reader.Read(8);
+    //reader.Align();
+    height = reader.Read(8);
+    //reader.Align();
+    assert(width * height <= WORLD_MAX_TILES);
+
+}
+
+void NetMessage_WorldChunk::Deserialize(BitStreamReader &reader)
+{
+    offsetX = reader.Read(8);
+    //reader.Align();
+    offsetY = reader.Read(8);
+    //reader.Align();
+    rowWidth = reader.Read(8);
+    //reader.Align();
+
+    tilesLength = reader.Read(16);
+    //reader.Align();
+    assert(tilesLength <= WORLD_MAX_TILES);
 
     tiles = (uint8_t *)reader.BufferPtr();
     for (size_t i = 0; i < tilesLength; i++) {

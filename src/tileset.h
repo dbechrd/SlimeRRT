@@ -9,6 +9,7 @@ struct Tileset {
     size_t      tileCount    {};
     size_t      tilesPerRow  {};
 
+    Tileset();
     Tileset(Texture *texture, size_t tileWidth, size_t tileHeight, size_t tileCount);
     ~Tileset();
 };

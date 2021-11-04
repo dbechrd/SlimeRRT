@@ -3,6 +3,10 @@
 #include <cassert>
 #include <stdlib.h>
 
+Tileset::Tileset()
+{
+}
+
 Tileset::Tileset(Texture *texture, size_t tileWidth, size_t tileHeight, size_t tileCount) :
     texture(texture), tileWidth(tileWidth), tileHeight(tileHeight), tileCount(tileCount)
 {

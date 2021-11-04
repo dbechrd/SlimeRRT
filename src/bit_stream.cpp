@@ -61,6 +61,7 @@ void BitStreamWriter::Write(uint32_t word, uint8_t bits)
 {
     assert(buffer);
     assert(bits);
+    assert((uint64_t)word < ((uint64_t)1 << bits));  // Ensure word doesn't get truncated
 
     uint64_t maskedWord = (((uint64_t)1 << bits) - 1) & word;
     scratch |= maskedWord << scratchBits;

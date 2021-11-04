@@ -27,6 +27,47 @@ using namespace std::chrono_literals;
 
 const char *GameClient::LOG_SRC = "GameClient";
 
+void CreateMinimapTexture(Texture *minimapTex, Tilemap &map)
+{
+    assert(minimapTex);
+    UnloadTexture(*minimapTex);
+
+    Image minimapImg{};
+    // NOTE: This is the client-side world map. Fog of war until tile types known?
+    minimapImg.width = (int)map.width;
+    minimapImg.height = (int)map.height;
+    minimapImg.mipmaps = 1;
+    minimapImg.format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
+    assert(sizeof(Color) == 4);
+    minimapImg.data = calloc((size_t)minimapImg.width * minimapImg.height, sizeof(Color));
+    assert(minimapImg.data);
+
+    Color tileColors[(int)TileType::Count]{};
+    tileColors[(int)TileType::Grass] = GREEN;
+    tileColors[(int)TileType::Water] = SKYBLUE;
+    tileColors[(int)TileType::Forest] = DARKGREEN;
+    tileColors[(int)TileType::Wood] = BROWN;
+    tileColors[(int)TileType::Concrete] = GRAY;
+
+    const size_t height = map.height;
+    const size_t width = map.width;
+
+    Color *minimapPixel = (Color *)minimapImg.data;
+    for (size_t y = 0; y < height; y += 1) {
+        for (size_t x = 0; x < width; x += 1) {
+            const Tile *tile = &map.tiles[y * map.width + x];
+            // Draw all tiles as different colored pixels
+            assert((int)tile->tileType >= 0);
+            assert((int)tile->tileType < (int)TileType::Count);
+            *minimapPixel = tileColors[(int)tile->tileType];
+            minimapPixel++;
+        }
+    }
+
+    *minimapTex = LoadTextureFromImage(minimapImg);
+    free(minimapImg.data);
+}
+
 ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
 {
     World lobby{};
@@ -127,46 +168,12 @@ E_START
 
     Tileset tileset{ &tilesetTex, 32, 32, (int)TileType::Count };
 
-    tilemap_generate_lobby(&lobby.map);
+    tilemap_generate_lobby(lobby.map);
     //tilemap_generate_ex(&lobby.map, 256, 256, 32, 32, &lobby.rtt_rand);
     world = &lobby;
+    world->tileset = &tileset;
 
-    {
-        Image minimapImg{};
-        // NOTE: This is the client-side world map. Fog of war until tile types known?
-        minimapImg.width = (int)world->map.width;
-        minimapImg.height = (int)world->map.height;
-        minimapImg.mipmaps = 1;
-        minimapImg.format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
-        assert(sizeof(Color) == 4);
-        minimapImg.data = calloc((size_t)minimapImg.width * minimapImg.height, sizeof(Color));
-        assert(minimapImg.data);
-
-        Color tileColors[(int)TileType::Count]{};
-        tileColors[(int)TileType::Grass   ] = GREEN;
-        tileColors[(int)TileType::Water   ] = SKYBLUE;
-        tileColors[(int)TileType::Forest  ] = DARKGREEN;
-        tileColors[(int)TileType::Wood    ] = BROWN;
-        tileColors[(int)TileType::Concrete] = GRAY;
-
-        const size_t height = world->map.height;
-        const size_t width = world->map.width;
-
-        Color *minimapPixel = (Color *)minimapImg.data;
-        for (size_t y = 0; y < height; y += 1) {
-            for (size_t x = 0; x < width; x += 1) {
-                const Tile *tile = &world->map.tiles[y * world->map.width + x];
-                // Draw all tiles as different colored pixels
-                assert((int)tile->tileType >= 0);
-                assert((int)tile->tileType < (int)TileType::Count);
-                *minimapPixel = tileColors[(int)tile->tileType];
-                minimapPixel++;
-            }
-        }
-
-        minimapTex = LoadTextureFromImage(minimapImg);
-        free(minimapImg.data);
-    }
+    CreateMinimapTexture(&minimapTex, world->map);
 
 #if DEMO_VIEW_RTREE
     const int RECT_COUNT = 100;
@@ -179,8 +186,8 @@ E_START
     size_t next_rect_to_add = 0; //RECT_COUNT;
     double lastRectAddedAt = GetTime();
     for (size_t i = 0; i < rects.size(); i++) {
-        rects[i].x = worldSpawn.x + dlb_rand32f_variance_r(&rstar_rand, 600.0f);
-        rects[i].y = worldSpawn.y + dlb_rand32f_variance_r(&rstar_rand, 300.0f);
+        rects[i].x = world->GetWorldSpawn().x + dlb_rand32f_variance_r(&rstar_rand, 600.0f);
+        rects[i].y = world->GetWorldSpawn().y + dlb_rand32f_variance_r(&rstar_rand, 300.0f);
         rects[i].width = dlb_rand32f_range_r(&rstar_rand, 50.0f, 100.0f);
         rects[i].height = dlb_rand32f_range_r(&rstar_rand, 50.0f, 100.0f);
         if (i < next_rect_to_add) {
@@ -229,8 +236,8 @@ E_START
 
     {
         const float slimeRadius = 50.0f;
-        const size_t mapPixelsX = world->map.width * world->map.tileWidth;
-        const size_t mapPixelsY = world->map.height * world->map.tileHeight;
+        const size_t mapPixelsX = world->map.width * tileset.tileWidth;
+        const size_t mapPixelsY = world->map.height * tileset.tileHeight;
         const float maxX = mapPixelsX - slimeRadius;
         const float maxY = mapPixelsY - slimeRadius;
 
@@ -328,6 +335,7 @@ E_START
             {
                 netClient.Connect(host, (unsigned short)port, username, password);
                 ImGui::CloseCurrentPopup();
+                chatActive = false;
             }
             
             ImGui::SameLine();
@@ -359,9 +367,12 @@ E_START
         {
             if (world != &netClient.serverWorld) {
                 world = &netClient.serverWorld;
+                CreateMinimapTexture(&minimapTex, world->map);
             }
         } else if (world != &lobby) {
             world = &lobby;
+            // TODO: Cache minimap inside of Tilemap to ensure it only gets generatedonce per map
+            CreateMinimapTexture(&minimapTex, world->map);
         }
 
         if (IsWindowResized()) {
@@ -543,8 +554,8 @@ E_START
         size_t tilesDrawn = 0;
 
         {
-            const float tileWidthMip = (float)(world->map.tileWidth * zoomMipLevel);
-            const float tileHeightMip = (float)(world->map.tileHeight * zoomMipLevel);
+            const float tileWidthMip = (float)(tileset.tileWidth * zoomMipLevel);
+            const float tileHeightMip = (float)(tileset.tileHeight * zoomMipLevel);
             const size_t height = world->map.height;
             const size_t width = world->map.width;
             const Rectangle *tileRects = tileset.textureRects;
@@ -556,14 +567,14 @@ E_START
             for (size_t y = 0; y < height; y += zoomMipLevel) {
                 for (size_t x = 0; x < width; x += zoomMipLevel) {
                     const Tile *tile = &world->map.tiles[y * world->map.width + x];
-                    const Vector2 tilePos = tile->position;
+                    const Vector2 tilePos = { (float)x * tileset.tileWidth, (float)y * tileset.tileHeight };
                     if (tilePos.x + tileWidthMip >= camLeft &&
                         tilePos.y + tileHeightMip >= camTop &&
                         tilePos.x < camRight &&
                         tilePos.y < camBottom)                     {
                         // Draw all tiles as textured rects (looks best, performs worst)
                         Rectangle textureRect = tileRects[(int)tile->tileType];
-                        DrawTextureRec(*tileset.texture, textureRect, tile->position, WHITE);
+                        DrawTextureRec(*tileset.texture, textureRect, tilePos, WHITE);
                         tilesDrawn++;
                     }
                 }
@@ -577,15 +588,20 @@ E_START
         mousePosWorld.y += mousePosScreen.y * invZoom + cameraRect.y;
 
         Tile *mouseTile = 0;
+        int mouseTileX = 0;
+        int mouseTileY = 0;
         if (findMouseTile) {
-            mouseTile = tilemap_at_world_try(&world->map, mousePosWorld.x, mousePosWorld.y);
+            mouseTile = tilemap_at_world_try(world->map, tileset,
+                mousePosWorld.x, mousePosWorld.y,
+                &mouseTileX, &mouseTileY
+            );
             if (mouseTile) {
                 // Draw red outline on hovered tile
                 Rectangle mouseTileRect{
-                    mouseTile->position.x,
-                    mouseTile->position.y,
-                    (float)world->map.tileWidth * zoomMipLevel,
-                    (float)world->map.tileHeight * zoomMipLevel
+                    (float)mouseTileX,
+                    (float)mouseTileY,
+                    (float)tileset.tileWidth * zoomMipLevel,
+                    (float)tileset.tileHeight * zoomMipLevel
                 };
                 DrawRectangleLinesEx(mouseTileRect, 1 * (int)invZoom, RED);
             }
@@ -686,10 +702,10 @@ E_START
             DrawRectangleLinesEx(tooltipRect, 1, Fade(BLACK, 0.8f));
 
             int lineOffset = 0;
-            DrawTextFont(fonts[fontIdx], TextFormat("tilePos : %.02f, %.02f", mouseTile->position.x, mouseTile->position.y),
+            DrawTextFont(fonts[fontIdx], TextFormat("tilePos : %.02f, %.02f", mouseTileX, mouseTileY),
                 tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, fontHeight, BLACK);
             lineOffset += fontHeight;
-            DrawTextFont(fonts[fontIdx], TextFormat("tileSize: %zu, %zu", world->map.tileWidth, world->map.tileHeight),
+            DrawTextFont(fonts[fontIdx], TextFormat("tileSize: %zu, %zu", tileset.tileWidth, tileset.tileHeight),
                 tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, fontHeight, BLACK);
             lineOffset += fontHeight;
             DrawTextFont(fonts[fontIdx], TextFormat("tileType: %d", mouseTile->tileType),
@@ -808,12 +824,58 @@ E_START
 
         // Render chat history
         {
+            const float margin = 6.0f;   // left/bottom margin
+            const float pad = 4.0f;      // left/bottom pad
+
+            const int linesOfText = (int)netClient.chatHistory.Count();
+            const float chatWidth = 800.0f;
+            const float chatHeight = linesOfText * (fontHeight + pad) + pad;
+            const float inputBoxHeight = fontHeight + pad * 2.0f;
+            const float chatX = margin;
+            const float chatY = screenHeight - margin - inputBoxHeight - chatHeight;
+
+            // NOTE: The chat history renders from the bottom up (most recent message first)
+            float cursorY = (chatY + chatHeight) - pad - fontHeight;
+            const char *chatText = 0;
+            Color chatColor = WHITE;
+
+            DrawRectangle((int)chatX, (int)chatY, (int)chatWidth, (int)chatHeight, Fade(DARKGRAY, 0.8f));
+            DrawRectangleLines((int)chatX, (int)chatY, (int)chatWidth, (int)chatHeight, Fade(BLACK, 0.8f));
+
+            for (int i = (int)netClient.chatHistory.Count() - 1; i >= 0; i--) {
+                const ChatMessage &chatMsg = netClient.chatHistory.At(i);
+                assert(chatMsg.messageLength);
+
+#define CHECK_USERNAME(value) chatMsg.usernameLength == (sizeof(value) - 1) && !strncmp(chatMsg.username, (value), chatMsg.usernameLength);
+                bool fromServer = CHECK_USERNAME("SERVER");
+                bool fromSam = CHECK_USERNAME("Sam");
+                bool fromDebug = CHECK_USERNAME("Debug");
+                bool fromMotd = CHECK_USERNAME("Message of the day");
+#undef CHECK_USERNAME
+
+                if (fromServer || fromSam || fromDebug || fromMotd)                     {
+                    chatText = TextFormat("[%s]<%.*s>: %.*s", chatMsg.timestampStr, chatMsg.usernameLength, chatMsg.username,
+                        chatMsg.messageLength, chatMsg.message);
+                    if (fromServer) {
+                        chatColor = RED;
+                    } else if (fromSam) {
+                        chatColor = GREEN;
+                    } else if (fromDebug) {
+                        chatColor = LIGHTGRAY;
+                    } else if (fromMotd) {
+                        chatColor = YELLOW;
+                    }
+                } else {
+                    chatText = TextFormat("[%s][%.*s]: %.*s", chatMsg.timestampStr, chatMsg.usernameLength, chatMsg.username,
+                        chatMsg.messageLength, chatMsg.message);
+                    chatColor = WHITE;
+                }
+                DrawTextFont(fonts[fontIdx], chatText, margin + pad, cursorY, fontHeight, chatColor);
+                cursorY -= fontHeight + pad;
+            }
+
             static GuiTextBoxAdvancedState chatInputState;
-
             if (chatActive) {
-                const float margin = 6.0f;   // left/bottom margin
-                const float pad = 4.0f;      // left/bottom pad
-
 #if 0
                 {
                     static bool dialog = true;
@@ -874,54 +936,6 @@ E_START
                     }
                 }
 #endif
-
-                const int linesOfText = (int)netClient.chatHistory.Count();
-                const float chatWidth = 800.0f;
-                const float chatHeight = linesOfText * (fontHeight + pad) + pad;
-                const float inputBoxHeight = fontHeight + pad * 2.0f;
-                const float chatX = margin;
-                const float chatY = screenHeight - margin - inputBoxHeight - chatHeight;
-
-                // NOTE: The chat history renders from the bottom up (most recent message first)
-                float cursorY = (chatY + chatHeight) - pad - fontHeight;
-                const char *chatText = 0;
-                Color chatColor = WHITE;
-
-                DrawRectangle((int)chatX, (int)chatY, (int)chatWidth, (int)chatHeight, Fade(DARKGRAY, 0.8f));
-                DrawRectangleLines((int)chatX, (int)chatY, (int)chatWidth, (int)chatHeight, Fade(BLACK, 0.8f));
-
-                for (int i = (int)netClient.chatHistory.Count() - 1; i >= 0; i--) {
-                    const ChatMessage &chatMsg = netClient.chatHistory.At(i);
-                    assert(chatMsg.messageLength);
-
-                    #define CHECK_USERNAME(value) chatMsg.usernameLength == (sizeof(value) - 1) && !strncmp(chatMsg.username, (value), chatMsg.usernameLength);
-                    bool fromServer = CHECK_USERNAME("SERVER");
-                    bool fromSam    = CHECK_USERNAME("Sam");
-                    bool fromDebug  = CHECK_USERNAME("Debug");
-                    bool fromMotd   = CHECK_USERNAME("Message of the day");
-                    #undef CHECK_USERNAME
-
-                    if (fromServer || fromSam || fromDebug || fromMotd)
-                    {
-                        chatText = TextFormat("[%s]<%.*s>: %.*s", chatMsg.timestampStr, chatMsg.usernameLength, chatMsg.username,
-                            chatMsg.messageLength, chatMsg.message);
-                        if (fromServer) {
-                            chatColor = RED;
-                        } else if (fromSam) {
-                            chatColor = GREEN;
-                        } else if (fromDebug) {
-                            chatColor = LIGHTGRAY;
-                        } else if (fromMotd) {
-                            chatColor = YELLOW;
-                        }
-                    } else {
-                        chatText = TextFormat("[%s][%.*s]: %.*s", chatMsg.timestampStr, chatMsg.usernameLength, chatMsg.username,
-                            chatMsg.messageLength, chatMsg.message);
-                        chatColor = WHITE;
-                    }
-                    DrawTextFont(fonts[fontIdx], chatText, margin + pad, cursorY, fontHeight, chatColor);
-                    cursorY -= fontHeight + pad;
-                }
 
                 static int chatInputTextLen = 0;
                 static char chatInputText[CHAT_MESSAGE_BUFFER_LEN];

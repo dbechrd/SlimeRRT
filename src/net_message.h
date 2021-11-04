@@ -43,6 +43,7 @@ struct NetMessage {
         Unknown,
         Identify,
         Welcome,
+        WorldChunk,
         ChatMessage,
         PlayerState,
         Count
@@ -79,10 +80,10 @@ protected:
 };
 
 struct NetMessage_Welcome : public NetMessage  {
-    size_t       motdLength  {};
-    const char * motd        {};  // message of the day
-    size_t       tilesLength {};
-    uint8_t    * tiles       {};  // TODO(dlb): World data probably shouldn't be in welcome message
+    size_t       motdLength {};
+    const char * motd       {};  // message of the day
+    size_t       width      {};  // width of map in tiles
+    size_t       height     {};  // height of map in tiles
 
     NetMessage_Welcome() : NetMessage(Type::Welcome) {};
     using NetMessage::Serialize;
@@ -91,6 +92,22 @@ protected:
     void Serialize(BitStreamWriter &writer) const override;
     void Deserialize(BitStreamReader &reader) override;
 };
+
+struct NetMessage_WorldChunk : public NetMessage {
+    uint32_t  offsetX     {};
+    uint32_t  offsetY     {};
+    uint32_t  rowWidth    {};
+    size_t    tilesLength {};
+    uint8_t * tiles       {};
+
+    NetMessage_WorldChunk() : NetMessage(Type::WorldChunk) {};
+    using NetMessage::Serialize;
+
+protected:
+    void Serialize(BitStreamWriter &writer) const override;
+    void Deserialize(BitStreamReader &reader) override;
+};
+
 
 struct NetMessage_ChatMessage : public NetMessage  {
     char         timestampStr[12] {};  // hh:MM:SS AM

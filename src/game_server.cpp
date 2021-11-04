@@ -14,21 +14,24 @@ GameServer::GameServer(Args args) : args(args)
 ErrorType GameServer::Run()
 {
 E_START
-    World serverWorld{};
-    world = &serverWorld;
-    //tilemap_generate_ex(&tilemap, 128, 128, &tileset);
-    tilemap_generate_ex(&world->map, 256, 256, 32, 32, &world->rtt_rand);
-    //tilemap_generate_ex(&tilemap, 512, 512, &tileset);
+    World &world = netServer.serverWorld;
+    //tilemap_generate_ex(&tilemap, world->rtt_rand, 128, 128);
+    tilemap_generate_ex(world.map, world.rtt_rand, 254, 254);
+
+    Tileset tileset{};
+    tileset.tileWidth = 32;
+    tileset.tileHeight = 32;
+    world.tileset = &tileset;
 
     {
         const float slimeRadius = 50.0f;
-        const size_t mapPixelsX = world->map.width * world->map.tileWidth;
-        const size_t mapPixelsY = world->map.height * world->map.tileHeight;
+        const size_t mapPixelsX = world.map.width * tileset.tileWidth;
+        const size_t mapPixelsY = world.map.height * tileset.tileHeight;
         const float maxX = mapPixelsX - slimeRadius;
         const float maxY = mapPixelsY - slimeRadius;
         for (size_t i = 0; i < 256; i++) {
-            world->slimes.emplace_back(nullptr, nullptr);
-            Slime &slime = world->slimes.back();
+            world.slimes.emplace_back(nullptr, nullptr);
+            Slime &slime = world.slimes.back();
             slime.body.position.x = dlb_rand32f_range(slimeRadius, maxX);
             slime.body.position.y = dlb_rand32f_range(slimeRadius, maxY);
         }

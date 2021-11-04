@@ -12,10 +12,10 @@ void net_message_test()
     msgWritten.message = "This is a test message";
     msgWritten.messageLength = strlen(msgWritten.message);
 
-    char rawPacket[PACKET_SIZE_MAX] = {};
-    size_t bytes = msgWritten.Serialize((uint32_t *)rawPacket, sizeof(rawPacket));
+    char *rawPacket = (char *)calloc(PACKET_SIZE_MAX, sizeof(*rawPacket));
+    size_t rawBytes = msgWritten.Serialize((uint32_t *)rawPacket, PACKET_SIZE_MAX);
+    NetMessage &baseMsgRead = NetMessage::Deserialize((uint32_t *)rawPacket, rawBytes);
 
-    NetMessage &baseMsgRead = NetMessage::Deserialize((uint32_t *)rawPacket, bytes);
     assert(baseMsgRead.type == NetMessage::Type::ChatMessage);
     NetMessage_ChatMessage &msgRead = static_cast<NetMessage_ChatMessage &>(baseMsgRead);
 
@@ -24,4 +24,5 @@ void net_message_test()
     assert(!strncmp(msgRead.username, msgWritten.username, msgRead.usernameLength));
     assert(msgRead.messageLength == msgWritten.messageLength);
     assert(!strncmp(msgRead.message, msgWritten.message, msgRead.messageLength));
+    free(rawPacket);
 }

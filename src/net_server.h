@@ -51,6 +51,8 @@ struct NetServer {
     RingBuffer<Packet> packetHistory { NET_SERVER_PACKET_HISTORY_MAX };
     ChatHistory        chatHistory   {};
 
+    World serverWorld{};
+
     ~NetServer();
     ErrorType OpenSocket(unsigned short socketPort);
     ErrorType Listen();
