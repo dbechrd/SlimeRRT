@@ -38,14 +38,17 @@ struct NetMessage_PlayerInput {
 };
 #endif
 
+struct Tile;
+struct Slime;
+
 struct NetMessage {
     enum class Type {
         Unknown,
         Identify,
+        ChatMessage,
         Welcome,
         WorldChunk,
-        ChatMessage,
-        PlayerState,
+        WorldEntities,
         Count
     };
 
@@ -79,6 +82,21 @@ protected:
     void Deserialize(BitStreamReader &reader) override;
 };
 
+struct NetMessage_ChatMessage : public NetMessage {
+    char         timestampStr[12]{};  // hh:MM:SS AM
+    size_t       usernameLength{};
+    const char * username{};
+    size_t       messageLength{};
+    const char * message{};
+
+    NetMessage_ChatMessage() : NetMessage(Type::ChatMessage) {};
+    using NetMessage::Serialize;
+
+protected:
+    void Serialize(BitStreamWriter &writer) const override;
+    void Deserialize(BitStreamReader &reader) override;
+};
+
 struct NetMessage_Welcome : public NetMessage  {
     size_t       motdLength {};
     const char * motd       {};  // message of the day
@@ -93,12 +111,17 @@ protected:
     void Deserialize(BitStreamReader &reader) override;
 };
 
+struct NetTile {
+    uint8_t tileType;
+};
+
 struct NetMessage_WorldChunk : public NetMessage {
     uint32_t  offsetX     {};
     uint32_t  offsetY     {};
     uint32_t  rowWidth    {};
     size_t    tilesLength {};
-    uint8_t * tiles       {};
+    Tile    * tiles       {};  // serializing
+    NetTile * netTiles    {};  // deserializing
 
     NetMessage_WorldChunk() : NetMessage(Type::WorldChunk) {};
     using NetMessage::Serialize;
@@ -108,15 +131,17 @@ protected:
     void Deserialize(BitStreamReader &reader) override;
 };
 
+struct NetEntity {
+    float position_x;
+    float position_y;
+};
 
-struct NetMessage_ChatMessage : public NetMessage  {
-    char         timestampStr[12] {};  // hh:MM:SS AM
-    size_t       usernameLength   {};
-    const char * username         {};
-    size_t       messageLength    {};
-    const char * message          {};
+struct NetMessage_WorldEntities : public NetMessage {
+    size_t      entitiesLength {};
+    Slime     * entities       {};
+    NetEntity * netEntities    {};
 
-    NetMessage_ChatMessage() : NetMessage(Type::ChatMessage) {};
+    NetMessage_WorldEntities() : NetMessage(Type::WorldEntities) {};
     using NetMessage::Serialize;
 
 protected:

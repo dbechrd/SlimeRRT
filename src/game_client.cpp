@@ -27,51 +27,9 @@ using namespace std::chrono_literals;
 
 const char *GameClient::LOG_SRC = "GameClient";
 
-void CreateMinimapTexture(Texture *minimapTex, Tilemap &map)
-{
-    assert(minimapTex);
-    UnloadTexture(*minimapTex);
-
-    Image minimapImg{};
-    // NOTE: This is the client-side world map. Fog of war until tile types known?
-    minimapImg.width = (int)map.width;
-    minimapImg.height = (int)map.height;
-    minimapImg.mipmaps = 1;
-    minimapImg.format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
-    assert(sizeof(Color) == 4);
-    minimapImg.data = calloc((size_t)minimapImg.width * minimapImg.height, sizeof(Color));
-    assert(minimapImg.data);
-
-    Color tileColors[(int)TileType::Count]{};
-    tileColors[(int)TileType::Grass] = GREEN;
-    tileColors[(int)TileType::Water] = SKYBLUE;
-    tileColors[(int)TileType::Forest] = DARKGREEN;
-    tileColors[(int)TileType::Wood] = BROWN;
-    tileColors[(int)TileType::Concrete] = GRAY;
-
-    const size_t height = map.height;
-    const size_t width = map.width;
-
-    Color *minimapPixel = (Color *)minimapImg.data;
-    for (size_t y = 0; y < height; y += 1) {
-        for (size_t x = 0; x < width; x += 1) {
-            const Tile *tile = &map.tiles[y * map.width + x];
-            // Draw all tiles as different colored pixels
-            assert((int)tile->tileType >= 0);
-            assert((int)tile->tileType < (int)TileType::Count);
-            *minimapPixel = tileColors[(int)tile->tileType];
-            minimapPixel++;
-        }
-    }
-
-    *minimapTex = LoadTextureFromImage(minimapImg);
-    free(minimapImg.data);
-}
-
 ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
 {
     World lobby{};
-    Texture minimapTex{};
     Texture tilesetTex{};
     Texture checkboardTexture{};
     Music mus_background{};
@@ -132,9 +90,7 @@ E_START
 
     DrawList drawList{};
     sound_catalog_init();
-    SpritesheetCatalog spritesheetCatalog{};
-    spritesheetCatalog.Load();
-    g_spritesheetCatalog = &spritesheetCatalog;
+    SpritesheetCatalog::Load();
     particles_init();
     ItemCatalog::instance.Load();
     loot_table_init();
@@ -168,8 +124,6 @@ E_START
     //tilemap_generate_ex(&lobby.map, 256, 256, 32, 32, &lobby.rtt_rand);
     world = &lobby;
     world->tileset = &tileset;
-
-    CreateMinimapTexture(&minimapTex, world->map);
 
 #if DEMO_VIEW_RTREE
     const int RECT_COUNT = 100;
@@ -211,15 +165,15 @@ E_START
     bool cameraFree = false;
 
     // TODO: Move sprite loading to somewhere more sane
-    const Spritesheet &charlieSpritesheet = spritesheetCatalog.spritesheets[(int)SpritesheetID::Charlie];
+    const Spritesheet &charlieSpritesheet = SpritesheetCatalog::spritesheets[(int)SpritesheetID::Charlie];
     const SpriteDef *charlieSpriteDef = charlieSpritesheet.FindSprite("player_sword");
     assert(charlieSpriteDef);
 
-    const Spritesheet &slimeSpritesheet = spritesheetCatalog.spritesheets[(int)SpritesheetID::Slime];
+    const Spritesheet &slimeSpritesheet = SpritesheetCatalog::spritesheets[(int)SpritesheetID::Slime];
     const SpriteDef *slimeSpriteDef = slimeSpritesheet.FindSprite("slime");
     assert(slimeSpriteDef);
 
-    const Spritesheet &coinSpritesheet = spritesheetCatalog.spritesheets[(int)SpritesheetID::Coin];
+    const Spritesheet &coinSpritesheet = SpritesheetCatalog::spritesheets[(int)SpritesheetID::Coin];
     const SpriteDef *coinSpriteDef = coinSpritesheet.FindSprite("coin");
     assert(coinSpriteDef);
 
@@ -237,9 +191,7 @@ E_START
         const float maxX = mapPixelsX - slimeRadius;
         const float maxY = mapPixelsY - slimeRadius;
 
-        world->slimes.emplace_back("Sam", slimeSpriteDef);
-        //world->slimes.emplace_back(Slime{ nullptr, *slimeSpriteDef });
-        Slime &sam = world->slimes.back();
+        Slime &sam = world->slimes.emplace_back("Sam", slimeSpriteDef);
         sam.combat.maxHitPoints = 100000.0f;
         sam.combat.hitPoints = sam.combat.maxHitPoints;
         sam.combat.meleeDamage = 0.0f;
@@ -370,12 +322,9 @@ E_START
         {
             if (world != &netClient.serverWorld) {
                 world = &netClient.serverWorld;
-                CreateMinimapTexture(&minimapTex, world->map);
             }
         } else if (world != &lobby) {
             world = &lobby;
-            // TODO: Cache minimap inside of Tilemap to ensure it only gets generatedonce per map
-            CreateMinimapTexture(&minimapTex, world->map);
         }
 
         if (IsWindowResized()) {
@@ -548,7 +497,7 @@ E_START
         BeginMode2D(camera);
         size_t tilesDrawn = 0;
 
-        {
+        if (world->map.tiles) {
             const float tileWidthMip = (float)(tileset.tileWidth * zoomMipLevel);
             const float tileHeightMip = (float)(tileset.tileHeight * zoomMipLevel);
             const size_t height = world->map.height;
@@ -711,14 +660,14 @@ E_START
         // Render minimap
         const int minimapMargin = 6;
         const int minimapBorderWidth = 1;
-        const int minimapX = screenWidth - minimapMargin - minimapTex.width - minimapBorderWidth * 2;
+        const int minimapX = screenWidth - minimapMargin - world->map.minimap.width - minimapBorderWidth * 2;
         const int minimapY = minimapMargin;
-        const int minimapW = minimapTex.width + minimapBorderWidth * 2;
-        const int minimapH = minimapTex.height + minimapBorderWidth * 2;
+        const int minimapW = world->map.minimap.width + minimapBorderWidth * 2;
+        const int minimapH = world->map.minimap.height + minimapBorderWidth * 2;
         const int minimapTexX = minimapX + minimapBorderWidth;
         const int minimapTexY = minimapY + minimapBorderWidth;
         DrawRectangleLines(minimapX, minimapY, minimapW, minimapH, BLACK);
-        DrawTexture(minimapTex, minimapTexX, minimapTexY, WHITE);
+        DrawTexture(world->map.minimap, minimapTexX, minimapTexY, WHITE);
 
         const char *text = 0;
         float hudCursorY = 0;
@@ -883,7 +832,6 @@ E_START
     }
 E_CLEANUP
     // TODO: Wrap these in classes to use destructors?
-    UnloadTexture(minimapTex);
     UnloadTexture(tilesetTex);
     UnloadTexture(checkboardTexture);
     sound_catalog_free();

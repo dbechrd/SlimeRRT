@@ -37,6 +37,31 @@ const Vector3 World::GetWorldSpawn()
     return worldSpawn;
 };
 
+void World::GenerateEntities(NetEntity *&entities, size_t entityLength)
+{
+    // TODO: Move slime radius somewhere more logical.. some global table of magic numbers?
+    const float slimeRadius = 50.0f;
+    const size_t mapPixelsX = map.width * 32;
+    const size_t mapPixelsY = map.height * 32;
+    const float maxX = mapPixelsX - slimeRadius;
+    const float maxY = mapPixelsY - slimeRadius;
+
+    const Spritesheet &slimeSpritesheet = SpritesheetCatalog::spritesheets[(int)SpritesheetID::Slime];
+    const SpriteDef *slimeSpriteDef = slimeSpritesheet.FindSprite("slime");
+
+    for (size_t i = 0; i < entityLength; i++) {
+        Slime &slime = slimes.emplace_back(nullptr, slimeSpriteDef);
+        slime.sprite.scale = 1.0f;
+        slime.combat.maxHitPoints = 10.0f;
+        slime.combat.hitPoints = slime.combat.maxHitPoints;
+        slime.combat.meleeDamage = 0.0f;
+        slime.combat.lootTableId = LootTableID::LT_Slime;
+        slime.body.position.x = entities[i].position_x;
+        slime.body.position.y = entities[i].position_y;
+        slime.body.position = v3_add(GetWorldSpawn(), { 0, -300.0f, 0 });
+    }
+}
+
 void BloodParticlesFollowPlayer(ParticleEffect &effect, void *userData)
 {
     assert(effect.type == ParticleEffectType::Blood);

@@ -1,14 +1,60 @@
 #include "tilemap.h"
 #include "dlb_rand.h"
-#include "maths.h"
-#include "raylib/raylib.h"
 #include "dlb_types.h"
+#include "maths.h"
+#include "net_message.h"
+#include "raylib/raylib.h"
 #include <cassert>
 #include <float.h>
 #include <stdlib.h>
 
 static void rrt_build(Tilemap &map, dlb_rand32_t &rng, Vector2 qinit, size_t numVertices, float maxGrowthDist);
 static size_t rrt_nearest_idx(Tilemap &map, Vector2 p);
+
+void tilemap_generate_minimap(Texture &minimap, Tilemap &map)
+{
+    // Check for OpenGL context
+    if (!IsWindowReady()) {
+        return;
+    }
+
+    UnloadTexture(minimap);
+
+    Image minimapImg{};
+    // NOTE: This is the client-side world map. Fog of war until tile types known?
+    minimapImg.width = (int)map.width;
+    minimapImg.height = (int)map.height;
+    minimapImg.mipmaps = 1;
+    minimapImg.format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
+    assert(sizeof(Color) == 4);
+    minimapImg.data = calloc((size_t)minimapImg.width * minimapImg.height, sizeof(Color));
+    assert(minimapImg.data);
+
+    Color tileColors[(int)TileType::Count]{};
+    tileColors[(int)TileType::Grass] = GREEN;
+    tileColors[(int)TileType::Water] = SKYBLUE;
+    tileColors[(int)TileType::Forest] = DARKGREEN;
+    tileColors[(int)TileType::Wood] = BROWN;
+    tileColors[(int)TileType::Concrete] = GRAY;
+
+    const size_t height = map.height;
+    const size_t width = map.width;
+
+    Color *minimapPixel = (Color *)minimapImg.data;
+    for (size_t y = 0; y < height; y += 1) {
+        for (size_t x = 0; x < width; x += 1) {
+            const Tile *tile = &map.tiles[y * map.width + x];
+            // Draw all tiles as different colored pixels
+            assert((int)tile->tileType >= 0);
+            assert((int)tile->tileType < (int)TileType::Count);
+            *minimapPixel = tileColors[(int)tile->tileType];
+            minimapPixel++;
+        }
+    }
+
+    minimap = LoadTextureFromImage(minimapImg);
+    free(minimapImg.data);
+}
 
 void tilemap_generate_lobby(Tilemap &map)
 {
@@ -34,9 +80,11 @@ void tilemap_generate_lobby(Tilemap &map)
             }
         }
     }
+
+    tilemap_generate_minimap(map.minimap, map);
 }
 
-void tilemap_generate_tiles(Tilemap &map, uint8_t *&tiles, size_t tilesLength)
+void tilemap_generate_tiles(Tilemap &map, NetTile *&tiles, size_t tilesLength)
 {
     assert(map.width);
     assert(map.height);
@@ -50,9 +98,11 @@ void tilemap_generate_tiles(Tilemap &map, uint8_t *&tiles, size_t tilesLength)
         for (int x = 0; x < map.width; x++) {
             const Vector2 position = v2_init((float)x, (float)y);
             Tile *tile = tilemap_at(map, x, y);
-            tile->tileType = (TileType)tiles[x * map.width + y];
+            tile->tileType = (TileType)tiles[x * map.width + y].tileType;
         }
     }
+
+    tilemap_generate_minimap(map.minimap, map);
 }
 
 void tilemap_generate(Tilemap &map, dlb_rand32_t &rng)
@@ -99,6 +149,8 @@ void tilemap_generate(Tilemap &map, dlb_rand32_t &rng)
             }
         }
     }
+
+    tilemap_generate_minimap(map.minimap, map);
 }
 
 void tilemap_generate_ex(Tilemap &map, dlb_rand32_t &rng, size_t width, size_t height)
@@ -115,6 +167,7 @@ void tilemap_generate_ex(Tilemap &map, dlb_rand32_t &rng, size_t width, size_t h
 void tilemap_free(Tilemap &map)
 {
     free(map.tiles);
+    UnloadTexture(map.minimap);
 }
 
 Tile *tilemap_at(Tilemap &map, int tileX, int tileY)

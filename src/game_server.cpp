@@ -24,6 +24,7 @@ E_START
     world.tileset = &tileset;
 
     {
+        // TODO: Move slime radius somewhere more logical.. some global table of magic numbers?
         const float slimeRadius = 50.0f;
         const size_t mapPixelsX = world.map.width * tileset.tileWidth;
         const size_t mapPixelsY = world.map.height * tileset.tileHeight;

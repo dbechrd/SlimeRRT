@@ -150,8 +150,13 @@ void NetClient::ProcessMsg(Packet &packet)
     packet.netMessage = &NetMessage::Deserialize((uint32_t *)packet.rawBytes.data, packet.rawBytes.dataLength);
 
     switch (packet.netMessage->type) {
-        // TODO: Auth challenge. Store salt sent from server instead.. handshake stuffs
-        case NetMessage::Type::Welcome: {
+        case NetMessage::Type::ChatMessage: {
+            NetMessage_ChatMessage &chatMsg = static_cast<NetMessage_ChatMessage &>(*packet.netMessage);
+            memcpy(chatMsg.timestampStr, packet.timestampStr, sizeof(packet.timestampStr));
+            chatHistory.PushNetMessage(chatMsg);
+            break;
+        } case NetMessage::Type::Welcome: {
+            // TODO: Auth challenge. Store salt sent from server instead.. handshake stuffs
             NetMessage_Welcome &welcomeMsg = static_cast<NetMessage_Welcome &>(*packet.netMessage);
             chatHistory.PushMessage(CSTR("Message of the day"), welcomeMsg.motd, welcomeMsg.motdLength);
 
@@ -171,28 +176,28 @@ void NetClient::ProcessMsg(Packet &packet)
             }
 
             // TODO: Wayyyy better way to check if visual client vs. CLI client than checking global spritesheet
-            if (g_spritesheetCatalog) {
-                const Spritesheet &charlieSpritesheet = g_spritesheetCatalog->spritesheets[(int)SpritesheetID::Charlie];
+            if (SpritesheetCatalog::spritesheets[0].sprites.size()) {
+                const Spritesheet &charlieSpritesheet = SpritesheetCatalog::spritesheets[(int)SpritesheetID::Charlie];
                 const SpriteDef *charlieSpriteDef = charlieSpritesheet.FindSprite("player_sword");
                 assert(charlieSpriteDef);
                 serverWorld.player->SetSpritesheet(*charlieSpriteDef);
             }
-
             break;
         } case NetMessage::Type::WorldChunk: {
             NetMessage_WorldChunk &worldChunkMsg = static_cast<NetMessage_WorldChunk &>(*packet.netMessage);
             if (worldChunkMsg.tilesLength) {
-                tilemap_generate_tiles(serverWorld.map, worldChunkMsg.tiles, worldChunkMsg.tilesLength);
+                tilemap_generate_tiles(serverWorld.map, worldChunkMsg.netTiles, worldChunkMsg.tilesLength);
                 serverWorld.player->body.position = serverWorld.GetWorldSpawn();
             }
             break;
-        } case NetMessage::Type::ChatMessage: {
-            NetMessage_ChatMessage &chatMsg = static_cast<NetMessage_ChatMessage &>(*packet.netMessage);
-            memcpy(chatMsg.timestampStr, packet.timestampStr, sizeof(packet.timestampStr));
-            chatHistory.PushNetMessage(chatMsg);
+        } case NetMessage::Type::WorldEntities: {
+            NetMessage_WorldEntities &worldEntitiesMsg = static_cast<NetMessage_WorldEntities &>(*packet.netMessage);
+            if (worldEntitiesMsg.entitiesLength) {
+                serverWorld.GenerateEntities(worldEntitiesMsg.netEntities, worldEntitiesMsg.entitiesLength);
+                serverWorld.player->body.position = serverWorld.GetWorldSpawn();
+            }
             break;
-        }
-        default: {
+        } default: {
             E_WARN("Unrecognized message type: %d", packet.netMessage->type);
             break;
         }

@@ -1,8 +1,9 @@
 #pragma once
 #include "controller.h"
+#include "net_message.h"
 #include "player.h"
-#include "tilemap.h"
 #include "slime.h"
+#include "tilemap.h"
 #include "dlb_rand.h"
 #include <vector>
 
@@ -16,6 +17,7 @@ struct World {
 
     World();
     ~World();
-    const Vector3 World::GetWorldSpawn();
+    const Vector3 GetWorldSpawn();
+    void GenerateEntities(NetEntity *&entities, size_t entityLength);
     void Sim(double now, double dt, const PlayerControllerState input, const SpriteDef *coinSpriteDef);
 };

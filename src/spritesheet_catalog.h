@@ -9,11 +9,7 @@ enum class SpritesheetID {
     Count
 };
 
-struct SpritesheetCatalog
-{
-    Spritesheet spritesheets[(int)SpritesheetID::Count]{};
-
-    void Load();
+namespace SpritesheetCatalog {
+    static Spritesheet spritesheets[(int)SpritesheetID::Count];
+    static void Load();
 };
-
-extern SpritesheetCatalog *g_spritesheetCatalog;

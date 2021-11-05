@@ -145,18 +145,17 @@ E_START
         userWorldChunk.offsetX = 0;
         userWorldChunk.offsetY = 0;
         userWorldChunk.rowWidth = 8;
-
-        size_t tileCount = serverWorld.map.width * serverWorld.map.height;
-        uint8_t *serverMapTiles = (uint8_t *)calloc(tileCount, sizeof(*serverMapTiles));
-        for (size_t i = 0; i < tileCount; i++) {
-            assert((uint32_t)serverWorld.map.tiles[i].tileType < (uint32_t)UINT8_MAX);
-            serverMapTiles[i] = (uint8_t)serverWorld.map.tiles[i].tileType;
-        }
-
-        userWorldChunk.tiles = serverMapTiles;
-        userWorldChunk.tilesLength = tileCount;
+        userWorldChunk.tilesLength = serverWorld.map.width * serverWorld.map.height;
+        userWorldChunk.tiles = serverWorld.map.tiles;
         E_CHECK(SendMsg(client, userWorldChunk), "Failed to send world chunks");
-        free(serverMapTiles);
+    }
+
+    {
+        E_INFO("Sending world entites to %s\n", TextFormatIP(client.peer->address));
+        NetMessage_WorldEntities userWorldEntities{};
+        userWorldEntities.entitiesLength = serverWorld.slimes.size();
+        userWorldEntities.entities = serverWorld.slimes.data();
+        E_CHECK(SendMsg(client, userWorldEntities), "Failed to send world entities");
     }
 E_CLEAN_END
 }

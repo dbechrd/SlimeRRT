@@ -27,10 +27,11 @@
 #define USERNAME_LENGTH_MAX     32
 #define PASSWORD_LENGTH_MAX     32
 #define MOTD_LENGTH_MAX         64
-#define WORLD_MAX_TILES         UINT16_MAX
+#define WORLD_MAX_TILES         65536
+#define WORLD_MAX_ENTITIES      256
 
 //#define PACKET_SIZE_MAX        1024
-#define PACKET_SIZE_MAX         UINT16_MAX * 2
+#define PACKET_SIZE_MAX         (UINT16_MAX * 2)
 #define SERVER_USERNAME         "SERVER"
 #define CHAT_MESSAGE_HISTORY    16 //64
 #define CHAT_MESSAGE_LENGTH_MAX 500  // not including nil terminator, must be < CHAT_MESSAGE_BUFFER_LEN
@@ -51,3 +52,4 @@
 // Helper functions
 //------------------------------------------------------------------------------
 void DrawTextFont(Font font, const char *text, float posX, float posY, int fontSize, Color color);
+const char *TextFormatIP(ENetAddress address);

@@ -3,6 +3,8 @@
 #include "math.h"
 #include "dlb_rand.h"
 
+struct NetTile;
+
 enum class TileType {
     Grass,
     Water,
@@ -33,14 +35,15 @@ struct Tile {
 };
 
 struct Tilemap {
-    size_t  width  {};  // width of map in tiles
-    size_t  height {};  // height of map in tiles
-    RRT     rrt    {};  // "Rapidly-exploring Random Tree" data struture (used for procedural generation)
-    Tile *  tiles  {};  // array of tile data
+    size_t  width   {};  // width of map in tiles
+    size_t  height  {};  // height of map in tiles
+    RRT     rrt     {};  // "Rapidly-exploring Random Tree" data struture (used for procedural generation)
+    Tile *  tiles   {};  // array of tile data
+    Texture minimap {};
 };
 
 void tilemap_generate_lobby (Tilemap &map);
-void tilemap_generate_tiles (Tilemap &map, uint8_t *&tiles, size_t tilesLength);
+void tilemap_generate_tiles (Tilemap &map, NetTile *&tiles, size_t tilesLength);
 void tilemap_generate       (Tilemap &map, dlb_rand32_t &rng);
 void tilemap_generate_ex    (Tilemap &map, dlb_rand32_t &rng, size_t width, size_t height);
 void tilemap_free           (Tilemap &map);

@@ -15,7 +15,8 @@ struct RingBuffer : protected std::vector<T> {
         }
         size_t size = std::vector<T>::size();
         size_t idx = (first + count) % size;
-        T &elem = *new(std::vector<T>::data() + idx) T{};
+        T* ptr = std::vector<T>::data() + idx;
+        T &elem = *new(ptr) T{};
         if (count < size) {
             count++;
         } else {

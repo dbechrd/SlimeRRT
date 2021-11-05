@@ -17,6 +17,15 @@ const SpriteAnim &sprite_anim(const Sprite &sprite)
 
 const SpriteFrame &sprite_frame(const Sprite &sprite)
 {
+    if (!sprite.spriteDef) {
+        static SpriteFrame frame{};
+        frame.x = 0;
+        frame.y = 0;
+        frame.width = 1;
+        frame.height = 1;
+        return frame;
+    }
+
     assert(sprite.spriteDef);
     assert(sprite.spriteDef->spritesheet);
 

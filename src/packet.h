@@ -4,12 +4,13 @@
 #include "enet_zpl.h"
 #include <vector>
 
-struct Packet {
+class Packet {
+public:
     ENetAddress srcAddress       {};
     ENetBuffer  rawBytes         {};
     enet_uint32 timestamp        {};
     char        timestampStr[12] {};  // hh:MM:SS AM
-    NetMessage *netMessage       {};
-};
+    NetMessage *netMessage       {};  // TODO(perf): leaked in RingBuffer, need to free this before replacing Packet!
 
-const char *TextFormatIP(ENetAddress address);
+    ~Packet();
+};

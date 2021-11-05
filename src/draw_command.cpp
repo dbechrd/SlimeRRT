@@ -30,6 +30,10 @@ void DrawList::DisableCulling(void)
 
 void DrawList::Push(const Drawable &drawable)
 {
+    if (!drawable.sprite.spriteDef) {
+        return;
+    }
+
 #if CULL_ON_PUSH
     if (cullEnabled && drawable.Cull(cullRect)) {
         return;
