@@ -64,8 +64,8 @@ void tilemap_generate_lobby(Tilemap &map)
     map.tiles = (Tile *)calloc(map.width * map.height, sizeof(*map.tiles));
     assert(map.tiles);
 
-    for (int y = 0; y < map.height; y++) {
-        for (int x = 0; x < map.width; x++) {
+    for (int y = 0; y < (int)map.height; y++) {
+        for (int x = 0; x < (int)map.width; x++) {
             const Vector2 position = v2_init((float)x, (float)y);
             Tile *tile = tilemap_at(map, x, y);
             const int cx = x - (int)map.width / 2;
@@ -84,7 +84,7 @@ void tilemap_generate_lobby(Tilemap &map)
     tilemap_generate_minimap(map.minimap, map);
 }
 
-void tilemap_generate_tiles(Tilemap &map, NetTile *&tiles, size_t tilesLength)
+void tilemap_generate_tiles(Tilemap &map, Tile *&tiles, size_t tilesLength)
 {
     assert(map.width);
     assert(map.height);
@@ -94,8 +94,8 @@ void tilemap_generate_tiles(Tilemap &map, NetTile *&tiles, size_t tilesLength)
     map.tiles = (Tile *)calloc(map.width * map.height, sizeof(*map.tiles));
     assert(map.tiles);
 
-    for (int y = 0; y < map.height; y++) {
-        for (int x = 0; x < map.width; x++) {
+    for (int y = 0; y < (int)map.height; y++) {
+        for (int x = 0; x < (int)map.width; x++) {
             const Vector2 position = v2_init((float)x, (float)y);
             Tile *tile = tilemap_at(map, x, y);
             tile->tileType = (TileType)tiles[x * map.width + y].tileType;
@@ -120,8 +120,8 @@ void tilemap_generate(Tilemap &map, dlb_rand32_t &rng)
     rrt_build(map, rng, middle, rrtSamples, maxGrowthDistance);
 
     const Vector2 tileCenterOffset = v2_init(0.5f / map.width, 0.5f / map.height);
-    for (int y = 0; y < map.height; y++) {
-        for (int x = 0; x < map.width; x++) {
+    for (int y = 0; y < (int)map.height; y++) {
+        for (int x = 0; x < (int)map.width; x++) {
             const Vector2 position = v2_init((float)x / map.width, (float)y / map.height);
             const Vector2 center = v2_add(position, tileCenterOffset);
             const size_t nearestIdx = rrt_nearest_idx(map, center);
@@ -132,8 +132,8 @@ void tilemap_generate(Tilemap &map, dlb_rand32_t &rng)
     }
 
     // Pass 2: Surround water with sand for @rusteel
-    for (int y = 0; y < map.height; y++) {
-        for (int x = 0; x < map.width; x++) {
+    for (int y = 0; y < (int)map.height; y++) {
+        for (int x = 0; x < (int)map.width; x++) {
             TileType tileType = tilemap_at(map, x, y)->tileType;
             if (tileType == TileType::Water) {
                 static const int beachWidth = 2;
@@ -153,7 +153,7 @@ void tilemap_generate(Tilemap &map, dlb_rand32_t &rng)
     tilemap_generate_minimap(map.minimap, map);
 }
 
-void tilemap_generate_ex(Tilemap &map, dlb_rand32_t &rng, size_t width, size_t height)
+void tilemap_generate_ex(Tilemap &map, dlb_rand32_t &rng, uint32_t width, uint32_t height)
 {
     assert(width);
     assert(height);
@@ -180,7 +180,7 @@ Tile *tilemap_at(Tilemap &map, int tileX, int tileY)
 Tile *tilemap_at_try(Tilemap &map, int tileX, int tileY)
 {
     Tile *tile = NULL;
-    if (tileX >= 0 && tileY >= 0 && tileX < map.width && tileY < map.width) {
+    if (tileX >= 0 && tileY >= 0 && tileX < (int)map.width && tileY < (int)map.width) {
         size_t idx = (size_t)tileY * map.width + tileX;
         assert(idx < (size_t)map.width * map.height);
         tile = &map.tiles[idx];

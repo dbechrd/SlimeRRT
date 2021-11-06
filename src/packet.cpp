@@ -4,5 +4,4 @@
 
 Packet::~Packet() {
     free(rawBytes.data);
-    delete netMessage;
 }

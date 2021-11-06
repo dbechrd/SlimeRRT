@@ -37,7 +37,7 @@ const Vector3 World::GetWorldSpawn()
     return worldSpawn;
 };
 
-void World::GenerateEntities(NetEntity *&entities, size_t entityLength)
+void World::GenerateEntities(Slime *&entities, size_t entityLength)
 {
     // TODO: Move slime radius somewhere more logical.. some global table of magic numbers?
     const float slimeRadius = 50.0f;
@@ -56,8 +56,8 @@ void World::GenerateEntities(NetEntity *&entities, size_t entityLength)
         slime.combat.hitPoints = slime.combat.maxHitPoints;
         slime.combat.meleeDamage = 0.0f;
         slime.combat.lootTableId = LootTableID::LT_Slime;
-        slime.body.position.x = entities[i].position_x;
-        slime.body.position.y = entities[i].position_y;
+        slime.body.position.x = entities[i].body.position.x;
+        slime.body.position.y = entities[i].body.position.y;
         slime.body.position = v3_add(GetWorldSpawn(), { 0, -300.0f, 0 });
     }
 }

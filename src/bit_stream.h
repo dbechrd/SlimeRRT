@@ -5,51 +5,49 @@
 // https://gafferongames.com/post/serialization_strategies/
 
 struct BitStream {
-    // For read & write
-    uint64_t    scratch     {};  // temporary scratch buffer to hold bits until we fill a 32-bit word
-    size_t      scratchBits {};  // number of bits in scratch that are in use (i.e. not yet written / read)
-    size_t      wordIndex   {};  // index of next word in `buffer`
-    uint32_t *  buffer      {};  // buffer we're writing to / reading from
-    size_t      bufferBits  {};  // size of packet in bytes * 8
+    enum class Mode {
+        Reader,
+        Writer
+    };
 
-protected:
-    BitStream(uint32_t *buffer, size_t bufferLength);
-};
+    BitStream(Mode mode, uint32_t *buffer, size_t bufferLength);
 
-struct BitStreamReader : public BitStream {
-    BitStreamReader(uint32_t *buffer, size_t bufferLength) : BitStream(buffer, bufferLength) {}
+    bool Reading() const { return mode == Mode::Reader; };
+    bool Writing() const { return mode == Mode::Writer; };
 
-    // Read # of bits from scratch into word
-    uint32_t Read(uint8_t bits);
-
-    // Align read cursor to nearest byte boundary
+    // Align read/write cursor to nearest byte boundary
     void Align();
 
-    // Return # of bytes read
-    size_t BytesRead() const;
+    // Return # of bytes read/written
+    size_t BytesProcessed() const;
+
+    // Read bits from scratch into word / Write bits form word to scratch
+    void Process(uint32_t &word, uint8_t bits, uint32_t min, uint32_t max);
+
+    //|========================================================================
+    //| Read mode
+    //|========================================================================
 
     // Return pointer to currently location in buffer (for in-place string references)
     const char *BufferPtr() const;
 
-private:
-    size_t numBitsRead{}; // number of bits we've read so far
-};
-
-struct BitStreamWriter : public BitStream {
-    BitStreamWriter(uint32_t *buffer, size_t bufferLength) : BitStream(buffer, bufferLength) {}
-
-    // Write # of bits from word into scratch
-    void Write(uint32_t word, uint8_t bits);
-
-    // Align write cursor to nearest byte boundary
-    void Align();
+    //|========================================================================
+    //| Write mode
+    //|========================================================================
 
     // Flush word from scratch to buffer
     void Flush();
 
-    // Return # of bytes written
-    size_t BytesWritten() const;
+    //|========================================================================
 
 private:
-    size_t numBitsWritten{}; // number of bits we've written so far
+    Mode mode;
+
+    // For read & write
+    uint64_t    scratch       {};  // temporary scratch buffer to hold bits until we fill a 32-bit word
+    size_t      scratchBits   {};  // number of bits in scratch that are in use (i.e. not yet written / read)
+    size_t      wordIndex     {};  // index of next word in `buffer`
+    uint32_t *  buffer        {};  // buffer we're writing to / reading from
+    size_t      bufferBits    {};  // size of packet in bytes * 8
+    size_t      bitsProcessed {};  // number of bits we've read/written so far
 };

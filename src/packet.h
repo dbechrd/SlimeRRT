@@ -10,7 +10,7 @@ public:
     ENetBuffer  rawBytes         {};
     enet_uint32 timestamp        {};
     char        timestampStr[12] {};  // hh:MM:SS AM
-    NetMessage *netMessage       {};  // TODO(perf): leaked in RingBuffer, need to free this before replacing Packet!
+    NetMessage  netMessage       {};  // TODO(perf): leaked in RingBuffer, need to free this before replacing Packet!
 
     ~Packet();
 };

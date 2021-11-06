@@ -18,6 +18,6 @@ struct World {
     World();
     ~World();
     const Vector3 GetWorldSpawn();
-    void GenerateEntities(NetEntity *&entities, size_t entityLength);
+    void GenerateEntities(Slime *&entities, size_t entityLength);
     void Sim(double now, double dt, const PlayerControllerState input, const SpriteDef *coinSpriteDef);
 };

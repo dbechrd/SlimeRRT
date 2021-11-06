@@ -56,7 +56,7 @@ E_START
 E_CLEAN_END
 }
 
-ErrorType NetServer::SendMsg(const NetServerClient &client, const NetMessage &message)
+ErrorType NetServer::SendMsg(const NetServerClient &client, NetMessage &message)
 {
 E_START
     static char rawPacket[PACKET_SIZE_MAX] = {};
@@ -88,7 +88,7 @@ ErrorType NetServer::BroadcastRaw(const char *data, size_t size)
     return err_code;
 }
 
-ErrorType NetServer::BroadcastMsg(const NetMessage &message)
+ErrorType NetServer::BroadcastMsg(NetMessage &message)
 {
     static char rawPacket[PACKET_SIZE_MAX]{};
     memset(rawPacket, 0, sizeof(rawPacket));
@@ -99,12 +99,16 @@ ErrorType NetServer::BroadcastMsg(const NetMessage &message)
 
 ErrorType NetServer::BroadcastChatMessage(const char *msg, size_t msgLength)
 {
-    NetMessage_ChatMessage netMsg{};
-    netMsg.username = SERVER_USERNAME;
-    netMsg.usernameLength = sizeof(SERVER_USERNAME) - 1;
-    netMsg.message = msg;
-    netMsg.messageLength = msgLength;
-    return BroadcastMsg(netMsg);
+    assert(msg);
+    assert(msgLength <= UINT32_MAX);
+
+    NetMessage netMessage{};
+    netMessage.type = NetMessage::Type::ChatMessage;
+    netMessage.data.chatMsg.usernameLength = sizeof(SERVER_USERNAME) - 1;
+    netMessage.data.chatMsg.username = SERVER_USERNAME;
+    netMessage.data.chatMsg.messageLength = (uint32_t)msgLength;
+    netMessage.data.chatMsg.message = msg;
+    return BroadcastMsg(netMessage);
 }
 
 ErrorType NetServer::SendWelcomeBasket(NetServerClient &client)
@@ -116,45 +120,42 @@ E_START
 
     {
         E_INFO("Sending welcome basket to %s\n", TextFormatIP(client.peer->address));
-        NetMessage_Welcome userWelcomeBasket{};
-        userWelcomeBasket.motd = "Welcome to The Lonely Island";
-        userWelcomeBasket.motdLength = strlen(userWelcomeBasket.motd);
-        userWelcomeBasket.width = serverWorld.map.width;
-        userWelcomeBasket.height = serverWorld.map.height;
+        NetMessage userWelcomeBasket{};
+        userWelcomeBasket.type = NetMessage::Type::Welcome;
+        userWelcomeBasket.data.welcome.motdLength = (uint32_t)(sizeof("Welcome to The Lonely Island") - 1);
+        userWelcomeBasket.data.welcome.motd = "Welcome to The Lonely Island";
+        userWelcomeBasket.data.welcome.width = serverWorld.map.width;
+        userWelcomeBasket.data.welcome.height = serverWorld.map.height;
         E_CHECK(SendMsg(client, userWelcomeBasket), "Failed to send welcome basket");
     }
 
     {
         // TODO: Save from identify packet into NetServerClient, then user client.username
-        const char *username = client.username;
-        size_t usernameLength = client.usernameLength;
-        const char *message = TextFormat("%.*s joined the game.", usernameLength, username);
+        const char *clientUsername = client.username;
+        size_t clientUsernameLength = client.usernameLength;
+        const char *message = TextFormat("%.*s joined the game.", clientUsernameLength, clientUsername);
         size_t messageLength = strlen(message);
-
-        NetMessage_ChatMessage userJoinedNotification{};
-        userJoinedNotification.username = "SERVER";
-        userJoinedNotification.usernameLength = sizeof("SERVER") - 1;
-        userJoinedNotification.messageLength = messageLength;
-        userJoinedNotification.message = message;
-        E_CHECK(BroadcastMsg(userJoinedNotification), "Failed to broadcast join notification");
+        E_CHECK(BroadcastChatMessage(message, messageLength), "Failed to broadcast join notification");
     }
 
     {
         E_INFO("Sending world chunks to %s\n", TextFormatIP(client.peer->address));
-        NetMessage_WorldChunk userWorldChunk{};
-        userWorldChunk.offsetX = 0;
-        userWorldChunk.offsetY = 0;
-        userWorldChunk.rowWidth = 8;
-        userWorldChunk.tilesLength = serverWorld.map.width * serverWorld.map.height;
-        userWorldChunk.tiles = serverWorld.map.tiles;
+        NetMessage userWorldChunk{};
+        userWorldChunk.type = NetMessage::Type::WorldChunk;
+        userWorldChunk.data.worldChunk.offsetX = 0;
+        userWorldChunk.data.worldChunk.offsetY = 0;
+        userWorldChunk.data.worldChunk.tilesLength = serverWorld.map.width * serverWorld.map.height;
+        userWorldChunk.data.worldChunk.tiles = serverWorld.map.tiles;
         E_CHECK(SendMsg(client, userWorldChunk), "Failed to send world chunks");
     }
 
     {
         E_INFO("Sending world entites to %s\n", TextFormatIP(client.peer->address));
-        NetMessage_WorldEntities userWorldEntities{};
-        userWorldEntities.entitiesLength = serverWorld.slimes.size();
-        userWorldEntities.entities = serverWorld.slimes.data();
+        NetMessage userWorldEntities{};
+        userWorldEntities.type = NetMessage::Type::WorldEntities;
+        assert(serverWorld.slimes.size() <= UINT32_MAX);
+        userWorldEntities.data.worldEntities.entitiesLength = (uint32_t)serverWorld.slimes.size();
+        userWorldEntities.data.worldEntities.entities = serverWorld.slimes.data();
         E_CHECK(SendMsg(client, userWorldEntities), "Failed to send world entities");
     }
 E_CLEAN_END
@@ -162,16 +163,16 @@ E_CLEAN_END
 
 void NetServer::ProcessMsg(NetServerClient &client, Packet &packet)
 {
-    packet.netMessage = &NetMessage::Deserialize((uint32_t *)packet.rawBytes.data, packet.rawBytes.dataLength);
+    packet.netMessage.Deserialize((uint32_t *)packet.rawBytes.data, packet.rawBytes.dataLength);
 
-    switch (packet.netMessage->type) {
+    switch (packet.netMessage.type) {
         case NetMessage::Type::Identify: {
-            NetMessage_Identify &identMsg = static_cast<NetMessage_Identify &>(*packet.netMessage);
+            NetMessage_Identify &identMsg = packet.netMessage.data.identify;
             client.usernameLength = MIN(identMsg.usernameLength, USERNAME_LENGTH_MAX);
             memcpy(client.username, identMsg.username, client.usernameLength);
             break;
         } case NetMessage::Type::ChatMessage: {
-            NetMessage_ChatMessage &chatMsg = static_cast<NetMessage_ChatMessage &>(*packet.netMessage);
+            NetMessage_ChatMessage &chatMsg = packet.netMessage.data.chatMsg;
 
             // TODO(security): Validate some session token that's not known to other people to prevent impersonation
             //assert(chatMsg.usernameLength == client.usernameLength);
@@ -182,7 +183,7 @@ void NetServer::ProcessMsg(NetServerClient &client, Packet &packet)
 
             // TODO(security): This is currently rebroadcasting user input to all other clients.. ripe for abuse
             // Broadcast chat message
-            BroadcastMsg(chatMsg);
+            BroadcastMsg(packet.netMessage);
             break;
         }
         default: {

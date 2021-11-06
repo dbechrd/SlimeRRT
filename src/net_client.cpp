@@ -52,8 +52,9 @@ ErrorType NetClient::Connect(const char *serverHost, unsigned short serverPort, 
 
     usernameLength = strlen(username);
     passwordLength = strlen(password);
-    this->username = username;
-    this->password = (const char *)calloc(passwordLength + 1, sizeof(*this->password));
+    this->username = (const char *)calloc(usernameLength, sizeof(*this->username));
+    this->password = (const char *)calloc(passwordLength, sizeof(*this->password));
+    memcpy((void *)this->username, username, usernameLength);
     memcpy((void *)this->password, password, passwordLength);
 
     return ErrorType::Success;
@@ -66,11 +67,12 @@ E_START
     assert(username);
     assert(password);
 
-    NetMessage_Identify userIdent{};
-    userIdent.username = username;
-    userIdent.usernameLength = usernameLength;
-    userIdent.password = password;
-    userIdent.passwordLength = strlen(password);
+    NetMessage userIdent{};
+    userIdent.type = NetMessage::Type::Identify;
+    userIdent.data.identify.username = username;
+    userIdent.data.identify.usernameLength = (uint32_t)usernameLength;
+    userIdent.data.identify.password = password;
+    userIdent.data.identify.passwordLength = (uint32_t)passwordLength;
 
     static char rawPacket[PACKET_SIZE_MAX] = {};
     size_t rawBytes = userIdent.Serialize((uint32_t *)rawPacket, sizeof(rawPacket));
@@ -132,14 +134,15 @@ ErrorType NetClient::SendChatMessage(const char *message, size_t messageLength)
     // If we don't have a username yet (salt, client id, etc.) then we're not connected and can't send chat messages!
     // This would be weird since if we're not connected how do we see the chat box?
     
-    NetMessage_ChatMessage chatMessage{};
-    chatMessage.usernameLength = usernameLength;
-    chatMessage.username = username;
-    chatMessage.messageLength = messageLengthSafe;
-    chatMessage.message = message;
+    NetMessage netMessage{};
+    netMessage.type = NetMessage::Type::ChatMessage;
+    netMessage.data.chatMsg.usernameLength = (uint32_t)usernameLength;
+    netMessage.data.chatMsg.username = username;
+    netMessage.data.chatMsg.messageLength = (uint32_t)messageLengthSafe;
+    netMessage.data.chatMsg.message = message;
 
     static char rawPacket[PACKET_SIZE_MAX] = {};
-    size_t rawBytes = chatMessage.Serialize((uint32_t *)rawPacket, sizeof(rawPacket));
+    size_t rawBytes = netMessage.Serialize((uint32_t *)rawPacket, sizeof(rawPacket));
     ErrorType result = Send(rawPacket, rawBytes);
     memset(rawPacket, 0, rawBytes);
     return result;
@@ -147,17 +150,17 @@ ErrorType NetClient::SendChatMessage(const char *message, size_t messageLength)
 
 void NetClient::ProcessMsg(Packet &packet)
 {
-    packet.netMessage = &NetMessage::Deserialize((uint32_t *)packet.rawBytes.data, packet.rawBytes.dataLength);
+    packet.netMessage.Deserialize((uint32_t *)packet.rawBytes.data, packet.rawBytes.dataLength);
 
-    switch (packet.netMessage->type) {
+    switch (packet.netMessage.type) {
         case NetMessage::Type::ChatMessage: {
-            NetMessage_ChatMessage &chatMsg = static_cast<NetMessage_ChatMessage &>(*packet.netMessage);
+            NetMessage_ChatMessage &chatMsg = packet.netMessage.data.chatMsg;
             memcpy(chatMsg.timestampStr, packet.timestampStr, sizeof(packet.timestampStr));
             chatHistory.PushNetMessage(chatMsg);
             break;
         } case NetMessage::Type::Welcome: {
             // TODO: Auth challenge. Store salt sent from server instead.. handshake stuffs
-            NetMessage_Welcome &welcomeMsg = static_cast<NetMessage_Welcome &>(*packet.netMessage);
+            NetMessage_Welcome &welcomeMsg = packet.netMessage.data.welcome;
             chatHistory.PushMessage(CSTR("Message of the day"), welcomeMsg.motd, welcomeMsg.motdLength);
 
             // TODO: Use username (ensure null terminated or add player.nameLength field
@@ -184,21 +187,21 @@ void NetClient::ProcessMsg(Packet &packet)
             }
             break;
         } case NetMessage::Type::WorldChunk: {
-            NetMessage_WorldChunk &worldChunkMsg = static_cast<NetMessage_WorldChunk &>(*packet.netMessage);
+            NetMessage_WorldChunk &worldChunkMsg = packet.netMessage.data.worldChunk;
             if (worldChunkMsg.tilesLength) {
-                tilemap_generate_tiles(serverWorld.map, worldChunkMsg.netTiles, worldChunkMsg.tilesLength);
+                tilemap_generate_tiles(serverWorld.map, worldChunkMsg.tiles, worldChunkMsg.tilesLength);
                 serverWorld.player->body.position = serverWorld.GetWorldSpawn();
             }
             break;
         } case NetMessage::Type::WorldEntities: {
-            NetMessage_WorldEntities &worldEntitiesMsg = static_cast<NetMessage_WorldEntities &>(*packet.netMessage);
+            NetMessage_WorldEntities &worldEntitiesMsg = packet.netMessage.data.worldEntities;
             if (worldEntitiesMsg.entitiesLength) {
-                serverWorld.GenerateEntities(worldEntitiesMsg.netEntities, worldEntitiesMsg.entitiesLength);
+                serverWorld.GenerateEntities(worldEntitiesMsg.entities, worldEntitiesMsg.entitiesLength);
                 serverWorld.player->body.position = serverWorld.GetWorldSpawn();
             }
             break;
         } default: {
-            E_WARN("Unrecognized message type: %d", packet.netMessage->type);
+            E_WARN("Unrecognized message type: %d", packet.netMessage.type);
             break;
         }
     }

@@ -1,5 +1,4 @@
 #pragma once
-#include "bit_stream.h"
 
 #if 0
 //---------------------------------------------
@@ -41,8 +40,43 @@ struct NetMessage_PlayerInput {
 struct Tile;
 struct Slime;
 
+struct NetMessage_Identify {
+    uint32_t     usernameLength {};
+    const char * username       {};
+    // TODO: Encrypt packet
+    uint32_t     passwordLength {};
+    const char * password       {};
+};
+
+struct NetMessage_ChatMessage {
+    char         timestampStr[12]{};  // hh:MM:SS AM
+    uint32_t     usernameLength  {};
+    const char * username        {};
+    uint32_t     messageLength   {};
+    const char * message         {};
+};
+
+struct NetMessage_Welcome {
+    uint32_t     motdLength {};
+    const char * motd       {};  // message of the day
+    uint32_t     width{};  // width of map in tiles
+    uint32_t     height     {};  // height of map in tiles
+};
+
+struct NetMessage_WorldChunk {
+    uint32_t   offsetX     {};
+    uint32_t   offsetY     {};
+    uint32_t   tilesLength {};
+    Tile     * tiles       {};  // serializing
+};
+
+struct NetMessage_WorldEntities {
+    uint32_t    entitiesLength {};
+    Slime     * entities       {};
+};
+
 struct NetMessage {
-    enum class Type {
+    enum class Type : uint32_t {
         Unknown,
         Identify,
         ChatMessage,
@@ -52,99 +86,19 @@ struct NetMessage {
         Count
     };
 
-    // TODO: sequence number
-    //size_t sequenceNumber;
     Type type = Type::Unknown;
 
-    virtual ~NetMessage() {}
-    size_t Serialize(uint32_t *buffer, size_t bufferLength) const;
-    static NetMessage &Deserialize(uint32_t *buffer, size_t bufferLength);
+    union {
+        NetMessage_Identify      identify;
+        NetMessage_ChatMessage   chatMsg;
+        NetMessage_Welcome       welcome;
+        NetMessage_WorldChunk    worldChunk;
+        NetMessage_WorldEntities worldEntities;
+    } data {};
 
-protected:
-    NetMessage(Type type) : type(type) {};
+    size_t Serialize(uint32_t *buffer, size_t bufferLength);
+    size_t Deserialize(uint32_t *buffer, size_t bufferLength);
 
-    virtual void Serialize(BitStreamWriter &writer) const;
-    virtual void Deserialize(BitStreamReader &reader) = 0;
-};
-
-struct NetMessage_Identify : public NetMessage {
-    size_t       usernameLength {};
-    const char * username       {};
-    // TODO: Encrypt packet
-    size_t       passwordLength {};
-    const char * password       {};
-
-    NetMessage_Identify() : NetMessage(Type::Identify) {};
-    using NetMessage::Serialize;
-
-protected:
-    void Serialize(BitStreamWriter &writer) const override;
-    void Deserialize(BitStreamReader &reader) override;
-};
-
-struct NetMessage_ChatMessage : public NetMessage {
-    char         timestampStr[12]{};  // hh:MM:SS AM
-    size_t       usernameLength{};
-    const char * username{};
-    size_t       messageLength{};
-    const char * message{};
-
-    NetMessage_ChatMessage() : NetMessage(Type::ChatMessage) {};
-    using NetMessage::Serialize;
-
-protected:
-    void Serialize(BitStreamWriter &writer) const override;
-    void Deserialize(BitStreamReader &reader) override;
-};
-
-struct NetMessage_Welcome : public NetMessage  {
-    size_t       motdLength {};
-    const char * motd       {};  // message of the day
-    size_t       width      {};  // width of map in tiles
-    size_t       height     {};  // height of map in tiles
-
-    NetMessage_Welcome() : NetMessage(Type::Welcome) {};
-    using NetMessage::Serialize;
-
-protected:
-    void Serialize(BitStreamWriter &writer) const override;
-    void Deserialize(BitStreamReader &reader) override;
-};
-
-struct NetTile {
-    uint8_t tileType;
-};
-
-struct NetMessage_WorldChunk : public NetMessage {
-    uint32_t  offsetX     {};
-    uint32_t  offsetY     {};
-    uint32_t  rowWidth    {};
-    size_t    tilesLength {};
-    Tile    * tiles       {};  // serializing
-    NetTile * netTiles    {};  // deserializing
-
-    NetMessage_WorldChunk() : NetMessage(Type::WorldChunk) {};
-    using NetMessage::Serialize;
-
-protected:
-    void Serialize(BitStreamWriter &writer) const override;
-    void Deserialize(BitStreamReader &reader) override;
-};
-
-struct NetEntity {
-    float position_x;
-    float position_y;
-};
-
-struct NetMessage_WorldEntities : public NetMessage {
-    size_t      entitiesLength {};
-    Slime     * entities       {};
-    NetEntity * netEntities    {};
-
-    NetMessage_WorldEntities() : NetMessage(Type::WorldEntities) {};
-    using NetMessage::Serialize;
-
-protected:
-    void Serialize(BitStreamWriter &writer) const override;
-    void Deserialize(BitStreamReader &reader) override;
+private:
+    size_t Process(bool reader, uint32_t *buffer, size_t bufferLength);
 };

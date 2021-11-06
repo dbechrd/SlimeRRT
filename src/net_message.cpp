@@ -5,246 +5,145 @@
 #include "tilemap.h"
 #include <cassert>
 
-size_t NetMessage::Serialize(uint32_t *buffer, size_t bufferLength) const
+size_t NetMessage::Process(bool reader, uint32_t *buffer, size_t bufferLength)
 {
-    BitStreamWriter writer(buffer, bufferLength);
-    Serialize(writer);
-    const size_t bytesWritten = writer.BytesWritten();
-    return bytesWritten;
-}
+    BitStream::Mode mode = reader ? BitStream::Mode::Reader : BitStream::Mode::Writer;
+    BitStream stream(mode, buffer, bufferLength);
 
-NetMessage &NetMessage::Deserialize(uint32_t *buffer, size_t bufferLength)
-{
-    BitStreamReader reader(buffer, bufferLength);
-    NetMessage::Type type = (NetMessage::Type)reader.Read(3);
-    reader.Align();
+    uint32_t typeInt = (uint32_t)type;
+    stream.Process(typeInt, 3, (uint32_t)NetMessage::Type::Unknown + 1, (uint32_t)NetMessage::Type::Count - 1);
+    type = (Type)typeInt;
+    stream.Align();
 
-    // TODO(perf): Where do these get freed?
-    NetMessage *msg = nullptr;
     switch (type) {
         case NetMessage::Type::Identify: {
-            msg = new NetMessage_Identify();
+            NetMessage_Identify &ident = data.identify;
+
+            stream.Process(ident.usernameLength, 5, USERNAME_LENGTH_MIN, USERNAME_LENGTH_MAX);
+            stream.Align();
+
+            if (stream.Reading()) {
+                ident.username = stream.BufferPtr();
+            }
+            for (size_t i = 0; i < ident.usernameLength; i++) {
+                uint32_t userChr = ident.username[i];
+                stream.Process(userChr, 8, STRING_ASCII_MIN, STRING_ASCII_MAX);
+            }
+
+            stream.Process(ident.passwordLength, 5, PASSWORD_LENGTH_MIN, PASSWORD_LENGTH_MAX);
+            stream.Align();
+
+            if (stream.Reading()) {
+                ident.password = stream.BufferPtr();
+            }
+            for (size_t i = 0; i < ident.passwordLength; i++) {
+                uint32_t passChr = ident.password[i];
+                stream.Process(passChr, 8, STRING_ASCII_MIN, STRING_ASCII_MAX);
+            }
+
             break;
         } case NetMessage::Type::ChatMessage: {
-            msg = new NetMessage_ChatMessage();
+            NetMessage_ChatMessage &chatMsg = data.chatMsg;
+
+            assert(chatMsg.messageLength <= CHAT_MESSAGE_LENGTH_MAX);
+            stream.Process((uint32_t)chatMsg.usernameLength, 5, USERNAME_LENGTH_MIN, USERNAME_LENGTH_MAX);
+            stream.Align();
+
+            if (stream.Reading()) {
+                chatMsg.username = stream.BufferPtr();
+            }
+            for (size_t i = 0; i < chatMsg.usernameLength; i++) {
+                uint32_t usernameChr = chatMsg.username[i];
+                stream.Process(usernameChr, 8, STRING_ASCII_MIN, STRING_ASCII_MAX);
+            }
+
+            stream.Process((uint32_t)chatMsg.messageLength, 9, CHAT_MESSAGE_LENGTH_MIN, CHAT_MESSAGE_LENGTH_MAX);
+            stream.Align();
+
+            if (stream.Reading()) {
+                chatMsg.message = stream.BufferPtr();
+            }
+            for (size_t i = 0; i < chatMsg.messageLength; i++) {
+                uint32_t messageChr = chatMsg.message[i];
+                stream.Process(messageChr, 8, STRING_ASCII_MIN, STRING_ASCII_MAX);
+            }
+
             break;
         } case NetMessage::Type::Welcome: {
-            msg = new NetMessage_Welcome();
+            NetMessage_Welcome &welcome = data.welcome;
+
+            stream.Process(welcome.motdLength, 6, MOTD_LENGTH_MIN, MOTD_LENGTH_MAX);
+            stream.Align();
+
+            if (stream.Reading()) {
+                welcome.motd = stream.BufferPtr();
+            }
+            for (size_t i = 0; i < welcome.motdLength; i++) {
+                uint32_t motdChr = welcome.motd[i];
+                stream.Process(motdChr, 8, STRING_ASCII_MIN, STRING_ASCII_MAX);
+            }
+
+            stream.Process(welcome.width, 8, WORLD_WIDTH_MIN, WORLD_WIDTH_MAX);
+            stream.Process(welcome.height, 8, WORLD_HEIGHT_MIN, WORLD_HEIGHT_MAX);
+
             break;
         } case NetMessage::Type::WorldChunk: {
-            msg = new NetMessage_WorldChunk();
+            NetMessage_WorldChunk &worldChunk = data.worldChunk;
+
+            stream.Process(worldChunk.offsetX, 8, 0, WORLD_WIDTH_MAX - WORLD_CHUNK_WIDTH);
+            stream.Process(worldChunk.offsetY, 8, 0, WORLD_HEIGHT_MAX - WORLD_CHUNK_HEIGHT);
+            stream.Process(worldChunk.tilesLength, 16, 0, WORLD_MAX_TILES);
+
+            if (stream.Reading()) {
+                worldChunk.tiles = (Tile *)calloc(worldChunk.tilesLength, sizeof(*worldChunk.tiles));
+            }
+            for (size_t i = 0; i < worldChunk.tilesLength; i++) {
+                Tile &tile = worldChunk.tiles[i];
+                uint32_t tileType = (uint32_t)tile.tileType;
+                stream.Process(tileType, 3, 0, (uint32_t)TileType::Count - 1);
+                tile.tileType = (TileType)tileType;
+            }
+            stream.Align();
+
             break;
         } case NetMessage::Type::WorldEntities: {
-            msg = new NetMessage_WorldEntities();
+            NetMessage_WorldEntities &worldEntities = data.worldEntities;
+
+            stream.Process((uint32_t)worldEntities.entitiesLength, 32, 0, WORLD_MAX_ENTITIES);
+            stream.Align();
+
+            if (stream.Reading()) {
+                worldEntities.entities = (Slime *)calloc(worldEntities.entitiesLength, sizeof(*worldEntities.entities));
+            }
+            for (size_t i = 0; i < worldEntities.entitiesLength; i++) {
+                Slime &slime = worldEntities.entities[i];
+                uint32_t position_x = *(uint32_t *)&slime.body.position.x;
+                uint32_t position_y = *(uint32_t *)&slime.body.position.y;
+                stream.Process(position_x, 32, ENTITY_POSITION_X_MIN, ENTITY_POSITION_X_MAX);
+                stream.Process(position_y, 32, ENTITY_POSITION_Y_MIN, ENTITY_POSITION_Y_MAX);
+                slime.body.position.x = *(float *)&position_x;
+                slime.body.position.y = *(float *)&position_y;
+            }
+
             break;
         } default: {
             assert(!"Unrecognized NetMessageType");
         }
     }
-    msg->Deserialize(reader);
-    return *msg;
+
+    stream.Flush();
+    const size_t bytesProcessed = stream.BytesProcessed();
+    return bytesProcessed;
 }
 
-void NetMessage::Serialize(BitStreamWriter &writer) const
+size_t NetMessage::Serialize(uint32_t *buffer, size_t bufferLength)
 {
-    writer.Write((int)type, 3);
-    writer.Align();
+    const size_t bytesProcessed = Process(false, buffer, bufferLength);
+    return bytesProcessed;
 }
 
-void NetMessage_Identify::Serialize(BitStreamWriter &writer) const
+size_t NetMessage::Deserialize(uint32_t *buffer, size_t bufferLength)
 {
-    NetMessage::Serialize(writer);
-
-    assert(usernameLength <= USERNAME_LENGTH_MAX);
-    writer.Write((uint32_t)usernameLength, 5);
-    writer.Align();
-
-    for (size_t i = 0; i < usernameLength; i++) {
-        writer.Write(username[i], 8);
-    }
-
-    assert(passwordLength <= PASSWORD_LENGTH_MAX);
-    writer.Write((uint32_t)passwordLength, 5);
-    writer.Align();
-
-    for (size_t i = 0; i < passwordLength; i++) {
-        writer.Write(password[i], 8);
-    }
-
-    writer.Flush();
-}
-void NetMessage_Identify::Deserialize(BitStreamReader &reader)
-{
-    usernameLength = reader.Read(5);
-    assert(usernameLength <= USERNAME_LENGTH_MAX);
-    reader.Align();
-
-    username = reader.BufferPtr();
-    for (size_t i = 0; i < usernameLength; i++) {
-        reader.Read(8);
-    }
-
-    passwordLength = reader.Read(5);
-    assert(passwordLength <= PASSWORD_LENGTH_MAX);
-    reader.Align();
-
-    password = reader.BufferPtr();
-    for (size_t i = 0; i < passwordLength; i++) {
-        reader.Read(8);
-    }
-}
-
-void NetMessage_ChatMessage::Serialize(BitStreamWriter &writer) const
-{
-    NetMessage::Serialize(writer);
-
-    assert(usernameLength <= USERNAME_LENGTH_MAX);
-    assert(messageLength <= CHAT_MESSAGE_LENGTH_MAX);
-    writer.Write((uint32_t)usernameLength, 5);
-    writer.Align();
-
-    for (size_t i = 0; i < usernameLength; i++) {
-        writer.Write(username[i], 8);
-    }
-
-    writer.Write((uint32_t)messageLength, 9);
-    writer.Align();
-
-    for (size_t i = 0; i < messageLength; i++) {
-        writer.Write(message[i], 8);
-    }
-
-    writer.Flush();
-}
-void NetMessage_ChatMessage::Deserialize(BitStreamReader &reader)
-{
-    usernameLength = reader.Read(5);
-    assert(usernameLength <= USERNAME_LENGTH_MAX);
-    reader.Align();
-
-    username = reader.BufferPtr();
-    for (size_t i = 0; i < usernameLength; i++) {
-        reader.Read(8);
-    }
-
-    messageLength = reader.Read(9);
-    assert(messageLength <= CHAT_MESSAGE_LENGTH_MAX);
-    reader.Align();
-
-    message = reader.BufferPtr();
-    for (size_t i = 0; i < messageLength; i++) {
-        reader.Read(8);
-    }
-}
-
-void NetMessage_Welcome::Serialize(BitStreamWriter &writer) const
-{
-    NetMessage::Serialize(writer);
-
-    assert(motdLength <= MOTD_LENGTH_MAX);
-    writer.Write((uint32_t)motdLength, 6);
-    writer.Align();
-
-    for (size_t i = 0; i < motdLength; i++) {
-        writer.Write(motd[i], 8);
-    }
-
-    assert(width * height <= WORLD_MAX_TILES);
-    writer.Write((uint32_t)width, 8);
-    writer.Align();
-    writer.Write((uint32_t)height, 8);
-    writer.Align();
-
-    writer.Flush();
-}
-void NetMessage_Welcome::Deserialize(BitStreamReader &reader)
-{
-    motdLength = reader.Read(6);
-    assert(motdLength <= MOTD_LENGTH_MAX);
-    reader.Align();
-
-    motd = reader.BufferPtr();
-    for (size_t i = 0; i < motdLength; i++) {
-        reader.Read(8);
-    }
-
-    width = reader.Read(8);
-    //reader.Align();
-    height = reader.Read(8);
-    //reader.Align();
-    assert(width * height <= WORLD_MAX_TILES);
-
-}
-
-void NetMessage_WorldChunk::Serialize(BitStreamWriter &writer) const
-{
-    NetMessage::Serialize(writer);
-
-    // TODO: Assert offsets/rowWidth are in a sane range?
-    assert(tilesLength <= WORLD_MAX_TILES);
-    
-    writer.Write((uint32_t)offsetX, 8);
-    writer.Align();
-    writer.Write((uint32_t)offsetY, 8);
-    writer.Align();
-    writer.Write((uint32_t)rowWidth, 8);
-    writer.Align();
-    writer.Write((uint32_t)tilesLength, 16);
-    writer.Align();
-
-    for (size_t i = 0; i < tilesLength; i++) {
-        const Tile &tile = tiles[i];
-        writer.Write((uint8_t)tile.tileType, 8);
-    }
-
-    writer.Flush();
-}
-void NetMessage_WorldChunk::Deserialize(BitStreamReader &reader)
-{
-    offsetX = reader.Read(8);
-    //reader.Align();
-    offsetY = reader.Read(8);
-    //reader.Align();
-    rowWidth = reader.Read(8);
-    //reader.Align();
-
-    tilesLength = reader.Read(16);
-    //reader.Align();
-    assert(tilesLength <= WORLD_MAX_TILES);
-
-    netTiles = (NetTile *)reader.BufferPtr();
-    for (size_t i = 0; i < tilesLength; i++) {
-        reader.Read(8);
-    }
-}
-
-void NetMessage_WorldEntities::Serialize(BitStreamWriter &writer) const
-{
-    NetMessage::Serialize(writer);
-
-    // TODO: Assert offsets/rowWidth are in a sane range?
-    assert(entitiesLength <= WORLD_MAX_ENTITIES);
-
-    writer.Write((uint32_t)entitiesLength, 32);
-    writer.Align();
-
-    for (size_t i = 0; i < entitiesLength; i++) {
-        const Slime &slime = entities[i];
-        writer.Write((uint32_t)slime.body.position.x, 32);
-        writer.Write((uint32_t)slime.body.position.y, 32);
-    }
-
-    writer.Flush();
-}
-void NetMessage_WorldEntities::Deserialize(BitStreamReader &reader)
-{
-    entitiesLength = reader.Read(32);
-    //reader.Align();
-    assert(entitiesLength <= WORLD_MAX_ENTITIES);
-
-    netEntities = (NetEntity *)reader.BufferPtr();
-    for (size_t i = 0; i < entitiesLength; i++) {
-        reader.Read(32);
-        reader.Read(32);
-    }
+    const size_t bytesProcessed = Process(true, buffer, bufferLength);
+    return bytesProcessed;
 }
