@@ -5,6 +5,11 @@
 #include "tilemap.h"
 #include <cassert>
 
+NetMessage::~NetMessage()
+{
+    free(dataBuffer);
+}
+
 size_t NetMessage::Process(bool reader, uint32_t *buffer, size_t bufferLength)
 {
     BitStream::Mode mode = reader ? BitStream::Mode::Reader : BitStream::Mode::Writer;
@@ -95,7 +100,8 @@ size_t NetMessage::Process(bool reader, uint32_t *buffer, size_t bufferLength)
             stream.Process(worldChunk.tilesLength, 16, 0, WORLD_MAX_TILES);
 
             if (stream.Reading()) {
-                worldChunk.tiles = (Tile *)calloc(worldChunk.tilesLength, sizeof(*worldChunk.tiles));
+                dataBuffer = calloc(worldChunk.tilesLength, sizeof(*worldChunk.tiles));
+                worldChunk.tiles = (Tile *)dataBuffer;
             }
             for (size_t i = 0; i < worldChunk.tilesLength; i++) {
                 Tile &tile = worldChunk.tiles[i];
@@ -113,7 +119,8 @@ size_t NetMessage::Process(bool reader, uint32_t *buffer, size_t bufferLength)
             stream.Align();
 
             if (stream.Reading()) {
-                worldEntities.entities = (Slime *)calloc(worldEntities.entitiesLength, sizeof(*worldEntities.entities));
+                dataBuffer = calloc(worldEntities.entitiesLength, sizeof(*worldEntities.entities));
+                worldEntities.entities = (Slime *)dataBuffer;
             }
             for (size_t i = 0; i < worldEntities.entitiesLength; i++) {
                 Slime &slime = worldEntities.entities[i];

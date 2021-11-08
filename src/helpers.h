@@ -24,6 +24,11 @@
 //------------------------------------------------------------------------------
 #define SERVER_HOST_LENGTH_MAX  64
 #define SERVER_PORT             4040
+//#define PACKET_SIZE_MAX        1024
+#define SERVER_USERNAME         "SERVER"
+#define SERVER_MAX_PLAYERS      8
+
+#define PACKET_SIZE_MAX         (UINT16_MAX * 2)
 
 // Min/max ASCII value for username/password/motd/message, etc.
 #define STRING_ASCII_MIN        32
@@ -47,9 +52,6 @@
 #define ENTITY_POSITION_Y_MIN   0
 #define ENTITY_POSITION_Y_MAX   UINT32_MAX
 
-//#define PACKET_SIZE_MAX        1024
-#define PACKET_SIZE_MAX         (UINT16_MAX * 2)
-#define SERVER_USERNAME         "SERVER"
 #define CHAT_MESSAGE_HISTORY    16
 #define CHAT_MESSAGE_LENGTH_MIN 0
 #define CHAT_MESSAGE_LENGTH_MAX 500  // not including nil terminator, must be < CHAT_MESSAGE_BUFFER_LEN

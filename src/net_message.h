@@ -59,7 +59,7 @@ struct NetMessage_ChatMessage {
 struct NetMessage_Welcome {
     uint32_t     motdLength {};
     const char * motd       {};  // message of the day
-    uint32_t     width{};  // width of map in tiles
+    uint32_t     width      {};  // width of map in tiles
     uint32_t     height     {};  // height of map in tiles
 };
 
@@ -96,9 +96,12 @@ struct NetMessage {
         NetMessage_WorldEntities worldEntities;
     } data {};
 
+    ~NetMessage();
     size_t Serialize(uint32_t *buffer, size_t bufferLength);
     size_t Deserialize(uint32_t *buffer, size_t bufferLength);
 
 private:
+    void *dataBuffer {};  // dynamic memory allocated during deserialization
+
     size_t Process(bool reader, uint32_t *buffer, size_t bufferLength);
 };

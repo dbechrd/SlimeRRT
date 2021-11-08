@@ -8,19 +8,21 @@
 #include "spritesheet.h"
 #include <cassert>
 
-Player::Player(const char *playerName) : Player()
+Player::Player()
 {
-    assert(playerName);
-
-    name = playerName;
     actionState = ActionState::None;
     moveState = MoveState::Idle;
     body.lastUpdated = GetTime();
     sprite.scale = 1.0f;
     sprite.direction = Direction::South;
-    combat.maxHitPoints = 100.0f;
-    combat.hitPoints = combat.maxHitPoints;
-    combat.meleeDamage = 1.0f;
+    combat.meleeDamage = 1.0f;    
+
+    // TODO: Better way to check if visual client vs. CLI client than checking global spritesheet
+    const Spritesheet &charlieSpritesheet = SpritesheetCatalog::spritesheets[(int)SpritesheetID::Charlie];
+    const SpriteDef *charlieSpriteDef = charlieSpritesheet.FindSprite("player_sword");
+    if (charlieSpriteDef) {
+        SetSpritesheet(*charlieSpriteDef);
+    }
 
     // TODO: Load selected slot from save file / server
     inventory.selectedSlot = PlayerInventorySlot::Slot_1;
@@ -33,6 +35,11 @@ Player::Player(const char *playerName) : Player()
     //stats.coinsCollected = 33;
     //stats.slimesSlain = 44;
     stats = {};
+}
+
+void Player::SetName(const char *name)
+{
+    this->name = name;
 }
 
 void Player::SetSpritesheet(const SpriteDef &spriteDef)

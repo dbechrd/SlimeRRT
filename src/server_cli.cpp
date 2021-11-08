@@ -13,6 +13,8 @@ const char *ServerCLI::LOG_SRC = "ServerCLI";
 
 ErrorType ServerCLI::Run(const char *serverHost, unsigned short serverPort)
 {
+    std::thread serverThread;
+
 E_START
     const char *title = "Attack the slimes!";
     if (args.server) {
@@ -33,7 +35,7 @@ E_START
 #endif
     bool running = true;
 
-    std::thread serverThread([&running, this] {
+    serverThread = std::thread([&running, this] {
         while (running) {
             netClient.Receive();
         }

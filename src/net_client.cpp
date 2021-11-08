@@ -34,11 +34,16 @@ E_CLEAN_END
 #pragma warning(disable:6387)  // memcpy pointer could be zero
 ErrorType NetClient::Connect(const char *serverHost, unsigned short serverPort, const char *username, const char *password)
 {
+    ENetAddress address{};
+
+E_START
+    if (!client) {
+        E_CHECK(OpenSocket(), "Failed to open socket");
+    }
     if (server) {
         Disconnect();
     }
     
-    ENetAddress address{};
     enet_address_set_host(&address, serverHost);
     address.port = serverPort;
     server = enet_host_connect(client, &address, 1, 0);
@@ -52,12 +57,11 @@ ErrorType NetClient::Connect(const char *serverHost, unsigned short serverPort, 
 
     usernameLength = strlen(username);
     passwordLength = strlen(password);
-    this->username = (const char *)calloc(usernameLength, sizeof(*this->username));
-    this->password = (const char *)calloc(passwordLength, sizeof(*this->password));
+    this->username = (const char *)calloc(usernameLength, sizeof(*this->username) + 1);
+    this->password = (const char *)calloc(passwordLength, sizeof(*this->password) + 1);
     memcpy((void *)this->username, username, usernameLength);
     memcpy((void *)this->password, password, passwordLength);
-
-    return ErrorType::Success;
+E_CLEAN_END
 }
 #pragma warning(pop)
 
@@ -165,7 +169,8 @@ void NetClient::ProcessMsg(Packet &packet)
 
             // TODO: Use username (ensure null terminated or add player.nameLength field
             if (!serverWorld.player) {
-                serverWorld.player = new Player("sone_nz");
+                serverWorld.player = serverWorld.SpawnPlayer(username);
+                assert(serverWorld.player);
             }
 
             serverWorld.map.width = welcomeMsg.width;
@@ -176,14 +181,6 @@ void NetClient::ProcessMsg(Packet &packet)
                 serverWorld.tileset = new Tileset();
                 serverWorld.tileset->tileWidth = 32;
                 serverWorld.tileset->tileHeight = 32;
-            }
-
-            // TODO: Wayyyy better way to check if visual client vs. CLI client than checking global spritesheet
-            if (SpritesheetCatalog::spritesheets[0].sprites.size()) {
-                const Spritesheet &charlieSpritesheet = SpritesheetCatalog::spritesheets[(int)SpritesheetID::Charlie];
-                const SpriteDef *charlieSpriteDef = charlieSpritesheet.FindSprite("player_sword");
-                assert(charlieSpriteDef);
-                serverWorld.player->SetSpritesheet(*charlieSpriteDef);
             }
             break;
         } case NetMessage::Type::WorldChunk: {

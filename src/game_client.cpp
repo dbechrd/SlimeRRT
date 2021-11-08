@@ -29,13 +29,6 @@ const char *GameClient::LOG_SRC = "GameClient";
 
 ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
 {
-    World lobby{};
-    Texture tilesetTex{};
-    Texture checkboardTexture{};
-    Music mus_background{};
-    Music mus_whistle{};
-    Font font{};
-
 E_START
     const char *title = "Attack the slimes!";
     if (args.server) {
@@ -63,10 +56,8 @@ E_START
     ImGui_ImplGlfw_InitForOpenGL(glfwWindow, true);
     ImGui_ImplOpenGL3_Init("#version 130");
 
-    E_CHECK(netClient.OpenSocket(), "Failed to open client socket");
-
     const int fontHeight = 14;
-    font = LoadFontEx("C:/Windows/Fonts/consola.ttf", fontHeight, 0, 0);
+    Font font = LoadFontEx("C:/Windows/Fonts/consola.ttf", fontHeight, 0, 0);
     //font = LoadFontEx("resources/UbuntuMono-Regular.ttf", fontHeight, 0, 0);
     assert(font.texture.id);
     GuiSetFont(font);
@@ -79,6 +70,19 @@ E_START
     // NOTE: There could be other, bigger monitors
     const int monitorWidth = GetMonitorWidth(0);
     const int monitorHeight = GetMonitorHeight(0);
+
+    Camera2D camera{};
+    //camera.target = (Vector2){
+    //    (float)tilemap.width / 2.0f * tilemap.tileset->tileWidth,
+    //    (float)tilemap.height / 2.0f * tilemap.tileset->tileHeight
+    //};
+    camera.offset.x = screenWidth / 2.0f;
+    camera.offset.y = screenHeight / 2.0f;
+    camera.rotation = 0.0f;
+    camera.zoom = 1.0f;
+
+    bool cameraReset = false;
+    bool cameraFree = false;
 
     InitAudioDevice();
     if (!IsAudioDeviceReady()) {
@@ -97,7 +101,7 @@ E_START
 
     float mus_background_vmin = 0.02f;
     float mus_background_vmax = 0.2f;
-    mus_background = LoadMusicStream("resources/fluquor_copyright.ogg");
+    Music mus_background = LoadMusicStream("resources/fluquor_copyright.ogg");
     mus_background.looping = true;
     //PlayMusicStream(mus_background);
     SetMusicVolume(mus_background, mus_background_vmax);
@@ -105,21 +109,35 @@ E_START
 
     float mus_whistle_vmin = 0.0f;
     float mus_whistle_vmax = 1.0f;
-    mus_whistle = LoadMusicStream("resources/whistle.ogg");
+    Music mus_whistle = LoadMusicStream("resources/whistle.ogg");
     SetMusicVolume(mus_whistle, mus_whistle_vmin);
     mus_whistle.looping = true;
 
     float whistleAlpha = 0.0f;
 
     Image checkerboardImage = GenImageChecked(monitorWidth, monitorHeight, 32, 32, LIGHTGRAY, GRAY);
-    checkboardTexture = LoadTextureFromImage(checkerboardImage);
+    Texture checkboardTexture = LoadTextureFromImage(checkerboardImage);
     UnloadImage(checkerboardImage);
 
-    tilesetTex = LoadTexture("resources/tiles32.png");
+    Texture tilesetTex = LoadTexture("resources/tiles32.png");
     assert(tilesetTex.width);
 
     Tileset tileset{ &tilesetTex, 32, 32, (int)TileType::Count };
 
+    // TODO: Move sprite loading to somewhere more sane
+    const Spritesheet &charlieSpritesheet = SpritesheetCatalog::spritesheets[(int)SpritesheetID::Charlie];
+    const SpriteDef *charlieSpriteDef = charlieSpritesheet.FindSprite("player_sword");
+    assert(charlieSpriteDef);
+
+    const Spritesheet &slimeSpritesheet = SpritesheetCatalog::spritesheets[(int)SpritesheetID::Slime];
+    const SpriteDef *slimeSpriteDef = slimeSpritesheet.FindSprite("slime");
+    assert(slimeSpriteDef);
+
+    const Spritesheet &coinSpritesheet = SpritesheetCatalog::spritesheets[(int)SpritesheetID::Coin];
+    const SpriteDef *coinSpriteDef = coinSpritesheet.FindSprite("coin");
+    assert(coinSpriteDef);
+
+    World lobby{};
     tilemap_generate_lobby(lobby.map);
     //tilemap_generate_ex(&lobby.map, 256, 256, 32, 32, &lobby.rtt_rand);
     world = &lobby;
@@ -151,38 +169,7 @@ E_START
     }
 #endif
 
-    Camera2D camera{};
-    //camera.target = (Vector2){
-    //    (float)tilemap.width / 2.0f * tilemap.tileset->tileWidth,
-    //    (float)tilemap.height / 2.0f * tilemap.tileset->tileHeight
-    //};
-    camera.offset.x = screenWidth / 2.0f;
-    camera.offset.y = screenHeight / 2.0f;
-    camera.rotation = 0.0f;
-    camera.zoom = 1.0f;
-
-    bool cameraReset = false;
-    bool cameraFree = false;
-
-    // TODO: Move sprite loading to somewhere more sane
-    const Spritesheet &charlieSpritesheet = SpritesheetCatalog::spritesheets[(int)SpritesheetID::Charlie];
-    const SpriteDef *charlieSpriteDef = charlieSpritesheet.FindSprite("player_sword");
-    assert(charlieSpriteDef);
-
-    const Spritesheet &slimeSpritesheet = SpritesheetCatalog::spritesheets[(int)SpritesheetID::Slime];
-    const SpriteDef *slimeSpriteDef = slimeSpritesheet.FindSprite("slime");
-    assert(slimeSpriteDef);
-
-    const Spritesheet &coinSpritesheet = SpritesheetCatalog::spritesheets[(int)SpritesheetID::Coin];
-    const SpriteDef *coinSpriteDef = coinSpritesheet.FindSprite("coin");
-    assert(coinSpriteDef);
-
-    // NOTE: Don't use this, use world->player. Need to make this on the heap but also deconstructable,
-    // along with all of the other resources randomly on the stack in this function.
-    Player charlie("Charlie");
-    charlie.body.position = world->GetWorldSpawn();
-    charlie.SetSpritesheet(*charlieSpriteDef);
-    world->player = &charlie;
+    world->player = world->SpawnPlayer("Charlie");
 
     {
         const float slimeRadius = 50.0f;
@@ -283,7 +270,7 @@ E_START
                 IsKeyPressed(io.KeyMap[ImGuiKey_Enter]) ||
                 IsKeyPressed(io.KeyMap[ImGuiKey_KeyPadEnter]))
             {
-                netClient.Connect(host, (unsigned short)port, username, password);
+                E_CHECK(netClient.Connect(host, (unsigned short)port, username, password), "Failled to connect to server");
                 closePopup = true;
             }
             
@@ -834,11 +821,12 @@ E_CLEANUP
     // TODO: Wrap these in classes to use destructors?
     UnloadTexture(tilesetTex);
     UnloadTexture(checkboardTexture);
+    UnloadMusicStream(mus_background);
+    UnloadMusicStream(mus_whistle);
+    UnloadFont(font);
     sound_catalog_free();
     particles_free();
     loot_table_free();
-    UnloadMusicStream(mus_background);
-    UnloadMusicStream(mus_whistle);
     CloseAudioDevice();
 
     ImGui_ImplOpenGL3_Shutdown();
@@ -846,6 +834,5 @@ E_CLEANUP
     ImGui::DestroyContext();
 
     CloseWindow();
-    UnloadFont(font);
 E_END
 }

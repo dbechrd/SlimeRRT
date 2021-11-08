@@ -17,8 +17,8 @@ extern const char *g_err_msg[(int)ErrorType::Count];
 
 void error_init();
 
-#define E_START ErrorType e__code = ErrorType::Success; {
-#define E_CLEANUP } e_cleanup:
+#define E_START ErrorType e__code = ErrorType::Success;
+#define E_CLEANUP e_cleanup:
 #define E_END return e__code;
 #define E_END_INT return (int)e__code;
 #define E_CLEAN_END E_CLEANUP E_END;

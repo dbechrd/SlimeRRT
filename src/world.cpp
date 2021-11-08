@@ -28,14 +28,34 @@ World::~World()
 
 const Vector3 World::GetWorldSpawn()
 {
-    assert(tileset);
     Vector3 worldSpawn = {
-        (float)map.width / 2.0f * tileset->tileWidth,
-        (float)map.height / 2.0f * tileset->tileHeight,
+        (float)map.width / 2.0f * 32,
+        (float)map.height / 2.0f * 32,
         0.0f
     };
     return worldSpawn;
 };
+
+Player *World::SpawnPlayer(const char *name)
+{
+    for (int i = 0; i < SERVER_MAX_PLAYERS; i++) {
+        Player &player = players[i];
+        if (player.combat.maxHitPoints == 0) {
+            player.name = name;
+            const Spritesheet &charlieSpritesheet = SpritesheetCatalog::spritesheets[(int)SpritesheetID::Charlie];
+            const SpriteDef *charlieSpriteDef = charlieSpritesheet.FindSprite("player_sword");
+            if (charlieSpriteDef) {
+                player.sprite.spriteDef = charlieSpriteDef;
+            }
+            player.body.position = GetWorldSpawn();
+            player.combat.maxHitPoints = 100.0f;
+            player.combat.hitPoints = player.combat.maxHitPoints;
+            return &player;
+        }
+
+    }
+    return 0;
+}
 
 void World::GenerateEntities(Slime *&entities, size_t entityLength)
 {

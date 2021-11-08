@@ -38,7 +38,8 @@ struct Player : public Drawable {
     PlayerInventory inventory   {};
     Stats           stats       {};
 
-    Player(const char *playerName);
+    Player();
+    void SetName(const char *name);
     void SetSpritesheet(const SpriteDef &spriteDef);
 
     float Depth() const override;
@@ -53,7 +54,5 @@ struct Player : public Drawable {
     void Update(double now, double dt);
 
 private:
-    Player() = default;
-
     void UpdateDirection(Vector2 offset);
 };

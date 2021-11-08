@@ -28,7 +28,7 @@ E_START
     //address.host = enet_v4_localhost;
     address.port = socketPort;
 
-    server = enet_host_create(&address, 32, 1, 0, 0);
+    server = enet_host_create(&address, SERVER_MAX_PLAYERS, 1, 0, 0);
     if (!server) {
         E_FATAL(ErrorType::HostCreateFailed, "Failed to create host.");
     }
