@@ -1,12 +1,6 @@
 #pragma once
 #include "item.h"
 
-struct LootDrop {
-    ItemType itemType;
-    uint32_t minCount;
-    uint32_t maxCount;
-};
-
 enum class LootTableID {
     LT_Sam,
     LT_Slime,
@@ -21,13 +15,17 @@ enum class LootTableID {
     Count
 };
 
+struct LootDrop {
+    ItemType itemType;
+    uint32_t minCount;
+    uint32_t maxCount;
+};
+
 struct LootTable {
     LootTableID id;
-    uint32_t    dropListCount;
-    LootDrop   *dropList;
+    LootDrop    drops[16];
 };
 
 void loot_table_init(void);
-void loot_table_free(void);
 uint32_t loot_table_roll_coins(LootTableID lootTableId);
 void loot_table_roll_drops(LootTableID lootTableId);

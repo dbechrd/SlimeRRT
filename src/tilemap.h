@@ -35,11 +35,12 @@ struct Tile {
 };
 
 struct Tilemap {
-    uint32_t width   {};  // width of map in tiles
-    uint32_t height  {};  // height of map in tiles
-    RRT      rrt     {};  // "Rapidly-exploring Random Tree" data struture (used for procedural generation)
-    Tile *   tiles   {};  // array of tile data
-    Texture  minimap {};
+    uint32_t  width     {};  // width of map in tiles
+    uint32_t  height    {};  // height of map in tiles
+    RRT       rrt       {};  // "Rapidly-exploring Random Tree" data struture (used for procedural generation)
+    Tile *    tiles     {};  // array of tile data
+    Texture   minimap   {};
+    TilesetID tilesetId {};
 };
 
 void tilemap_generate_lobby (Tilemap &map);
@@ -49,5 +50,5 @@ void tilemap_generate_ex    (Tilemap &map, dlb_rand32_t &rng, uint32_t width, ui
 void tilemap_free           (Tilemap &map);
 Tile *tilemap_at            (Tilemap &map, int tileX, int tileY);  // Return tile at grid position x,y, assert on failure
 Tile *tilemap_at_try        (Tilemap &map, int tileX, int tileY);  // Return tile at grid position x,y, if it exists
-Tile *tilemap_at_world      (Tilemap &map, Tileset &tileset, float x, float y, int *tileX, int *tileY);  // Return tile at pixel position in world space, assert on failure
-Tile *tilemap_at_world_try  (Tilemap &map, Tileset &tileset, float x, float y, int *tileX, int *tileY);  // Return tile at pixel position in world space, if it exists
+Tile *tilemap_at_world      (Tilemap &map, float x, float y, int *tileX, int *tileY);  // Return tile at pixel position in world space, assert on failure
+Tile *tilemap_at_world_try  (Tilemap &map, float x, float y, int *tileX, int *tileY);  // Return tile at pixel position in world space, if it exists

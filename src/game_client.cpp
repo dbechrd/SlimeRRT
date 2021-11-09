@@ -98,6 +98,7 @@ E_START
     particles_init();
     ItemCatalog::instance.Load();
     loot_table_init();
+    tileset_init();
 
     float mus_background_vmin = 0.02f;
     float mus_background_vmax = 0.2f;
@@ -119,11 +120,6 @@ E_START
     Texture checkboardTexture = LoadTextureFromImage(checkerboardImage);
     UnloadImage(checkerboardImage);
 
-    Texture tilesetTex = LoadTexture("resources/tiles32.png");
-    assert(tilesetTex.width);
-
-    Tileset tileset{ &tilesetTex, 32, 32, (int)TileType::Count };
-
     // TODO: Move sprite loading to somewhere more sane
     const Spritesheet &charlieSpritesheet = SpritesheetCatalog::spritesheets[(int)SpritesheetID::Charlie];
     const SpriteDef *charlieSpriteDef = charlieSpritesheet.FindSprite("player_sword");
@@ -139,9 +135,7 @@ E_START
 
     World lobby{};
     tilemap_generate_lobby(lobby.map);
-    //tilemap_generate_ex(&lobby.map, 256, 256, 32, 32, &lobby.rtt_rand);
     world = &lobby;
-    world->tileset = &tileset;
 
 #if DEMO_VIEW_RTREE
     const int RECT_COUNT = 100;
@@ -173,8 +167,8 @@ E_START
 
     {
         const float slimeRadius = 50.0f;
-        const size_t mapPixelsX = world->map.width * tileset.tileWidth;
-        const size_t mapPixelsY = world->map.height * tileset.tileHeight;
+        const size_t mapPixelsX = world->map.width * TILE_W;
+        const size_t mapPixelsY = world->map.height * TILE_W;
         const float maxX = mapPixelsX - slimeRadius;
         const float maxY = mapPixelsY - slimeRadius;
 
@@ -485,11 +479,10 @@ E_START
         size_t tilesDrawn = 0;
 
         if (world->map.tiles) {
-            const float tileWidthMip = (float)(tileset.tileWidth * zoomMipLevel);
-            const float tileHeightMip = (float)(tileset.tileHeight * zoomMipLevel);
+            const float tileWidthMip = (float)(TILE_W * zoomMipLevel);
+            const float tileHeightMip = (float)(TILE_W * zoomMipLevel);
             const size_t height = world->map.height;
             const size_t width = world->map.width;
-            const Rectangle *tileRects = tileset.textureRects;
             const float camLeft = cameraRect.x;
             const float camTop = cameraRect.y;
             const float camRight = cameraRect.x + cameraRect.width;
@@ -498,14 +491,14 @@ E_START
             for (size_t y = 0; y < height; y += zoomMipLevel) {
                 for (size_t x = 0; x < width; x += zoomMipLevel) {
                     const Tile *tile = &world->map.tiles[y * world->map.width + x];
-                    const Vector2 tilePos = { (float)x * tileset.tileWidth, (float)y * tileset.tileHeight };
+                    const Vector2 tilePos = { (float)x * TILE_W, (float)y * TILE_W };
                     if (tilePos.x + tileWidthMip >= camLeft &&
                         tilePos.y + tileHeightMip >= camTop &&
                         tilePos.x < camRight &&
                         tilePos.y < camBottom)                     {
                         // Draw all tiles as textured rects (looks best, performs worst)
-                        Rectangle textureRect = tileRects[(int)tile->tileType];
-                        DrawTextureRec(*tileset.texture, textureRect, tilePos, WHITE);
+                        Rectangle textureRect = tileset_tile_rect(world->map.tilesetId, tile->tileType);
+                        tileset_draw_tile(world->map.tilesetId, tile->tileType, tilePos);
                         tilesDrawn++;
                     }
                 }
@@ -522,7 +515,7 @@ E_START
         int mouseTileX = 0;
         int mouseTileY = 0;
         if (findMouseTile) {
-            mouseTile = tilemap_at_world_try(world->map, tileset,
+            mouseTile = tilemap_at_world_try(world->map,
                 mousePosWorld.x, mousePosWorld.y,
                 &mouseTileX, &mouseTileY
             );
@@ -531,8 +524,8 @@ E_START
                 Rectangle mouseTileRect{
                     (float)mouseTileX,
                     (float)mouseTileY,
-                    (float)tileset.tileWidth * zoomMipLevel,
-                    (float)tileset.tileHeight * zoomMipLevel
+                    (float)TILE_W * zoomMipLevel,
+                    (float)TILE_W * zoomMipLevel
                 };
                 DrawRectangleLinesEx(mouseTileRect, 1 * (int)invZoom, RED);
             }
@@ -636,7 +629,7 @@ E_START
             DrawTextFont(font, TextFormat("tilePos : %.02f, %.02f", mouseTileX, mouseTileY),
                 tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, fontHeight, BLACK);
             lineOffset += fontHeight;
-            DrawTextFont(font, TextFormat("tileSize: %zu, %zu", tileset.tileWidth, tileset.tileHeight),
+            DrawTextFont(font, TextFormat("tileSize: %zu, %zu", TILE_W, TILE_W),
                 tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, fontHeight, BLACK);
             lineOffset += fontHeight;
             DrawTextFont(font, TextFormat("tileType: %d", mouseTile->tileType),
@@ -819,14 +812,12 @@ E_START
     }
 E_CLEANUP
     // TODO: Wrap these in classes to use destructors?
-    UnloadTexture(tilesetTex);
     UnloadTexture(checkboardTexture);
     UnloadMusicStream(mus_background);
     UnloadMusicStream(mus_whistle);
     UnloadFont(font);
     sound_catalog_free();
     particles_free();
-    loot_table_free();
     CloseAudioDevice();
 
     ImGui_ImplOpenGL3_Shutdown();

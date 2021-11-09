@@ -175,13 +175,9 @@ void NetClient::ProcessMsg(Packet &packet)
 
             serverWorld.map.width = welcomeMsg.width;
             serverWorld.map.height = welcomeMsg.height;
+            // TODO: Get tileset ID from server
+            serverWorld.map.tilesetId = TilesetID::TS_Overworld;
 
-            if (!serverWorld.tileset) {
-                // TODO: Get width, height and tileCount from server
-                serverWorld.tileset = new Tileset();
-                serverWorld.tileset->tileWidth = 32;
-                serverWorld.tileset->tileHeight = 32;
-            }
             break;
         } case NetMessage::Type::WorldChunk: {
             NetMessage_WorldChunk &worldChunkMsg = packet.netMessage.data.worldChunk;
@@ -334,6 +330,8 @@ void NetClient::Disconnect()
 void NetClient::CloseSocket()
 {
     Disconnect();
-    enet_host_service(client, nullptr, 0);
-    enet_host_destroy(client);
+    if (client) {
+        enet_host_service(client, nullptr, 0);
+        enet_host_destroy(client);
+    }
 }

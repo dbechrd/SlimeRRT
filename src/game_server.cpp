@@ -18,16 +18,11 @@ E_START
     //tilemap_generate_ex(&tilemap, world->rtt_rand, 128, 128);
     tilemap_generate_ex(world.map, world.rtt_rand, 254, 254);
 
-    Tileset tileset{};
-    tileset.tileWidth = 32;
-    tileset.tileHeight = 32;
-    world.tileset = &tileset;
-
     {
         // TODO: Move slime radius somewhere more logical.. some global table of magic numbers?
         const float slimeRadius = 50.0f;
-        const size_t mapPixelsX = world.map.width * tileset.tileWidth;
-        const size_t mapPixelsY = world.map.height * tileset.tileHeight;
+        const size_t mapPixelsX = world.map.width * TILE_W;
+        const size_t mapPixelsY = world.map.height * TILE_W;
         const float maxX = mapPixelsX - slimeRadius;
         const float maxY = mapPixelsY - slimeRadius;
         for (size_t i = 0; i < 256; i++) {

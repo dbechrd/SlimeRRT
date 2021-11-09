@@ -8,13 +8,12 @@
 #include <vector>
 
 struct World {
-    uint64_t           rtt_seed {};
-    dlb_rand32_t       rtt_rand {};
-    Tilemap            map      {};
-    Tileset          * tileset  {};
-    Player           * player   {};
+    uint64_t           rtt_seed  {};
+    dlb_rand32_t       rtt_rand  {};
+    Tilemap            map       {};
+    Player           * player    {};
     Player             players[SERVER_MAX_PLAYERS]{};
-    std::vector<Slime> slimes   {};
+    std::vector<Slime> slimes    {};
 
     World();
     ~World();

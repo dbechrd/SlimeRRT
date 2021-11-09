@@ -70,7 +70,5 @@ E_START
     }
 
     serverThread.join();
-E_CLEANUP
-    loot_table_free();
-E_END
+E_CLEAN_END
 }

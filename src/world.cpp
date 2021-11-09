@@ -129,11 +129,11 @@ void World::Sim(double now, double dt, const PlayerControllerState input, const 
     Vector2 moveOffset = v2_scale(v2_normalize(moveBuffer), METERS_TO_PIXELS(playerSpeed) * (float)dt);
     if (!v2_is_zero(moveOffset)) {
         const Vector2 curPos = player->body.GroundPosition();
-        const Tile *curTile = tilemap_at_world_try(map, *tileset, curPos.x, curPos.y, 0, 0);
+        const Tile *curTile = tilemap_at_world_try(map, curPos.x, curPos.y, 0, 0);
         const bool curWalkable = curTile && curTile->IsWalkable();
 
         Vector2 newPos = v2_add(curPos, moveOffset);
-        Tile *newTile = tilemap_at_world_try(map, *tileset, newPos.x, newPos.y, 0, 0);
+        Tile *newTile = tilemap_at_world_try(map, newPos.x, newPos.y, 0, 0);
 
         // NOTE: This extra logic allows the player to slide when attempting to move diagonally against a wall
         // NOTE: If current tile isn't walkable, allow player to walk off it. This may not be the best solution
@@ -147,12 +147,12 @@ void World::Sim(double now, double dt, const PlayerControllerState input, const 
                 // XY unwalkable, try only X offset
                 newPos = curPos;
                 newPos.x += moveOffset.x;
-                newTile = tilemap_at_world_try(map, *tileset, newPos.x, newPos.y, 0, 0);
+                newTile = tilemap_at_world_try(map, newPos.x, newPos.y, 0, 0);
                 if (!newTile || !newTile->IsWalkable()) {
                     // X unwalkable, try only Y offset
                     newPos = curPos;
                     newPos.y += moveOffset.y;
-                    newTile = tilemap_at_world_try(map, *tileset, newPos.x, newPos.y, 0, 0);
+                    newTile = tilemap_at_world_try(map, newPos.x, newPos.y, 0, 0);
                     if (!newTile || !newTile->IsWalkable()) {
                         // XY, and both slide directions are all unwalkable
                         moveOffset.x = 0.0f;

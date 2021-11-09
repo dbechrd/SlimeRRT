@@ -60,6 +60,7 @@ void tilemap_generate_lobby(Tilemap &map)
 {
     map.width = 84;
     map.height = 64;
+    map.tilesetId = TilesetID::TS_Overworld;
 
     map.tiles = (Tile *)calloc(map.width * map.height, sizeof(*map.tiles));
     assert(map.tiles);
@@ -161,6 +162,7 @@ void tilemap_generate_ex(Tilemap &map, dlb_rand32_t &rng, uint32_t width, uint32
 
     map.width = width;
     map.height = height;
+    map.tilesetId = TilesetID::TS_Overworld;;
     tilemap_generate(map, rng);
 }
 
@@ -188,15 +190,15 @@ Tile *tilemap_at_try(Tilemap &map, int tileX, int tileY)
     return tile;
 }
 
-Tile *tilemap_at_world(Tilemap &map, Tileset &tileset, float x, float y, int *tileX, int *tileY)
+Tile *tilemap_at_world(Tilemap &map, float x, float y, int *tileX, int *tileY)
 {
     assert(x >= 0);
     assert(y >= 0);
-    assert(x < (int)tileset.tileWidth * map.width);
-    assert(y < (int)tileset.tileHeight * map.height);
+    assert(x < (int)TILE_W * map.width);
+    assert(y < (int)TILE_W * map.height);
 
-    int tile_x = (int)x / (int)tileset.tileWidth;
-    int tile_y = (int)y / (int)tileset.tileHeight;
+    int tile_x = (int)x / (int)TILE_W;
+    int tile_y = (int)y / (int)TILE_W;
     Tile *tile = tilemap_at(map, tile_x, tile_y);
     if (tile) {
         if (tileX) *tileX = tile_x;
@@ -205,17 +207,17 @@ Tile *tilemap_at_world(Tilemap &map, Tileset &tileset, float x, float y, int *ti
     return tile;
 }
 
-Tile *tilemap_at_world_try(Tilemap &map, Tileset &tileset, float x, float y, int *tileX, int *tileY)
+Tile *tilemap_at_world_try(Tilemap &map, float x, float y, int *tileX, int *tileY)
 {
     if (x < 0 || y < 0 ||
-        x >= (float)tileset.tileWidth * map.width ||
-        y >= (float)tileset.tileHeight * map.height)
+        x >= (float)TILE_W * map.width ||
+        y >= (float)TILE_W * map.height)
     {
         return 0;
     }
 
-    int tile_x = (int)x / (int)tileset.tileWidth;
-    int tile_y = (int)y / (int)tileset.tileHeight;
+    int tile_x = (int)x / (int)TILE_W;
+    int tile_y = (int)y / (int)TILE_W;
     Tile *tile = tilemap_at_try(map, tile_x, tile_y);
     if (tile) {
         if (tileX) *tileX = tile_x;

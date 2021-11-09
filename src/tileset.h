@@ -1,15 +1,22 @@
 #pragma once
 #include "raylib/raylib.h"
 
-struct Tileset {
-    Texture *   texture      {};
-    Rectangle * textureRects {};
-    size_t      tileWidth    {};
-    size_t      tileHeight   {};
-    size_t      tileCount    {};
-    size_t      tilesPerRow  {};
+#define TILE_W 32
 
-    Tileset();
-    Tileset(Texture *texture, size_t tileWidth, size_t tileHeight, size_t tileCount);
-    ~Tileset();
+enum class TileType;
+
+enum class TilesetID {
+    TS_Overworld,
+    Count
 };
+
+struct Tileset {
+    Texture     texture          {};
+    Rectangle   textureRects[16] {};
+    size_t      tileCount        {};
+    size_t      tilesPerRow      {};
+};
+
+void tileset_init(void);
+Rectangle tileset_tile_rect(TilesetID tilesetId, TileType tileType);
+void tileset_draw_tile(TilesetID tilesetId, TileType tileType, Vector2 at);

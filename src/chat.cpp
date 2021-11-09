@@ -4,9 +4,7 @@
 #include "packet.h"
 #include "raylib/raylib.h"
 #include <cassert>
-#include <cstdlib>
 #include <cstring>
-#include <new>
 
 const char *ChatHistory::LOG_SRC = "Chat";
 
