@@ -7,21 +7,21 @@
 #include <cstring>
 #include <vector>
 
-typedef float DrawableDepthFn(const Drawable &drawable);
-typedef bool  DrawableCullFn(const Drawable &drawable, const Rectangle &cullRect);
-typedef void  DrawableDrawFn(const Drawable &drawable);
+typedef float Drawable_FnDepth(const Drawable &drawable);
+typedef bool  Drawable_FnCull(const Drawable &drawable, const Rectangle &cullRect);
+typedef void  Drawable_FnDraw(const Drawable &drawable);
 
-struct DrawFn {
-    DrawableDepthFn *Depth;
-    DrawableCullFn *Cull;
-    DrawableDrawFn *Draw;
+struct DrawableDef {
+    Drawable_FnDepth *Depth;
+    Drawable_FnCull *Cull;
+    Drawable_FnDraw *Draw;
 };
 
-DrawFn DrawList::Methods[Drawable_Count];
+DrawableDef DrawList::registry[Drawable_Count];
 
-void DrawList::RegisterType(DrawableType type, const DrawFn &drawFn)
+void DrawList::RegisterType(DrawableType type, const DrawableDef &def)
 {
-    Methods[type] = drawFn;
+    registry[type] = def;
 }
 
 void DrawList::RegisterTypes()
@@ -52,7 +52,7 @@ void DrawList::Push(const Drawable &drawable)
     //}
 
 #if CULL_ON_PUSH
-    if (cullEnabled && Methods[drawable.type].Cull(drawable, cullRect)) {
+    if (cullEnabled && registry[drawable.type].Cull(drawable, cullRect)) {
         return;
     }
 #endif
@@ -97,15 +97,15 @@ void DrawList::Flush()
 
 float DrawList::Drawable_Depth(const Drawable &drawable)
 {
-    return Methods[drawable.type].Depth(drawable);
+    return registry[drawable.type].Depth(drawable);
 }
 
 bool DrawList::Drawable_Cull(const Drawable &drawable, const Rectangle &cullRect)
 {
-    return Methods[drawable.type].Cull(drawable, cullRect);
+    return registry[drawable.type].Cull(drawable, cullRect);
 }
 
 void DrawList::Drawable_Draw(const Drawable &drawable)
 {
-    Methods[drawable.type].Draw(drawable);
+    registry[drawable.type].Draw(drawable);
 }

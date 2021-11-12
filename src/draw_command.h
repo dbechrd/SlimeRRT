@@ -35,8 +35,8 @@ private:
     Rectangle cullRect;
     std::vector<DrawCommand> sortedCommands;
 
-    static struct DrawFn Methods[Drawable_Count];
-    static void DrawList::RegisterType(DrawableType type, const DrawFn &drawFn);
+    static struct DrawableDef registry[Drawable_Count];
+    static void DrawList::RegisterType(DrawableType type, const DrawableDef &def);
 
     static float Drawable_Depth(const Drawable &drawable);
     static bool Drawable_Cull(const Drawable &drawable, const Rectangle &cullRect);

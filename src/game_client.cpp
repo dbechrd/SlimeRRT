@@ -546,7 +546,7 @@ E_START
             }
 
             // Queue particles for drawing
-            world->particleSystem.PushParticles(drawList);
+            world->particleSystem.Push(drawList);
 
             drawList.Flush();
         }
