@@ -1,31 +1,25 @@
 #pragma once
 #include "body.h"
 #include "draw_command.h"
-#include "drawable.h"
 #include "sprite.h"
 #include "spritesheet.h"
 #include "raylib/raylib.h"
 
 struct ParticleEffect;
 
-struct Particle : public Drawable {
+struct Particle {
     ParticleEffect * effect  {};  // parent effect, 0 = dead
     Particle *       next    {};  // when alive, next particle in effect. when dead, intrusive free list.
     Body3D           body    {};  // physics body
+    Sprite           sprite  {};
     Color            color   {};  // particle color (tint if particle also has sprite)
     double           spawnAt {};  // time to spawn (relative to effect->startedAt)
     double           dieAt   {};  // time to die   (relative to effect->startedAt)
-
-    float Depth() const override;
-    bool Cull(const Rectangle &cullRect) const override;
-    void Draw() const override;
 };
 
-void       particles_init   (void);
-void       particles_free   (void);
-size_t     particles_active (void);
-void       particles_update (double now, double dt);
-void       particles_push   (DrawList &drawList);
+float  particle_depth (const Drawable &drawable);
+bool   particle_cull  (const Drawable &drawable, const Rectangle &cullRect);
+void   particle_draw  (const Drawable &drawable);
 
 //-----------------------------------------------------------------------------
 
@@ -53,22 +47,50 @@ struct ParticleDef {
 
 typedef void (*ParticeEffectEventCallbackFn)(struct ParticleEffect &effect, void *userData);
 
-struct ParticeEffectEventCallback {
+struct ParticleEffectEventCallback {
     ParticeEffectEventCallbackFn function {};
     void *                       userData {};
 };
 
 struct ParticleEffect {
-    ParticleEffectType type          {};      // type of particle effect (or Dead)
-    size_t             particlesLeft {};         // number of particles that are pending or alive (i.e. not dead)
-    Vector3            origin        {};               // origin of particle effect
-    double             duration      {};              // time to play effect for
-    double             startedAt     {};             // time started
-    Sprite             sprite        {};                // sprite to be used for all particles.. for now
+    ParticleEffectType type          {};  // type of particle effect (or Dead)
+    size_t             particlesLeft {};  // number of particles that are pending or alive (i.e. not dead)
+    Vector3            origin        {};  // origin of particle effect
+    double             duration      {};  // time to play effect for
+    double             startedAt     {};  // time started
+    Sprite             sprite        {};  // sprite to be used for all particles.. for now
     ParticleEffect *   next          {};  // when dead, intrusive free list
     ParticleDef *      def           {};
-    ParticeEffectEventCallback callbacks[(int)ParticleEffectEventType::Count]{};
+    ParticleEffectEventCallback callbacks[(int)ParticleEffectEventType::Count]{};
 };
 
-ParticleEffect *particle_effect_create  (ParticleEffectType type, size_t particleCount, Vector3 origin, double duration, double now, const SpriteDef *spriteDef);
-size_t          particle_effects_active ();
+//-----------------------------------------------------------------------------
+
+#define MAX_EFFECTS   32
+#define MAX_PARTICLES 1024
+
+struct ParticleSystem {
+    ParticleSystem  (void);
+    ~ParticleSystem (void);
+    
+    size_t ParticlesActive(void);
+    size_t EffectsActive(void);
+
+    ParticleEffect *GenerateEffect(ParticleEffectType type, size_t particleCount, Vector3 origin, double duration, double now, const SpriteDef *spriteDef);
+    void            Update        (double now, double dt);
+    void            PushParticles (DrawList &drawList);
+
+private:
+    Particle *Alloc(void);
+    void GenerateEffectParticles(ParticleEffect *effect, size_t particleCount, const SpriteDef *spriteDef);
+    void Push(DrawList &drawList, const Particle &particle);
+
+    ParticleEffect effects[MAX_EFFECTS] {};
+    ParticleEffect *effectsFree         {};
+    size_t effectsActiveCount           {};
+
+    Particle particles[MAX_PARTICLES]   {};
+    Particle *particlesFree             {};
+    size_t particlesActiveCount         {};
+};
+

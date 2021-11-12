@@ -29,31 +29,6 @@ Slime::Slime(const char *slimeName, const SpriteDef *spriteDef)
     randJumpIdle = 0.0;
 }
 
-
-float Slime::Depth() const
-{
-    return body.position.y;
-}
-
-bool Slime::Cull(const Rectangle &cullRect) const
-{
-    bool cull = sprite_cull_body(sprite, body, cullRect);
-    return cull;
-}
-
-void Slime::Draw() const
-{
-    // Player shadow
-    // TODO: Shadow size based on height from ground
-    // https://yal.cc/top-down-bouncing-loot-effects/
-    //const float shadowScale = 1.0f + slime.transform.position.z / 20.0f;
-    const Vector2 slimeBC = body.GroundPosition();
-    Shadow::Draw((int)slimeBC.x, (int)slimeBC.y, 16.0f * sprite.scale, -8.0f * sprite.scale);
-
-    sprite_draw_body(sprite, body, Fade(WHITE, 0.7f));
-    HealthBar::Draw(10, sprite, body, name, combat.hitPoints, combat.maxHitPoints);
-}
-
 void Slime::UpdateDirection(Vector2 offset)
 {
     Direction prevDirection = sprite.direction;
@@ -189,4 +164,41 @@ void Slime::Update(double now, double dt)
     }
     body.Update(now, dt);
     sprite_update(sprite, now, dt);
+}
+
+void Slime::Push(DrawList &drawList) const
+{
+    Drawable drawable{ Drawable_Slime };
+    drawable.slime = this;
+    drawList.Push(drawable);
+}
+
+float Slime_Depth(const Drawable &drawable)
+{
+    assert(drawable.type == Drawable_Slime);
+    const Slime &slime = *drawable.slime;
+    return slime.body.position.y;
+}
+
+bool Slime_Cull(const Drawable &drawable, const Rectangle &cullRect)
+{
+    assert(drawable.type == Drawable_Slime);
+    const Slime &slime = *drawable.slime;
+    bool cull = sprite_cull_body(slime.sprite, slime.body, cullRect);
+    return cull;
+}
+
+void Slime_Draw(const Drawable &drawable)
+{
+    assert(drawable.type == Drawable_Slime);
+    const Slime &slime = *drawable.slime;
+    // Player shadow
+    // TODO: Shadow size based on height from ground
+    // https://yal.cc/top-down-bouncing-loot-effects/
+    //const float shadowScale = 1.0f + slime.transform.position.z / 20.0f;
+    const Vector2 slimeBC = slime.body.GroundPosition();
+    Shadow::Draw((int)slimeBC.x, (int)slimeBC.y, 16.0f * slime.sprite.scale, -8.0f * slime.sprite.scale);
+
+    sprite_draw_body(slime.sprite, slime.body, Fade(WHITE, 0.7f));
+    HealthBar::Draw(10, slime.sprite, slime.body, slime.name, slime.combat.hitPoints, slime.combat.maxHitPoints);
 }

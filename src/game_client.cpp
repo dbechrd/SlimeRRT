@@ -92,13 +92,14 @@ E_START
     SetMasterVolume(0.01f);
     //SetMasterVolume(0.2f);
 
-    DrawList drawList{};
+    DrawList::RegisterTypes();
     sound_catalog_init();
     SpritesheetCatalog::Load();
-    particles_init();
     ItemCatalog::instance.Load();
     loot_table_init();
     tileset_init();
+
+    DrawList drawList{};
 
     float mus_background_vmin = 0.02f;
     float mus_background_vmax = 0.2f;
@@ -173,7 +174,7 @@ E_START
         const float maxY = mapPixelsY - slimeRadius;
 
         Slime &sam = world->slimes.emplace_back("Sam", slimeSpriteDef);
-        sam.combat.maxHitPoints = 100000.0f;
+        sam.combat.maxHitPoints = 100.0f; //100000.0f;
         sam.combat.hitPoints = sam.combat.maxHitPoints;
         sam.combat.meleeDamage = 0.0f;
         sam.combat.lootTableId = LootTableID::LT_Sam;
@@ -535,17 +536,17 @@ E_START
             drawList.EnableCulling(cameraRect);
 
             // Queue player for drawing
-            drawList.Push(*world->player);
+            world->player->Push(drawList);
 
             // Queue slimes for drawing
             for (const Slime &slime : world->slimes) {
                 if (slime.combat.hitPoints) {
-                    drawList.Push(slime);
+                    slime.Push(drawList);
                 }
             }
 
             // Queue particles for drawing
-            particles_push(drawList);
+            world->particleSystem.PushParticles(drawList);
 
             drawList.Flush();
         }
@@ -707,9 +708,9 @@ E_START
             PUSH_TEXT(text, GRAY);
             text = TextFormat("Tiles visible %zu", tilesDrawn);
             PUSH_TEXT(text, GRAY);
-            text = TextFormat("Particle FX   %zu", particle_effects_active());
+            text = TextFormat("Particle FX   %zu", world->particleSystem.EffectsActive());
             PUSH_TEXT(text, GRAY);
-            text = TextFormat("Particles     %zu", particles_active());
+            text = TextFormat("Particles     %zu", world->particleSystem.ParticlesActive());
             PUSH_TEXT(text, GRAY);
 #endif
         }
@@ -817,7 +818,6 @@ E_CLEANUP
     UnloadMusicStream(mus_whistle);
     UnloadFont(font);
     sound_catalog_free();
-    particles_free();
     CloseAudioDevice();
 
     ImGui_ImplOpenGL3_Shutdown();

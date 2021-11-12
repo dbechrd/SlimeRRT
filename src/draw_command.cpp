@@ -7,21 +7,37 @@
 #include <cstring>
 #include <vector>
 
-DrawCommand &DrawCommand::operator=(const DrawCommand &other)
+typedef float DrawableDepthFn(const Drawable &drawable);
+typedef bool  DrawableCullFn(const Drawable &drawable, const Rectangle &cullRect);
+typedef void  DrawableDrawFn(const Drawable &drawable);
+
+struct DrawFn {
+    DrawableDepthFn *Depth;
+    DrawableCullFn *Cull;
+    DrawableDrawFn *Draw;
+};
+
+DrawFn DrawList::Methods[Drawable_Count];
+
+void DrawList::RegisterType(DrawableType type, const DrawFn &drawFn)
 {
-    if (this != &other) {
-        drawable = other.drawable;
-    }
-    return *this;
+    Methods[type] = drawFn;
 }
 
-void DrawList::EnableCulling(const Rectangle rect)
+void DrawList::RegisterTypes()
+{
+    RegisterType(Drawable_Particle, { particle_depth, particle_cull, particle_draw });
+    RegisterType(Drawable_Player, { Player_Depth, Player_Cull, Player_Draw });
+    RegisterType(Drawable_Slime, { Slime_Depth, Slime_Cull, Slime_Draw });
+}
+
+void DrawList::EnableCulling(const Rectangle &rect)
 {
     cullRect = rect;
     cullEnabled = true;
 }
 
-void DrawList::DisableCulling(void)
+void DrawList::DisableCulling()
 {
     cullRect = {};
     assert(cullRect.width == 0);
@@ -30,12 +46,13 @@ void DrawList::DisableCulling(void)
 
 void DrawList::Push(const Drawable &drawable)
 {
-    if (!drawable.sprite.spriteDef) {
-        return;
-    }
+    // TODO: Check this before calling push
+    //if (!drawable.sprite.spriteDef) {
+    //    return;
+    //}
 
 #if CULL_ON_PUSH
-    if (cullEnabled && drawable.Cull(cullRect)) {
+    if (cullEnabled && Methods[drawable.type].Cull(drawable, cullRect)) {
         return;
     }
 #endif
@@ -46,17 +63,17 @@ void DrawList::Push(const Drawable &drawable)
 
     size_t size = sortedCommands.size();
     sortedCommands.resize(size + 1);
-    const float depthA = drawable.Depth();
+    const float depthA = Drawable_Depth(drawable);
     int j;
     // NOTE: j is signed because it terminates at -1
     for (j = (int)size - 1; j >= 0; j--) {
-        const float depthB = sortedCommands[j].drawable->Depth();
+        const float depthB = Drawable_Depth(sortedCommands[j].drawable);
         if (depthB <= depthA) {
             break;
         }
-        sortedCommands[(size_t)j + 1] = sortedCommands[j];
+        sortedCommands[(size_t)j + 1].drawable = sortedCommands[j].drawable;
     }
-    sortedCommands[(size_t)j + 1].drawable = &drawable;
+    sortedCommands[(size_t)j + 1].drawable = drawable;
 }
 
 void DrawList::Flush()
@@ -71,9 +88,24 @@ void DrawList::Flush()
             cmd.drawable->Draw();
         }
 #else
-        cmd.drawable->Draw();
+        Drawable_Draw(cmd.drawable);
 #endif
     }
 
     sortedCommands.clear();
+}
+
+float DrawList::Drawable_Depth(const Drawable &drawable)
+{
+    return Methods[drawable.type].Depth(drawable);
+}
+
+bool DrawList::Drawable_Cull(const Drawable &drawable, const Rectangle &cullRect)
+{
+    return Methods[drawable.type].Cull(drawable, cullRect);
+}
+
+void DrawList::Drawable_Draw(const Drawable &drawable)
+{
+    Methods[drawable.type].Draw(drawable);
 }

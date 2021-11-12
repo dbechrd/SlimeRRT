@@ -47,30 +47,6 @@ void Player::SetSpritesheet(const SpriteDef &spriteDef)
     sprite.spriteDef = &spriteDef;
 }
 
-float Player::Depth() const
-{
-    return body.position.y;
-}
-
-bool Player::Cull(const Rectangle &cullRect) const
-{
-    bool cull = sprite_cull_body(sprite, body, cullRect);
-    return cull;
-}
-
-void Player::Draw() const
-{
-    // Player shadow
-    // TODO: Shadow size based on height from ground
-    // https://yal.cc/top-down-bouncing-loot-effects/
-    //const float shadowScale = 1.0f + slime->transform.position.z / 20.0f;
-    const Vector2 playerGroundPos = body.GroundPosition();
-    Shadow::Draw((int)playerGroundPos.x, (int)playerGroundPos.y, 16.0f, -6.0f);
-
-    sprite_draw_body(sprite, body, WHITE);
-    HealthBar::Draw(10, sprite, body, name, combat.hitPoints, combat.maxHitPoints);
-}
-
 Vector3 Player::GetAttachPoint(AttachPoint attachPoint) const
 {
     Vector3 attach = {};
@@ -220,4 +196,41 @@ void Player::Update(double now, double dt)
 
     body.Update(now, dt);
     sprite_update(sprite, now, dt);
+}
+
+void Player::Push(DrawList &drawList) const
+{
+    Drawable drawable{ Drawable_Player };
+    drawable.player = this;
+    drawList.Push(drawable);
+}
+
+float Player_Depth(const Drawable &drawable)
+{
+    assert(drawable.type == Drawable_Player);
+    const Player &player = *drawable.player;
+    return player.body.position.y;
+}
+
+bool Player_Cull(const Drawable &drawable, const Rectangle &cullRect)
+{
+    assert(drawable.type == Drawable_Player);
+    const Player &player = *drawable.player;
+    bool cull = sprite_cull_body(player.sprite, player.body, cullRect);
+    return cull;
+}
+
+void Player_Draw(const Drawable &drawable)
+{
+    assert(drawable.type == Drawable_Player);
+    const Player &player = *drawable.player;
+    // Player shadow
+    // TODO: Shadow size based on height from ground
+    // https://yal.cc/top-down-bouncing-loot-effects/
+    //const float shadowScale = 1.0f + slime->transform.position.z / 20.0f;
+    const Vector2 playerGroundPos = player.body.GroundPosition();
+    Shadow::Draw((int)playerGroundPos.x, (int)playerGroundPos.y, 16.0f, -6.0f);
+
+    sprite_draw_body(player.sprite, player.body, WHITE);
+    HealthBar::Draw(10, player.sprite, player.body, player.name, player.combat.hitPoints, player.combat.maxHitPoints);
 }

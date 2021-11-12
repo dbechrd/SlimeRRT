@@ -1,6 +1,7 @@
 #pragma once
 #include "controller.h"
 #include "net_message.h"
+#include "particles.h"
 #include "player.h"
 #include "slime.h"
 #include "tilemap.h"
@@ -8,12 +9,15 @@
 #include <vector>
 
 struct World {
-    uint64_t           rtt_seed  {};
-    dlb_rand32_t       rtt_rand  {};
-    Tilemap            map       {};
-    Player           * player    {};
+    uint64_t           rtt_seed       {};
+    dlb_rand32_t       rtt_rand       {};
+    Tilemap            map            {};
+    // TODO: PlayerSystem
+    Player           * player         {};
     Player             players[SERVER_MAX_PLAYERS]{};
-    std::vector<Slime> slimes    {};
+    // TODO: SlimeSystem or EnemySystem
+    std::vector<Slime> slimes         {};
+    ParticleSystem     particleSystem {};
 
     World();
     ~World();

@@ -10,44 +10,16 @@
 #include <cstdlib>
 #include <cstring>
 
-#define MAX_EFFECTS   32
-#define MAX_PARTICLES 1024
-
-static Particle *particles;
-static Particle *particlesFree;
-static size_t particlesActiveCount;
-static ParticleEffect *effects;
-static ParticleEffect *effectsFree;
-static size_t effectsActiveCount;
-
-void particles_init(void)
+ParticleSystem::ParticleSystem(void)
 {
-    assert(MAX_PARTICLES);
-    assert(MAX_EFFECTS);
-
-    // Allocate pools
-    particles = (Particle *)calloc(MAX_PARTICLES, sizeof(*particles));
-    effects = (ParticleEffect *)calloc(MAX_EFFECTS, sizeof(*effects));
-    if (!particles || !effects) {
-        TraceLog(LOG_FATAL, "Failed to allocate memory for particles\n");
-        exit(-1);
-    }
-
-    ChatMessage *a = (ChatMessage *)calloc(CHAT_MESSAGE_HISTORY, sizeof(*a));
-    for (size_t i = 0; i < CHAT_MESSAGE_HISTORY; i++) {
-        new(a + i) ChatMessage{};
-    }
-
     // Initialze intrusive free lists
     for (size_t i = 0; i < MAX_PARTICLES; i++) {
-        new(particles + i) Particle{};
         if (i < MAX_PARTICLES - 1) {
             particles[i].next = &particles[i + 1];
         }
     }
     particlesFree = particles;
     for (size_t i = 0; i < MAX_EFFECTS; i++) {
-        new(effects + i) ParticleEffect{};
         if (i < MAX_EFFECTS - 1) {
             effects[i].next = &effects[i + 1];
         }
@@ -55,21 +27,20 @@ void particles_init(void)
     effectsFree = effects;
 }
 
-void particles_free(void)
+ParticleSystem::~ParticleSystem(void)
 {
-    free(particles);
-    free(effects);
-    particles = 0;
-    effects = 0;
-    particlesFree = 0;
-    effectsFree = 0;
+    //memset(particles, 0, sizeof(particles));
+    //memset(effects, 0, sizeof(effects));
+    //particlesFree = 0;
+    //effectsFree = 0;
 }
 
-static Particle *particle_alloc(void)
+Particle *ParticleSystem::Alloc(void)
 {
     // Allocate effect
     Particle *particle = particlesFree;
     if (!particle) {
+        // TODO: Delete oldest particles instead of dropping newest ones?
         //assert(!"Particle pool is full");
         //TraceLog(LOG_ERROR, "Particle pool is full; discarding particle.\n");
         return 0;
@@ -80,11 +51,11 @@ static Particle *particle_alloc(void)
     return particle;
 }
 
-static void generate_effect_particles(ParticleEffect *effect, size_t particleCount, const SpriteDef *spriteDef)
+void ParticleSystem::GenerateEffectParticles(ParticleEffect *effect, size_t particleCount, const SpriteDef *spriteDef)
 {
     Particle *prev = 0;
     for (size_t i = 0; i < particleCount; i++) {
-        Particle *particle = particle_alloc();
+        Particle *particle = Alloc();
         if (!particle) {
             break;
         }
@@ -101,8 +72,7 @@ static void generate_effect_particles(ParticleEffect *effect, size_t particleCou
     }
 }
 
-ParticleEffect *particle_effect_create(ParticleEffectType type, size_t particleCount, Vector3 origin, double duration,
-    double now, const SpriteDef *spriteDef)
+ParticleEffect *ParticleSystem::GenerateEffect(ParticleEffectType type, size_t particleCount, Vector3 origin, double duration, double now, const SpriteDef *spriteDef)
 {
     assert((int)type > 0);
     assert((int)type < (int)ParticleEffectType::Count);
@@ -135,22 +105,22 @@ ParticleEffect *particle_effect_create(ParticleEffectType type, size_t particleC
     particle_fx_defs[(int)ParticleEffectType::Goo  ] = { particle_fx_goo_init, particle_fx_goo_update };
     effect->def = &particle_fx_defs[(int)effect->type];
 
-    generate_effect_particles(effect, particleCount, spriteDef);
+    GenerateEffectParticles(effect, particleCount, spriteDef);
 
     return effect;
 }
 
-size_t particles_active(void)
+size_t ParticleSystem::ParticlesActive(void)
 {
     return particlesActiveCount;
 }
 
-size_t particle_effects_active(void)
+size_t ParticleSystem::EffectsActive(void)
 {
     return effectsActiveCount;
 }
 
-void particles_update(double now, double dt)
+void ParticleSystem::Update(double now, double dt)
 {
     assert(particlesActiveCount <= MAX_PARTICLES);
     assert(effectsActiveCount <= MAX_EFFECTS);
@@ -222,7 +192,7 @@ void particles_update(double now, double dt)
     }
 }
 
-void particles_push(DrawList &drawList)
+void ParticleSystem::PushParticles(DrawList &drawList)
 {
     assert(particlesActiveCount <= MAX_PARTICLES);
 
@@ -232,41 +202,54 @@ void particles_push(DrawList &drawList)
         if (!particle->effect)
             continue;  // particle is dead
 
-        drawList.Push(*particle);
+        Push(drawList, *particle);
         particlesPushed++;
     }
 }
 
-float Particle::Depth() const
+void ParticleSystem::Push(DrawList &drawList, const Particle &particle)
 {
-    const float depth = body.position.y;
+    Drawable drawable{ Drawable_Particle };
+    drawable.particle = &particle;
+    drawList.Push(drawable);
+}
+
+float particle_depth(const Drawable &drawable)
+{
+    assert(drawable.type == Drawable_Particle);
+    const Particle &particle = *drawable.particle;
+    const float depth = particle.body.position.y;
     return depth;
 }
 
-bool Particle::Cull(const Rectangle &cullRect) const
+bool particle_cull(const Drawable &drawable, const Rectangle &cullRect)
 {
     bool cull = false;
 
-    if (sprite.spriteDef) {
-        cull = sprite_cull_body(sprite, body, cullRect);
+    assert(drawable.type == Drawable_Particle);
+    const Particle &particle = *drawable.particle;
+    if (particle.sprite.spriteDef) {
+        cull = sprite_cull_body(particle.sprite, particle.body, cullRect);
     } else {
-        const Vector2 particleBC = body.BottomCenter();
-        cull = !CheckCollisionCircleRec(particleBC, sprite.scale, cullRect);
+        const Vector2 particleBC = particle.body.BottomCenter();
+        cull = !CheckCollisionCircleRec(particleBC, particle.sprite.scale, cullRect);
     }
 
     return cull;
 }
 
-void Particle::Draw() const
+void particle_draw(const Drawable &drawable)
 {
-    if (sprite.spriteDef) {
-        sprite_draw_body(sprite, body, color);
+    assert(drawable.type == Drawable_Particle);
+    const Particle &particle = *drawable.particle;
+    if (particle.sprite.spriteDef) {
+        sprite_draw_body(particle.sprite, particle.body, particle.color);
     } else {
         DrawCircle(
-            (int)body.position.x,
-            (int)(body.position.y - body.position.z),
-            sprite.scale,
-            color
+            (int)particle.body.position.x,
+            (int)(particle.body.position.y - particle.body.position.z),
+            particle.sprite.scale,
+            particle.color
         );
     }
 }

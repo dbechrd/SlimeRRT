@@ -33,7 +33,6 @@
     <ClCompile Include="src\error.cpp" />
     <ClCompile Include="src\maths.cpp" />
     <ClCompile Include="src\net_message.cpp" />
-    <ClCompile Include="src\drawable.cpp" />
     <ClCompile Include="test\bitstream_test.cpp" />
     <ClCompile Include="test\net_message_test.cpp" />
     <ClCompile Include="test\tests.cpp" />
@@ -78,7 +77,6 @@
     <ClInclude Include="test\tests.h" />
     <ClInclude Include="src\error.h" />
     <ClInclude Include="src\net_message.h" />
-    <ClInclude Include="src\drawable.h" />
     <ClInclude Include="src\game_server.h" />
     <ClInclude Include="src\args.h" />
     <ClInclude Include="src\game_client.h" />

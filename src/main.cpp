@@ -154,7 +154,6 @@ int main(int argc, char *argv[])
 #include "body.cpp"
 #include "chat.cpp"
 #include "controller.cpp"
-#include "drawable.cpp"
 #include "draw_command.cpp"
 #include "error.cpp"
 #include "game_client.cpp"

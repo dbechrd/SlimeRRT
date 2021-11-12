@@ -225,8 +225,8 @@ void World::Sim(double now, double dt, const PlayerControllerState input, const 
                         player->stats.coinsCollected += coins;
 
                         Vector3 deadCenter = sprite_world_center(slime.sprite, slime.body.position, slime.sprite.scale);
-                        particle_effect_create(ParticleEffectType::Goo, 20, deadCenter, 2.0, now, 0);
-                        particle_effect_create(ParticleEffectType::Gold, (size_t)coins, deadCenter, 2.0, now, coinSpriteDef);
+                        particleSystem.GenerateEffect(ParticleEffectType::Goo, 20, deadCenter, 2.0, now, 0);
+                        particleSystem.GenerateEffect(ParticleEffectType::Gold, (size_t)coins, deadCenter, 2.0, now, coinSpriteDef);
                         sound_catalog_play(SoundID::Gold, 1.0f + dlb_rand32f_variance(0.1f));
 
                         player->stats.slimesSlain++;
@@ -289,7 +289,7 @@ void World::Sim(double now, double dt, const PlayerControllerState input, const 
                             const Slime &dead = slime.combat.hitPoints == 0.0f ? slime : otherSlime;
                             const Vector3 slimeBC = sprite_world_center(dead.sprite, dead.body.position, dead.sprite.scale
                             );
-                            particle_effect_create(ParticleEffectType::Goo, 20, slimeBC, 2.0, now, 0);
+                            particleSystem.GenerateEffect(ParticleEffectType::Goo, 20, slimeBC, 2.0, now, 0);
                         }
                     }
                     if (v2_length_sq(v2_sub(slimePosNew, otherSlimePos)) < SQUARED(radiusScaled) && zDist < radiusScaled) {
@@ -317,7 +317,7 @@ void World::Sim(double now, double dt, const PlayerControllerState input, const 
 
                     if (now - lastBleed > bleedDuration / 3.0) {
                         Vector3 playerGut = player->GetAttachPoint(Player::AttachPoint::Gut);
-                        ParticleEffect *bloodParticles = particle_effect_create(
+                        ParticleEffect *bloodParticles = particleSystem.GenerateEffect(
                             ParticleEffectType::Blood, 32, playerGut, bleedDuration, now, 0
                         );
                         if (bloodParticles) {
@@ -333,5 +333,5 @@ void World::Sim(double now, double dt, const PlayerControllerState input, const 
         }
     }
 
-    particles_update(now, dt);
+    particleSystem.Update(now, dt);
 }

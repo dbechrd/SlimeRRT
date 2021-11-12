@@ -1,11 +1,11 @@
 #pragma once
 #include "body.h"
 #include "combat.h"
-#include "drawable.h"
+#include "draw_command.h"
 #include "sprite.h"
 #include "player_inventory.h"
 
-struct Player : public Drawable {
+struct Player {
     enum class MoveState {
         Idle      = 0,
         Walking   = 1,
@@ -35,6 +35,7 @@ struct Player : public Drawable {
     MoveState       moveState   {};
     Body3D          body        {};
     Combat          combat      {};
+    Sprite          sprite      {};
     PlayerInventory inventory   {};
     Stats           stats       {};
 
@@ -42,17 +43,18 @@ struct Player : public Drawable {
     void SetName(const char *name);
     void SetSpritesheet(const SpriteDef &spriteDef);
 
-    float Depth() const override;
-    bool Cull(const Rectangle &cullRect) const override;
-    void Draw() const override;
-
     Vector3 GetAttachPoint(AttachPoint attachPoint) const;
     const Item& GetSelectedItem() const;
 
     bool Move(double now, double dt, Vector2 offset);
     bool Attack(double now, double dt);
     void Update(double now, double dt);
+    void Push(DrawList &drawList) const;
 
 private:
     void UpdateDirection(Vector2 offset);
 };
+
+float Player_Depth(const Drawable &drawable);
+bool  Player_Cull (const Drawable &drawable, const Rectangle &cullRect);
+void  Player_Draw (const Drawable &drawable);

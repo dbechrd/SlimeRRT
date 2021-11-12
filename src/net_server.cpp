@@ -275,7 +275,7 @@ ErrorType NetServer::Listen()
                         event.peer->address.port);
                     //TODO: Reset the peer's client information.
                     //event.peer->data = NULL;
-                    new(&clients[event.peer]) NetServerClient{};
+                    memset(&clients[event.peer], 0, sizeof(clients[event.peer]));
                     if (server->connectedPeers == 0) {
                         running = false;
                     }
@@ -285,7 +285,7 @@ ErrorType NetServer::Listen()
                         event.peer->address.host,
                         event.peer->address.port);
                     //enet_peer_reset(??);
-                    new(&clients[event.peer]) NetServerClient{};
+                    memset(&clients[event.peer], 0, sizeof(clients[event.peer]));
                     break;
                 } default: {
                     E_WARN("Unhandled event type: %d", event.type);
