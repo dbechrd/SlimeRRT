@@ -71,7 +71,7 @@ struct ParticleFX {
 struct ParticleSystem {
     ParticleSystem  (void);
     ~ParticleSystem (void);
-    
+
     size_t ParticlesActive (void);
     size_t EffectsActive   (void);
 

@@ -7,14 +7,14 @@
 #define NET_CLIENT_PACKET_HISTORY_MAX 256
 
 struct NetClient {
-    const char     *serverHost     {};
-    unsigned short  serverPort     {};
-    ENetHost       *client         {};
-    ENetPeer       *server         {};
-    size_t          usernameLength {};
-    const char     *username       {};
-    size_t          passwordLength {};
-    const char     *password       {};
+    const char     *serverHost                    {};
+    unsigned short  serverPort                    {};
+    ENetHost       *client                        {};
+    ENetPeer       *server                        {};
+    size_t          usernameLength                {};
+    char            username[USERNAME_LENGTH_MAX] {};
+    size_t          passwordLength                {};
+    char            password[PASSWORD_LENGTH_MAX] {};
 
     // TODO: Could have a packet history by message type? This would allow us
     // to only store history of important messages, and/or have different

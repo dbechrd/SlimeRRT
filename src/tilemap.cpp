@@ -60,9 +60,9 @@ void Tilemap::SyncTiles(const Tile *tiles, size_t tilesLength)
 {
     assert(width);
     assert(height);
-    assert(width * height >= tilesLength);
+    assert((size_t)width * height >= tilesLength);
 
-    this->tiles = (Tile *)calloc(width * height, sizeof(*this->tiles));
+    this->tiles = (Tile *)calloc((size_t)width * height, sizeof(*this->tiles));
     assert(this->tiles);
 
     for (int y = 0; y < (int)height; y++) {
@@ -157,7 +157,7 @@ Tilemap *MapSystem::GenerateLobby(void)
     map->height = 64;
     map->tilesetId = TilesetID::TS_Overworld;
 
-    map->tiles = (Tile *)calloc(map->width * map->height, sizeof(*map->tiles));
+    map->tiles = (Tile *)calloc((size_t)map->width * map->height, sizeof(*map->tiles));
     assert(map->tiles);
 
     for (int y = 0; y < (int)map->height; y++) {
@@ -194,7 +194,7 @@ Tilemap *MapSystem::Generate(dlb_rand32_t &rng, uint32_t width, uint32_t height)
     map->width = width;
     map->height = height;
     map->tilesetId = TilesetID::TS_Overworld;
-    map->tiles = (Tile *)calloc(map->width * map->height, sizeof(*map->tiles));
+    map->tiles = (Tile *)calloc((size_t)map->width * map->height, sizeof(*map->tiles));
     assert(map->tiles);
 
     // NOTE: These parameters are chosen somewhat arbitrarily at this point

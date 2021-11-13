@@ -52,13 +52,9 @@ ErrorType NetClient::Connect(const char *serverHost, unsigned short serverPort, 
 
     this->serverHost = serverHost;
     this->serverPort = serverPort;
+    strncpy(this->username, username, USERNAME_LENGTH_MAX);
+    strncpy(this->password, password, PASSWORD_LENGTH_MAX);
 
-    usernameLength = strlen(username);
-    passwordLength = strlen(password);
-    this->username = (const char *)calloc(usernameLength, sizeof(*this->username) + 1);
-    this->password = (const char *)calloc(passwordLength, sizeof(*this->password) + 1);
-    memcpy((void *)this->username, username, usernameLength);
-    memcpy((void *)this->password, password, passwordLength);
     return ErrorType::Success;
 }
 #pragma warning(pop)
@@ -85,9 +81,7 @@ ErrorType NetClient::Auth()
     }
 
     // Clear password from memory
-    memset((void *)password, 0, passwordLength);
-    free((void *)password);
-    password = nullptr;
+    memset(password, 0, sizeof(password));
     passwordLength = 0;
     return ErrorType::Success;
 }
