@@ -41,17 +41,17 @@ struct NetServerClient {
 };
 
 struct NetServer {
-    ENetHost *server{};
+    ENetHost *server {};
     //std::unordered_map<ENetAddress, NetServerClient, NetAddressHash, NetAddressEqual> clients{};
     std::unordered_map<ENetPeer *, NetServerClient> clients{};
-    
+
     // TODO: Could have a packet history by message type? This would allow us
     // to only store history of important messages, and/or have different
     // buffer sizes for different types of message.
     RingBuffer<Packet> packetHistory { NET_SERVER_PACKET_HISTORY_MAX };
     ChatHistory        chatHistory   {};
 
-    World serverWorld{};
+    World *serverWorld {};
 
     ~NetServer();
     ErrorType OpenSocket(unsigned short socketPort);
@@ -61,9 +61,9 @@ struct NetServer {
 private:
     static const char *LOG_SRC;
 
-    ErrorType SendRaw(const NetServerClient &client, const char *data, size_t size);
+    ErrorType SendRaw(const NetServerClient &client, const void *data, size_t size);
     ErrorType SendMsg(const NetServerClient &client, NetMessage &message);
-    ErrorType BroadcastRaw(const char *data, size_t size);
+    ErrorType BroadcastRaw(const void *data, size_t size);
     ErrorType BroadcastMsg(NetMessage &message);
     ErrorType BroadcastChatMessage(const char *msg, size_t msgLength);
     ErrorType SendWelcomeBasket(NetServerClient &client);

@@ -23,6 +23,7 @@ struct Slime {
     Action      action       {};
     double      randJumpIdle {};
 
+    Slime() = default;
     Slime(const char *slimeName, const SpriteDef *spriteDef);
 
     bool Move(double now, double dt, Vector2 offset);
@@ -32,7 +33,6 @@ struct Slime {
     void Push(DrawList &drawList) const;
 
 private:
-    Slime() = default;
     void UpdateDirection(Vector2 offset);
 };
 

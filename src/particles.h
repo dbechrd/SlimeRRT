@@ -59,8 +59,8 @@ struct ParticleFX {
     double          duration      {};  // time to play effect for
     double          startedAt     {};  // time started
     Sprite          sprite        {};  // sprite to be used for all particles.. for now
-    ParticleFX *    next          {};  // when dead, intrusive free list
     ParticleFXEvent_Callback callbacks[ParticleFX_Count] {};
+    ParticleFX *    next          {};  // when dead, intrusive free list
 };
 
 //-----------------------------------------------------------------------------
@@ -72,16 +72,16 @@ struct ParticleSystem {
     ParticleSystem  (void);
     ~ParticleSystem (void);
     
-    size_t ParticlesActive(void);
-    size_t EffectsActive(void);
+    size_t ParticlesActive (void);
+    size_t EffectsActive   (void);
 
-    ParticleFX *GenerateFX(ParticleFX_Type type, size_t particleCount, Vector3 origin, double duration, double now, const SpriteDef *spriteDef);
-    void        Update    (double now, double dt);
-    void        Push      (DrawList &drawList);
+    ParticleFX *GenerateFX (ParticleFX_Type type, size_t particleCount, Vector3 origin, double duration, double now, const SpriteDef *spriteDef);
+    void        Update     (double now, double dt);
+    void        Push       (DrawList &drawList);
 
 private:
-    Particle *Alloc(void);
-    void Push(DrawList &drawList, const Particle &particle);
+    Particle *Alloc (void);
+    void      Push  (DrawList &drawList, const Particle &particle);
 
     ParticleFX  effects[MAX_EFFECTS] {};
     ParticleFX *effectsFree          {};

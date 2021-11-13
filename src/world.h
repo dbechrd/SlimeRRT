@@ -11,18 +11,19 @@
 struct World {
     uint64_t           rtt_seed       {};
     dlb_rand32_t       rtt_rand       {};
-    Tilemap            map            {};
+    Tilemap           *map            {};
     // TODO: PlayerSystem
-    Player           * player         {};
+    Player            *player         {};
     Player             players[SERVER_MAX_PLAYERS]{};
     // TODO: SlimeSystem or EnemySystem
     std::vector<Slime> slimes         {};
     ParticleSystem     particleSystem {};
+    MapSystem          mapSystem      {};
 
     World();
     ~World();
     const Vector3 GetWorldSpawn();
     Player *SpawnPlayer(const char *name);
-    void GenerateEntities(Slime *&entities, size_t entityLength);
+    void GenerateEntities(const Slime *entities, size_t entityLength);
     void Sim(double now, double dt, const PlayerControllerState input, const SpriteDef *coinSpriteDef);
 };

@@ -2,11 +2,11 @@
 #include "raylib/raylib.h"
 #include <vector>
 
-enum DrawableType {
-    Drawable_Particle,
-    Drawable_Player,
-    Drawable_Slime,
-    Drawable_Count,
+enum class DrawableType {
+    Particle,
+    Player,
+    Slime,
+    Count,
 };
 
 struct Drawable {
@@ -31,11 +31,11 @@ struct DrawList {
     static void DrawList::RegisterTypes();
 
 private:
-    bool cullEnabled;
-    Rectangle cullRect;
-    std::vector<DrawCommand> sortedCommands;
+    bool cullEnabled   {};
+    Rectangle cullRect {};
+    std::vector<DrawCommand> sortedCommands {};
 
-    static struct DrawableDef registry[Drawable_Count];
+    static struct DrawableDef registry[(size_t)DrawableType::Count];
     static void DrawList::RegisterType(DrawableType type, const DrawableDef &def);
 
     static float Drawable_Depth(const Drawable &drawable);

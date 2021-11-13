@@ -16,10 +16,9 @@ uint32_t bit_stream_read(BitStream &stream, uint8_t bits)
 
 void bit_stream_test()
 {
-    const size_t size = 64;
-    uint32_t buffer[size]{};
+    uint8_t buffer[16]{};
 
-    BitStream writer{ BitStream::Mode::Writer, buffer, size };
+    BitStream writer{ BitStream::Mode::Writer, buffer, sizeof(buffer) };
     bit_stream_write(writer, 0b0, 1);
     bit_stream_write(writer, 0b11, 2);
     bit_stream_write(writer, 0b000, 3);
@@ -30,7 +29,7 @@ void bit_stream_test()
     bit_stream_write(writer, 0b11111111, 8);
     writer.Flush();
 
-    BitStream reader{ BitStream::Mode::Reader, buffer, size };
+    BitStream reader{ BitStream::Mode::Reader, buffer, sizeof(buffer) };
     assert(bit_stream_read(reader, 1) == 0b0);
     assert(bit_stream_read(reader, 2) == 0b11);
     assert(bit_stream_read(reader, 3) == 0b000);

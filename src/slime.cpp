@@ -168,21 +168,21 @@ void Slime::Update(double now, double dt)
 
 void Slime::Push(DrawList &drawList) const
 {
-    Drawable drawable{ Drawable_Slime };
+    Drawable drawable{ DrawableType::Slime };
     drawable.slime = this;
     drawList.Push(drawable);
 }
 
 float Slime_Depth(const Drawable &drawable)
 {
-    assert(drawable.type == Drawable_Slime);
+    assert(drawable.type == DrawableType::Slime);
     const Slime &slime = *drawable.slime;
     return slime.body.position.y;
 }
 
 bool Slime_Cull(const Drawable &drawable, const Rectangle &cullRect)
 {
-    assert(drawable.type == Drawable_Slime);
+    assert(drawable.type == DrawableType::Slime);
     const Slime &slime = *drawable.slime;
     bool cull = sprite_cull_body(slime.sprite, slime.body, cullRect);
     return cull;
@@ -190,7 +190,7 @@ bool Slime_Cull(const Drawable &drawable, const Rectangle &cullRect)
 
 void Slime_Draw(const Drawable &drawable)
 {
-    assert(drawable.type == Drawable_Slime);
+    assert(drawable.type == DrawableType::Slime);
     const Slime &slime = *drawable.slime;
     // Player shadow
     // TODO: Shadow size based on height from ground

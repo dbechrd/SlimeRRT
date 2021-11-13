@@ -19,6 +19,7 @@ ParticleSystem::ParticleSystem(void)
         }
     }
     particlesFree = particles;
+
     for (size_t i = 0; i < MAX_EFFECTS; i++) {
         if (i < MAX_EFFECTS - 1) {
             effects[i].next = &effects[i + 1];
@@ -202,14 +203,14 @@ void ParticleSystem::Push(DrawList &drawList)
 
 void ParticleSystem::Push(DrawList &drawList, const Particle &particle)
 {
-    Drawable drawable{ Drawable_Particle };
+    Drawable drawable{ DrawableType::Particle };
     drawable.particle = &particle;
     drawList.Push(drawable);
 }
 
 float particle_depth(const Drawable &drawable)
 {
-    assert(drawable.type == Drawable_Particle);
+    assert(drawable.type == DrawableType::Particle);
     const Particle &particle = *drawable.particle;
     const float depth = particle.body.position.y;
     return depth;
@@ -219,7 +220,7 @@ bool particle_cull(const Drawable &drawable, const Rectangle &cullRect)
 {
     bool cull = false;
 
-    assert(drawable.type == Drawable_Particle);
+    assert(drawable.type == DrawableType::Particle);
     const Particle &particle = *drawable.particle;
     if (particle.sprite.spriteDef) {
         cull = sprite_cull_body(particle.sprite, particle.body, cullRect);
@@ -233,7 +234,7 @@ bool particle_cull(const Drawable &drawable, const Rectangle &cullRect)
 
 void particle_draw(const Drawable &drawable)
 {
-    assert(drawable.type == Drawable_Particle);
+    assert(drawable.type == DrawableType::Particle);
     const Particle &particle = *drawable.particle;
     if (particle.sprite.spriteDef) {
         sprite_draw_body(particle.sprite, particle.body, particle.color);

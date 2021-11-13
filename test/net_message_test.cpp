@@ -8,15 +8,14 @@ void net_message_test()
 {
     NetMessage msgWritten{};
     msgWritten.type = NetMessage::Type::ChatMessage;
-    msgWritten.data.chatMsg.username = "test username";
+    memcpy(msgWritten.data.chatMsg.username, CSTR("test username"));
     msgWritten.data.chatMsg.usernameLength = (uint32_t)strlen(msgWritten.data.chatMsg.username);
-    msgWritten.data.chatMsg.message = "This is a test message";
+    memcpy(msgWritten.data.chatMsg.message, CSTR("This is a test message"));
     msgWritten.data.chatMsg.messageLength = (uint32_t)strlen(msgWritten.data.chatMsg.message);
 
-    char *rawPacket = (char *)calloc(PACKET_SIZE_MAX, sizeof(*rawPacket));
-    size_t rawBytes = msgWritten.Serialize((uint32_t *)rawPacket, PACKET_SIZE_MAX);
+    ENetBuffer rawPacket = msgWritten.Serialize();
     NetMessage baseMsgRead{};
-    baseMsgRead.Deserialize((uint32_t *)rawPacket, rawBytes);
+    baseMsgRead.Deserialize(rawPacket);
 
     assert(baseMsgRead.type == NetMessage::Type::ChatMessage);
     NetMessage_ChatMessage &msgRead = baseMsgRead.data.chatMsg;
@@ -26,5 +25,4 @@ void net_message_test()
     assert(!strncmp(msgRead.username, msgWritten.data.chatMsg.username, msgRead.usernameLength));
     assert(msgRead.messageLength == msgWritten.data.chatMsg.messageLength);
     assert(!strncmp(msgRead.message, msgWritten.data.chatMsg.message, msgRead.messageLength));
-    free(rawPacket);
 }

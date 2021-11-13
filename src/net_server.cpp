@@ -21,7 +21,6 @@ NetServer::~NetServer()
 
 ErrorType NetServer::OpenSocket(unsigned short socketPort)
 {
-E_START
     ENetAddress address{};
     //address.host = ENET_HOST_ANY;
     address.host = enet_v4_anyaddr;
@@ -30,16 +29,15 @@ E_START
 
     server = enet_host_create(&address, SERVER_MAX_PLAYERS, 1, 0, 0);
     if (!server) {
-        E_FATAL(ErrorType::HostCreateFailed, "Failed to create host.");
+        E_ASSERT(ErrorType::HostCreateFailed, "Failed to create host.");
     }
     // TODO(dlb)[cleanup]: This probably isn't providing any additional value on top of if (!server) check
     assert(server->socket);
-E_CLEAN_END
+    return ErrorType::Success;
 }
 
-ErrorType NetServer::SendRaw(const NetServerClient &client, const char *data, size_t size)
+ErrorType NetServer::SendRaw(const NetServerClient &client, const void *data, size_t size)
 {
-E_START
     assert(client.peer);
     assert(client.peer->address.port);
     assert(data);
@@ -48,26 +46,22 @@ E_START
     // TODO(dlb): Don't always use reliable flag.. figure out what actually needs to be reliable (e.g. chat)
     ENetPacket *packet = enet_packet_create(data, size, ENET_PACKET_FLAG_RELIABLE);
     if (!packet) {
-        E_FATAL(ErrorType::PacketCreateFailed, "Failed to create packet.");
+        E_ASSERT(ErrorType::PacketCreateFailed, "Failed to create packet.");
     }
     if (enet_peer_send(client.peer, 0, packet) < 0) {
-        E_FATAL(ErrorType::PeerSendFailed, "Failed to send connection request.");
+        E_ASSERT(ErrorType::PeerSendFailed, "Failed to send connection request.");
     }
-E_CLEAN_END
+    return ErrorType::Success;
 }
 
 ErrorType NetServer::SendMsg(const NetServerClient &client, NetMessage &message)
 {
-E_START
-    static char rawPacket[PACKET_SIZE_MAX] = {};
-    memset(rawPacket, 0, sizeof(rawPacket));
-
-    size_t rawBytes = message.Serialize((uint32_t *)rawPacket, sizeof(rawPacket));
-    E_CHECK(SendRaw(client, rawPacket, rawBytes), "Failed to send packet");
-E_CLEAN_END
+    ENetBuffer rawPacket = message.Serialize();
+    E_ASSERT(SendRaw(client, rawPacket.data, rawPacket.dataLength), "Failed to send packet");
+    return ErrorType::Success;
 }
 
-ErrorType NetServer::BroadcastRaw(const char *data, size_t size)
+ErrorType NetServer::BroadcastRaw(const void *data, size_t size)
 {
     ErrorType err_code = ErrorType::Success;
 
@@ -90,11 +84,8 @@ ErrorType NetServer::BroadcastRaw(const char *data, size_t size)
 
 ErrorType NetServer::BroadcastMsg(NetMessage &message)
 {
-    static char rawPacket[PACKET_SIZE_MAX]{};
-    memset(rawPacket, 0, sizeof(rawPacket));
-
-    size_t rawBytes = message.Serialize((uint32_t *)rawPacket, sizeof(rawPacket));
-    return BroadcastRaw(rawPacket, rawBytes);
+    ENetBuffer rawPacket = message.Serialize();
+    return BroadcastRaw(rawPacket.data, rawPacket.dataLength);
 }
 
 ErrorType NetServer::BroadcastChatMessage(const char *msg, size_t msgLength)
@@ -105,15 +96,14 @@ ErrorType NetServer::BroadcastChatMessage(const char *msg, size_t msgLength)
     NetMessage netMessage{};
     netMessage.type = NetMessage::Type::ChatMessage;
     netMessage.data.chatMsg.usernameLength = sizeof(SERVER_USERNAME) - 1;
-    netMessage.data.chatMsg.username = SERVER_USERNAME;
+    memcpy(netMessage.data.chatMsg.username, CSTR(SERVER_USERNAME));
     netMessage.data.chatMsg.messageLength = (uint32_t)msgLength;
-    netMessage.data.chatMsg.message = msg;
+    memcpy(netMessage.data.chatMsg.message, msg, msgLength);
     return BroadcastMsg(netMessage);
 }
 
 ErrorType NetServer::SendWelcomeBasket(NetServerClient &client)
 {
-E_START
     // TODO: Send current state to new client
     // - world (seed + entities)
     // - player list
@@ -123,10 +113,10 @@ E_START
         NetMessage userWelcomeBasket{};
         userWelcomeBasket.type = NetMessage::Type::Welcome;
         userWelcomeBasket.data.welcome.motdLength = (uint32_t)(sizeof("Welcome to The Lonely Island") - 1);
-        userWelcomeBasket.data.welcome.motd = "Welcome to The Lonely Island";
-        userWelcomeBasket.data.welcome.width = serverWorld.map.width;
-        userWelcomeBasket.data.welcome.height = serverWorld.map.height;
-        E_CHECK(SendMsg(client, userWelcomeBasket), "Failed to send welcome basket");
+        memcpy(userWelcomeBasket.data.welcome.motd, CSTR("Welcome to The Lonely Island"));
+        userWelcomeBasket.data.welcome.width = serverWorld->map->width;
+        userWelcomeBasket.data.welcome.height = serverWorld->map->height;
+        E_ASSERT(SendMsg(client, userWelcomeBasket), "Failed to send welcome basket");
     }
 
     {
@@ -135,7 +125,7 @@ E_START
         size_t clientUsernameLength = client.usernameLength;
         const char *message = TextFormat("%.*s joined the game.", clientUsernameLength, clientUsername);
         size_t messageLength = strlen(message);
-        E_CHECK(BroadcastChatMessage(message, messageLength), "Failed to broadcast join notification");
+        E_ASSERT(BroadcastChatMessage(message, messageLength), "Failed to broadcast join notification");
     }
 
     {
@@ -144,26 +134,34 @@ E_START
         userWorldChunk.type = NetMessage::Type::WorldChunk;
         userWorldChunk.data.worldChunk.offsetX = 0;
         userWorldChunk.data.worldChunk.offsetY = 0;
-        userWorldChunk.data.worldChunk.tilesLength = serverWorld.map.width * serverWorld.map.height;
-        userWorldChunk.data.worldChunk.tiles = serverWorld.map.tiles;
-        E_CHECK(SendMsg(client, userWorldChunk), "Failed to send world chunks");
+
+        uint32_t tileCount = (uint32_t)MIN(serverWorld->map->width * serverWorld->map->height, WORLD_CHUNK_TILES_MAX);
+        userWorldChunk.data.worldChunk.tilesLength = tileCount;
+        for (uint32_t i = 0; i < tileCount; i++) {
+            userWorldChunk.data.worldChunk.tiles[i] = serverWorld->map->tiles[i];
+        }
+        E_ASSERT(SendMsg(client, userWorldChunk), "Failed to send world chunks");
     }
 
     {
         E_INFO("Sending world entites to %s\n", TextFormatIP(client.peer->address));
         NetMessage userWorldEntities{};
         userWorldEntities.type = NetMessage::Type::WorldEntities;
-        assert(serverWorld.slimes.size() <= UINT32_MAX);
-        userWorldEntities.data.worldEntities.entitiesLength = (uint32_t)serverWorld.slimes.size();
-        userWorldEntities.data.worldEntities.entities = serverWorld.slimes.data();
-        E_CHECK(SendMsg(client, userWorldEntities), "Failed to send world entities");
+
+        uint32_t entityCount = (uint32_t)MIN(serverWorld->slimes.size(), WORLD_ENTITIES_MAX);
+        userWorldEntities.data.worldEntities.entitiesLength = entityCount;
+        for (uint32_t i = 0; i < entityCount; i++) {
+            userWorldEntities.data.worldEntities.entities[i] = serverWorld->slimes[i];
+        }
+        E_ASSERT(SendMsg(client, userWorldEntities), "Failed to send world entities");
     }
-E_CLEAN_END
+
+    return ErrorType::Success;
 }
 
 void NetServer::ProcessMsg(NetServerClient &client, Packet &packet)
 {
-    packet.netMessage.Deserialize((uint32_t *)packet.rawBytes.data, packet.rawBytes.dataLength);
+    packet.netMessage.Deserialize(packet.rawBytes);
 
     switch (packet.netMessage.type) {
         case NetMessage::Type::Identify: {
@@ -215,85 +213,79 @@ ErrorType NetServer::Listen()
     // cause unnecessary latency and bigger problems.. so perhaps just "drop" the remaining packets (i.e. receive
     // the data but don't do anything with it)?
 
-    bool running = true;
-    int svc = 0;
-    do {
-        ENetEvent event{};
-        // TODO(dlb): How long should this wait between calls?
-        svc = enet_host_service(server, &event, 0);
-        if (svc > 0) {
-            switch (event.type) {
-                case ENET_EVENT_TYPE_CONNECT: {
-                    E_INFO("A new client connected from %x:%u.",
-                        event.peer->address.host,
-                        event.peer->address.port);
-                    // TODO: Store any relevant client information here.
+    ENetEvent event{};
+    // TODO(dlb): How long should this wait between calls?
+    int svc = enet_host_service(server, &event, 0);
+    while (svc > 0) {
+        switch (event.type) {
+            case ENET_EVENT_TYPE_CONNECT: {
+                E_INFO("A new client connected from %x:%u.",
+                    event.peer->address.host,
+                    event.peer->address.port);
+                // TODO: Store any relevant client information here.
 
-                    NetServerClient &client = FindClient(event.peer);
-                    client.peer = event.peer;
-                    client.last_packet_received_at = enet_time_get();
-                    event.peer->data = &client;;
-                    break;
-                } case ENET_EVENT_TYPE_RECEIVE: {
-                    E_INFO("A packet of length %u was received from %x:%u on channel %u.",
-                        event.packet->dataLength,
-                        event.peer->address.host,
-                        event.peer->address.port,
-                        event.channelID);
+                NetServerClient &client = FindClient(event.peer);
+                client.peer = event.peer;
+                client.last_packet_received_at = enet_time_get();
+                event.peer->data = &client;;
+                break;
+            } case ENET_EVENT_TYPE_RECEIVE: {
+                E_INFO("A packet of length %u was received from %x:%u on channel %u.",
+                    event.packet->dataLength,
+                    event.peer->address.host,
+                    event.peer->address.port,
+                    event.channelID);
 
-                    Packet &packet = packetHistory.Alloc();
-                    packet.srcAddress = event.peer->address;
-                    packet.timestamp = enet_time_get();
-                    packet.rawBytes.data = calloc(event.packet->dataLength, sizeof(uint8_t));
-                    memcpy(packet.rawBytes.data, event.packet->data, event.packet->dataLength);
-                    packet.rawBytes.dataLength = event.packet->dataLength;
+                Packet &packet = packetHistory.Alloc();
+                packet.srcAddress = event.peer->address;
+                packet.timestamp = enet_time_get();
+                packet.rawBytes.data = calloc(event.packet->dataLength, sizeof(uint8_t));
+                memcpy(packet.rawBytes.data, event.packet->data, event.packet->dataLength);
+                packet.rawBytes.dataLength = event.packet->dataLength;
 
-                    // TODO: Refactor this out into helper function somewhere (it's also in net_client.c)
-                    time_t t = time(NULL);
-                    struct tm tm = *localtime(&t);
-                    int len = snprintf(packet.timestampStr, sizeof(packet.timestampStr), "%02d:%02d:%02d", tm.tm_hour,
-                        tm.tm_min, tm.tm_sec);
-                    assert(len < sizeof(packet.timestampStr));
+                // TODO: Refactor this out into helper function somewhere (it's also in net_client.c)
+                time_t t = time(NULL);
+                struct tm tm = *localtime(&t);
+                int len = snprintf(packet.timestampStr, sizeof(packet.timestampStr), "%02d:%02d:%02d", tm.tm_hour,
+                    tm.tm_min, tm.tm_sec);
+                assert(len < sizeof(packet.timestampStr));
 
-                    // TODO: Could Packet just point to ENetPacket instead of copying and destroying?
-                    // When would ENetPacket get destroyed? Would that confuse ENet in some way?
-                    enet_packet_destroy(event.packet);
+                // TODO: Could Packet just point to ENetPacket instead of copying and destroying?
+                // When would ENetPacket get destroyed? Would that confuse ENet in some way?
+                enet_packet_destroy(event.packet);
 
-                    NetServerClient &client = FindClient(event.peer);
-                    ProcessMsg(client, packet);
-                    
-                    if (!client.sent_welcome_basket && client.usernameLength) {
-                        SendWelcomeBasket(client);
-                        client.sent_welcome_basket = true;
-                    }
+                NetServerClient &client = FindClient(event.peer);
+                ProcessMsg(client, packet);
 
-                    client.last_packet_received_at = enet_time_get();
-                    break;
-                } case ENET_EVENT_TYPE_DISCONNECT: {
-                    E_INFO("Client %x:%u disconnected.",
-                        event.peer->address.host,
-                        event.peer->address.port);
-                    //TODO: Reset the peer's client information.
-                    //event.peer->data = NULL;
-                    memset(&clients[event.peer], 0, sizeof(clients[event.peer]));
-                    if (server->connectedPeers == 0) {
-                        running = false;
-                    }
-                    break;
-                } case ENET_EVENT_TYPE_DISCONNECT_TIMEOUT: {
-                    E_WARN("Connection timed out for client %x:%hu.",
-                        event.peer->address.host,
-                        event.peer->address.port);
-                    //enet_peer_reset(??);
-                    memset(&clients[event.peer], 0, sizeof(clients[event.peer]));
-                    break;
-                } default: {
-                    E_WARN("Unhandled event type: %d", event.type);
-                    break;
+                if (!client.sent_welcome_basket && client.usernameLength) {
+                    SendWelcomeBasket(client);
+                    client.sent_welcome_basket = true;
                 }
+
+                client.last_packet_received_at = enet_time_get();
+                break;
+            } case ENET_EVENT_TYPE_DISCONNECT: {
+                E_INFO("Client %x:%u disconnected.",
+                    event.peer->address.host,
+                    event.peer->address.port);
+                //TODO: Reset the peer's client information.
+                //event.peer->data = NULL;
+                memset(&clients[event.peer], 0, sizeof(clients[event.peer]));
+                break;
+            } case ENET_EVENT_TYPE_DISCONNECT_TIMEOUT: {
+                E_WARN("Connection timed out for client %x:%hu.",
+                    event.peer->address.host,
+                    event.peer->address.port);
+                //enet_peer_reset(??);
+                memset(&clients[event.peer], 0, sizeof(clients[event.peer]));
+                break;
+            } default: {
+                E_WARN("Unhandled event type: %d", event.type);
+                break;
             }
         }
-    } while (running && svc >= 0);
+        svc = enet_host_service(server, &event, 0);
+    }
 
     return ErrorType::Success;
 }

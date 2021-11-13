@@ -38,17 +38,39 @@ struct Tilemap {
     uint32_t  width     {};  // width of map in tiles
     uint32_t  height    {};  // height of map in tiles
     RRT       rrt       {};  // "Rapidly-exploring Random Tree" data struture (used for procedural generation)
-    Tile *    tiles     {};  // array of tile data
+    Tile     *tiles     {};  // array of tile data
     Texture   minimap   {};
     TilesetID tilesetId {};
+    Tilemap  *next      {};
+
+    ~Tilemap();
+    void GenerateMinimap (void);
+    void SyncTiles       (const Tile *tiles, size_t tilesLength);
+
+    Tile *TileAt         (int tileX, int tileY);  // Return tile at grid position x,y, assert on failure
+    Tile *TileAtTry      (int tileX, int tileY);  // Return tile at grid position x,y, if it exists
+    Tile *TileAtWorld    (float x, float y, int *tileX, int *tileY);  // Return tile at pixel position in world space, assert on failure
+    Tile *TileAtWorldTry (float x, float y, int *tileX, int *tileY);  // Return tile at pixel position in world space, if it exists
 };
 
-void tilemap_generate_lobby (Tilemap &map);
-void tilemap_generate_tiles (Tilemap &map, Tile *&tiles, size_t tilesLength);
-void tilemap_generate       (Tilemap &map, dlb_rand32_t &rng);
-void tilemap_generate_ex    (Tilemap &map, dlb_rand32_t &rng, uint32_t width, uint32_t height);
-void tilemap_free           (Tilemap &map);
-Tile *tilemap_at            (Tilemap &map, int tileX, int tileY);  // Return tile at grid position x,y, assert on failure
-Tile *tilemap_at_try        (Tilemap &map, int tileX, int tileY);  // Return tile at grid position x,y, if it exists
-Tile *tilemap_at_world      (Tilemap &map, float x, float y, int *tileX, int *tileY);  // Return tile at pixel position in world space, assert on failure
-Tile *tilemap_at_world_try  (Tilemap &map, float x, float y, int *tileX, int *tileY);  // Return tile at pixel position in world space, if it exists
+#define MAX_TILEMAPS 8
+
+struct MapSystem {
+    MapSystem(void);
+    ~MapSystem(void);
+
+    size_t MapsActive(void);
+
+    Tilemap *GenerateLobby     (void);
+    Tilemap *GenerateFromTiles (Tile *&tiles, size_t tilesLength);
+    Tilemap *Generate          (dlb_rand32_t &rng, uint32_t width, uint32_t height);
+
+private:
+    Tilemap *Alloc           (void);
+    void     BuildRRT        (Tilemap &map, dlb_rand32_t &rng, Vector2 qinit, size_t numVertices, float maxGrowthDist);
+    size_t   RRTNearestIndex (Tilemap &map, Vector2 p);
+
+    Tilemap  maps[MAX_TILEMAPS] {};
+    Tilemap *mapsFree           {};
+    size_t   mapsActiveCount    {};
+};

@@ -1,5 +1,9 @@
 #pragma once
 
+#include "bit_stream.h"
+#include "slime.h"
+#include "tilemap.h"
+
 #if 0
 //---------------------------------------------
 // Examples
@@ -37,42 +41,39 @@ struct NetMessage_PlayerInput {
 };
 #endif
 
-struct Tile;
-struct Slime;
-
 struct NetMessage_Identify {
-    uint32_t     usernameLength {};
-    const char * username       {};
     // TODO: Encrypt packet
-    uint32_t     passwordLength {};
-    const char * password       {};
+    uint32_t usernameLength                {};
+    char     username[USERNAME_LENGTH_MAX] {};
+    uint32_t passwordLength                {};
+    char     password[PASSWORD_LENGTH_MAX] {};
 };
 
 struct NetMessage_ChatMessage {
-    char         timestampStr[12]{};  // hh:MM:SS AM
-    uint32_t     usernameLength  {};
-    const char * username        {};
-    uint32_t     messageLength   {};
-    const char * message         {};
+    char     timestampStr[TIMESTAMP_LENGTH]   {};  // hh:MM:SS AM
+    uint32_t usernameLength                   {};
+    char     username[USERNAME_LENGTH_MAX]    {};
+    uint32_t messageLength                    {};
+    char     message[CHAT_MESSAGE_LENGTH_MAX] {};
 };
 
 struct NetMessage_Welcome {
-    uint32_t     motdLength {};
-    const char * motd       {};  // message of the day
-    uint32_t     width      {};  // width of map in tiles
-    uint32_t     height     {};  // height of map in tiles
+    uint32_t motdLength            {};
+    char     motd[MOTD_LENGTH_MAX] {};  // message of the day
+    uint32_t width                 {};  // width of map in tiles
+    uint32_t height                {};  // height of map in tiles
 };
 
 struct NetMessage_WorldChunk {
-    uint32_t   offsetX     {};
-    uint32_t   offsetY     {};
-    uint32_t   tilesLength {};
-    Tile     * tiles       {};  // serializing
+    uint32_t offsetX                      {};
+    uint32_t offsetY                      {};
+    uint32_t tilesLength                  {};
+    Tile     tiles[WORLD_CHUNK_TILES_MAX] {};  // serializing
 };
 
 struct NetMessage_WorldEntities {
-    uint32_t    entitiesLength {};
-    Slime     * entities       {};
+    uint32_t entitiesLength {};
+    Slime    entities[WORLD_ENTITIES_MAX] {};
 };
 
 struct NetMessage {
@@ -96,12 +97,10 @@ struct NetMessage {
         NetMessage_WorldEntities worldEntities;
     } data {};
 
-    ~NetMessage();
-    size_t Serialize(uint32_t *buffer, size_t bufferLength);
-    size_t Deserialize(uint32_t *buffer, size_t bufferLength);
+    ENetBuffer Serialize(void);
+    void Deserialize(ENetBuffer buffer);
 
 private:
-    void *dataBuffer {};  // dynamic memory allocated during deserialization
-
-    size_t Process(bool reader, uint32_t *buffer, size_t bufferLength);
+    static ENetBuffer tempBuffer;
+    void Process(BitStream::Mode mode, ENetBuffer *buffer);
 };

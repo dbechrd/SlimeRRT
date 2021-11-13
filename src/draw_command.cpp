@@ -17,18 +17,18 @@ struct DrawableDef {
     Drawable_FnDraw *Draw;
 };
 
-DrawableDef DrawList::registry[Drawable_Count];
+DrawableDef DrawList::registry[(size_t)DrawableType::Count];
 
 void DrawList::RegisterType(DrawableType type, const DrawableDef &def)
 {
-    registry[type] = def;
+    registry[(size_t)type] = def;
 }
 
 void DrawList::RegisterTypes()
 {
-    RegisterType(Drawable_Particle, { particle_depth, particle_cull, particle_draw });
-    RegisterType(Drawable_Player, { Player_Depth, Player_Cull, Player_Draw });
-    RegisterType(Drawable_Slime, { Slime_Depth, Slime_Cull, Slime_Draw });
+    RegisterType(DrawableType::Particle, { particle_depth, particle_cull, particle_draw });
+    RegisterType(DrawableType::Player, { Player_Depth, Player_Cull, Player_Draw });
+    RegisterType(DrawableType::Slime, { Slime_Depth, Slime_Cull, Slime_Draw });
 }
 
 void DrawList::EnableCulling(const Rectangle &rect)
@@ -52,7 +52,7 @@ void DrawList::Push(const Drawable &drawable)
     //}
 
 #if CULL_ON_PUSH
-    if (cullEnabled && registry[drawable.type].Cull(drawable, cullRect)) {
+    if (cullEnabled && registry[(size_t)drawable.type].Cull(drawable, cullRect)) {
         return;
     }
 #endif
@@ -97,15 +97,15 @@ void DrawList::Flush()
 
 float DrawList::Drawable_Depth(const Drawable &drawable)
 {
-    return registry[drawable.type].Depth(drawable);
+    return registry[(size_t)drawable.type].Depth(drawable);
 }
 
 bool DrawList::Drawable_Cull(const Drawable &drawable, const Rectangle &cullRect)
 {
-    return registry[drawable.type].Cull(drawable, cullRect);
+    return registry[(size_t)drawable.type].Cull(drawable, cullRect);
 }
 
 void DrawList::Drawable_Draw(const Drawable &drawable)
 {
-    registry[drawable.type].Draw(drawable);
+    registry[(size_t)drawable.type].Draw(drawable);
 }

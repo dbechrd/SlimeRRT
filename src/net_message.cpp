@@ -5,15 +5,31 @@
 #include "tilemap.h"
 #include <cassert>
 
-NetMessage::~NetMessage()
-{
-    free(dataBuffer);
-}
+ENetBuffer NetMessage::tempBuffer{};
 
-size_t NetMessage::Process(bool reader, uint32_t *buffer, size_t bufferLength)
+void NetMessage::Process(BitStream::Mode mode, ENetBuffer *buffer)
 {
-    BitStream::Mode mode = reader ? BitStream::Mode::Reader : BitStream::Mode::Writer;
-    BitStream stream(mode, buffer, bufferLength);
+    switch (mode) {
+        case BitStream::Mode::Reader: {
+            assert(buffer);
+            assert(buffer->data);
+            assert(buffer->dataLength);
+            break;
+        } case BitStream::Mode::Writer: {
+            assert(buffer);
+            if (!tempBuffer.dataLength) {
+                tempBuffer.dataLength = PACKET_SIZE_MAX;
+                tempBuffer.data = calloc(tempBuffer.dataLength, sizeof(uint8_t));
+            } else {
+                memset(tempBuffer.data, 0, tempBuffer.dataLength);
+            }
+            buffer->data = tempBuffer.data;
+            buffer->dataLength = tempBuffer.dataLength;
+            break;
+        }
+    }
+
+    BitStream stream(mode, buffer->data, buffer->dataLength);
 
     uint32_t typeInt = (uint32_t)type;
     stream.Process(typeInt, 3, (uint32_t)NetMessage::Type::Unknown + 1, (uint32_t)NetMessage::Type::Count - 1);
@@ -27,23 +43,19 @@ size_t NetMessage::Process(bool reader, uint32_t *buffer, size_t bufferLength)
             stream.Process(ident.usernameLength, 5, USERNAME_LENGTH_MIN, USERNAME_LENGTH_MAX);
             stream.Align();
 
-            if (stream.Reading()) {
-                ident.username = stream.BufferPtr();
-            }
             for (size_t i = 0; i < ident.usernameLength; i++) {
                 uint32_t userChr = ident.username[i];
                 stream.Process(userChr, 8, STRING_ASCII_MIN, STRING_ASCII_MAX);
+                ident.username[i] = (char)userChr;
             }
 
             stream.Process(ident.passwordLength, 5, PASSWORD_LENGTH_MIN, PASSWORD_LENGTH_MAX);
             stream.Align();
 
-            if (stream.Reading()) {
-                ident.password = stream.BufferPtr();
-            }
             for (size_t i = 0; i < ident.passwordLength; i++) {
                 uint32_t passChr = ident.password[i];
                 stream.Process(passChr, 8, STRING_ASCII_MIN, STRING_ASCII_MAX);
+                ident.password[i] = (char)passChr;
             }
 
             break;
@@ -54,23 +66,19 @@ size_t NetMessage::Process(bool reader, uint32_t *buffer, size_t bufferLength)
             stream.Process((uint32_t)chatMsg.usernameLength, 5, USERNAME_LENGTH_MIN, USERNAME_LENGTH_MAX);
             stream.Align();
 
-            if (stream.Reading()) {
-                chatMsg.username = stream.BufferPtr();
-            }
             for (size_t i = 0; i < chatMsg.usernameLength; i++) {
                 uint32_t usernameChr = chatMsg.username[i];
                 stream.Process(usernameChr, 8, STRING_ASCII_MIN, STRING_ASCII_MAX);
+                chatMsg.username[i] = (char)usernameChr;
             }
 
             stream.Process((uint32_t)chatMsg.messageLength, 9, CHAT_MESSAGE_LENGTH_MIN, CHAT_MESSAGE_LENGTH_MAX);
             stream.Align();
 
-            if (stream.Reading()) {
-                chatMsg.message = stream.BufferPtr();
-            }
             for (size_t i = 0; i < chatMsg.messageLength; i++) {
                 uint32_t messageChr = chatMsg.message[i];
                 stream.Process(messageChr, 8, STRING_ASCII_MIN, STRING_ASCII_MAX);
+                chatMsg.message[i] = (char)messageChr;
             }
 
             break;
@@ -80,12 +88,10 @@ size_t NetMessage::Process(bool reader, uint32_t *buffer, size_t bufferLength)
             stream.Process(welcome.motdLength, 6, MOTD_LENGTH_MIN, MOTD_LENGTH_MAX);
             stream.Align();
 
-            if (stream.Reading()) {
-                welcome.motd = stream.BufferPtr();
-            }
             for (size_t i = 0; i < welcome.motdLength; i++) {
                 uint32_t motdChr = welcome.motd[i];
                 stream.Process(motdChr, 8, STRING_ASCII_MIN, STRING_ASCII_MAX);
+                welcome.motd[i] = (char)motdChr;
             }
 
             stream.Process(welcome.width, 8, WORLD_WIDTH_MIN, WORLD_WIDTH_MAX);
@@ -97,12 +103,8 @@ size_t NetMessage::Process(bool reader, uint32_t *buffer, size_t bufferLength)
 
             stream.Process(worldChunk.offsetX, 8, 0, WORLD_WIDTH_MAX - WORLD_CHUNK_WIDTH);
             stream.Process(worldChunk.offsetY, 8, 0, WORLD_HEIGHT_MAX - WORLD_CHUNK_HEIGHT);
-            stream.Process(worldChunk.tilesLength, 16, 0, WORLD_MAX_TILES);
+            stream.Process(worldChunk.tilesLength, 16, 0, WORLD_CHUNK_TILES_MAX);
 
-            if (stream.Reading()) {
-                dataBuffer = calloc(worldChunk.tilesLength, sizeof(*worldChunk.tiles));
-                worldChunk.tiles = (Tile *)dataBuffer;
-            }
             for (size_t i = 0; i < worldChunk.tilesLength; i++) {
                 Tile &tile = worldChunk.tiles[i];
                 uint32_t tileType = (uint32_t)tile.tileType;
@@ -115,13 +117,9 @@ size_t NetMessage::Process(bool reader, uint32_t *buffer, size_t bufferLength)
         } case NetMessage::Type::WorldEntities: {
             NetMessage_WorldEntities &worldEntities = data.worldEntities;
 
-            stream.Process((uint32_t)worldEntities.entitiesLength, 32, 0, WORLD_MAX_ENTITIES);
+            stream.Process((uint32_t)worldEntities.entitiesLength, 32, 0, WORLD_ENTITIES_MAX);
             stream.Align();
 
-            if (stream.Reading()) {
-                dataBuffer = calloc(worldEntities.entitiesLength, sizeof(*worldEntities.entities));
-                worldEntities.entities = (Slime *)dataBuffer;
-            }
             for (size_t i = 0; i < worldEntities.entitiesLength; i++) {
                 Slime &slime = worldEntities.entities[i];
                 uint32_t position_x = *(uint32_t *)&slime.body.position.x;
@@ -139,18 +137,21 @@ size_t NetMessage::Process(bool reader, uint32_t *buffer, size_t bufferLength)
     }
 
     stream.Flush();
-    const size_t bytesProcessed = stream.BytesProcessed();
-    return bytesProcessed;
+    buffer->dataLength = stream.BytesProcessed();
 }
 
-size_t NetMessage::Serialize(uint32_t *buffer, size_t bufferLength)
+ENetBuffer NetMessage::Serialize(void)
 {
-    const size_t bytesProcessed = Process(false, buffer, bufferLength);
-    return bytesProcessed;
+    ENetBuffer buffer{};
+    Process(BitStream::Mode::Writer, &buffer);
+    assert(buffer.data);
+    assert(buffer.dataLength);
+    return buffer;
 }
 
-size_t NetMessage::Deserialize(uint32_t *buffer, size_t bufferLength)
+void NetMessage::Deserialize(ENetBuffer buffer)
 {
-    const size_t bytesProcessed = Process(true, buffer, bufferLength);
-    return bytesProcessed;
+    assert(buffer.data);
+    assert(buffer.dataLength);
+    Process(BitStream::Mode::Reader, &buffer);
 }

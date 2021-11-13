@@ -200,21 +200,21 @@ void Player::Update(double now, double dt)
 
 void Player::Push(DrawList &drawList) const
 {
-    Drawable drawable{ Drawable_Player };
+    Drawable drawable{ DrawableType::Player };
     drawable.player = this;
     drawList.Push(drawable);
 }
 
 float Player_Depth(const Drawable &drawable)
 {
-    assert(drawable.type == Drawable_Player);
+    assert(drawable.type == DrawableType::Player);
     const Player &player = *drawable.player;
     return player.body.position.y;
 }
 
 bool Player_Cull(const Drawable &drawable, const Rectangle &cullRect)
 {
-    assert(drawable.type == Drawable_Player);
+    assert(drawable.type == DrawableType::Player);
     const Player &player = *drawable.player;
     bool cull = sprite_cull_body(player.sprite, player.body, cullRect);
     return cull;
@@ -222,7 +222,7 @@ bool Player_Cull(const Drawable &drawable, const Rectangle &cullRect)
 
 void Player_Draw(const Drawable &drawable)
 {
-    assert(drawable.type == Drawable_Player);
+    assert(drawable.type == DrawableType::Player);
     const Player &player = *drawable.player;
     // Player shadow
     // TODO: Shadow size based on height from ground

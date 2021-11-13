@@ -23,14 +23,13 @@ World::World()
 
 World::~World()
 {
-    tilemap_free(map);
 }
 
 const Vector3 World::GetWorldSpawn()
 {
     Vector3 worldSpawn = {
-        (float)map.width / 2.0f * 32,
-        (float)map.height / 2.0f * 32,
+        (float)map->width / 2.0f * 32,
+        (float)map->height / 2.0f * 32,
         0.0f
     };
     return worldSpawn;
@@ -57,12 +56,12 @@ Player *World::SpawnPlayer(const char *name)
     return 0;
 }
 
-void World::GenerateEntities(Slime *&entities, size_t entityLength)
+void World::GenerateEntities(const Slime *entities, size_t entityLength)
 {
     // TODO: Move slime radius somewhere more logical.. some global table of magic numbers?
     const float slimeRadius = 50.0f;
-    const size_t mapPixelsX = map.width * 32;
-    const size_t mapPixelsY = map.height * 32;
+    const size_t mapPixelsX = map->width * 32;
+    const size_t mapPixelsY = map->height * 32;
     const float maxX = mapPixelsX - slimeRadius;
     const float maxY = mapPixelsY - slimeRadius;
 
@@ -78,7 +77,6 @@ void World::GenerateEntities(Slime *&entities, size_t entityLength)
         slime.combat.lootTableId = LootTableID::LT_Slime;
         slime.body.position.x = entities[i].body.position.x;
         slime.body.position.y = entities[i].body.position.y;
-        slime.body.position = v3_add(GetWorldSpawn(), { 0, -300.0f, 0 });
     }
 }
 
@@ -129,11 +127,11 @@ void World::Sim(double now, double dt, const PlayerControllerState input, const 
     Vector2 moveOffset = v2_scale(v2_normalize(moveBuffer), METERS_TO_PIXELS(playerSpeed) * (float)dt);
     if (!v2_is_zero(moveOffset)) {
         const Vector2 curPos = player->body.GroundPosition();
-        const Tile *curTile = tilemap_at_world_try(map, curPos.x, curPos.y, 0, 0);
+        const Tile *curTile = map->TileAtWorldTry(curPos.x, curPos.y, 0, 0);
         const bool curWalkable = curTile && curTile->IsWalkable();
 
         Vector2 newPos = v2_add(curPos, moveOffset);
-        Tile *newTile = tilemap_at_world_try(map, newPos.x, newPos.y, 0, 0);
+        Tile *newTile = map->TileAtWorldTry(newPos.x, newPos.y, 0, 0);
 
         // NOTE: This extra logic allows the player to slide when attempting to move diagonally against a wall
         // NOTE: If current tile isn't walkable, allow player to walk off it. This may not be the best solution
@@ -147,12 +145,12 @@ void World::Sim(double now, double dt, const PlayerControllerState input, const 
                 // XY unwalkable, try only X offset
                 newPos = curPos;
                 newPos.x += moveOffset.x;
-                newTile = tilemap_at_world_try(map, newPos.x, newPos.y, 0, 0);
+                newTile = map->TileAtWorldTry(newPos.x, newPos.y, 0, 0);
                 if (!newTile || !newTile->IsWalkable()) {
                     // X unwalkable, try only Y offset
                     newPos = curPos;
                     newPos.y += moveOffset.y;
-                    newTile = tilemap_at_world_try(map, newPos.x, newPos.y, 0, 0);
+                    newTile = map->TileAtWorldTry(newPos.x, newPos.y, 0, 0);
                     if (!newTile || !newTile->IsWalkable()) {
                         // XY, and both slide directions are all unwalkable
                         moveOffset.x = 0.0f;
@@ -268,8 +266,7 @@ void World::Sim(double now, double dt, const PlayerControllerState input, const 
             if (slimeToPlayerDistSq <= SQUARED(slimeAttackTrack)) {
                 const float slimeToPlayerDist = sqrtf(slimeToPlayerDistSq);
                 const float moveDist = MIN(slimeToPlayerDist, slimeMoveSpeed * slime.sprite.scale);
-                // 25% -1.0, 75% +1.0f
-                const float moveRandMult = dlb_rand32i_range(1, 4) > 1 ? 1.0f : -1.0f;
+                const float moveRandMult = dlb_rand32f_range(-0.25f, 0.95f);
                 const Vector2 slimeMoveDir = v2_scale(slimeToPlayer, 1.0f / slimeToPlayerDist);
                 const Vector2 slimeMove = v2_scale(slimeMoveDir, moveDist * moveRandMult);
                 const Vector2 slimePos = slime.body.GroundPosition();

@@ -29,7 +29,6 @@ const char *GameClient::LOG_SRC = "GameClient";
 
 ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
 {
-E_START
     const char *title = "Attack the slimes!";
     if (args.server) {
         title = "[Open to LAN] Attack the slimes!";
@@ -83,6 +82,8 @@ E_START
 
     bool cameraReset = false;
     bool cameraFree = false;
+    const float cameraSpeedDefault = 5.0f;
+    float cameraSpeed = cameraSpeedDefault;
 
     InitAudioDevice();
     if (!IsAudioDeviceReady()) {
@@ -134,9 +135,9 @@ E_START
     const SpriteDef *coinSpriteDef = coinSpritesheet.FindSprite("coin");
     assert(coinSpriteDef);
 
-    World lobby{};
-    tilemap_generate_lobby(lobby.map);
-    world = &lobby;
+    World *lobby = new World;
+    lobby->map = lobby->mapSystem.GenerateLobby();
+    world = lobby;
 
 #if DEMO_VIEW_RTREE
     const int RECT_COUNT = 100;
@@ -168,8 +169,8 @@ E_START
 
     {
         const float slimeRadius = 50.0f;
-        const size_t mapPixelsX = world->map.width * TILE_W;
-        const size_t mapPixelsY = world->map.height * TILE_W;
+        const size_t mapPixelsX = world->map->width * TILE_W;
+        const size_t mapPixelsY = world->map->height * TILE_W;
         const float maxX = mapPixelsX - slimeRadius;
         const float maxY = mapPixelsY - slimeRadius;
 
@@ -265,7 +266,7 @@ E_START
                 IsKeyPressed(io.KeyMap[ImGuiKey_Enter]) ||
                 IsKeyPressed(io.KeyMap[ImGuiKey_KeyPadEnter]))
             {
-                E_CHECK(netClient.Connect(host, (unsigned short)port, username, password), "Failled to connect to server");
+                E_ASSERT(netClient.Connect(host, (unsigned short)port, username, password), "Failed to connect to server");
                 closePopup = true;
             }
             
@@ -294,19 +295,20 @@ E_START
             dt = 1.0 / 10.0;
         }
 
-        E_CHECK(netClient.Receive(), "Failed to receive packets");
+        E_ASSERT(netClient.Receive(), "Failed to receive packets");
 
         // We joined a server we need to inherit the server's world
         // TODO: Fix this very bad idea.
         if (netClient.server &&
             netClient.server->state == ENET_PEER_STATE_CONNECTED &&
-            netClient.serverWorld.player)
+            netClient.serverWorld &&
+            netClient.serverWorld->player)
         {
-            if (world != &netClient.serverWorld) {
-                world = &netClient.serverWorld;
+            if (world != netClient.serverWorld) {
+                world = netClient.serverWorld;
             }
-        } else if (world != &lobby) {
-            world = &lobby;
+        } else if (world != lobby) {
+            world = lobby;
         }
 
         if (IsWindowResized()) {
@@ -367,9 +369,6 @@ E_START
                 lastRectAddedAt = 0;
             }
 #endif
-            const float cameraSpeedDefault = 5.0f;
-            static float cameraSpeed = cameraSpeedDefault;
-
             // Camera reset (zoom and rotation)
             if (cameraReset || input.cameraReset) {
                 camera.offset = Vector2{ roundf(screenWidth / 2.0f), roundf(screenHeight / 2.0f) };
@@ -387,7 +386,7 @@ E_START
                 camera.zoom = 1.0f;
                 cameraSpeed = cameraSpeedDefault;
             } else {
-                cameraSpeed += input.cameraSpeedDelta;
+                cameraSpeed = CLAMP(cameraSpeed + input.cameraSpeedDelta, 1.0f, 50.0f);
                 if (input.cameraWest)  camera.target.x -= cameraSpeed / camera.zoom;
                 if (input.cameraEast)  camera.target.x += cameraSpeed / camera.zoom;
                 if (input.cameraNorth) camera.target.y -= cameraSpeed / camera.zoom;
@@ -479,11 +478,11 @@ E_START
         BeginMode2D(camera);
         size_t tilesDrawn = 0;
 
-        if (world->map.tiles) {
+        if (world->map->tiles) {
             const float tileWidthMip = (float)(TILE_W * zoomMipLevel);
             const float tileHeightMip = (float)(TILE_W * zoomMipLevel);
-            const size_t height = world->map.height;
-            const size_t width = world->map.width;
+            const size_t height = world->map->height;
+            const size_t width = world->map->width;
             const float camLeft = cameraRect.x;
             const float camTop = cameraRect.y;
             const float camRight = cameraRect.x + cameraRect.width;
@@ -491,15 +490,15 @@ E_START
 
             for (size_t y = 0; y < height; y += zoomMipLevel) {
                 for (size_t x = 0; x < width; x += zoomMipLevel) {
-                    const Tile *tile = &world->map.tiles[y * world->map.width + x];
+                    const Tile *tile = &world->map->tiles[y * world->map->width + x];
                     const Vector2 tilePos = { (float)x * TILE_W, (float)y * TILE_W };
                     if (tilePos.x + tileWidthMip >= camLeft &&
                         tilePos.y + tileHeightMip >= camTop &&
                         tilePos.x < camRight &&
                         tilePos.y < camBottom)                     {
                         // Draw all tiles as textured rects (looks best, performs worst)
-                        Rectangle textureRect = tileset_tile_rect(world->map.tilesetId, tile->tileType);
-                        tileset_draw_tile(world->map.tilesetId, tile->tileType, tilePos);
+                        Rectangle textureRect = tileset_tile_rect(world->map->tilesetId, tile->tileType);
+                        tileset_draw_tile(world->map->tilesetId, tile->tileType, tilePos);
                         tilesDrawn++;
                     }
                 }
@@ -516,10 +515,7 @@ E_START
         int mouseTileX = 0;
         int mouseTileY = 0;
         if (findMouseTile) {
-            mouseTile = tilemap_at_world_try(world->map,
-                mousePosWorld.x, mousePosWorld.y,
-                &mouseTileX, &mouseTileY
-            );
+            mouseTile = world->map->TileAtWorldTry(mousePosWorld.x, mousePosWorld.y, &mouseTileX, &mouseTileY);
             if (mouseTile) {
                 // Draw red outline on hovered tile
                 Rectangle mouseTileRect{
@@ -641,14 +637,14 @@ E_START
         // Render minimap
         const int minimapMargin = 6;
         const int minimapBorderWidth = 1;
-        const int minimapX = screenWidth - minimapMargin - world->map.minimap.width - minimapBorderWidth * 2;
+        const int minimapX = screenWidth - minimapMargin - world->map->minimap.width - minimapBorderWidth * 2;
         const int minimapY = minimapMargin;
-        const int minimapW = world->map.minimap.width + minimapBorderWidth * 2;
-        const int minimapH = world->map.minimap.height + minimapBorderWidth * 2;
+        const int minimapW = world->map->minimap.width + minimapBorderWidth * 2;
+        const int minimapH = world->map->minimap.height + minimapBorderWidth * 2;
         const int minimapTexX = minimapX + minimapBorderWidth;
         const int minimapTexY = minimapY + minimapBorderWidth;
         DrawRectangleLines(minimapX, minimapY, minimapW, minimapH, BLACK);
-        DrawTexture(world->map.minimap, minimapTexX, minimapTexY, WHITE);
+        DrawTexture(world->map->minimap, minimapTexX, minimapTexY, WHITE);
 
         const char *text = 0;
         float hudCursorY = 0;
@@ -661,7 +657,7 @@ E_START
         {
             int linesOfText = 8;
 #if SHOW_DEBUG_STATS
-            linesOfText += 6;
+            linesOfText += 7;
 #endif
             const float margin = 6.0f;   // left/top margin
             const float pad = 4.0f;      // left/top pad
@@ -700,6 +696,8 @@ E_START
             PUSH_TEXT(text, LIGHTGRAY);
 
 #if SHOW_DEBUG_STATS
+            text = TextFormat("Camera speed  %.03f", cameraSpeed);
+            PUSH_TEXT(text, GRAY);
             text = TextFormat("Zoom          %.03f", camera.zoom);
             PUSH_TEXT(text, GRAY);
             text = TextFormat("Zoom inverse  %.03f", invZoom);
@@ -811,8 +809,9 @@ E_START
             break;
         }
     }
-E_CLEANUP
+
     // TODO: Wrap these in classes to use destructors?
+    delete lobby;
     UnloadTexture(checkboardTexture);
     UnloadMusicStream(mus_background);
     UnloadMusicStream(mus_whistle);
@@ -825,5 +824,5 @@ E_CLEANUP
     ImGui::DestroyContext();
 
     CloseWindow();
-E_END
+    return ErrorType::Success;
 }

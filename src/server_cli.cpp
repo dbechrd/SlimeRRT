@@ -15,14 +15,13 @@ ErrorType ServerCLI::Run(const char *serverHost, unsigned short serverPort)
 {
     std::thread serverThread;
 
-E_START
     const char *title = "Attack the slimes!";
     if (args.server) {
         title = "[Open to LAN] Attack the slimes!";
     }
 
-    E_CHECK(netClient.OpenSocket(), "Failed to open client socket");
-    E_CHECK(netClient.Connect(serverHost, serverPort, "admin", "abc"), "Failed to connect client");
+    E_ASSERT(netClient.OpenSocket(), "Failed to open client socket");
+    E_ASSERT(netClient.Connect(serverHost, serverPort, "admin", "abc"), "Failed to connect client");
 
     ItemCatalog::instance.Load();
     loot_table_init();
@@ -70,5 +69,5 @@ E_START
     }
 
     serverThread.join();
-E_CLEAN_END
+    return ErrorType::Success;
 }

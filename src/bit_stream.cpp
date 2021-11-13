@@ -2,11 +2,11 @@
 #include "helpers.h"
 #include <cassert>
 
-BitStream::BitStream(Mode mode, uint32_t *buffer, size_t bufferSize) : mode(mode), buffer(buffer), bufferBits(bufferSize * 8)
+BitStream::BitStream(Mode mode, void *buffer, size_t bufferSize) : mode(mode), buffer(buffer), bufferBits(bufferSize * 8)
 {
     assert(buffer);
     assert(bufferSize);
-    //assert(bufferSize % 4 == 0);  // Must be aligned to word boundary.. why?
+    //assert(bufferSize % 4 == 0);  // Must be aligned to word boundary
 };
 
 // Align read/write cursor to nearest byte boundary
@@ -44,7 +44,7 @@ void BitStream::Process(uint32_t &word, uint8_t bits, uint32_t min, uint32_t max
 
             // Read next word into scratch if scratch needs more bits to service the read
             if (bits > scratchBits) {
-                scratch |= (uint64_t)buffer[wordIndex] << scratchBits;
+                scratch |= (uint64_t)((uint32_t *)buffer)[wordIndex] << scratchBits;
                 wordIndex++;
                 scratchBits += 32;
             }
@@ -87,7 +87,7 @@ void BitStream::Flush()
 {
     if (mode == Mode::Writer && scratchBits) {
         assert(wordIndex * 8 < bufferBits);
-        buffer[wordIndex] = scratch & 0xFFFFFFFF;
+        ((uint32_t *)buffer)[wordIndex] = scratch & 0xFFFFFFFF;
         wordIndex++;
         scratch >>= 32;
         scratchBits -= MIN(scratchBits, 32);

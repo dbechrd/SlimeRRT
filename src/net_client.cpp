@@ -18,14 +18,13 @@ NetClient::~NetClient()
 
 ErrorType NetClient::OpenSocket()
 {
-E_START
     client = enet_host_create(nullptr, 1, 1, 0, 0);
     if (!client) {
-        E_FATAL(ErrorType::HostCreateFailed, "Failed to create host.");
+        E_ASSERT(ErrorType::HostCreateFailed, "Failed to create host.");
     }
     // TODO(dlb)[cleanup]: This probably isn't providing any additional value on top of if (!client) check
     assert(client->socket);
-E_CLEAN_END
+    return ErrorType::Success;
 }
 
 #pragma warning(push)
@@ -36,14 +35,13 @@ ErrorType NetClient::Connect(const char *serverHost, unsigned short serverPort, 
 {
     ENetAddress address{};
 
-E_START
     if (!client) {
-        E_CHECK(OpenSocket(), "Failed to open socket");
+        E_ASSERT(OpenSocket(), "Failed to open socket");
     }
     if (server) {
         Disconnect();
     }
-    
+
     enet_address_set_host(&address, serverHost);
     address.port = serverPort;
     server = enet_host_connect(client, &address, 1, 0);
@@ -61,46 +59,41 @@ E_START
     this->password = (const char *)calloc(passwordLength, sizeof(*this->password) + 1);
     memcpy((void *)this->username, username, usernameLength);
     memcpy((void *)this->password, password, passwordLength);
-E_CLEAN_END
+    return ErrorType::Success;
 }
 #pragma warning(pop)
 
 ErrorType NetClient::Auth()
 {
-E_START
     assert(username);
     assert(password);
 
     NetMessage userIdent{};
     userIdent.type = NetMessage::Type::Identify;
-    userIdent.data.identify.username = username;
     userIdent.data.identify.usernameLength = (uint32_t)usernameLength;
-    userIdent.data.identify.password = password;
+    memcpy(userIdent.data.identify.username, username, usernameLength);
     userIdent.data.identify.passwordLength = (uint32_t)passwordLength;
+    memcpy(userIdent.data.identify.password, password, passwordLength);
 
-    static char rawPacket[PACKET_SIZE_MAX] = {};
-    size_t rawBytes = userIdent.Serialize((uint32_t *)rawPacket, sizeof(rawPacket));
-
-    ENetPacket *packet = enet_packet_create(rawPacket, rawBytes, ENET_PACKET_FLAG_RELIABLE);
+    ENetBuffer rawPacket = userIdent.Serialize();
+    ENetPacket *packet = enet_packet_create(rawPacket.data, rawPacket.dataLength, ENET_PACKET_FLAG_RELIABLE);
     if (!packet) {
-        E_FATAL(ErrorType::PacketCreateFailed, "Failed to create packet.");
+        E_ASSERT(ErrorType::PacketCreateFailed, "Failed to create packet.");
     }
     if (enet_peer_send(server, 0, packet) < 0) {
-        E_FATAL(ErrorType::PeerSendFailed, "Failed to send connection request.");
+        E_ASSERT(ErrorType::PeerSendFailed, "Failed to send connection request.");
     }
-    memset(rawPacket, 0, rawBytes);
 
     // Clear password from memory
     memset((void *)password, 0, passwordLength);
     free((void *)password);
     password = nullptr;
     passwordLength = 0;
-E_CLEAN_END
+    return ErrorType::Success;
 }
 
-ErrorType NetClient::Send(const char *data, size_t size)
+ErrorType NetClient::Send(const void *data, size_t size)
 {
-E_START
     assert(server);
     assert(server->address.port);
     assert(data);
@@ -110,12 +103,12 @@ E_START
     // TODO(dlb): Don't always use reliable flag.. figure out what actually needs to be reliable (e.g. chat)
     ENetPacket *packet = enet_packet_create(data, size, ENET_PACKET_FLAG_RELIABLE);
     if (!packet) {
-        E_FATAL(ErrorType::PacketCreateFailed, "Failed to create packet.");
+        E_ASSERT(ErrorType::PacketCreateFailed, "Failed to create packet.");
     }
     if (enet_peer_send(server, 0, packet) < 0) {
-        E_FATAL(ErrorType::PeerSendFailed, "Failed to send connection request.");
+        E_ASSERT(ErrorType::PeerSendFailed, "Failed to send connection request.");
     }
-E_CLEAN_END
+    return ErrorType::Success;
 }
 
 ErrorType NetClient::SendChatMessage(const char *message, size_t messageLength)
@@ -137,24 +130,22 @@ ErrorType NetClient::SendChatMessage(const char *message, size_t messageLength)
 
     // If we don't have a username yet (salt, client id, etc.) then we're not connected and can't send chat messages!
     // This would be weird since if we're not connected how do we see the chat box?
-    
+
     NetMessage netMessage{};
     netMessage.type = NetMessage::Type::ChatMessage;
     netMessage.data.chatMsg.usernameLength = (uint32_t)usernameLength;
-    netMessage.data.chatMsg.username = username;
+    memcpy(netMessage.data.chatMsg.username, username, usernameLength);
     netMessage.data.chatMsg.messageLength = (uint32_t)messageLengthSafe;
-    netMessage.data.chatMsg.message = message;
+    memcpy(netMessage.data.chatMsg.message, message, messageLengthSafe);
 
-    static char rawPacket[PACKET_SIZE_MAX] = {};
-    size_t rawBytes = netMessage.Serialize((uint32_t *)rawPacket, sizeof(rawPacket));
-    ErrorType result = Send(rawPacket, rawBytes);
-    memset(rawPacket, 0, rawBytes);
+    ENetBuffer rawPacket = netMessage.Serialize();
+    ErrorType result = Send(rawPacket.data, rawPacket.dataLength);
     return result;
 }
 
 void NetClient::ProcessMsg(Packet &packet)
 {
-    packet.netMessage.Deserialize((uint32_t *)packet.rawBytes.data, packet.rawBytes.dataLength);
+    packet.netMessage.Deserialize(packet.rawBytes);
 
     switch (packet.netMessage.type) {
         case NetMessage::Type::ChatMessage: {
@@ -168,29 +159,31 @@ void NetClient::ProcessMsg(Packet &packet)
             chatHistory.PushMessage(CSTR("Message of the day"), welcomeMsg.motd, welcomeMsg.motdLength);
 
             // TODO: Use username (ensure null terminated or add player.nameLength field
-            if (!serverWorld.player) {
-                serverWorld.player = serverWorld.SpawnPlayer(username);
-                assert(serverWorld.player);
-            }
+            delete serverWorld;
+            serverWorld = new World;
 
-            serverWorld.map.width = welcomeMsg.width;
-            serverWorld.map.height = welcomeMsg.height;
+            serverWorld->map = serverWorld->mapSystem.Generate(serverWorld->rtt_rand, welcomeMsg.width, welcomeMsg.height);
+            assert(serverWorld->map);
             // TODO: Get tileset ID from server
-            serverWorld.map.tilesetId = TilesetID::TS_Overworld;
+            serverWorld->map->tilesetId = TilesetID::TS_Overworld;
+
+            if (!serverWorld->player) {
+                serverWorld->player = serverWorld->SpawnPlayer(username);
+                assert(serverWorld->player);
+            }
 
             break;
         } case NetMessage::Type::WorldChunk: {
             NetMessage_WorldChunk &worldChunkMsg = packet.netMessage.data.worldChunk;
             if (worldChunkMsg.tilesLength) {
-                tilemap_generate_tiles(serverWorld.map, worldChunkMsg.tiles, worldChunkMsg.tilesLength);
-                serverWorld.player->body.position = serverWorld.GetWorldSpawn();
+                serverWorld->map->SyncTiles(worldChunkMsg.tiles, worldChunkMsg.tilesLength);
+                serverWorld->player->body.position = serverWorld->GetWorldSpawn();
             }
             break;
         } case NetMessage::Type::WorldEntities: {
             NetMessage_WorldEntities &worldEntitiesMsg = packet.netMessage.data.worldEntities;
             if (worldEntitiesMsg.entitiesLength) {
-                serverWorld.GenerateEntities(worldEntitiesMsg.entities, worldEntitiesMsg.entitiesLength);
-                serverWorld.player->body.position = serverWorld.GetWorldSpawn();
+                serverWorld->GenerateEntities(worldEntitiesMsg.entities, worldEntitiesMsg.entitiesLength);
             }
             break;
         } default: {
@@ -241,7 +234,7 @@ ErrorType NetClient::Receive()
         {
             E_WARN("Failed to connect to server %s:%hu.", serverHost, server->host->address.port);
             enet_peer_reset(server);
-            //E_FATAL(ErrorType::PeerConnectFailed, "Failed to connect to server %s:%hu.", hostname, port);
+            //E_ASSERT(ErrorType::PeerConnectFailed, "Failed to connect to server %s:%hu.", hostname, port);
         }
 
         static const char *prevState = 0;
