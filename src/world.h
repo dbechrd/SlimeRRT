@@ -1,5 +1,6 @@
 #pragma once
 #include "controller.h"
+#include "item_catalog.h"
 #include "net_message.h"
 #include "particles.h"
 #include "player.h"
@@ -14,22 +15,22 @@ struct World {
     Tilemap         *map           {};
     // TODO: PlayerSystem
     size_t          playerIdx      {};
-    size_t          playerCount    {};
+    uint32_t        playerCount    {};
     Player          players        [SERVER_MAX_PLAYERS]{};
     // TODO: SlimeSystem or EnemySystem
-    size_t          slimeCount     {};
+    uint32_t        slimeCount     {};
     Slime           slimes         [WORLD_ENTITIES_MAX]{};
     ParticleSystem  particleSystem {};
     MapSystem       mapSystem      {};
+    ItemCatalog     itemCatalog    {};
+    LootSystem      lootSystem     {};
 
-    World                          (void);
-    ~World                         (void);
-    const Vector3 GetWorldSpawn    (void);
-    void          InitPlayer       (Player &player, const char *name, size_t nameLength);
-    bool          SpawnPlayer      (const char *name, size_t nameLength, size_t &playerIdx);
-    void          SyncPlayers      (const Player *players, size_t playersLength);
-    void          InitSlime        (Slime &slime);
-    void          SyncEntities     (const Slime *entities, size_t entityLength);
-    void          SimPlayer        (double now, double dt, Player &player, const PlayerControllerState &input);
-    void          SimSlimes        (double now, double dt);
+    World                       (void);
+    ~World                      (void);
+    const Vector3 GetWorldSpawn (void);
+    void          InitPlayer    (Player &player, const char *name, size_t nameLength);
+    bool          SpawnPlayer   (const char *name, size_t nameLength, size_t &playerIdx);
+    void          InitSlime     (Slime &slime);
+    void          SimPlayer     (double now, double dt, Player &player, const PlayerControllerState &input);
+    void          SimSlimes     (double now, double dt);
 };

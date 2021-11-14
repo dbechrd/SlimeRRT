@@ -27,6 +27,7 @@
 //#define PACKET_SIZE_MAX        1024
 #define SERVER_USERNAME         "SERVER"
 #define SERVER_MAX_PLAYERS      8
+#define SERVER_TPS              30
 
 #define PACKET_SIZE_MAX         16384
 

@@ -73,7 +73,7 @@ ErrorType NetClient::Auth()
     userIdent.data.identify.passwordLength = (uint32_t)passwordLength;
     memcpy(userIdent.data.identify.password, password, passwordLength);
 
-    ENetBuffer rawPacket = userIdent.Serialize();
+    ENetBuffer rawPacket = userIdent.Serialize(*serverWorld);
     ENetPacket *packet = enet_packet_create(rawPacket.data, rawPacket.dataLength, ENET_PACKET_FLAG_RELIABLE);
     if (!packet) {
         E_ASSERT(ErrorType::PacketCreateFailed, "Failed to create packet.");
@@ -109,7 +109,7 @@ ErrorType NetClient::SendRaw(const void *data, size_t size)
 
 ErrorType NetClient::SendMsg(NetMessage &message)
 {
-    ENetBuffer rawPacket = message.Serialize();
+    ENetBuffer rawPacket = message.Serialize(*serverWorld);
     //E_INFO("[SEND][%21s][%5u b] %16s ", rawPacket.dataLength, message.TypeString());
     E_ASSERT(SendRaw(rawPacket.data, rawPacket.dataLength), "Failed to send packet");
     return ErrorType::Success;
@@ -172,7 +172,7 @@ ErrorType NetClient::SendPlayerInput(const PlayerControllerState &input)
 
 void NetClient::ProcessMsg(Packet &packet)
 {
-    packet.netMessage.Deserialize(packet.rawBytes);
+    packet.netMessage.Deserialize(packet.rawBytes, *serverWorld);
 
     switch (packet.netMessage.type) {
         case NetMessage::Type::ChatMessage: {
@@ -197,23 +197,13 @@ void NetClient::ProcessMsg(Packet &packet)
 
             break;
         } case NetMessage::Type::WorldChunk: {
-            NetMessage_WorldChunk &worldChunk = packet.netMessage.data.worldChunk;
-            if (worldChunk.tilesLength) {
-                serverWorld->map->SyncTiles(worldChunk.tiles, worldChunk.tilesLength);
-                serverWorld->players[0].body.position = serverWorld->GetWorldSpawn();
-            }
+            //NetMessage_WorldChunk &worldChunk = packet.netMessage.data.worldChunk;
             break;
         } case NetMessage::Type::WorldPlayers: {
-            NetMessage_WorldPlayers &worldPlayers = packet.netMessage.data.worldPlayers;
-            if (worldPlayers.playersLength) {
-                serverWorld->SyncPlayers(worldPlayers.players, worldPlayers.playersLength);
-            }
+            //NetMessage_WorldPlayers &worldPlayers = packet.netMessage.data.worldPlayers;
             break;
         } case NetMessage::Type::WorldEntities: {
-            NetMessage_WorldEntities &worldEntities = packet.netMessage.data.worldEntities;
-            if (worldEntities.entitiesLength) {
-                serverWorld->SyncEntities(worldEntities.entities, worldEntities.entitiesLength);
-            }
+            //NetMessage_WorldEntities &worldEntities = packet.netMessage.data.worldEntities;
             break;
         } default: {
             E_WARN("Unrecognized message type: %d", packet.netMessage.type);

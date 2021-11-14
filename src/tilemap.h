@@ -45,8 +45,6 @@ struct Tilemap {
 
     ~Tilemap();
     void GenerateMinimap (void);
-    void SyncTiles       (const Tile *tiles, size_t tilesLength);
-
     Tile *TileAt         (int tileX, int tileY);  // Return tile at grid position x,y, assert on failure
     Tile *TileAtTry      (int tileX, int tileY);  // Return tile at grid position x,y, if it exists
     Tile *TileAtWorld    (float x, float y, int *tileX, int *tileY);  // Return tile at pixel position in world space, assert on failure

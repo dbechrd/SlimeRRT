@@ -4,6 +4,7 @@
 #include "player.h"
 #include "slime.h"
 #include "tilemap.h"
+#include "world.h"
 
 struct NetMessage_Identify {
     // TODO: Encrypt packet
@@ -43,17 +44,14 @@ struct NetMessage_WorldChunk {
     uint32_t offsetX     {};
     uint32_t offsetY     {};
     uint32_t tilesLength {};
-    Tile     tiles       [WORLD_CHUNK_TILES_MAX]{};  // serializing
 };
 
 struct NetMessage_WorldPlayers {
-    uint32_t playersLength {};
-    Player   players       [SERVER_MAX_PLAYERS]{};
+    bool unused{};
 };
 
 struct NetMessage_WorldEntities {
-    uint32_t entitiesLength {};
-    Slime    entities       [WORLD_ENTITIES_MAX]{};
+    bool unused{};
 };
 
 struct NetMessage {
@@ -82,10 +80,10 @@ struct NetMessage {
     } data {};
 
     const char *TypeString(void);
-    ENetBuffer Serialize(void);
-    void Deserialize(ENetBuffer buffer);
+    ENetBuffer Serialize(World &world);
+    void Deserialize(ENetBuffer buffer, World &world);
 
 private:
     static ENetBuffer tempBuffer;
-    void Process(BitStream::Mode mode, ENetBuffer *buffer);
+    void Process(BitStream::Mode mode, ENetBuffer &buffer, World &world);
 };

@@ -32,7 +32,9 @@ void particle_fx_gold_init(Particle &particle, ParticleFX &effect)
     if (!coinSpriteDef) {
         const Spritesheet &coinSpritesheet = SpritesheetCatalog::spritesheets[(int)SpritesheetID::Coin];
         coinSpriteDef = coinSpritesheet.FindSprite("coin");
-        assert(coinSpriteDef);
+
+        // TODO: Don't play particle effects on the server so that we can re-enable this assert on client side
+        //assert(coinSpriteDef);
     }
     particle.sprite.spriteDef = coinSpriteDef;
 }

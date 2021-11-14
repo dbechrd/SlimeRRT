@@ -56,26 +56,6 @@ void Tilemap::GenerateMinimap(void)
     free(minimapImg.data);
 }
 
-void Tilemap::SyncTiles(const Tile *tiles, size_t tilesLength)
-{
-    assert(width);
-    assert(height);
-    assert((size_t)width * height >= tilesLength);
-
-    this->tiles = (Tile *)calloc((size_t)width * height, sizeof(*this->tiles));
-    assert(this->tiles);
-
-    for (int y = 0; y < (int)height; y++) {
-        for (int x = 0; x < (int)width; x++) {
-            const Vector2 position = v2_init((float)x, (float)y);
-            Tile *tile = TileAt(x, y);
-            tile->tileType = (TileType)tiles[x * width + y].tileType;
-        }
-    }
-
-    GenerateMinimap();
-}
-
 Tile *Tilemap::TileAt(int tileX, int tileY)
 {
     size_t idx = (size_t)tileY * width + tileX;

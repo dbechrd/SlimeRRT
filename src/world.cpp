@@ -67,21 +67,6 @@ bool World::SpawnPlayer(const char *name, size_t nameLength, size_t &playerIdx)
     return false;
 }
 
-void World::SyncPlayers(const Player *players, size_t playersLength)
-{
-    assert(playersLength <= SERVER_MAX_PLAYERS);
-
-    playerCount = playersLength;
-    for (size_t i = 0; i < playersLength; i++) {
-        Player &player = this->players[i];
-        //InitPlayer(player, players[i].name, players[i].nameLength);
-        player.body.position.x = players[i].body.position.x;
-        player.body.position.y = players[i].body.position.y;
-        player.combat.hitPoints = players[i].combat.hitPoints;
-        player.combat.maxHitPoints = players[i].combat.maxHitPoints;
-    }
-}
-
 void World::InitSlime(Slime &slime)
 {
     if (slime.combat.maxHitPoints != 0) {
@@ -100,33 +85,12 @@ void World::InitSlime(Slime &slime)
 
     slime.body.position.x = dlb_rand32f_range(slimeRadius, maxX);
     slime.body.position.y = dlb_rand32f_range(slimeRadius, maxY);
-    slime.combat.maxHitPoints = 100.0f;
+    slime.combat.maxHitPoints = 10.0f;
     slime.combat.hitPoints = slime.combat.maxHitPoints;
     slime.combat.meleeDamage = 0.0f;
     slime.combat.lootTableId = LootTableID::LT_Slime;
     slime.sprite.scale = 1.0f;
     slime.sprite.spriteDef = slimeSpriteDef;
-}
-
-
-void World::SyncEntities(const Slime *entities, size_t entityLength)
-{
-    assert(entityLength <= WORLD_ENTITIES_MAX);
-
-    slimeCount = entityLength;
-    for (size_t i = 0; i < entityLength; i++) {
-        Slime &slime = slimes[i];
-        InitSlime(slime);
-        slime.body.position.x = entities[i].body.position.x;
-        slime.body.position.y = entities[i].body.position.y;
-        slime.body.position.z = entities[i].body.position.z;
-        //slime.combat.maxHitPoints = 100.0f;
-        //slime.combat.hitPoints = slime.combat.maxHitPoints;
-        //slime.combat.meleeDamage = 0.0f;
-        //slime.combat.lootTableId = LootTableID::LT_Slime;
-        //slime.sprite.scale = 1.0f;
-        //slime.sprite.spriteDef = slimeSpriteDef;
-    }
 }
 
 void BloodParticlesFollowPlayer(ParticleFX &effect, void *userData)
@@ -266,7 +230,7 @@ void World::SimPlayer(double now, double dt, Player &player, const PlayerControl
                     if (!slime.combat.hitPoints) {
                         //sound_catalog_play(SoundID::Squeak, 0.75f + dlb_rand32f_variance(0.2f));
 
-                        uint32_t coins = loot_table_roll_coins(slime.combat.lootTableId, (int)slime.sprite.scale);
+                        uint32_t coins = lootSystem.RollCoins(slime.combat.lootTableId, (int)slime.sprite.scale);
                         assert(coins);
 
                         // TODO(design): Convert coins to higher currency if stack fills up?

@@ -23,9 +23,6 @@ ErrorType ServerCLI::Run(const char *serverHost, unsigned short serverPort)
     E_ASSERT(netClient.OpenSocket(), "Failed to open client socket");
     E_ASSERT(netClient.Connect(serverHost, serverPort, "admin", "abc"), "Failed to connect client");
 
-    ItemCatalog::instance.Load();
-    loot_table_init();
-
 #if 0
     // TODO(dlb): Does the server CLI need to know about the world? Would be cool..
     World lobby{};

@@ -96,8 +96,6 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
     DrawList::RegisterTypes();
     sound_catalog_init();
     SpritesheetCatalog::Load();
-    ItemCatalog::instance.Load();
-    loot_table_init();
     tileset_init();
 
     DrawList drawList{};
@@ -183,8 +181,13 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
         sam.sprite.spriteDef = slimeSpriteDef;
     }
 
-    double frameStart = GetTime();
-    double dt = 0;
+
+    const double dt = 1.0f / SERVER_TPS;
+    // NOTE: Limit delta time to 2 frames worth of updates to prevent chaos for large dt (e.g. when debugging)
+    const double dtMax = dt * 2;
+    double frameStart = glfwGetTime();
+    double frameAccum = 0.0f;
+
     const int targetFPS = 60;
     //SetTargetFPS(targetFPS);
     SetWindowState(FLAG_VSYNC_HINT);
@@ -198,10 +201,8 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
 
     // Main game loop
     while (!WindowShouldClose()) {
-        // NOTE: Limit delta time to 2 frames worth of updates to prevent chaos for large dt (e.g. when debugging)
-        const double dtMax = (1.0 / targetFPS) * 2;
-        const double now = GetTime();
-        dt = MIN(now - frameStart, dtMax);
+        double now = glfwGetTime();
+        frameAccum += MIN(now - frameStart, dtMax);
         frameStart = now;
 
         const bool imguiUsingMouse = io.WantCaptureMouse;
@@ -280,6 +281,7 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
                 ImGui::CloseCurrentPopup();
                 memset(username, 0, sizeof(username));
                 memset(password, 0, sizeof(password));
+                chatActive = false;
             }
 
             ImGui::EndPopup();
@@ -289,9 +291,9 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
         bool findMouseTile = false;
 
         // HACK: No way to check if Raylib is currently recording.. :(
-        if (gifRecording) {
-            dt = 1.0 / 10.0;
-        }
+        //if (gifRecording) {
+        //    dt = 1.0 / 10.0;
+        //}
 
         E_ASSERT(netClient.Receive(), "Failed to receive packets");
 
@@ -308,12 +310,17 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
             world = lobby;
         }
 
-        for (size_t i = 0; i < world->playerCount; i++) {
-            static const PlayerControllerState noInput{};
-            world->SimPlayer(now, dt, world->players[i], i == world->playerIdx ? input : noInput);
+        if (frameAccum > dt) {
+            while (frameAccum > dt) {
+                for (size_t i = 0; i < world->playerCount; i++) {
+                    static const PlayerControllerState noInput{};
+                    world->SimPlayer(now, dt, world->players[i], i == world->playerIdx ? input : noInput);
+                }
+                world->SimSlimes(now, dt);
+                world->particleSystem.Update(now, dt);
+                frameAccum -= dt;
+            }
         }
-        world->SimSlimes(now, dt);
-        world->particleSystem.Update(now, dt);
 
         if (IsWindowResized()) {
             screenWidth = GetScreenWidth();

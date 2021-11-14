@@ -16,16 +16,23 @@ enum class LootTableID {
 };
 
 struct LootDrop {
-    ItemType itemType;
-    uint32_t minCount;
-    uint32_t maxCount;
+    ItemType itemType {};
+    uint32_t minCount {};
+    uint32_t maxCount {};
 };
 
 struct LootTable {
-    LootTableID id;
-    LootDrop    drops[16];
+    LootTableID id    {};
+    LootDrop    drops [16]{};
 };
 
-void loot_table_init(void);
-uint32_t loot_table_roll_coins(LootTableID lootTableId);
-void loot_table_roll_drops(LootTableID lootTableId);
+struct LootSystem {
+    LootSystem(void);
+    uint32_t RollCoins  (LootTableID lootTableId, int monster_lvl);
+    void     RollDrops  (LootTableID lootTableId);
+
+private:
+    void AddDropToTable (LootTableID lootTableId, ItemType itemType, uint32_t min, uint32_t max);
+
+    LootTable lootTableRegistry[(size_t)LootTableID::Count]{};
+};

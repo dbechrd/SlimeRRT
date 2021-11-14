@@ -21,29 +21,27 @@ const char *NetMessage::TypeString(void)
     }
 }
 
-void NetMessage::Process(BitStream::Mode mode, ENetBuffer *buffer)
+void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
 {
     switch (mode) {
         case BitStream::Mode::Reader: {
-            assert(buffer);
-            assert(buffer->data);
-            assert(buffer->dataLength);
+            assert(buffer.data);
+            assert(buffer.dataLength);
             break;
         } case BitStream::Mode::Writer: {
-            assert(buffer);
             if (!tempBuffer.dataLength) {
                 tempBuffer.dataLength = PACKET_SIZE_MAX;
                 tempBuffer.data = calloc(tempBuffer.dataLength, sizeof(uint8_t));
             } else {
                 memset(tempBuffer.data, 0, tempBuffer.dataLength);
             }
-            buffer->data = tempBuffer.data;
-            buffer->dataLength = tempBuffer.dataLength;
+            buffer.data = tempBuffer.data;
+            buffer.dataLength = tempBuffer.dataLength;
             break;
         }
     }
 
-    BitStream stream(mode, buffer->data, buffer->dataLength);
+    BitStream stream(mode, buffer.data, buffer.dataLength);
 
     uint32_t typeInt = (uint32_t)type;
     stream.Process(typeInt, 3, (uint32_t)NetMessage::Type::Unknown + 1, (uint32_t)NetMessage::Type::Count - 1);
@@ -128,24 +126,30 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer *buffer)
             stream.Process(worldChunk.offsetY, 8, 0, WORLD_HEIGHT_MAX - WORLD_CHUNK_HEIGHT);
             stream.Process(worldChunk.tilesLength, 16, 0, WORLD_CHUNK_TILES_MAX);
 
+            assert(worldChunk.tilesLength < world.map->width * world.map->width);
             for (size_t i = 0; i < worldChunk.tilesLength; i++) {
-                Tile &tile = worldChunk.tiles[i];
+                Tile &tile = world.map->tiles[i];
                 uint32_t tileType = (uint32_t)tile.tileType;
                 stream.Process(tileType, 3, 0, (uint32_t)TileType::Count - 1);
                 tile.tileType = (TileType)tileType;
             }
             stream.Align();
 
+            if (mode == BitStream::Mode::Reader) {
+                world.map->GenerateMinimap();
+            }
+
             break;
         } case NetMessage::Type::WorldPlayers: {
             NetMessage_WorldPlayers &worldPlayers = data.worldPlayers;
 
-            stream.Process((uint32_t)worldPlayers.playersLength, 5, 0, SERVER_MAX_PLAYERS);
+            stream.Process(world.playerCount, 5, 0, SERVER_MAX_PLAYERS);
             stream.Align();
 
-            for (size_t i = 0; i < worldPlayers.playersLength; i++) {
-                Player &player = worldPlayers.players[i];
+            for (size_t i = 0; i < world.playerCount; i++) {
+                Player &player = world.players[i];
                 // TODO: range validation on floats
+                world.InitPlayer(player, player.name, player.nameLength);
                 stream.ProcessFloat(player.body.position.x);
                 stream.ProcessFloat(player.body.position.y);
                 stream.ProcessFloat(player.combat.hitPoints);
@@ -156,15 +160,18 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer *buffer)
         } case NetMessage::Type::WorldEntities: {
             NetMessage_WorldEntities &worldEntities = data.worldEntities;
 
-            stream.Process((uint32_t)worldEntities.entitiesLength, 32, 0, WORLD_ENTITIES_MAX);
+            stream.Process(world.slimeCount, 32, 0, WORLD_ENTITIES_MAX);
             stream.Align();
 
-            for (size_t i = 0; i < worldEntities.entitiesLength; i++) {
-                Slime &slime = worldEntities.entities[i];
+            for (size_t i = 0; i < world.slimeCount; i++) {
+                Slime &slime = world.slimes[i];
+                world.InitSlime(slime);
                 // TODO: range validation on floats
                 stream.ProcessFloat(slime.body.position.x);
                 stream.ProcessFloat(slime.body.position.y);
                 stream.ProcessFloat(slime.body.position.z);
+                stream.ProcessFloat(slime.combat.hitPoints);
+                stream.ProcessFloat(slime.combat.maxHitPoints);
             }
 
             break;
@@ -174,21 +181,21 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer *buffer)
     }
 
     stream.Flush();
-    buffer->dataLength = stream.BytesProcessed();
+    buffer.dataLength = stream.BytesProcessed();
 }
 
-ENetBuffer NetMessage::Serialize(void)
+ENetBuffer NetMessage::Serialize(World &world)
 {
     ENetBuffer buffer{};
-    Process(BitStream::Mode::Writer, &buffer);
+    Process(BitStream::Mode::Writer, buffer, world);
     assert(buffer.data);
     assert(buffer.dataLength);
     return buffer;
 }
 
-void NetMessage::Deserialize(ENetBuffer buffer)
+void NetMessage::Deserialize(ENetBuffer buffer, World &world)
 {
     assert(buffer.data);
     assert(buffer.dataLength);
-    Process(BitStream::Mode::Reader, &buffer);
+    Process(BitStream::Mode::Reader, buffer, world);
 }

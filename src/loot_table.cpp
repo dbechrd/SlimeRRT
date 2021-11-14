@@ -2,19 +2,15 @@
 #include <dlb_types.h>
 #include <stdlib.h>
 
-static LootTable lootTables[(size_t)LootTableID::Count];
-
-static void loot_table_add_drop(LootTableID lootTableId, ItemType itemType, uint32_t min, uint32_t max);
-
-void loot_table_init(void)
+LootSystem::LootSystem(void)
 {
-    loot_table_add_drop(LootTableID::LT_Sam, ItemType::Currency, 1, 100000);
-    loot_table_add_drop(LootTableID::LT_Slime, ItemType::Currency, 1, 4);
+    AddDropToTable(LootTableID::LT_Sam, ItemType::Currency, 1, 100000);
+    AddDropToTable(LootTableID::LT_Slime, ItemType::Currency, 1, 4);
 }
 
-static void loot_table_add_drop(LootTableID lootTableId, ItemType itemType, uint32_t min, uint32_t max)
+void LootSystem::AddDropToTable(LootTableID lootTableId, ItemType itemType, uint32_t min, uint32_t max)
 {
-    LootTable &lootTable = lootTables[(size_t)lootTableId];
+    LootTable &lootTable = lootTableRegistry[(size_t)lootTableId];
     LootDrop *drop = 0;
     for (int i = 0; i < ARRAY_SIZE(lootTable.drops); i++) {
         if (lootTable.drops[i].itemType == ItemType::Empty) {
@@ -31,9 +27,9 @@ static void loot_table_add_drop(LootTableID lootTableId, ItemType itemType, uint
     }
 }
 
-uint32_t loot_table_roll_coins(LootTableID lootTableId, int monster_lvl)
+uint32_t LootSystem::RollCoins(LootTableID lootTableId, int monster_lvl)
 {
-    LootTable &table = lootTables[(size_t)lootTableId];
+    LootTable &table = lootTableRegistry[(size_t)lootTableId];
     uint32_t coins = 0;
     for (uint32_t i = 0; i < ARRAY_SIZE(table.drops); i++) {
         if (table.drops[i].itemType == ItemType::Currency) {
@@ -44,7 +40,7 @@ uint32_t loot_table_roll_coins(LootTableID lootTableId, int monster_lvl)
     return coins;
 }
 
-void loot_table_roll_drops(LootTableID lootTableId)
+void LootSystem::RollDrops(LootTableID lootTableId)
 {
     UNUSED(lootTableId);
 }

@@ -6,11 +6,10 @@
 struct ItemCatalog {
     static ItemCatalog instance;
 
-    void ItemCatalog::Load();
+    ItemCatalog(void);
     const Item &FindById(ItemID id) const;
 
 private:
-    ItemCatalog() = default;
     const Item empty{ItemType::Empty, ItemID::Empty, 0};
 
     Item *byId[(size_t)ItemID::Count]     {};

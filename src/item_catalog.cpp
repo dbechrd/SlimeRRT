@@ -5,7 +5,7 @@
 
 ItemCatalog ItemCatalog::instance{};
 
-void ItemCatalog::Load()
+ItemCatalog::ItemCatalog(void)
 {
     byId[(size_t)ItemID::Currency_Coin] = &currencies.emplace_back(ItemID::Currency_Coin, 1.0f);
     byId[(size_t)ItemID::Weapon_Sword] = &weapons.emplace_back(ItemID::Weapon_Sword, 5.0f);

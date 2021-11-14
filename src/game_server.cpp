@@ -30,8 +30,7 @@ ErrorType GameServer::Run()
 
     E_ASSERT(netServer.OpenSocket(SERVER_PORT), "Failed to open socket");
 
-    const double tps = 20.0f;
-    const double dt = 1.0f / tps;
+    const double dt = 1.0f / SERVER_TPS;
     double frameStart = glfwGetTime();
     double frameAccum = 0.0f;
 

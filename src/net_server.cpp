@@ -56,7 +56,7 @@ ErrorType NetServer::SendRaw(const NetServerClient &client, const void *data, si
 
 ErrorType NetServer::SendMsg(const NetServerClient &client, NetMessage &message)
 {
-    ENetBuffer rawPacket = message.Serialize();
+    ENetBuffer rawPacket = message.Serialize(*serverWorld);
     //E_INFO("[SEND][%21s][%5u b] %16s ", TextFormatIP(client.peer->address), rawPacket.dataLength, message.TypeString());
     E_ASSERT(SendRaw(client, rawPacket.data, rawPacket.dataLength), "Failed to send packet");
     return ErrorType::Success;
@@ -83,7 +83,7 @@ ErrorType NetServer::BroadcastRaw(const void *data, size_t size)
 
 ErrorType NetServer::BroadcastMsg(NetMessage &message)
 {
-    ENetBuffer rawPacket = message.Serialize();
+    ENetBuffer rawPacket = message.Serialize(*serverWorld);
     //E_INFO("[SEND][%21s][%5u b] %16s", "BROADCAST", rawPacket.dataLength, message.TypeString());
     return BroadcastRaw(rawPacket.data, rawPacket.dataLength);
 }
@@ -144,9 +144,6 @@ ErrorType NetServer::BroadcastWorldChunk(void)
 
     uint32_t tileCount = (uint32_t)MIN(serverWorld->map->width * serverWorld->map->height, WORLD_CHUNK_TILES_MAX);
     worldChunk.data.worldChunk.tilesLength = tileCount;
-    for (uint32_t i = 0; i < tileCount; i++) {
-        worldChunk.data.worldChunk.tiles[i] = serverWorld->map->tiles[i];
-    }
     E_ASSERT(BroadcastMsg(worldChunk), "Failed to send world chunks");
     return ErrorType::Success;
 }
@@ -155,11 +152,6 @@ ErrorType NetServer::BroadcastWorldPlayers(void)
 {
     NetMessage worldPlayers{};
     worldPlayers.type = NetMessage::Type::WorldPlayers;
-
-    worldPlayers.data.worldPlayers.playersLength = (uint32_t)serverWorld->playerCount;
-    for (size_t i = 0; i < serverWorld->playerCount; i++) {
-        worldPlayers.data.worldPlayers.players[i] = serverWorld->players[i];
-    }
     E_ASSERT(BroadcastMsg(worldPlayers), "Failed to send world players");
     return ErrorType::Success;
 }
@@ -168,18 +160,13 @@ ErrorType NetServer::BroadcastWorldEntities(void)
 {
     NetMessage worldEntities{};
     worldEntities.type = NetMessage::Type::WorldEntities;
-
-    worldEntities.data.worldEntities.entitiesLength = (uint32_t)serverWorld->slimeCount;
-    for (size_t i = 0; i < serverWorld->slimeCount; i++) {
-        worldEntities.data.worldEntities.entities[i] = serverWorld->slimes[i];
-    }
     E_ASSERT(BroadcastMsg(worldEntities), "Failed to send world entities");
     return ErrorType::Success;
 }
 
 void NetServer::ProcessMsg(NetServerClient &client, Packet &packet)
 {
-    packet.netMessage.Deserialize(packet.rawBytes);
+    packet.netMessage.Deserialize(packet.rawBytes, *serverWorld);
 
     //E_INFO("[RECV][%21s][%5u b] %16s ", TextFormatIP(client.peer->address), packet.rawBytes.dataLength, packet.netMessage.TypeString());
 
