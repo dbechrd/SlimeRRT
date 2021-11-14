@@ -3,13 +3,13 @@
 #include "dlb_rand.h"
 #include <cassert>
 
-PARTICLE_FX_INIT(gold)
+void particle_fx_gold_init(Particle &particle, ParticleFX &effect)
 {
     // Spawn randomly during first 5% of duration
-    particle.spawnAt = duration * dlb_rand32f_variance(0.05f);
+    particle.spawnAt = effect.duration * dlb_rand32f_variance(0.05f);
 
     // Die randomly during last 15% of animation
-    particle.dieAt = duration - (duration * dlb_rand32f_variance(0.15f));
+    particle.dieAt = effect.duration - (effect.duration * dlb_rand32f_variance(0.15f));
     assert(particle.dieAt > particle.spawnAt);
 
 #if 1
@@ -25,11 +25,19 @@ PARTICLE_FX_INIT(gold)
     particle.velocity = (Vector2){ randX, METERS_TO_PIXELS(-3.0f) };
 #endif
     //particle.position = (Vector2){ 0.0f, 0.0f };
-    particle.sprite.scale = 1.0f;
     particle.color = WHITE;
+    particle.sprite.scale = 1.0f;
+
+    static const SpriteDef *coinSpriteDef{};
+    if (!coinSpriteDef) {
+        const Spritesheet &coinSpritesheet = SpritesheetCatalog::spritesheets[(int)SpritesheetID::Coin];
+        coinSpriteDef = coinSpritesheet.FindSprite("coin");
+        assert(coinSpriteDef);
+    }
+    particle.sprite.spriteDef = coinSpriteDef;
 }
 
-PARTICLE_FX_UPDATE(gold)
+void particle_fx_gold_update(Particle &particle, float alpha)
 {
     UNUSED(particle);
     UNUSED(alpha);

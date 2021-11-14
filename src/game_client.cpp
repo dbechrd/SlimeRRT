@@ -131,10 +131,6 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
     const SpriteDef *slimeSpriteDef = slimeSpritesheet.FindSprite("slime");
     assert(slimeSpriteDef);
 
-    const Spritesheet &coinSpritesheet = SpritesheetCatalog::spritesheets[(int)SpritesheetID::Coin];
-    const SpriteDef *coinSpriteDef = coinSpritesheet.FindSprite("coin");
-    assert(coinSpriteDef);
-
     World *lobby = new World;
     lobby->map = lobby->mapSystem.GenerateLobby();
     world = lobby;
@@ -165,16 +161,17 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
     }
 #endif
 
-    world->player = world->SpawnPlayer("Charlie");
+    world->SpawnPlayer(CSTR("Charlie"));
 
     {
         const float slimeRadius = 50.0f;
-        const size_t mapPixelsX = world->map->width * TILE_W;
-        const size_t mapPixelsY = world->map->height * TILE_W;
+        const size_t mapPixelsX = (size_t)world->map->width * TILE_W;
+        const size_t mapPixelsY = (size_t)world->map->height * TILE_W;
         const float maxX = mapPixelsX - slimeRadius;
         const float maxY = mapPixelsY - slimeRadius;
 
-        Slime &sam = world->slimes.emplace_back("Sam", slimeSpriteDef);
+        Slime &sam = world->slimes[world->slimeCount++];
+        sam.name = "Sam";
         sam.combat.maxHitPoints = 100.0f; //100000.0f;
         sam.combat.hitPoints = sam.combat.maxHitPoints;
         sam.combat.meleeDamage = 0.0f;
@@ -183,6 +180,7 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
         sam.body.position.y = dlb_rand32f_range(slimeRadius, maxY);
         sam.body.position = v3_add(world->GetWorldSpawn(), { 0, -300.0f, 0 });
         sam.sprite.scale = 2.0f;
+        sam.sprite.spriteDef = slimeSpriteDef;
     }
 
     double frameStart = GetTime();
@@ -269,7 +267,7 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
                 E_ASSERT(netClient.Connect(host, (unsigned short)port, username, password), "Failed to connect to server");
                 closePopup = true;
             }
-            
+
             ImGui::SameLine();
             //ImGui::PushStyleColor(ImGuiCol_Button, 0xFF999999);
             bool cancel = ImGui::Button("Cancel", ImVec2(60, 0));
@@ -277,7 +275,7 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
             if (cancel || IsKeyPressed(io.KeyMap[ImGuiKey_Escape])) {
                 closePopup = true;
             }
-            
+
             if (closePopup) {
                 ImGui::CloseCurrentPopup();
                 memset(username, 0, sizeof(username));
@@ -302,14 +300,14 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
         if (netClient.server &&
             netClient.server->state == ENET_PEER_STATE_CONNECTED &&
             netClient.serverWorld &&
-            netClient.serverWorld->player)
+            netClient.serverWorld->players[0].combat.maxHitPoints)
         {
-            if (world != netClient.serverWorld) {
-                world = netClient.serverWorld;
-            }
-        } else if (world != lobby) {
+            world = netClient.serverWorld;
+        } else {
             world = lobby;
+            world->SimSlimes(now, dt);
         }
+        world->Sim(now, dt, input);
 
         if (IsWindowResized()) {
             screenWidth = GetScreenWidth();
@@ -380,8 +378,7 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
             }
 
             if (!cameraFree) {
-                world->Sim(now, dt, input, coinSpriteDef);
-                camera.target = world->player->body.GroundPosition();
+                camera.target = world->players[0].body.GroundPosition();
                 camera.rotation = 0.0f;
                 camera.zoom = 1.0f;
                 cameraSpeed = cameraSpeedDefault;
@@ -433,14 +430,14 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
         const float invZoom = 1.0f / camera.zoom;
 #endif
 
-        if (world->player->body.idle && whistleAlpha < 1.0f) {
+        if (world->players[0].body.idle && whistleAlpha < 1.0f) {
             whistleAlpha = CLAMP(whistleAlpha + 0.005f, 0.0f, 1.0f);
             SetMusicVolume(mus_background, LERP(mus_background_vmin, mus_background_vmax, 1.0f - whistleAlpha));
             SetMusicVolume(mus_whistle, LERP(mus_whistle_vmin, mus_whistle_vmax, whistleAlpha));
             if (!IsMusicPlaying(mus_whistle)) {
                 PlayMusicStream(mus_whistle);
             }
-        } else if (!world->player->body.idle && whistleAlpha > 0.0f) {
+        } else if (!world->players[0].body.idle && whistleAlpha > 0.0f) {
             whistleAlpha = CLAMP(whistleAlpha - 0.01f, 0.0f, 1.0f);
             SetMusicVolume(mus_background, LERP(mus_background_vmin, mus_background_vmax, 1.0f - whistleAlpha));
             SetMusicVolume(mus_whistle, LERP(mus_whistle_vmin, mus_whistle_vmax, whistleAlpha));
@@ -531,8 +528,12 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
         {
             drawList.EnableCulling(cameraRect);
 
-            // Queue player for drawing
-            world->player->Push(drawList);
+            // Queue players for drawing
+            for (size_t i = 0; i < ARRAY_SIZE(world->players); i++) {
+                if (world->players[i].combat.hitPoints) {
+                    world->players[i].Push(drawList);
+                }
+            }
 
             // Queue slimes for drawing
             for (const Slime &slime : world->slimes) {
@@ -597,7 +598,7 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
 
 #if DEMO_AI_TRACKING
         {
-            Vector3 charlieCenter = sprite_world_center(world->player->sprite, world->player->body.position, world->player->sprite.scale);
+            Vector3 charlieCenter = sprite_world_center(world->players[0].sprite, world->players[0].body.position, world->players[0].sprite.scale);
             DrawCircle((int)charlieCenter.x, (int)charlieCenter.y, 640.0f, Fade(ORANGE, 0.5f));
         }
 #endif
@@ -679,20 +680,20 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
                 text = TextFormat("%2i fps (%.02f ms)", GetFPS(), GetFrameTime() * 1000.0f);
             }
             PUSH_TEXT(text, WHITE);
-            text = TextFormat("Coins: %d", world->player->inventory.slots[(int)PlayerInventorySlot::Coins].stackCount);
+            text = TextFormat("Coins: %d", world->players[0].inventory.slots[(int)PlayerInventorySlot::Coins].stackCount);
             PUSH_TEXT(text, YELLOW);
 
-            text = TextFormat("Coins collected   %u", world->player->stats.coinsCollected);
+            text = TextFormat("Coins collected   %u", world->players[0].stats.coinsCollected);
             PUSH_TEXT(text, LIGHTGRAY);
-            text = TextFormat("Damage dealt      %.2f", world->player->stats.damageDealt);
+            text = TextFormat("Damage dealt      %.2f", world->players[0].stats.damageDealt);
             PUSH_TEXT(text, LIGHTGRAY);
-            text = TextFormat("Kilometers walked %.2f", world->player->stats.kmWalked);
+            text = TextFormat("Kilometers walked %.2f", world->players[0].stats.kmWalked);
             PUSH_TEXT(text, LIGHTGRAY);
-            text = TextFormat("Slimes slain      %u", world->player->stats.slimesSlain);
+            text = TextFormat("Slimes slain      %u", world->players[0].stats.slimesSlain);
             PUSH_TEXT(text, LIGHTGRAY);
-            text = TextFormat("Times fist swung  %u", world->player->stats.timesFistSwung);
+            text = TextFormat("Times fist swung  %u", world->players[0].stats.timesFistSwung);
             PUSH_TEXT(text, LIGHTGRAY);
-            text = TextFormat("Times sword swung %u", world->player->stats.timesSwordSwung);
+            text = TextFormat("Times sword swung %u", world->players[0].stats.timesSwordSwung);
             PUSH_TEXT(text, LIGHTGRAY);
 
 #if SHOW_DEBUG_STATS
@@ -763,7 +764,7 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
                 static int chatInputTextLen = 0;
                 static char chatInputText[CHAT_MESSAGE_BUFFER_LEN];
                 assert(CHAT_MESSAGE_LENGTH_MAX < CHAT_MESSAGE_BUFFER_LEN);
-                
+
                 Rectangle chatInputRect = { margin, screenHeight - margin - inputBoxHeight, chatWidth, inputBoxHeight };
                 //GuiTextBox(inputBox, chatInputText, CHAT_MESSAGE_LENGTH_MAX, true);
                 //GuiTextBoxEx(inputBox, chatInputText, CHAT_MESSAGE_LENGTH_MAX, true);

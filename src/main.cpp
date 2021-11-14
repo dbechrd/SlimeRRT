@@ -104,8 +104,9 @@ int main(int argc, char *argv[])
     });
 
     if (args.server) {
-        ServerCLI serverCli{ args };
-        serverCli.Run("localhost", SERVER_PORT);
+        // TODO: Make CLI not be an entire client/player. Makes no sense for the CLI to show up in the world LUL.
+        //ServerCLI serverCli{ args };
+        //serverCli.Run("localhost", SERVER_PORT);
     } else {
         GameClient gameClient{ args };
         //gameClient.Run("slime.theprogrammingjunkie.com", SERVER_PORT);

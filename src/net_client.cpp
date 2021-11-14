@@ -52,7 +52,9 @@ ErrorType NetClient::Connect(const char *serverHost, unsigned short serverPort, 
 
     this->serverHost = serverHost;
     this->serverPort = serverPort;
+    this->usernameLength = strlen(username);
     strncpy(this->username, username, USERNAME_LENGTH_MAX);
+    this->passwordLength = strlen(password);
     strncpy(this->password, password, PASSWORD_LENGTH_MAX);
 
     return ErrorType::Success;
@@ -161,23 +163,29 @@ void NetClient::ProcessMsg(Packet &packet)
             // TODO: Get tileset ID from server
             serverWorld->map->tilesetId = TilesetID::TS_Overworld;
 
-            if (!serverWorld->player) {
-                serverWorld->player = serverWorld->SpawnPlayer(username);
-                assert(serverWorld->player);
+            if (!serverWorld->players[0].combat.maxHitPoints) {
+                Player *player = serverWorld->SpawnPlayer(username, usernameLength);
+                assert(player);
             }
 
             break;
         } case NetMessage::Type::WorldChunk: {
-            NetMessage_WorldChunk &worldChunkMsg = packet.netMessage.data.worldChunk;
-            if (worldChunkMsg.tilesLength) {
-                serverWorld->map->SyncTiles(worldChunkMsg.tiles, worldChunkMsg.tilesLength);
-                serverWorld->player->body.position = serverWorld->GetWorldSpawn();
+            NetMessage_WorldChunk &worldChunk = packet.netMessage.data.worldChunk;
+            if (worldChunk.tilesLength) {
+                serverWorld->map->SyncTiles(worldChunk.tiles, worldChunk.tilesLength);
+                serverWorld->players[0].body.position = serverWorld->GetWorldSpawn();
+            }
+            break;
+        } case NetMessage::Type::WorldPlayers: {
+            NetMessage_WorldPlayers &worldPlayers = packet.netMessage.data.worldPlayers;
+            if (worldPlayers.playersLength) {
+                serverWorld->SyncPlayers(worldPlayers.players, worldPlayers.playersLength);
             }
             break;
         } case NetMessage::Type::WorldEntities: {
-            NetMessage_WorldEntities &worldEntitiesMsg = packet.netMessage.data.worldEntities;
-            if (worldEntitiesMsg.entitiesLength) {
-                serverWorld->GenerateEntities(worldEntitiesMsg.entities, worldEntitiesMsg.entitiesLength);
+            NetMessage_WorldEntities &worldEntities = packet.netMessage.data.worldEntities;
+            if (worldEntities.entitiesLength) {
+                serverWorld->SyncEntities(worldEntities.entities, worldEntities.entitiesLength);
             }
             break;
         } default: {
@@ -220,7 +228,7 @@ ErrorType NetClient::Receive()
     int svc = 0;
     do {
         ENetEvent event{};
-        svc = enet_host_service(client, &event, 0);
+        svc = enet_host_service(client, &event, 1);
 
         if (server->state == ENET_PEER_STATE_CONNECTING &&
             !server->lastReceiveTime &&

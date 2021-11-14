@@ -1,6 +1,7 @@
 #pragma once
 
 #include "bit_stream.h"
+#include "player.h"
 #include "slime.h"
 #include "tilemap.h"
 
@@ -71,6 +72,11 @@ struct NetMessage_WorldChunk {
     Tile     tiles[WORLD_CHUNK_TILES_MAX] {};  // serializing
 };
 
+struct NetMessage_WorldPlayers {
+    uint32_t playersLength{};
+    Player   players[SERVER_MAX_PLAYERS] {};
+};
+
 struct NetMessage_WorldEntities {
     uint32_t entitiesLength {};
     Slime    entities[WORLD_ENTITIES_MAX] {};
@@ -83,6 +89,7 @@ struct NetMessage {
         ChatMessage,
         Welcome,
         WorldChunk,
+        WorldPlayers,
         WorldEntities,
         Count
     };
@@ -94,6 +101,7 @@ struct NetMessage {
         NetMessage_ChatMessage   chatMsg;
         NetMessage_Welcome       welcome;
         NetMessage_WorldChunk    worldChunk;
+        NetMessage_WorldPlayers  worldPlayers;
         NetMessage_WorldEntities worldEntities;
     } data {};
 

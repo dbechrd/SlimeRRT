@@ -1,17 +1,10 @@
 #pragma once
 
-#define PARTICLE_FX_INIT(name) \
-    void particle_fx_##name##_init   (Particle &particle, double duration)
+void particle_fx_blood_init   (Particle &particle, ParticleFX &effect);
+void particle_fx_blood_update (Particle &particle, float alpha);
 
-#define PARTICLE_FX_UPDATE(name) \
-    void particle_fx_##name##_update (Particle &particle, float alpha)
+void particle_fx_gold_init    (Particle &particle, ParticleFX &effect);
+void particle_fx_gold_update  (Particle &particle, float alpha);
 
-#define PARTICLE_FX_DECL(name) \
-    PARTICLE_FX_INIT(name); \
-    PARTICLE_FX_UPDATE(name); \
-
-PARTICLE_FX_DECL(blood);
-PARTICLE_FX_DECL(gold);
-PARTICLE_FX_DECL(goo);
-
-#undef PARTICLE_FX_DECL
+void particle_fx_goo_init     (Particle &particle, ParticleFX &effect);
+void particle_fx_goo_update   (Particle &particle, float alpha);

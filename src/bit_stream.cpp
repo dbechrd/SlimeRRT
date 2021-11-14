@@ -25,8 +25,8 @@ void BitStream::Align()
 // Return # of bytes read/written
 size_t BitStream::BytesProcessed() const
 {
-    assert(bitsProcessed % 8 == 0);
-    const size_t bytesProcessed = bitsProcessed / 8;
+    //assert(bitsProcessed % 8 == 0);
+    const size_t bytesProcessed = bitsProcessed / 8 + (bitsProcessed % 8 > 0);
     return bytesProcessed;
 }
 
@@ -75,18 +75,11 @@ void BitStream::Process(uint32_t &word, uint8_t bits, uint32_t min, uint32_t max
     bitsProcessed += bits;
 }
 
-// Return pointer to currently location in buffer (for in-place string references)
-const char *BitStream::BufferPtr() const
-{
-    assert(mode == Mode::Reader);  // NOTE: This would work in writer mode too.. but why would you use it?
-    return (char *)buffer + BytesProcessed();
-}
-
 // Flush word from scratch to buffer
 void BitStream::Flush()
 {
     if (mode == Mode::Writer && scratchBits) {
-        assert(wordIndex * 8 < bufferBits);
+        assert((wordIndex + 1) * 32 < bufferBits);
         ((uint32_t *)buffer)[wordIndex] = scratch & 0xFFFFFFFF;
         wordIndex++;
         scratch >>= 32;

@@ -15,7 +15,7 @@ Player::Player()
     body.lastUpdated = GetTime();
     sprite.scale = 1.0f;
     sprite.direction = Direction::South;
-    combat.meleeDamage = 1.0f;    
+    combat.meleeDamage = 1.0f;
 
     // TODO: Better way to check if visual client vs. CLI client than checking global spritesheet
     const Spritesheet &charlieSpritesheet = SpritesheetCatalog::spritesheets[(int)SpritesheetID::Charlie];
@@ -37,9 +37,10 @@ Player::Player()
     stats = {};
 }
 
-void Player::SetName(const char *name)
+void Player::SetName(const char *name, size_t nameLength)
 {
-    this->name = name;
+    this->nameLength = MIN(nameLength, USERNAME_LENGTH_MAX);
+    memcpy(this->name, name, this->nameLength);
 }
 
 void Player::SetSpritesheet(const SpriteDef &spriteDef)

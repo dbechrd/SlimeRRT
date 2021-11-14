@@ -28,7 +28,9 @@ void sound_catalog_play(SoundID id, float pitch)
 {
     assert((int)id >= 0);
     assert((int)id < ARRAY_SIZE(soundCatalog));
-    assert(soundCatalog[(int)id].sampleCount);
+    if (!soundCatalog[(int)id].sampleCount) {
+        return;
+    }
 
     //if (IsSoundPlaying(soundCatalog[id])) {
     //    return;
@@ -42,7 +44,9 @@ bool sound_catalog_playing(SoundID id)
 {
     assert((int)id >= 0);
     assert((int)id < ARRAY_SIZE(soundCatalog));
-    assert(soundCatalog[(int)id].sampleCount);
+    if (!soundCatalog[(int)id].sampleCount) {
+        return false;
+    }
 
     bool playing = IsSoundPlaying(soundCatalog[(int)id]);
     return playing;

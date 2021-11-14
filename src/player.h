@@ -30,7 +30,8 @@ struct Player {
         uint32_t timesSwordSwung {};
     };
 
-    const char *    name        {};
+    size_t          nameLength  {};
+    char            name[USERNAME_LENGTH_MAX]{};
     ActionState     actionState {};
     MoveState       moveState   {};
     Body3D          body        {};
@@ -40,7 +41,7 @@ struct Player {
     Stats           stats       {};
 
     Player();
-    void SetName(const char *name);
+    void SetName(const char *name, size_t nameLength);
     void SetSpritesheet(const SpriteDef &spriteDef);
 
     Vector3 GetAttachPoint(AttachPoint attachPoint) const;

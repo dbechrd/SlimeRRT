@@ -24,21 +24,8 @@ struct BitStream {
     // Read bits from scratch into word / Write bits form word to scratch
     void Process(uint32_t &word, uint8_t bits, uint32_t min, uint32_t max);
 
-    //|========================================================================
-    //| Read mode
-    //|========================================================================
-
-    // Return pointer to currently location in buffer (for in-place string references)
-    const char *BufferPtr() const;
-
-    //|========================================================================
-    //| Write mode
-    //|========================================================================
-
     // Flush word from scratch to buffer
     void Flush();
-
-    //|========================================================================
 
 private:
     Mode mode;

@@ -983,12 +983,12 @@ extern "C" {
     ENET_API void       enet_host_destroy(ENetHost *);
     ENET_API ENetPeer * enet_host_connect(ENetHost *, const ENetAddress *, size_t, enet_uint32);
     ENET_API int        enet_host_check_events(ENetHost *, ENetEvent *);
-    ENET_API int        enet_host_service(ENetHost *, ENetEvent *, enet_uint32);    
+    ENET_API int        enet_host_service(ENetHost *, ENetEvent *, enet_uint32);
     ENET_API int        enet_host_send_raw(ENetHost *, const ENetAddress *, enet_uint8 *, size_t);
     ENET_API int        enet_host_send_raw_ex(ENetHost *host, const ENetAddress* address, enet_uint8* data, size_t skipBytes, size_t bytesToSend);
     ENET_API void       enet_host_set_intercept(ENetHost *, const ENetInterceptCallback);
     ENET_API void       enet_host_flush(ENetHost *);
-    ENET_API void       enet_host_broadcast(ENetHost *, enet_uint8, ENetPacket *);    
+    ENET_API void       enet_host_broadcast(ENetHost *, enet_uint8, ENetPacket *);
     ENET_API void       enet_host_compress(ENetHost *, const ENetCompressor *);
     ENET_API void       enet_host_channel_limit(ENetHost *, size_t);
     ENET_API void       enet_host_bandwidth_limit(ENetHost *, enet_uint32, enet_uint32);
@@ -1763,7 +1763,7 @@ extern "C" {
         ENetChannel *channel;
         size_t channelCount, duplicatePeers = 0;
         ENetPeer *currentPeer, *peer = NULL;
-        ENetProtocol verifyCommand;
+        ENetProtocol verifyCommand{};
 
         channelCount = ENET_NET_TO_HOST_32(command->connect.channelCount);
 
@@ -2072,7 +2072,7 @@ extern "C" {
             --startCommand->fragmentsRemaining;
             startCommand->fragments[fragmentNumber / 32] |= (1 << (fragmentNumber % 32));
 
-            if (fragmentOffset + fragmentLength > startCommand->packet->dataLength) {
+            if ((size_t)fragmentOffset + fragmentLength > startCommand->packet->dataLength) {
                 fragmentLength = startCommand->packet->dataLength - fragmentOffset;
             }
 
@@ -2188,7 +2188,7 @@ extern "C" {
             --startCommand->fragmentsRemaining;
             startCommand->fragments[fragmentNumber / 32] |= (1 << (fragmentNumber % 32));
 
-            if (fragmentOffset + fragmentLength > startCommand->packet->dataLength) {
+            if ((size_t)fragmentOffset + fragmentLength > startCommand->packet->dataLength) {
                 fragmentLength = startCommand->packet->dataLength - fragmentOffset;
             }
 
@@ -2511,7 +2511,7 @@ extern "C" {
         if (host->checksum != NULL) {
             enet_uint32 *checksum = (enet_uint32 *) &host->receivedData[headerSize - sizeof(enet_uint32)];
             enet_uint32 desiredChecksum = *checksum;
-            ENetBuffer buffer;
+            ENetBuffer buffer{};
 
             *checksum = peer != NULL ? peer->connectID : 0;
 
@@ -2683,7 +2683,7 @@ extern "C" {
 
         for (packets = 0; packets < 256; ++packets) {
             int receivedLength;
-            ENetBuffer buffer;
+            ENetBuffer buffer{};
 
             buffer.data       = host->packetData[0];
             // buffer.dataLength = sizeof (host->packetData[0]);
@@ -3048,7 +3048,7 @@ extern "C" {
     } /* enet_protocol_send_reliable_outgoing_commands */
 
     static int enet_protocol_send_outgoing_commands(ENetHost *host, ENetEvent *event, int checkForTimeouts) {
-        enet_uint8 headerData[sizeof(ENetProtocolHeader) + sizeof(enet_uint32)];
+        enet_uint8 headerData[sizeof(ENetProtocolHeader) + sizeof(enet_uint32)]{};
         ENetProtocolHeader *header = (ENetProtocolHeader *) headerData;
         ENetPeer *currentPeer;
         int sentLength;
@@ -3231,7 +3231,7 @@ extern "C" {
      *  @ingroup host
      */
     int enet_host_service(ENetHost *host, ENetEvent *event, enet_uint32 timeout) {
-        enet_uint32 waitCondition;
+        enet_uint32 waitCondition{};
 
         if (event != NULL) {
             event->type   = ENET_EVENT_TYPE_NONE;
@@ -3336,7 +3336,7 @@ extern "C" {
                 }
 
                 waitCondition = ENET_SOCKET_WAIT_RECEIVE | ENET_SOCKET_WAIT_INTERRUPT;
-                if (enet_socket_wait(host->socket, &waitCondition, ENET_TIME_DIFFERENCE(timeout, host->serviceTime)) != 0) {
+                if (enet_socket_wait(host->socket, &waitCondition, ENET_TIME_DIFFERENCE((size_t)timeout, host->serviceTime)) != 0) {
                     return -1;
                 }
             } while (waitCondition & ENET_SOCKET_WAIT_INTERRUPT);
@@ -3384,7 +3384,7 @@ extern "C" {
      *  @param deceleration rate at which to decrease the throttle probability as mean RTT increases
      */
     void enet_peer_throttle_configure(ENetPeer *peer, enet_uint32 interval, enet_uint32 acceleration, enet_uint32 deceleration) {
-        ENetProtocol command;
+        ENetProtocol command{};
 
         peer->packetThrottleInterval     = interval;
         peer->packetThrottleAcceleration = acceleration;
@@ -3526,7 +3526,7 @@ extern "C" {
      */
     int enet_peer_send(ENetPeer *peer, enet_uint8 channelID, ENetPacket *packet) {
         ENetChannel *channel = &peer->channels[channelID];
-        ENetProtocol command;
+        ENetProtocol command{};
         size_t fragmentLength;
 
         if (peer->state != ENET_PEER_STATE_CONNECTED || channelID >= peer->channelCount || packet->dataLength > peer->host->maximumPacketSize) {
@@ -3829,7 +3829,7 @@ extern "C" {
      *  frequent ping requests.
      */
     void enet_peer_ping(ENetPeer *peer) {
-        ENetProtocol command;
+        ENetProtocol command{};
 
         if (peer->state != ENET_PEER_STATE_CONNECTED) {
             return;
@@ -3885,7 +3885,7 @@ extern "C" {
      *  return from this function.
      */
     void enet_peer_disconnect_now(ENetPeer *peer, enet_uint32 data) {
-        ENetProtocol command;
+        ENetProtocol command{};
 
         if (peer->state == ENET_PEER_STATE_DISCONNECTED) {
             return;
@@ -3912,7 +3912,7 @@ extern "C" {
      *  once the disconnection is complete.
      */
     void enet_peer_disconnect(ENetPeer *peer, enet_uint32 data) {
-        ENetProtocol command;
+        ENetProtocol command{};
 
         if (peer->state == ENET_PEER_STATE_DISCONNECTING ||
             peer->state == ENET_PEER_STATE_DISCONNECTED ||
@@ -4183,7 +4183,7 @@ extern "C" {
     }
 
     ENetIncomingCommand * enet_peer_queue_incoming_command(ENetPeer *peer, const ENetProtocol *command, const void *data, size_t dataLength, enet_uint32 flags, enet_uint32 fragmentCount) {
-        static ENetIncomingCommand dummyCommand;
+        static ENetIncomingCommand dummyCommand{};
 
         ENetChannel *channel = &peer->channels[command->header.channelID];
         enet_uint32 unreliableSequenceNumber = 0, reliableSequenceNumber = 0;
@@ -4317,7 +4317,7 @@ extern "C" {
 
         if (fragmentCount > 0) {
             if (fragmentCount <= ENET_PROTOCOL_MAXIMUM_FRAGMENT_COUNT) {
-                incomingCommand->fragments = (enet_uint32 *) enet_malloc((fragmentCount + 31) / 32 * sizeof(enet_uint32));
+                incomingCommand->fragments = (enet_uint32 *) enet_malloc((size_t)(fragmentCount + 31) / 32 * sizeof(enet_uint32));
             }
 
             if (incomingCommand->fragments == NULL) {
@@ -4326,7 +4326,7 @@ extern "C" {
                 goto notifyError;
             }
 
-            memset(incomingCommand->fragments, 0, (fragmentCount + 31) / 32 * sizeof(enet_uint32));
+            memset(incomingCommand->fragments, 0, (size_t)(fragmentCount + 31) / 32 * sizeof(enet_uint32));
         }
 
         if (packet != NULL) {
@@ -4530,7 +4530,7 @@ extern "C" {
     ENetPeer * enet_host_connect(ENetHost *host, const ENetAddress *address, size_t channelCount, enet_uint32 data) {
         ENetPeer *currentPeer;
         ENetChannel *channel;
-        ENetProtocol command;
+        ENetProtocol command{};
 
         if (channelCount < ENET_PROTOCOL_MINIMUM_CHANNEL_COUNT) {
             channelCount = ENET_PROTOCOL_MINIMUM_CHANNEL_COUNT;
@@ -4625,7 +4625,7 @@ extern "C" {
         }
     }
 
-    /** Sends raw data to specified address. Useful when you want to send unconnected data using host's socket.         
+    /** Sends raw data to specified address. Useful when you want to send unconnected data using host's socket.
      *  @param host host sending data
      *  @param address destination address
      *  @param data data pointer
@@ -4635,7 +4635,7 @@ extern "C" {
      *  @sa enet_socket_send
      */
     int enet_host_send_raw(ENetHost *host, const ENetAddress* address, enet_uint8* data, size_t dataLength) {
-        ENetBuffer buffer;
+        ENetBuffer buffer{};
         buffer.data = data;
         buffer.dataLength = dataLength;
         return enet_socket_send(host->socket, address, &buffer, 1);
@@ -4653,7 +4653,7 @@ extern "C" {
      *  @sa enet_socket_send
      */
     int enet_host_send_raw_ex(ENetHost *host, const ENetAddress* address, enet_uint8* data, size_t skipBytes, size_t bytesToSend) {
-        ENetBuffer buffer;
+        ENetBuffer buffer{};
         buffer.data = data + skipBytes;
         buffer.dataLength = bytesToSend;
         return enet_socket_send(host->socket, address, &buffer, 1);
@@ -4721,7 +4721,7 @@ extern "C" {
 
         int needsAdjustment = host->bandwidthLimitedPeers > 0 ? 1 : 0;
         ENetPeer *peer;
-        ENetProtocol command;
+        ENetProtocol command{};
 
         if (elapsedTime < ENET_HOST_BANDWIDTH_THROTTLE_INTERVAL) {
             return;
@@ -4884,9 +4884,9 @@ extern "C" {
 
     #ifdef _WIN32
         static LARGE_INTEGER getFILETIMEoffset() {
-            SYSTEMTIME s;
+            SYSTEMTIME s{};
             FILETIME f;
-            LARGE_INTEGER t;
+            LARGE_INTEGER t{};
 
             s.wYear = 1970;
             s.wMonth = 1;
@@ -5824,7 +5824,7 @@ extern "C" {
     }
 
     int enet_socket_get_address(ENetSocket socket, ENetAddress *address) {
-        struct sockaddr_in6 sin;
+        struct sockaddr_in6 sin{};
         int sinLength = sizeof(struct sockaddr_in6);
 
         if (getsockname(socket, (struct sockaddr *) &sin, &sinLength) == -1) {
@@ -5930,7 +5930,7 @@ extern "C" {
 
     ENetSocket enet_socket_accept(ENetSocket socket, ENetAddress *address) {
         SOCKET result;
-        struct sockaddr_in6 sin;
+        struct sockaddr_in6 sin{};
         int sinLength = sizeof(struct sockaddr_in6);
 
         result = accept(socket, address != NULL ? (struct sockaddr *)&sin : NULL, address != NULL ? &sinLength : NULL);
@@ -5991,7 +5991,7 @@ extern "C" {
     int enet_socket_receive(ENetSocket socket, ENetAddress *address, ENetBuffer *buffers, size_t bufferCount) {
         INT sinLength = sizeof(struct sockaddr_in6);
         DWORD flags   = 0, recvLength;
-        struct sockaddr_in6 sin;
+        struct sockaddr_in6 sin{};
 
         if (WSARecvFrom(socket,
             (LPWSABUF) buffers,
@@ -6026,7 +6026,7 @@ extern "C" {
     } /* enet_socket_receive */
 
     int enet_socketset_select(ENetSocket maxSocket, ENetSocketSet *readSet, ENetSocketSet *writeSet, enet_uint32 timeout) {
-        struct timeval timeVal;
+        struct timeval timeVal{};
 
         timeVal.tv_sec  = timeout / 1000;
         timeVal.tv_usec = (timeout % 1000) * 1000;
@@ -6035,8 +6035,9 @@ extern "C" {
     }
 
     int enet_socket_wait(ENetSocket socket, enet_uint32 *condition, enet_uint64 timeout) {
-        fd_set readSet, writeSet;
-        struct timeval timeVal;
+        fd_set readSet{};
+        fd_set writeSet{};
+        struct timeval timeVal{};
         int selectCount;
 
         timeVal.tv_sec  = timeout / 1000;

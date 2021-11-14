@@ -94,8 +94,8 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer *buffer)
                 welcome.motd[i] = (char)motdChr;
             }
 
-            stream.Process(welcome.width, 8, WORLD_WIDTH_MIN, WORLD_WIDTH_MAX);
-            stream.Process(welcome.height, 8, WORLD_HEIGHT_MIN, WORLD_HEIGHT_MAX);
+            stream.Process(welcome.width, 9, WORLD_WIDTH_MIN, WORLD_WIDTH_MAX);
+            stream.Process(welcome.height, 9, WORLD_HEIGHT_MIN, WORLD_HEIGHT_MAX);
 
             break;
         } case NetMessage::Type::WorldChunk: {
@@ -112,6 +112,23 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer *buffer)
                 tile.tileType = (TileType)tileType;
             }
             stream.Align();
+
+            break;
+        } case NetMessage::Type::WorldPlayers: {
+            NetMessage_WorldPlayers &worldPlayers = data.worldPlayers;
+
+            stream.Process((uint32_t)worldPlayers.playersLength, 5, 0, SERVER_MAX_PLAYERS);
+            stream.Align();
+
+            for (size_t i = 0; i < worldPlayers.playersLength; i++) {
+                Player &player = worldPlayers.players[i];
+                uint32_t position_x = *(uint32_t *)&player.body.position.x;
+                uint32_t position_y = *(uint32_t *)&player.body.position.y;
+                stream.Process(position_x, 32, ENTITY_POSITION_X_MIN, ENTITY_POSITION_X_MAX);
+                stream.Process(position_y, 32, ENTITY_POSITION_Y_MIN, ENTITY_POSITION_Y_MAX);
+                player.body.position.x = *(float *)&position_x;
+                player.body.position.y = *(float *)&position_y;
+            }
 
             break;
         } case NetMessage::Type::WorldEntities: {

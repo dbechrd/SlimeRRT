@@ -35,15 +35,13 @@ struct NetAddressEqual {
 struct NetServerClient {
     ENetPeer *peer                          {};
     double    last_packet_received_at       {};
-    bool      sent_welcome_basket           {};
     size_t    usernameLength                {};
     char      username[USERNAME_LENGTH_MAX] {};
 };
 
 struct NetServer {
     ENetHost *server {};
-    //std::unordered_map<ENetAddress, NetServerClient, NetAddressHash, NetAddressEqual> clients{};
-    std::unordered_map<ENetPeer *, NetServerClient> clients{};
+    std::unordered_map<ENetAddress, NetServerClient, NetAddressHash, NetAddressEqual> clients{};
 
     // TODO: Could have a packet history by message type? This would allow us
     // to only store history of important messages, and/or have different
@@ -55,6 +53,9 @@ struct NetServer {
 
     ~NetServer();
     ErrorType OpenSocket(unsigned short socketPort);
+    ErrorType BroadcastWorldChunk(void);
+    ErrorType BroadcastWorldPlayers(void);
+    ErrorType BroadcastWorldEntities(void);
     ErrorType Listen();
     void CloseSocket();
 
@@ -67,6 +68,7 @@ private:
     ErrorType BroadcastMsg(NetMessage &message);
     ErrorType BroadcastChatMessage(const char *msg, size_t msgLength);
     ErrorType SendWelcomeBasket(NetServerClient &client);
+
     void ProcessMsg(NetServerClient &client, Packet &packet);
     NetServerClient &NetServer::FindClient(ENetPeer *peer);
 };

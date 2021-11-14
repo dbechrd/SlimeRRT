@@ -128,34 +128,55 @@ ErrorType NetServer::SendWelcomeBasket(NetServerClient &client)
         E_ASSERT(BroadcastChatMessage(message, messageLength), "Failed to broadcast join notification");
     }
 
-    {
-        E_INFO("Sending world chunks to %s\n", TextFormatIP(client.peer->address));
-        NetMessage userWorldChunk{};
-        userWorldChunk.type = NetMessage::Type::WorldChunk;
-        userWorldChunk.data.worldChunk.offsetX = 0;
-        userWorldChunk.data.worldChunk.offsetY = 0;
+    BroadcastWorldChunk();
+    BroadcastWorldPlayers();
+    BroadcastWorldEntities();
 
-        uint32_t tileCount = (uint32_t)MIN(serverWorld->map->width * serverWorld->map->height, WORLD_CHUNK_TILES_MAX);
-        userWorldChunk.data.worldChunk.tilesLength = tileCount;
-        for (uint32_t i = 0; i < tileCount; i++) {
-            userWorldChunk.data.worldChunk.tiles[i] = serverWorld->map->tiles[i];
-        }
-        E_ASSERT(SendMsg(client, userWorldChunk), "Failed to send world chunks");
+    return ErrorType::Success;
+}
+
+ErrorType NetServer::BroadcastWorldChunk(void)
+{
+    E_INFO("Broadcasting world chunks\n");
+    NetMessage worldChunk{};
+    worldChunk.type = NetMessage::Type::WorldChunk;
+    worldChunk.data.worldChunk.offsetX = 0;
+    worldChunk.data.worldChunk.offsetY = 0;
+
+    uint32_t tileCount = (uint32_t)MIN(serverWorld->map->width * serverWorld->map->height, WORLD_CHUNK_TILES_MAX);
+    worldChunk.data.worldChunk.tilesLength = tileCount;
+    for (uint32_t i = 0; i < tileCount; i++) {
+        worldChunk.data.worldChunk.tiles[i] = serverWorld->map->tiles[i];
     }
+    E_ASSERT(BroadcastMsg(worldChunk), "Failed to send world chunks");
+    return ErrorType::Success;
+}
 
-    {
-        E_INFO("Sending world entites to %s\n", TextFormatIP(client.peer->address));
-        NetMessage userWorldEntities{};
-        userWorldEntities.type = NetMessage::Type::WorldEntities;
+ErrorType NetServer::BroadcastWorldPlayers(void)
+{
+    E_INFO("Broadcasting world players\n");
+    NetMessage worldPlayers{};
+    worldPlayers.type = NetMessage::Type::WorldPlayers;
 
-        uint32_t entityCount = (uint32_t)MIN(serverWorld->slimes.size(), WORLD_ENTITIES_MAX);
-        userWorldEntities.data.worldEntities.entitiesLength = entityCount;
-        for (uint32_t i = 0; i < entityCount; i++) {
-            userWorldEntities.data.worldEntities.entities[i] = serverWorld->slimes[i];
-        }
-        E_ASSERT(SendMsg(client, userWorldEntities), "Failed to send world entities");
+    worldPlayers.data.worldPlayers.playersLength = serverWorld->playerCount;
+    for (size_t i = 0; i < serverWorld->playerCount; i++) {
+        worldPlayers.data.worldPlayers.players[i] = serverWorld->players[i];
     }
+    E_ASSERT(BroadcastMsg(worldPlayers), "Failed to send world players");
+    return ErrorType::Success;
+}
 
+ErrorType NetServer::BroadcastWorldEntities(void)
+{
+    E_INFO("Broadcasting world entities\n");
+    NetMessage worldEntities{};
+    worldEntities.type = NetMessage::Type::WorldEntities;
+
+    worldEntities.data.worldEntities.entitiesLength = serverWorld->slimeCount;
+    for (size_t i = 0; i < serverWorld->slimeCount; i++) {
+        worldEntities.data.worldEntities.entities[i] = serverWorld->slimes[i];
+    }
+    E_ASSERT(BroadcastMsg(worldEntities), "Failed to send world entities");
     return ErrorType::Success;
 }
 
@@ -168,6 +189,9 @@ void NetServer::ProcessMsg(NetServerClient &client, Packet &packet)
             NetMessage_Identify &identMsg = packet.netMessage.data.identify;
             client.usernameLength = MIN(identMsg.usernameLength, USERNAME_LENGTH_MAX);
             memcpy(client.username, identMsg.username, client.usernameLength);
+
+            serverWorld->SpawnPlayer(client.username, client.usernameLength);
+
             break;
         } case NetMessage::Type::ChatMessage: {
             NetMessage_ChatMessage &chatMsg = packet.netMessage.data.chatMsg;
@@ -185,6 +209,7 @@ void NetServer::ProcessMsg(NetServerClient &client, Packet &packet)
             break;
         }
         default: {
+            assert("asdfasdf");
             break;
         }
     }
@@ -194,9 +219,9 @@ NetServerClient &NetServer::FindClient(ENetPeer *peer)
 {
     NetServerClient *client = (NetServerClient * )peer->data;
     if (!client) {
-        auto kv = clients.find(peer);
+        auto kv = clients.find(peer->address);
         if (kv == clients.end()) {
-            client = &clients[peer];
+            client = &clients[peer->address];
         } else {
             client = &kv->second;
         }
@@ -215,7 +240,7 @@ ErrorType NetServer::Listen()
 
     ENetEvent event{};
     // TODO(dlb): How long should this wait between calls?
-    int svc = enet_host_service(server, &event, 0);
+    int svc = enet_host_service(server, &event, 1);
     while (svc > 0) {
         switch (event.type) {
             case ENET_EVENT_TYPE_CONNECT: {
@@ -257,10 +282,7 @@ ErrorType NetServer::Listen()
                 NetServerClient &client = FindClient(event.peer);
                 ProcessMsg(client, packet);
 
-                if (!client.sent_welcome_basket && client.usernameLength) {
-                    SendWelcomeBasket(client);
-                    client.sent_welcome_basket = true;
-                }
+                SendWelcomeBasket(client);
 
                 client.last_packet_received_at = enet_time_get();
                 break;
@@ -270,14 +292,23 @@ ErrorType NetServer::Listen()
                     event.peer->address.port);
                 //TODO: Reset the peer's client information.
                 //event.peer->data = NULL;
-                memset(&clients[event.peer], 0, sizeof(clients[event.peer]));
+                auto kv = clients.find(event.peer->address);
+                if (kv != clients.end()) {
+                    enet_peer_reset(event.peer);
+                    memset(&kv->second, 0, sizeof(kv->second));
+                    clients.erase(event.peer->address);
+                }
                 break;
             } case ENET_EVENT_TYPE_DISCONNECT_TIMEOUT: {
                 E_WARN("Connection timed out for client %x:%hu.",
                     event.peer->address.host,
                     event.peer->address.port);
-                //enet_peer_reset(??);
-                memset(&clients[event.peer], 0, sizeof(clients[event.peer]));
+                auto kv = clients.find(event.peer->address);
+                if (kv != clients.end()) {
+                    enet_peer_reset(event.peer);
+                    memset(&kv->second, 0, sizeof(kv->second));
+                    clients.erase(event.peer->address);
+                }
                 break;
             } default: {
                 E_WARN("Unhandled event type: %d", event.type);

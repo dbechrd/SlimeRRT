@@ -52,7 +52,7 @@ Particle *ParticleSystem::Alloc(void)
     return particle;
 }
 
-ParticleFX *ParticleSystem::GenerateFX(ParticleFX_Type type, size_t particleCount, Vector3 origin, double duration, double now, const SpriteDef *spriteDef)
+ParticleFX *ParticleSystem::GenerateFX(ParticleFX_Type type, size_t particleCount, Vector3 origin, double duration, double now)
 {
     assert((int)type > 0);
     assert((int)type < ParticleFX_Count);
@@ -94,8 +94,7 @@ ParticleFX *ParticleSystem::GenerateFX(ParticleFX_Type type, size_t particleCoun
         }
 
         particle->effect = effect;
-        particle->sprite.spriteDef = spriteDef;
-        registry[effect->type].init(*particle, effect->duration);
+        registry[effect->type].init(*particle, *effect);
         effect->particlesLeft++;
 
         prev = particle;

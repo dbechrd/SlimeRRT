@@ -37,14 +37,6 @@ enum ParticleFxEvent_Type {
     ParticleFXEvent_Count
 };
 
-typedef void (*ParticleFX_FnInit  )(Particle &particle, double duration);
-typedef void (*ParticleFX_FnUpdate)(Particle &particle, float alpha);
-
-struct ParticleFXDef {
-    ParticleFX_FnInit   init   {};
-    ParticleFX_FnUpdate update {};
-};
-
 typedef void (*ParticeFX_FnEventCallback)(struct ParticleFX &effect, void *userData);
 
 struct ParticleFXEvent_Callback {
@@ -59,14 +51,22 @@ struct ParticleFX {
     double          duration      {};  // time to play effect for
     double          startedAt     {};  // time started
     Sprite          sprite        {};  // sprite to be used for all particles.. for now
-    ParticleFXEvent_Callback callbacks[ParticleFX_Count] {};
     ParticleFX *    next          {};  // when dead, intrusive free list
+    ParticleFXEvent_Callback callbacks[ParticleFX_Count] {};
 };
 
 //-----------------------------------------------------------------------------
 
 #define MAX_EFFECTS   32
 #define MAX_PARTICLES 1024
+
+typedef void (*ParticleFX_FnInit  )(Particle &particle, ParticleFX &effect);
+typedef void (*ParticleFX_FnUpdate)(Particle &particle, float alpha);
+
+struct ParticleFXDef {
+    ParticleFX_FnInit   init   {};
+    ParticleFX_FnUpdate update {};
+};
 
 struct ParticleSystem {
     ParticleSystem  (void);
@@ -75,7 +75,7 @@ struct ParticleSystem {
     size_t ParticlesActive (void);
     size_t EffectsActive   (void);
 
-    ParticleFX *GenerateFX (ParticleFX_Type type, size_t particleCount, Vector3 origin, double duration, double now, const SpriteDef *spriteDef);
+    ParticleFX *GenerateFX (ParticleFX_Type type, size_t particleCount, Vector3 origin, double duration, double now);
     void        Update     (double now, double dt);
     void        Push       (DrawList &drawList);
 
