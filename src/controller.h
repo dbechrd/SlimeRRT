@@ -27,8 +27,8 @@ struct PlayerControllerState {
     bool  cameraReset       {};
     bool  run               {};
     bool  attack            {};
-    bool  selectSlot[(int)PlayerInventorySlot::Count]{};
     bool  screenshot        {};
+    PlayerInventorySlot selectSlot{};
     bool  dbg_findMouseTile {};
     bool  dbg_imgui         {};
     bool  dbg_toggleVsync   {};
@@ -37,4 +37,5 @@ struct PlayerControllerState {
     bool  dbg_nextRtreeRect {};
 
     static PlayerControllerState Query(bool ignoreMouse, bool ignoreKeyboard, bool freeCamera);
+    static void Send();
 };

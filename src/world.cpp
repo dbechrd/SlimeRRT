@@ -53,17 +53,18 @@ void World::InitPlayer(Player &player, const char *name, size_t nameLength)
     player.sprite.spriteDef = charlieSpriteDef;
 }
 
-Player *World::SpawnPlayer(const char *name, size_t nameLength)
+bool World::SpawnPlayer(const char *name, size_t nameLength, size_t &playerIdx)
 {
     for (int i = 0; i < SERVER_MAX_PLAYERS; i++) {
         Player &player = players[i];
         if (player.combat.maxHitPoints == 0) {
             playerCount++;
             InitPlayer(player, name, nameLength);
-            return &player;
+            playerIdx = i;
+            return true;
         }
     }
-    return 0;
+    return false;
 }
 
 void World::SyncPlayers(const Player *players, size_t playersLength)
@@ -73,29 +74,58 @@ void World::SyncPlayers(const Player *players, size_t playersLength)
     playerCount = playersLength;
     for (size_t i = 0; i < playersLength; i++) {
         Player &player = this->players[i];
-        InitPlayer(player, players[i].name, players[i].nameLength);
+        //InitPlayer(player, players[i].name, players[i].nameLength);
         player.body.position.x = players[i].body.position.x;
         player.body.position.y = players[i].body.position.y;
+        player.combat.hitPoints = players[i].combat.hitPoints;
+        player.combat.maxHitPoints = players[i].combat.maxHitPoints;
     }
 }
+
+void World::InitSlime(Slime &slime)
+{
+    if (slime.combat.maxHitPoints != 0) {
+        return;
+    }
+
+    const Spritesheet &slimeSpritesheet = SpritesheetCatalog::spritesheets[(int)SpritesheetID::Slime];
+    const SpriteDef *slimeSpriteDef = slimeSpritesheet.FindSprite("slime");
+
+    // TODO: Move slime radius somewhere more logical.. some global table of magic numbers?
+    const float slimeRadius = 50.0f;
+    const size_t mapPixelsX = (size_t)map->width * TILE_W;
+    const size_t mapPixelsY = (size_t)map->height * TILE_W;
+    const float maxX = mapPixelsX - slimeRadius;
+    const float maxY = mapPixelsY - slimeRadius;
+
+    slime.body.position.x = dlb_rand32f_range(slimeRadius, maxX);
+    slime.body.position.y = dlb_rand32f_range(slimeRadius, maxY);
+    slime.combat.maxHitPoints = 100.0f;
+    slime.combat.hitPoints = slime.combat.maxHitPoints;
+    slime.combat.meleeDamage = 0.0f;
+    slime.combat.lootTableId = LootTableID::LT_Slime;
+    slime.sprite.scale = 1.0f;
+    slime.sprite.spriteDef = slimeSpriteDef;
+}
+
 
 void World::SyncEntities(const Slime *entities, size_t entityLength)
 {
     assert(entityLength <= WORLD_ENTITIES_MAX);
-    const Spritesheet &slimeSpritesheet = SpritesheetCatalog::spritesheets[(int)SpritesheetID::Slime];
-    const SpriteDef *slimeSpriteDef = slimeSpritesheet.FindSprite("slime");
 
     slimeCount = entityLength;
     for (size_t i = 0; i < entityLength; i++) {
         Slime &slime = slimes[i];
-        slime.combat.maxHitPoints = 10.0f;
-        slime.combat.hitPoints = slime.combat.maxHitPoints;
-        slime.combat.meleeDamage = 0.0f;
-        slime.combat.lootTableId = LootTableID::LT_Slime;
+        InitSlime(slime);
         slime.body.position.x = entities[i].body.position.x;
         slime.body.position.y = entities[i].body.position.y;
-        slime.sprite.scale = 1.0f;
-        slime.sprite.spriteDef = slimeSpriteDef;
+        slime.body.position.z = entities[i].body.position.z;
+        //slime.combat.maxHitPoints = 100.0f;
+        //slime.combat.hitPoints = slime.combat.maxHitPoints;
+        //slime.combat.meleeDamage = 0.0f;
+        //slime.combat.lootTableId = LootTableID::LT_Slime;
+        //slime.sprite.scale = 1.0f;
+        //slime.sprite.spriteDef = slimeSpriteDef;
     }
 }
 
@@ -108,15 +138,15 @@ void BloodParticlesFollowPlayer(ParticleFX &effect, void *userData)
     effect.origin = player->GetAttachPoint(Player::AttachPoint::Gut);
 }
 
-void World::Sim(double now, double dt, const PlayerControllerState input)
+void World::SimPlayer(double now, double dt, Player &player, const PlayerControllerState &input)
 {
-    assert(players[0].combat.maxHitPoints);
+    assert(player.combat.maxHitPoints);
+    //if (!player.combat.maxHitPoints) {
+    //    return;
+    //}
 
-    for (int i = 0; i < (int)PlayerInventorySlot::Count; i++) {
-        if (input.selectSlot[i]) {
-            players[0].inventory.selectedSlot = (PlayerInventorySlot)i;
-            break;
-        }
+    if ((int)input.selectSlot) {
+        player.inventory.selectedSlot = input.selectSlot;
     }
 
     float playerSpeed = 4.0f;
@@ -136,18 +166,18 @@ void World::Sim(double now, double dt, const PlayerControllerState input)
             moveBuffer.x -= 1.0f;
         }
         if (input.run) {
-            players[0].moveState = Player::MoveState::Running;
+            player.moveState = Player::MoveState::Running;
             playerSpeed += 2.0f;
         } else {
-            players[0].moveState = Player::MoveState::Walking;
+            player.moveState = Player::MoveState::Walking;
         }
     } else {
-        players[0].moveState = Player::MoveState::Idle;
+        player.moveState = Player::MoveState::Idle;
     }
 
     Vector2 moveOffset = v2_scale(v2_normalize(moveBuffer), METERS_TO_PIXELS(playerSpeed) * (float)dt);
     if (!v2_is_zero(moveOffset)) {
-        const Vector2 curPos = players[0].body.GroundPosition();
+        const Vector2 curPos = player.body.GroundPosition();
         const Tile *curTile = map->TileAtWorldTry(curPos.x, curPos.y, 0, 0);
         const bool curWalkable = curTile && curTile->IsWalkable();
 
@@ -191,7 +221,7 @@ void World::Sim(double now, double dt, const PlayerControllerState input)
             }
         }
 
-        if (players[0].Move(now, dt, moveOffset)) {
+        if (player.Move(now, dt, moveOffset)) {
             static double lastFootstep = 0;
             double timeSinceLastFootstep = now - lastFootstep;
             if (timeSinceLastFootstep > 1.0f / playerSpeed) {
@@ -200,7 +230,7 @@ void World::Sim(double now, double dt, const PlayerControllerState input)
             }
         }
 
-        if (players[0].body.position.x < 0.0f) {
+        if (player.body.position.x < 0.0f) {
             assert(!"wtf?");
         }
     }
@@ -208,10 +238,10 @@ void World::Sim(double now, double dt, const PlayerControllerState input)
     if (input.attack) {
         const float playerAttackReach = METERS_TO_PIXELS(1.0f);
 
-        if (players[0].Attack(now, dt)) {
+        if (player.Attack(now, dt)) {
             float playerDamage;
 
-            const Item &selectedItem = players[0].GetSelectedItem();
+            const Item &selectedItem = player.GetSelectedItem();
             switch (selectedItem.type) {
                 case ItemType::Weapon: {
                     const Item_Weapon &weapon = static_cast<const Item_Weapon &>(selectedItem);
@@ -219,7 +249,7 @@ void World::Sim(double now, double dt, const PlayerControllerState input)
                     break;
                 }
                 default: {
-                    playerDamage = players[0].combat.meleeDamage;
+                    playerDamage = player.combat.meleeDamage;
                     break;
                 }
             }
@@ -229,9 +259,9 @@ void World::Sim(double now, double dt, const PlayerControllerState input)
                 if (!slime.combat.hitPoints)
                     continue;
 
-                Vector3 playerToSlime = v3_sub(slime.body.position, players[0].body.position);
+                Vector3 playerToSlime = v3_sub(slime.body.position, player.body.position);
                 if (v3_length_sq(playerToSlime) <= playerAttackReach * playerAttackReach) {
-                    players[0].stats.damageDealt += MIN(slime.combat.hitPoints, playerDamage);
+                    player.stats.damageDealt += MIN(slime.combat.hitPoints, playerDamage);
                     slime.combat.hitPoints = MAX(0.0f, slime.combat.hitPoints - playerDamage);
                     if (!slime.combat.hitPoints) {
                         //sound_catalog_play(SoundID::Squeak, 0.75f + dlb_rand32f_variance(0.2f));
@@ -240,15 +270,15 @@ void World::Sim(double now, double dt, const PlayerControllerState input)
                         assert(coins);
 
                         // TODO(design): Convert coins to higher currency if stack fills up?
-                        players[0].inventory.slots[(int)PlayerInventorySlot::Coins].stackCount += coins;
-                        players[0].stats.coinsCollected += coins;
+                        player.inventory.slots[(int)PlayerInventorySlot::Coins].stackCount += coins;
+                        player.stats.coinsCollected += coins;
 
                         Vector3 deadCenter = sprite_world_center(slime.sprite, slime.body.position, slime.sprite.scale);
                         particleSystem.GenerateFX(ParticleFX_Goo, 20, deadCenter, 2.0, now);
                         particleSystem.GenerateFX(ParticleFX_Gold, (size_t)coins, deadCenter, 2.0, now);
                         sound_catalog_play(SoundID::Gold, 1.0f + dlb_rand32f_variance(0.1f));
 
-                        players[0].stats.slimesSlain++;
+                        player.stats.slimesSlain++;
                     } else {
                         SoundID squish = dlb_rand32i_range(0, 1) ? SoundID::Squish1 : SoundID::Squish2;
                         sound_catalog_play(squish, 1.0f + dlb_rand32f_variance(0.2f));
@@ -264,11 +294,9 @@ void World::Sim(double now, double dt, const PlayerControllerState input)
         }
     }
 
-    players[0].Update(now, dt);
+    player.Update(now, dt);
 
     //SimSlimes(now, dt);
-
-    particleSystem.Update(now, dt);
 }
 
 void World::SimSlimes(double now, double dt)
@@ -288,16 +316,19 @@ void World::SimSlimes(double now, double dt)
             continue;
 
         // TODO: Actually find closest player via RTree
-        Player *closestPlayer = &players[0];
-        if (!closestPlayer)
+        Player *closestPlayer = &players[playerIdx];
+        if (!closestPlayer || !closestPlayer->combat.hitPoints) {
+            slime.Update(now, dt);
             continue;
+        }
 
         Vector2 slimeToPlayer = v2_sub(closestPlayer->body.GroundPosition(), slime.body.GroundPosition());
         const float slimeToPlayerDistSq = v2_length_sq(slimeToPlayer);
         if (slimeToPlayerDistSq <= SQUARED(slimeAttackTrack)) {
             const float slimeToPlayerDist = sqrtf(slimeToPlayerDistSq);
             const float moveDist = MIN(slimeToPlayerDist, slimeMoveSpeed * slime.sprite.scale);
-            const float moveRandMult = dlb_rand32f_range(-0.25f, 0.95f);
+            // 5% -1.0, 95% +1.0f
+            const float moveRandMult = dlb_rand32i_range(1, 100) > 5 ? 1.0f : -1.0f;
             const Vector2 slimeMoveDir = v2_scale(slimeToPlayer, 1.0f / slimeToPlayerDist);
             const Vector2 slimeMove = v2_scale(slimeMoveDir, moveDist * moveRandMult);
             const Vector2 slimePos = slime.body.GroundPosition();

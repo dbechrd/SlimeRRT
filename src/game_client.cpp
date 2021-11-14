@@ -161,7 +161,7 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
     }
 #endif
 
-    world->SpawnPlayer(CSTR("Charlie"));
+    assert(world->SpawnPlayer(CSTR("Charlie"), world->playerIdx));
 
     {
         const float slimeRadius = 50.0f;
@@ -300,14 +300,20 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
         if (netClient.server &&
             netClient.server->state == ENET_PEER_STATE_CONNECTED &&
             netClient.serverWorld &&
-            netClient.serverWorld->players[0].combat.maxHitPoints)
+            netClient.serverWorld->players[netClient.serverWorld->playerIdx].body.position.x)
         {
             world = netClient.serverWorld;
+            netClient.SendPlayerInput(input);
         } else {
             world = lobby;
-            world->SimSlimes(now, dt);
         }
-        world->Sim(now, dt, input);
+
+        for (size_t i = 0; i < world->playerCount; i++) {
+            static const PlayerControllerState noInput{};
+            world->SimPlayer(now, dt, world->players[i], i == world->playerIdx ? input : noInput);
+        }
+        world->SimSlimes(now, dt);
+        world->particleSystem.Update(now, dt);
 
         if (IsWindowResized()) {
             screenWidth = GetScreenWidth();
@@ -378,7 +384,7 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
             }
 
             if (!cameraFree) {
-                camera.target = world->players[0].body.GroundPosition();
+                camera.target = world->players[world->playerIdx].body.GroundPosition();
                 camera.rotation = 0.0f;
                 camera.zoom = 1.0f;
                 cameraSpeed = cameraSpeedDefault;
@@ -430,14 +436,14 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
         const float invZoom = 1.0f / camera.zoom;
 #endif
 
-        if (world->players[0].body.idle && whistleAlpha < 1.0f) {
+        if (world->players[world->playerIdx].body.idle && whistleAlpha < 1.0f) {
             whistleAlpha = CLAMP(whistleAlpha + 0.005f, 0.0f, 1.0f);
             SetMusicVolume(mus_background, LERP(mus_background_vmin, mus_background_vmax, 1.0f - whistleAlpha));
             SetMusicVolume(mus_whistle, LERP(mus_whistle_vmin, mus_whistle_vmax, whistleAlpha));
             if (!IsMusicPlaying(mus_whistle)) {
                 PlayMusicStream(mus_whistle);
             }
-        } else if (!world->players[0].body.idle && whistleAlpha > 0.0f) {
+        } else if (!world->players[world->playerIdx].body.idle && whistleAlpha > 0.0f) {
             whistleAlpha = CLAMP(whistleAlpha - 0.01f, 0.0f, 1.0f);
             SetMusicVolume(mus_background, LERP(mus_background_vmin, mus_background_vmax, 1.0f - whistleAlpha));
             SetMusicVolume(mus_whistle, LERP(mus_whistle_vmin, mus_whistle_vmax, whistleAlpha));
@@ -598,7 +604,7 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
 
 #if DEMO_AI_TRACKING
         {
-            Vector3 charlieCenter = sprite_world_center(world->players[0].sprite, world->players[0].body.position, world->players[0].sprite.scale);
+            Vector3 charlieCenter = sprite_world_center(world->players[world->playerIdx].sprite, world->players[world->playerIdx].body.position, world->players[world->playerIdx].sprite.scale);
             DrawCircle((int)charlieCenter.x, (int)charlieCenter.y, 640.0f, Fade(ORANGE, 0.5f));
         }
 #endif
@@ -680,20 +686,20 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
                 text = TextFormat("%2i fps (%.02f ms)", GetFPS(), GetFrameTime() * 1000.0f);
             }
             PUSH_TEXT(text, WHITE);
-            text = TextFormat("Coins: %d", world->players[0].inventory.slots[(int)PlayerInventorySlot::Coins].stackCount);
+            text = TextFormat("Coins: %d", world->players[world->playerIdx].inventory.slots[(int)PlayerInventorySlot::Coins].stackCount);
             PUSH_TEXT(text, YELLOW);
 
-            text = TextFormat("Coins collected   %u", world->players[0].stats.coinsCollected);
+            text = TextFormat("Coins collected   %u", world->players[world->playerIdx].stats.coinsCollected);
             PUSH_TEXT(text, LIGHTGRAY);
-            text = TextFormat("Damage dealt      %.2f", world->players[0].stats.damageDealt);
+            text = TextFormat("Damage dealt      %.2f", world->players[world->playerIdx].stats.damageDealt);
             PUSH_TEXT(text, LIGHTGRAY);
-            text = TextFormat("Kilometers walked %.2f", world->players[0].stats.kmWalked);
+            text = TextFormat("Kilometers walked %.2f", world->players[world->playerIdx].stats.kmWalked);
             PUSH_TEXT(text, LIGHTGRAY);
-            text = TextFormat("Slimes slain      %u", world->players[0].stats.slimesSlain);
+            text = TextFormat("Slimes slain      %u", world->players[world->playerIdx].stats.slimesSlain);
             PUSH_TEXT(text, LIGHTGRAY);
-            text = TextFormat("Times fist swung  %u", world->players[0].stats.timesFistSwung);
+            text = TextFormat("Times fist swung  %u", world->players[world->playerIdx].stats.timesFistSwung);
             PUSH_TEXT(text, LIGHTGRAY);
-            text = TextFormat("Times sword swung %u", world->players[0].stats.timesSwordSwung);
+            text = TextFormat("Times sword swung %u", world->players[world->playerIdx].stats.timesSwordSwung);
             PUSH_TEXT(text, LIGHTGRAY);
 
 #if SHOW_DEBUG_STATS

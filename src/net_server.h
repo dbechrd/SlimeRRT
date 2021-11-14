@@ -33,10 +33,12 @@ struct NetAddressEqual {
 };
 
 struct NetServerClient {
-    ENetPeer *peer                          {};
-    double    last_packet_received_at       {};
-    size_t    usernameLength                {};
-    char      username[USERNAME_LENGTH_MAX] {};
+    ENetPeer *peer                    {};
+    double    last_packet_received_at {};
+    size_t    usernameLength          {};
+    char      username                [USERNAME_LENGTH_MAX]{};
+    size_t    playerIdx               {};
+    PlayerControllerState input       {};
 };
 
 struct NetServer {

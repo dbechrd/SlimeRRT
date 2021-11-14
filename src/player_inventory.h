@@ -2,7 +2,7 @@
 #include "item.h"
 
 enum class PlayerInventorySlot {
-    Slot_0 = 0,
+    None   = 0,
     Slot_1 = 1,
     Slot_2 = 2,
     Slot_3 = 3,

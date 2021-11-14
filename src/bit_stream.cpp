@@ -75,6 +75,27 @@ void BitStream::Process(uint32_t &word, uint8_t bits, uint32_t min, uint32_t max
     bitsProcessed += bits;
 }
 
+void BitStream::ProcessBool(bool &flag)
+{
+    uint32_t word = (uint32_t)flag;
+    Process(word, 1, 0, 1);
+    flag = (bool)word;
+}
+
+void BitStream::ProcessChar(char &chr)
+{
+    uint32_t word = (uint32_t)chr;
+    Process(word, 8, STRING_ASCII_MIN, STRING_ASCII_MAX);
+    chr = (char)word;
+}
+
+void BitStream::ProcessFloat(float &flt)
+{
+    uint32_t word = *(uint32_t *)&flt;
+    Process(word, 32, ENTITY_POSITION_X_MIN, ENTITY_POSITION_X_MAX);
+    flt = *(float *)&word;
+}
+
 // Flush word from scratch to buffer
 void BitStream::Flush()
 {

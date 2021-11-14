@@ -88,7 +88,7 @@ ErrorType NetClient::Auth()
     return ErrorType::Success;
 }
 
-ErrorType NetClient::Send(const void *data, size_t size)
+ErrorType NetClient::SendRaw(const void *data, size_t size)
 {
     assert(server);
     assert(server->address.port);
@@ -104,6 +104,14 @@ ErrorType NetClient::Send(const void *data, size_t size)
     if (enet_peer_send(server, 0, packet) < 0) {
         E_ASSERT(ErrorType::PeerSendFailed, "Failed to send connection request.");
     }
+    return ErrorType::Success;
+}
+
+ErrorType NetClient::SendMsg(NetMessage &message)
+{
+    ENetBuffer rawPacket = message.Serialize();
+    //E_INFO("[SEND][%21s][%5u b] %16s ", rawPacket.dataLength, message.TypeString());
+    E_ASSERT(SendRaw(rawPacket.data, rawPacket.dataLength), "Failed to send packet");
     return ErrorType::Success;
 }
 
@@ -134,8 +142,31 @@ ErrorType NetClient::SendChatMessage(const char *message, size_t messageLength)
     netMessage.data.chatMsg.messageLength = (uint32_t)messageLengthSafe;
     memcpy(netMessage.data.chatMsg.message, message, messageLengthSafe);
 
-    ENetBuffer rawPacket = netMessage.Serialize();
-    ErrorType result = Send(rawPacket.data, rawPacket.dataLength);
+    ErrorType result = SendMsg(netMessage);
+    return result;
+}
+
+ErrorType NetClient::SendPlayerInput(const PlayerControllerState &input)
+{
+    if (!server || server->state != ENET_PEER_STATE_CONNECTED) {
+        E_WARN("Not connected to server. Input not sent.");
+        return ErrorType::NotConnected;
+    }
+
+    assert(server);
+    assert(server->address.port);
+
+    NetMessage netMessage{};
+    netMessage.type = NetMessage::Type::Input;
+    netMessage.data.input.walkNorth  = input.walkNorth;
+    netMessage.data.input.walkEast   = input.walkEast;
+    netMessage.data.input.walkSouth  = input.walkSouth;
+    netMessage.data.input.walkWest   = input.walkWest;
+    netMessage.data.input.run        = input.run;
+    netMessage.data.input.attack     = input.attack;
+    netMessage.data.input.selectSlot = input.selectSlot;
+
+    ErrorType result = SendMsg(netMessage);
     return result;
 }
 
@@ -162,11 +193,7 @@ void NetClient::ProcessMsg(Packet &packet)
             assert(serverWorld->map);
             // TODO: Get tileset ID from server
             serverWorld->map->tilesetId = TilesetID::TS_Overworld;
-
-            if (!serverWorld->players[0].combat.maxHitPoints) {
-                Player *player = serverWorld->SpawnPlayer(username, usernameLength);
-                assert(player);
-            }
+            serverWorld->playerIdx = welcomeMsg.playerIdx;
 
             break;
         } case NetMessage::Type::WorldChunk: {
@@ -258,11 +285,11 @@ ErrorType NetClient::Receive()
 
                     break;
                 } case ENET_EVENT_TYPE_RECEIVE: {
-                    E_INFO("A packet of length %u was received from %x:%u on channel %u.",
-                        event.packet->dataLength,
-                        event.peer->address.host,
-                        event.peer->address.port,
-                        event.channelID);
+                    //E_INFO("A packet of length %u was received from %x:%u on channel %u.",
+                    //    event.packet->dataLength,
+                    //    event.peer->address.host,
+                    //    event.peer->address.port,
+                    //    event.channelID);
 
                     Packet &packet = packetHistory.Alloc();
                     packet.srcAddress = event.peer->address;
@@ -274,8 +301,8 @@ ErrorType NetClient::Receive()
                     // TODO: Refactor this out into helper function somewhere (it's also in net_client.c)
                     time_t t = time(NULL);
                     struct tm tm = *localtime(&t);
-                    int len = snprintf(packet.timestampStr, sizeof(packet.timestampStr), "%02d:%02d:%02d", tm.tm_hour,
-                        tm.tm_min, tm.tm_sec);
+                    int len = snprintf(packet.timestampStr, sizeof(packet.timestampStr), "%02d:%02d:%02d",
+                        tm.tm_hour, tm.tm_min, tm.tm_sec);
                     assert(len < sizeof(packet.timestampStr));
 
                     // TODO: Could Packet just point to ENetPacket instead of copying and destroying?

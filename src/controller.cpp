@@ -41,14 +41,12 @@ PlayerControllerState PlayerControllerState::Query(bool processMouse, bool proce
             input.walkSouth = IsKeyDown(KEY_S) && !IsKeyDown(KEY_W);
             input.walkWest = IsKeyDown(KEY_A) && !IsKeyDown(KEY_D);
             input.run = IsKeyDown(KEY_LEFT_SHIFT);
-            // TODO(dlb): What happens when player selects two inventory slots at the same time?
-            input.selectSlot[(int)PlayerInventorySlot::Slot_0] = IsKeyPressed(KEY_ONE);
-            input.selectSlot[(int)PlayerInventorySlot::Slot_1] = IsKeyPressed(KEY_TWO);
-            input.selectSlot[(int)PlayerInventorySlot::Slot_2] = IsKeyPressed(KEY_THREE);
-            input.selectSlot[(int)PlayerInventorySlot::Slot_3] = IsKeyPressed(KEY_FOUR);
-            input.selectSlot[(int)PlayerInventorySlot::Slot_4] = IsKeyPressed(KEY_FIVE);
-            input.selectSlot[(int)PlayerInventorySlot::Slot_5] = IsKeyPressed(KEY_SIX);
-            input.selectSlot[(int)PlayerInventorySlot::Slot_6] = IsKeyPressed(KEY_SEVEN);
+            if (IsKeyPressed(KEY_SIX)  ) { input.selectSlot = PlayerInventorySlot::Slot_6; }
+            if (IsKeyPressed(KEY_FIVE) ) { input.selectSlot = PlayerInventorySlot::Slot_5; }
+            if (IsKeyPressed(KEY_FOUR) ) { input.selectSlot = PlayerInventorySlot::Slot_4; }
+            if (IsKeyPressed(KEY_THREE)) { input.selectSlot = PlayerInventorySlot::Slot_3; }
+            if (IsKeyPressed(KEY_TWO)  ) { input.selectSlot = PlayerInventorySlot::Slot_2; }
+            if (IsKeyPressed(KEY_ONE)  ) { input.selectSlot = PlayerInventorySlot::Slot_1; }
             input.screenshot = IsKeyPressed(KEY_F11);
             input.dbg_findMouseTile = IsKeyDown(KEY_LEFT_ALT);
             input.dbg_toggleVsync = IsKeyPressed(KEY_V);

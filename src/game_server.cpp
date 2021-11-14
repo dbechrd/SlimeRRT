@@ -21,23 +21,16 @@ ErrorType GameServer::Run()
     netServer.serverWorld = world;
 
     {
-        // TODO: Move slime radius somewhere more logical.. some global table of magic numbers?
-        const float slimeRadius = 50.0f;
-        const size_t mapPixelsX = (size_t)world->map->width * TILE_W;
-        const size_t mapPixelsY = (size_t)world->map->height * TILE_W;
-        const float maxX = mapPixelsX - slimeRadius;
-        const float maxY = mapPixelsY - slimeRadius;
         world->slimeCount = WORLD_ENTITIES_MAX;
         for (size_t i = 0; i < world->slimeCount; i++) {
             Slime &slime = world->slimes[i];
-            slime.body.position.x = dlb_rand32f_range(slimeRadius, maxX);
-            slime.body.position.y = dlb_rand32f_range(slimeRadius, maxY);
+            world->InitSlime(slime);
         }
     }
 
     E_ASSERT(netServer.OpenSocket(SERVER_PORT), "Failed to open socket");
 
-    const double tps = 1.0f; //20.0f;
+    const double tps = 20.0f;
     const double dt = 1.0f / tps;
     double frameStart = glfwGetTime();
     double frameAccum = 0.0f;
@@ -52,6 +45,11 @@ ErrorType GameServer::Run()
 
         if (frameAccum > dt) {
             while (frameAccum > dt) {
+                // TODO: This is big mess.. need to simulate all players. Which order should they be processed in..?
+                for (auto &kv : netServer.clients) {
+                    NetServerClient &client = kv.second;
+                    world->SimPlayer(now, dt, world->players[client.playerIdx], client.input);
+                }
                 world->SimSlimes(now, dt);
                 frameAccum -= dt;
             }

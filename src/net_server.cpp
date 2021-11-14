@@ -57,6 +57,7 @@ ErrorType NetServer::SendRaw(const NetServerClient &client, const void *data, si
 ErrorType NetServer::SendMsg(const NetServerClient &client, NetMessage &message)
 {
     ENetBuffer rawPacket = message.Serialize();
+    //E_INFO("[SEND][%21s][%5u b] %16s ", TextFormatIP(client.peer->address), rawPacket.dataLength, message.TypeString());
     E_ASSERT(SendRaw(client, rawPacket.data, rawPacket.dataLength), "Failed to send packet");
     return ErrorType::Success;
 }
@@ -64,8 +65,6 @@ ErrorType NetServer::SendMsg(const NetServerClient &client, NetMessage &message)
 ErrorType NetServer::BroadcastRaw(const void *data, size_t size)
 {
     ErrorType err_code = ErrorType::Success;
-
-    E_INFO("BROADCAST %u bytes", size);
 
     // Broadcast message to all connected clients
     for (auto &kv : clients) {
@@ -85,6 +84,7 @@ ErrorType NetServer::BroadcastRaw(const void *data, size_t size)
 ErrorType NetServer::BroadcastMsg(NetMessage &message)
 {
     ENetBuffer rawPacket = message.Serialize();
+    //E_INFO("[SEND][%21s][%5u b] %16s", "BROADCAST", rawPacket.dataLength, message.TypeString());
     return BroadcastRaw(rawPacket.data, rawPacket.dataLength);
 }
 
@@ -109,13 +109,13 @@ ErrorType NetServer::SendWelcomeBasket(NetServerClient &client)
     // - player list
 
     {
-        E_INFO("Sending welcome basket to %s\n", TextFormatIP(client.peer->address));
         NetMessage userWelcomeBasket{};
         userWelcomeBasket.type = NetMessage::Type::Welcome;
         userWelcomeBasket.data.welcome.motdLength = (uint32_t)(sizeof("Welcome to The Lonely Island") - 1);
         memcpy(userWelcomeBasket.data.welcome.motd, CSTR("Welcome to The Lonely Island"));
         userWelcomeBasket.data.welcome.width = serverWorld->map->width;
         userWelcomeBasket.data.welcome.height = serverWorld->map->height;
+        userWelcomeBasket.data.welcome.playerIdx = (uint32_t)client.playerIdx;
         E_ASSERT(SendMsg(client, userWelcomeBasket), "Failed to send welcome basket");
     }
 
@@ -137,7 +137,6 @@ ErrorType NetServer::SendWelcomeBasket(NetServerClient &client)
 
 ErrorType NetServer::BroadcastWorldChunk(void)
 {
-    E_INFO("Broadcasting world chunks\n");
     NetMessage worldChunk{};
     worldChunk.type = NetMessage::Type::WorldChunk;
     worldChunk.data.worldChunk.offsetX = 0;
@@ -154,11 +153,10 @@ ErrorType NetServer::BroadcastWorldChunk(void)
 
 ErrorType NetServer::BroadcastWorldPlayers(void)
 {
-    E_INFO("Broadcasting world players\n");
     NetMessage worldPlayers{};
     worldPlayers.type = NetMessage::Type::WorldPlayers;
 
-    worldPlayers.data.worldPlayers.playersLength = serverWorld->playerCount;
+    worldPlayers.data.worldPlayers.playersLength = (uint32_t)serverWorld->playerCount;
     for (size_t i = 0; i < serverWorld->playerCount; i++) {
         worldPlayers.data.worldPlayers.players[i] = serverWorld->players[i];
     }
@@ -168,11 +166,10 @@ ErrorType NetServer::BroadcastWorldPlayers(void)
 
 ErrorType NetServer::BroadcastWorldEntities(void)
 {
-    E_INFO("Broadcasting world entities\n");
     NetMessage worldEntities{};
     worldEntities.type = NetMessage::Type::WorldEntities;
 
-    worldEntities.data.worldEntities.entitiesLength = serverWorld->slimeCount;
+    worldEntities.data.worldEntities.entitiesLength = (uint32_t)serverWorld->slimeCount;
     for (size_t i = 0; i < serverWorld->slimeCount; i++) {
         worldEntities.data.worldEntities.entities[i] = serverWorld->slimes[i];
     }
@@ -184,13 +181,16 @@ void NetServer::ProcessMsg(NetServerClient &client, Packet &packet)
 {
     packet.netMessage.Deserialize(packet.rawBytes);
 
+    //E_INFO("[RECV][%21s][%5u b] %16s ", TextFormatIP(client.peer->address), packet.rawBytes.dataLength, packet.netMessage.TypeString());
+
     switch (packet.netMessage.type) {
         case NetMessage::Type::Identify: {
             NetMessage_Identify &identMsg = packet.netMessage.data.identify;
             client.usernameLength = MIN(identMsg.usernameLength, USERNAME_LENGTH_MAX);
             memcpy(client.username, identMsg.username, client.usernameLength);
 
-            serverWorld->SpawnPlayer(client.username, client.usernameLength);
+            assert(serverWorld->SpawnPlayer(client.username, client.usernameLength, client.playerIdx));
+            SendWelcomeBasket(client);
 
             break;
         } case NetMessage::Type::ChatMessage: {
@@ -207,8 +207,19 @@ void NetServer::ProcessMsg(NetServerClient &client, Packet &packet)
             // Broadcast chat message
             BroadcastMsg(packet.netMessage);
             break;
-        }
-        default: {
+        } case NetMessage::Type::Input: {
+            // TODO: Save all unprocessed input (in a queue, with timestamp), not just latest input
+            NetMessage_Input &input = packet.netMessage.data.input;
+            client.input.walkNorth  = input.walkNorth;
+            client.input.walkEast   = input.walkEast;
+            client.input.walkSouth  = input.walkSouth;
+            client.input.walkWest   = input.walkWest;
+            client.input.run        = input.run;
+            client.input.attack     = input.attack;
+            client.input.selectSlot = input.selectSlot;
+
+            break;
+        } default: {
             assert("asdfasdf");
             break;
         }
@@ -244,9 +255,9 @@ ErrorType NetServer::Listen()
     while (svc > 0) {
         switch (event.type) {
             case ENET_EVENT_TYPE_CONNECT: {
-                E_INFO("A new client connected from %x:%u.",
-                    event.peer->address.host,
-                    event.peer->address.port);
+                //E_INFO("A new client connected from %x:%u.",
+                //    event.peer->address.host,
+                //    event.peer->address.port);
                 // TODO: Store any relevant client information here.
 
                 NetServerClient &client = FindClient(event.peer);
@@ -255,11 +266,11 @@ ErrorType NetServer::Listen()
                 event.peer->data = &client;;
                 break;
             } case ENET_EVENT_TYPE_RECEIVE: {
-                E_INFO("A packet of length %u was received from %x:%u on channel %u.",
-                    event.packet->dataLength,
-                    event.peer->address.host,
-                    event.peer->address.port,
-                    event.channelID);
+                //E_INFO("A packet of length %u was received from %x:%u on channel %u.",
+                //    event.packet->dataLength,
+                //    event.peer->address.host,
+                //    event.peer->address.port,
+                //    event.channelID);
 
                 Packet &packet = packetHistory.Alloc();
                 packet.srcAddress = event.peer->address;
@@ -281,8 +292,6 @@ ErrorType NetServer::Listen()
 
                 NetServerClient &client = FindClient(event.peer);
                 ProcessMsg(client, packet);
-
-                SendWelcomeBasket(client);
 
                 client.last_packet_received_at = enet_time_get();
                 break;

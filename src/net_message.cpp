@@ -7,6 +7,20 @@
 
 ENetBuffer NetMessage::tempBuffer{};
 
+const char *NetMessage::TypeString(void)
+{
+    switch (type) {
+        case Type::Unknown       : return "Unknown";
+        case Type::Identify      : return "Identify";
+        case Type::ChatMessage   : return "ChatMessage";
+        case Type::Welcome       : return "Welcome";
+        case Type::WorldChunk    : return "WorldChunk";
+        case Type::WorldPlayers  : return "WorldPlayers";
+        case Type::WorldEntities : return "WorldEntities";
+        default                  : return "[NetMessage::Type]";
+    }
+}
+
 void NetMessage::Process(BitStream::Mode mode, ENetBuffer *buffer)
 {
     switch (mode) {
@@ -44,18 +58,14 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer *buffer)
             stream.Align();
 
             for (size_t i = 0; i < ident.usernameLength; i++) {
-                uint32_t userChr = ident.username[i];
-                stream.Process(userChr, 8, STRING_ASCII_MIN, STRING_ASCII_MAX);
-                ident.username[i] = (char)userChr;
+                stream.ProcessChar(ident.username[i]);
             }
 
             stream.Process(ident.passwordLength, 5, PASSWORD_LENGTH_MIN, PASSWORD_LENGTH_MAX);
             stream.Align();
 
             for (size_t i = 0; i < ident.passwordLength; i++) {
-                uint32_t passChr = ident.password[i];
-                stream.Process(passChr, 8, STRING_ASCII_MIN, STRING_ASCII_MAX);
-                ident.password[i] = (char)passChr;
+                stream.ProcessChar(ident.password[i]);
             }
 
             break;
@@ -67,18 +77,14 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer *buffer)
             stream.Align();
 
             for (size_t i = 0; i < chatMsg.usernameLength; i++) {
-                uint32_t usernameChr = chatMsg.username[i];
-                stream.Process(usernameChr, 8, STRING_ASCII_MIN, STRING_ASCII_MAX);
-                chatMsg.username[i] = (char)usernameChr;
+                stream.ProcessChar(chatMsg.username[i]);
             }
 
             stream.Process((uint32_t)chatMsg.messageLength, 9, CHAT_MESSAGE_LENGTH_MIN, CHAT_MESSAGE_LENGTH_MAX);
             stream.Align();
 
             for (size_t i = 0; i < chatMsg.messageLength; i++) {
-                uint32_t messageChr = chatMsg.message[i];
-                stream.Process(messageChr, 8, STRING_ASCII_MIN, STRING_ASCII_MAX);
-                chatMsg.message[i] = (char)messageChr;
+                stream.ProcessChar(chatMsg.message[i]);
             }
 
             break;
@@ -89,13 +95,30 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer *buffer)
             stream.Align();
 
             for (size_t i = 0; i < welcome.motdLength; i++) {
-                uint32_t motdChr = welcome.motd[i];
-                stream.Process(motdChr, 8, STRING_ASCII_MIN, STRING_ASCII_MAX);
-                welcome.motd[i] = (char)motdChr;
+                stream.ProcessChar(welcome.motd[i]);
             }
 
             stream.Process(welcome.width, 9, WORLD_WIDTH_MIN, WORLD_WIDTH_MAX);
             stream.Process(welcome.height, 9, WORLD_HEIGHT_MIN, WORLD_HEIGHT_MAX);
+            stream.Process(welcome.playerIdx, 4, 0, SERVER_MAX_PLAYERS - 1);
+            stream.Align();
+
+            break;
+        } case NetMessage::Type::Input: {
+            NetMessage_Input &input = data.input;
+
+            stream.ProcessBool(input.walkNorth);
+            stream.ProcessBool(input.walkEast);
+            stream.ProcessBool(input.walkSouth);
+            stream.ProcessBool(input.walkWest);
+            stream.ProcessBool(input.run);
+            stream.ProcessBool(input.attack);
+            stream.Align();
+
+            uint32_t slot = (uint32_t)input.selectSlot;
+            stream.Process(slot, 4, (uint32_t)PlayerInventorySlot::None, (uint32_t)PlayerInventorySlot::Slot_6);
+            input.selectSlot = (PlayerInventorySlot)slot;
+            stream.Align();
 
             break;
         } case NetMessage::Type::WorldChunk: {
@@ -122,12 +145,11 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer *buffer)
 
             for (size_t i = 0; i < worldPlayers.playersLength; i++) {
                 Player &player = worldPlayers.players[i];
-                uint32_t position_x = *(uint32_t *)&player.body.position.x;
-                uint32_t position_y = *(uint32_t *)&player.body.position.y;
-                stream.Process(position_x, 32, ENTITY_POSITION_X_MIN, ENTITY_POSITION_X_MAX);
-                stream.Process(position_y, 32, ENTITY_POSITION_Y_MIN, ENTITY_POSITION_Y_MAX);
-                player.body.position.x = *(float *)&position_x;
-                player.body.position.y = *(float *)&position_y;
+                // TODO: range validation on floats
+                stream.ProcessFloat(player.body.position.x);
+                stream.ProcessFloat(player.body.position.y);
+                stream.ProcessFloat(player.combat.hitPoints);
+                stream.ProcessFloat(player.combat.maxHitPoints);
             }
 
             break;
@@ -139,12 +161,10 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer *buffer)
 
             for (size_t i = 0; i < worldEntities.entitiesLength; i++) {
                 Slime &slime = worldEntities.entities[i];
-                uint32_t position_x = *(uint32_t *)&slime.body.position.x;
-                uint32_t position_y = *(uint32_t *)&slime.body.position.y;
-                stream.Process(position_x, 32, ENTITY_POSITION_X_MIN, ENTITY_POSITION_X_MAX);
-                stream.Process(position_y, 32, ENTITY_POSITION_Y_MIN, ENTITY_POSITION_Y_MAX);
-                slime.body.position.x = *(float *)&position_x;
-                slime.body.position.y = *(float *)&position_y;
+                // TODO: range validation on floats
+                stream.ProcessFloat(slime.body.position.x);
+                stream.ProcessFloat(slime.body.position.y);
+                stream.ProcessFloat(slime.body.position.z);
             }
 
             break;

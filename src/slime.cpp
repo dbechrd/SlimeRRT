@@ -146,10 +146,14 @@ bool Slime::Attack(double now, double dt)
 
 void Slime::Update(double now, double dt)
 {
+    body.Update(now, dt);
     switch (action) {
         case Action::Jump: {
             if (body.OnGround()) {
                 action = Action::None;
+                body.velocity.x = 0.0f;
+                body.velocity.y = 0.0f;
+                body.velocity.z = 0.0f;
             }
             break;
         } case Action::Attack: {
@@ -162,7 +166,6 @@ void Slime::Update(double now, double dt)
             break;
         }
     }
-    body.Update(now, dt);
     sprite_update(sprite, now, dt);
 }
 

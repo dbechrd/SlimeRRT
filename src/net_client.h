@@ -1,6 +1,7 @@
 #pragma once
 #include "chat.h"
 #include "packet.h"
+#include "controller.h"
 #include "world.h"
 #include "dlb_types.h"
 
@@ -28,6 +29,7 @@ struct NetClient {
     ErrorType OpenSocket();
     ErrorType Connect(const char *serverHost, unsigned short serverPort, const char *user, const char *password);
     ErrorType SendChatMessage(const char *message, size_t messageLength);
+    ErrorType SendPlayerInput(const PlayerControllerState &input);
     ErrorType Receive();
     void Disconnect();
     void CloseSocket();
@@ -36,7 +38,8 @@ private:
     static const char *LOG_SRC;
 
     ErrorType Auth();
-    ErrorType Send(const void *data, size_t size);
+    ErrorType SendRaw(const void *data, size_t size);
+    ErrorType SendMsg(NetMessage &message);
     void ProcessMsg(Packet &packet);
     const char *NetClient::ServerStateString();
 };
