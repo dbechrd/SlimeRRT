@@ -8,20 +8,18 @@
 #include "spritesheet.h"
 #include <cassert>
 
-Player::Player()
+void Player::Init()
 {
-    actionState = ActionState::None;
-    moveState = MoveState::Idle;
-    body.lastUpdated = GetTime();
-    sprite.scale = 1.0f;
-    sprite.direction = Direction::South;
-    combat.meleeDamage = 1.0f;
+    printf("Init player\n");
 
-    // TODO: Better way to check if visual client vs. CLI client than checking global spritesheet
+    combat.hitPoints = 100.0f;
+    combat.maxHitPoints = 100.0f;
+    combat.meleeDamage = 1.0f;
+    sprite.scale = 1.0f;
     const Spritesheet &charlieSpritesheet = SpritesheetCatalog::spritesheets[(int)SpritesheetID::Charlie];
     const SpriteDef *charlieSpriteDef = charlieSpritesheet.FindSprite("player_sword");
     if (charlieSpriteDef) {
-        SetSpritesheet(*charlieSpriteDef);
+        sprite.spriteDef = charlieSpriteDef;
     }
 
     // TODO: Load selected slot from save file / server
@@ -37,15 +35,10 @@ Player::Player()
     stats = {};
 }
 
-void Player::SetName(const char *name, size_t nameLength)
+void Player::SetName(const char *playerName, uint32_t playerNameLength)
 {
-    this->nameLength = MIN(nameLength, USERNAME_LENGTH_MAX);
-    memcpy(this->name, name, this->nameLength);
-}
-
-void Player::SetSpritesheet(const SpriteDef &spriteDef)
-{
-    sprite.spriteDef = &spriteDef;
+    nameLength = MIN(playerNameLength, USERNAME_LENGTH_MAX);
+    memcpy(name, playerName, nameLength);
 }
 
 Vector3 Player::GetAttachPoint(AttachPoint attachPoint) const

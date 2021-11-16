@@ -44,10 +44,13 @@ ErrorType GameServer::Run()
 
         if (frameAccum > dt) {
             while (frameAccum > dt) {
-                // TODO: This is big mess.. need to simulate all players. Which order should they be processed in..?
-                for (auto &kv : netServer.clients) {
-                    NetServerClient &client = kv.second;
-                    world->SimPlayer(now, dt, world->players[client.playerIdx], client.input);
+                // TODO: Which order should they be processed in..?
+                for (int i = 0; i < SERVER_MAX_PLAYERS; i++) {
+                    NetServerClient &client = netServer.clients[i];
+                    Player *player = world->FindPlayer(client.playerId);
+                    if (player) {
+                        world->SimPlayer(now, dt, *player, client.input);
+                    }
                 }
                 world->SimSlimes(now, dt);
                 frameAccum -= dt;

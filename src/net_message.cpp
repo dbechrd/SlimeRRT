@@ -43,6 +43,8 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
 
     BitStream stream(mode, buffer.data, buffer.dataLength);
 
+    stream.Process(connectionToken, 32, 0, UINT32_MAX);
+
     uint32_t typeInt = (uint32_t)type;
     stream.Process(typeInt, 3, (uint32_t)NetMessage::Type::Unknown + 1, (uint32_t)NetMessage::Type::Count - 1);
     type = (Type)typeInt;
@@ -52,14 +54,14 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
         case NetMessage::Type::Identify: {
             NetMessage_Identify &ident = data.identify;
 
-            stream.Process(ident.usernameLength, 5, USERNAME_LENGTH_MIN, USERNAME_LENGTH_MAX);
+            stream.Process(ident.usernameLength, 6, USERNAME_LENGTH_MIN, USERNAME_LENGTH_MAX);
             stream.Align();
 
             for (size_t i = 0; i < ident.usernameLength; i++) {
                 stream.ProcessChar(ident.username[i]);
             }
 
-            stream.Process(ident.passwordLength, 5, PASSWORD_LENGTH_MIN, PASSWORD_LENGTH_MAX);
+            stream.Process(ident.passwordLength, 7, PASSWORD_LENGTH_MIN, PASSWORD_LENGTH_MAX);
             stream.Align();
 
             for (size_t i = 0; i < ident.passwordLength; i++) {
@@ -71,16 +73,14 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
             NetMessage_ChatMessage &chatMsg = data.chatMsg;
 
             assert(chatMsg.messageLength <= CHAT_MESSAGE_LENGTH_MAX);
-            stream.Process((uint32_t)chatMsg.usernameLength, 5, USERNAME_LENGTH_MIN, USERNAME_LENGTH_MAX);
+            stream.Process((uint32_t)chatMsg.usernameLength, 6, USERNAME_LENGTH_MIN, USERNAME_LENGTH_MAX);
             stream.Align();
-
             for (size_t i = 0; i < chatMsg.usernameLength; i++) {
                 stream.ProcessChar(chatMsg.username[i]);
             }
 
             stream.Process((uint32_t)chatMsg.messageLength, 9, CHAT_MESSAGE_LENGTH_MIN, CHAT_MESSAGE_LENGTH_MAX);
             stream.Align();
-
             for (size_t i = 0; i < chatMsg.messageLength; i++) {
                 stream.ProcessChar(chatMsg.message[i]);
             }
@@ -98,7 +98,7 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
 
             stream.Process(welcome.width, 9, WORLD_WIDTH_MIN, WORLD_WIDTH_MAX);
             stream.Process(welcome.height, 9, WORLD_HEIGHT_MIN, WORLD_HEIGHT_MAX);
-            stream.Process(welcome.playerIdx, 4, 0, SERVER_MAX_PLAYERS - 1);
+            stream.Process(welcome.playerId, 4, 1, UINT32_MAX);
             stream.Align();
 
             break;
@@ -143,17 +143,46 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
         } case NetMessage::Type::WorldPlayers: {
             NetMessage_WorldPlayers &worldPlayers = data.worldPlayers;
 
-            stream.Process(world.playerCount, 5, 0, SERVER_MAX_PLAYERS);
-            stream.Align();
-
-            for (size_t i = 0; i < world.playerCount; i++) {
+            for (size_t i = 0; i < SERVER_MAX_PLAYERS; i++) {
                 Player &player = world.players[i];
-                // TODO: range validation on floats
-                world.InitPlayer(player, player.name, player.nameLength);
-                stream.ProcessFloat(player.body.position.x);
-                stream.ProcessFloat(player.body.position.y);
-                stream.ProcessFloat(player.combat.hitPoints);
-                stream.ProcessFloat(player.combat.maxHitPoints);
+
+                uint32_t oldPlayerId = player.id;
+                stream.Process(player.id, 4, 0, UINT32_MAX);
+
+                // TODO: Fix this fuckery >:(
+                if (!oldPlayerId && player.id) {
+                    if (mode == BitStream::Mode::Reader) {
+                        assert(!player.sprite.spriteDef);
+                        player.Init();
+                    } else {
+                        printf("Skip init player on server\n");
+                    }
+                }
+                if (oldPlayerId && !player.id) {
+                    if (mode == BitStream::Mode::Reader) {
+                        world.DespawnPlayer(oldPlayerId);
+                    } else {
+                        printf("Skip init player on server\n");
+                    }
+                }
+
+                if (player.id) {
+                    // TODO: Don't send redundant information every single frame, need multiple messages:
+                    // PLAYER_LIST
+                    // PLAYER_CONNECT
+                    // PLAYER_STATE
+                    stream.Process((uint32_t)player.nameLength, 6, USERNAME_LENGTH_MIN, USERNAME_LENGTH_MAX);
+                    stream.Align();
+                    for (size_t i = 0; i < player.nameLength; i++) {
+                        stream.ProcessChar(player.name[i]);
+                    }
+
+                    // TODO: range validation on floats
+                    stream.ProcessFloat(player.body.position.x);
+                    stream.ProcessFloat(player.body.position.y);
+                    stream.ProcessFloat(player.combat.hitPoints);
+                    stream.ProcessFloat(player.combat.maxHitPoints);
+                }
             }
 
             break;

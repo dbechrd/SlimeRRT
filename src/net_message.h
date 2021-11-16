@@ -27,7 +27,7 @@ struct NetMessage_Welcome {
     char     motd       [MOTD_LENGTH_MAX]{};  // message of the day
     uint32_t width      {};                   // width of map in tiles
     uint32_t height     {};                   // height of map in tiles
-    uint32_t playerIdx  {};
+    uint32_t playerId   {};
 };
 
 struct NetMessage_Input {
@@ -67,6 +67,7 @@ struct NetMessage {
         Count
     };
 
+    uint32_t connectionToken {};
     Type type = Type::Unknown;
 
     union {

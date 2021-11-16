@@ -35,36 +35,52 @@ const Vector3 World::GetWorldSpawn(void)
     return worldSpawn;
 };
 
-void World::InitPlayer(Player &player, const char *name, size_t nameLength)
+Player *World::SpawnPlayer(uint32_t &playerId)
 {
-    if (player.combat.maxHitPoints != 0) {
-        return;
-    }
+    DespawnPlayer(playerId);
 
-    const Spritesheet &charlieSpritesheet = SpritesheetCatalog::spritesheets[(int)SpritesheetID::Charlie];
-    const SpriteDef *charlieSpriteDef = charlieSpritesheet.FindSprite("player_sword");
-
-    player.nameLength = MIN(nameLength, USERNAME_LENGTH_MAX);
-    memcpy(player.name, name, player.nameLength);
-    player.body.position = GetWorldSpawn();
-    player.combat.maxHitPoints = 100.0f;
-    player.combat.hitPoints = player.combat.maxHitPoints;
-    player.sprite.scale = 1.0f;
-    player.sprite.spriteDef = charlieSpriteDef;
-}
-
-bool World::SpawnPlayer(const char *name, size_t nameLength, size_t &playerIdx)
-{
     for (int i = 0; i < SERVER_MAX_PLAYERS; i++) {
         Player &player = players[i];
-        if (player.combat.maxHitPoints == 0) {
-            playerCount++;
-            InitPlayer(player, name, nameLength);
-            playerIdx = i;
-            return true;
+        if (player.id == 0) {
+            assert(!player.nameLength);
+            assert(!player.combat.maxHitPoints);
+
+            static uint32_t nextId = 1;
+            playerId = nextId;
+            nextId = MAX(1, nextId + 1); // Prevent ID zero from being used on overflow
+
+            player.Init();
+            player.id = playerId;
+            player.body.position = GetWorldSpawn();
+
+            return &player;
         }
     }
-    return false;
+    return 0;
+}
+
+Player *World::FindPlayer(uint32_t playerId)
+{
+    if (!playerId) {
+        return 0;
+    }
+
+    for (int i = 0; i < SERVER_MAX_PLAYERS; i++) {
+        Player &player = players[i];
+        if (player.id == playerId) {
+            return &player;
+        }
+    }
+    return 0;
+}
+
+void World::DespawnPlayer(uint32_t playerId)
+{
+    Player *player = FindPlayer(playerId);
+    if (player) {
+        printf("Despawn player %u\n", playerId);
+        memset(player, 0, sizeof(*player));
+    }
 }
 
 void World::InitSlime(Slime &slime)
@@ -274,14 +290,21 @@ void World::SimSlimes(double now, double dt)
     //static double lastSquish = 0;
     //double timeSinceLastSquish = now - lastSquish;
 
+    Player *randomAlivePlayer = 0;
+    for (size_t i = 0; i < SERVER_MAX_PLAYERS; i++) {
+        if (players[i].id && players[i].combat.hitPoints > 0) {
+            randomAlivePlayer = &players[i];
+        }
+    }
+
     for (size_t slimeIdx = 0; slimeIdx < slimeCount; slimeIdx++) {
         Slime &slime = slimes[slimeIdx];
         if (!slime.combat.hitPoints)
             continue;
 
         // TODO: Actually find closest player via RTree
-        Player *closestPlayer = &players[playerIdx];
-        if (!closestPlayer || !closestPlayer->combat.hitPoints) {
+        Player *closestPlayer = randomAlivePlayer;
+        if (!closestPlayer || !closestPlayer->id) {
             slime.Update(now, dt);
             continue;
         }

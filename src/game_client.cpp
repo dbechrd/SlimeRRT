@@ -131,7 +131,6 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
 
     World *lobby = new World;
     lobby->map = lobby->mapSystem.GenerateLobby();
-    world = lobby;
 
 #if DEMO_VIEW_RTREE
     const int RECT_COUNT = 100;
@@ -144,8 +143,8 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
     size_t next_rect_to_add = 0; //RECT_COUNT;
     double lastRectAddedAt = GetTime();
     for (size_t i = 0; i < rects.size(); i++) {
-        rects[i].x = world->GetWorldSpawn().x + dlb_rand32f_variance_r(&rstar_rand, 600.0f);
-        rects[i].y = world->GetWorldSpawn().y + dlb_rand32f_variance_r(&rstar_rand, 300.0f);
+        rects[i].x = lobby->GetWorldSpawn().x + dlb_rand32f_variance_r(&rstar_rand, 600.0f);
+        rects[i].y = lobby->GetWorldSpawn().y + dlb_rand32f_variance_r(&rstar_rand, 300.0f);
         rects[i].width = dlb_rand32f_range_r(&rstar_rand, 50.0f, 100.0f);
         rects[i].height = dlb_rand32f_range_r(&rstar_rand, 50.0f, 100.0f);
         if (i < next_rect_to_add) {
@@ -159,16 +158,17 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
     }
 #endif
 
-    assert(world->SpawnPlayer(CSTR("Charlie"), world->playerIdx));
+    bool spawned = lobby->SpawnPlayer(lobby->playerId);
+    assert(spawned);
 
     {
         const float slimeRadius = 50.0f;
-        const size_t mapPixelsX = (size_t)world->map->width * TILE_W;
-        const size_t mapPixelsY = (size_t)world->map->height * TILE_W;
+        const size_t mapPixelsX = (size_t)lobby->map->width * TILE_W;
+        const size_t mapPixelsY = (size_t)lobby->map->height * TILE_W;
         const float maxX = mapPixelsX - slimeRadius;
         const float maxY = mapPixelsY - slimeRadius;
 
-        Slime &sam = world->slimes[world->slimeCount++];
+        Slime &sam = lobby->slimes[lobby->slimeCount++];
         sam.name = "Sam";
         sam.combat.maxHitPoints = 100.0f; //100000.0f;
         sam.combat.hitPoints = sam.combat.maxHitPoints;
@@ -176,7 +176,7 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
         sam.combat.lootTableId = LootTableID::LT_Sam;
         sam.body.position.x = dlb_rand32f_range(slimeRadius, maxX);
         sam.body.position.y = dlb_rand32f_range(slimeRadius, maxY);
-        sam.body.position = v3_add(world->GetWorldSpawn(), { 0, -300.0f, 0 });
+        sam.body.position = v3_add(lobby->GetWorldSpawn(), { 0, -300.0f, 0 });
         sam.sprite.scale = 2.0f;
         sam.sprite.spriteDef = slimeSpriteDef;
     }
@@ -233,12 +233,12 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
             ImGui::Text("    Host:");
             ImGui::SameLine();
             ImGui::SetNextItemWidth(226);
-            ImGui::InputText("##host", host, sizeof(host));
+            ImGui::InputText("##host", host, sizeof(host), ImGuiInputTextFlags_Password | ImGuiInputTextFlags_ReadOnly);
 
             ImGui::Text("    Port:");
             ImGui::SameLine();
             ImGui::SetNextItemWidth(89);
-            ImGui::InputInt("##port", &port, 1, 100);
+            ImGui::InputInt("##port", &port, 1, 100, ImGuiInputTextFlags_ReadOnly);
             port = CLAMP(port, 0, USHRT_MAX);
 
             ImGui::Text("Username:");
@@ -297,24 +297,34 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
 
         E_ASSERT(netClient.Receive(), "Failed to receive packets");
 
-        // We joined a server we need to inherit the server's world
-        // TODO: Fix this very bad idea.
-        if (netClient.server &&
+        bool connectedToServer =
+            netClient.server &&
             netClient.server->state == ENET_PEER_STATE_CONNECTED &&
             netClient.serverWorld &&
-            netClient.serverWorld->players[netClient.serverWorld->playerIdx].body.position.x)
-        {
+            netClient.serverWorld->playerId &&
+            netClient.serverWorld->FindPlayer(netClient.serverWorld->playerId);
+
+        // We joined a server we need to inherit the server's world
+        // TODO: Fix this very bad idea.
+        if (connectedToServer) {
             world = netClient.serverWorld;
             netClient.SendPlayerInput(input);
         } else {
             world = lobby;
         }
 
+        Player *playerPtr = world->FindPlayer(world->playerId);
+        assert(playerPtr);
+        Player &player = *playerPtr;
+
         if (frameAccum > dt) {
             while (frameAccum > dt) {
-                for (size_t i = 0; i < world->playerCount; i++) {
-                    static const PlayerControllerState noInput{};
-                    world->SimPlayer(now, dt, world->players[i], i == world->playerIdx ? input : noInput);
+                for (size_t i = 0; i < SERVER_MAX_PLAYERS; i++) {
+                    Player &p = world->players[i];
+                    if (p.id) {
+                        static const PlayerControllerState noInput{};
+                        world->SimPlayer(now, dt, p, p.id == world->playerId ? input : noInput);
+                    }
                 }
                 world->SimSlimes(now, dt);
                 world->particleSystem.Update(now, dt);
@@ -391,7 +401,7 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
             }
 
             if (!cameraFree) {
-                camera.target = world->players[world->playerIdx].body.GroundPosition();
+                camera.target = player.body.GroundPosition();
                 camera.rotation = 0.0f;
                 camera.zoom = 1.0f;
                 cameraSpeed = cameraSpeedDefault;
@@ -443,14 +453,14 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
         const float invZoom = 1.0f / camera.zoom;
 #endif
 
-        if (world->players[world->playerIdx].body.idle && whistleAlpha < 1.0f) {
+        if (player.body.idle && whistleAlpha < 1.0f) {
             whistleAlpha = CLAMP(whistleAlpha + 0.005f, 0.0f, 1.0f);
             SetMusicVolume(mus_background, LERP(mus_background_vmin, mus_background_vmax, 1.0f - whistleAlpha));
             SetMusicVolume(mus_whistle, LERP(mus_whistle_vmin, mus_whistle_vmax, whistleAlpha));
             if (!IsMusicPlaying(mus_whistle)) {
                 PlayMusicStream(mus_whistle);
             }
-        } else if (!world->players[world->playerIdx].body.idle && whistleAlpha > 0.0f) {
+        } else if (!player.body.idle && whistleAlpha > 0.0f) {
             whistleAlpha = CLAMP(whistleAlpha - 0.01f, 0.0f, 1.0f);
             SetMusicVolume(mus_background, LERP(mus_background_vmin, mus_background_vmax, 1.0f - whistleAlpha));
             SetMusicVolume(mus_whistle, LERP(mus_whistle_vmin, mus_whistle_vmax, whistleAlpha));
@@ -543,7 +553,7 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
 
             // Queue players for drawing
             for (size_t i = 0; i < ARRAY_SIZE(world->players); i++) {
-                if (world->players[i].combat.hitPoints) {
+                if (world->players[i].id) {
                     world->players[i].Push(drawList);
                 }
             }
@@ -611,7 +621,7 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
 
 #if DEMO_AI_TRACKING
         {
-            Vector3 charlieCenter = sprite_world_center(world->players[world->playerIdx].sprite, world->players[world->playerIdx].body.position, world->players[world->playerIdx].sprite.scale);
+            Vector3 charlieCenter = sprite_world_center(player.sprite, player.body.position, player.sprite.scale);
             DrawCircle((int)charlieCenter.x, (int)charlieCenter.y, 640.0f, Fade(ORANGE, 0.5f));
         }
 #endif
@@ -693,20 +703,20 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
                 text = TextFormat("%2i fps (%.02f ms)", GetFPS(), GetFrameTime() * 1000.0f);
             }
             PUSH_TEXT(text, WHITE);
-            text = TextFormat("Coins: %d", world->players[world->playerIdx].inventory.slots[(int)PlayerInventorySlot::Coins].stackCount);
+            text = TextFormat("Coins: %d", player.inventory.slots[(int)PlayerInventorySlot::Coins].stackCount);
             PUSH_TEXT(text, YELLOW);
 
-            text = TextFormat("Coins collected   %u", world->players[world->playerIdx].stats.coinsCollected);
+            text = TextFormat("Coins collected   %u", player.stats.coinsCollected);
             PUSH_TEXT(text, LIGHTGRAY);
-            text = TextFormat("Damage dealt      %.2f", world->players[world->playerIdx].stats.damageDealt);
+            text = TextFormat("Damage dealt      %.2f", player.stats.damageDealt);
             PUSH_TEXT(text, LIGHTGRAY);
-            text = TextFormat("Kilometers walked %.2f", world->players[world->playerIdx].stats.kmWalked);
+            text = TextFormat("Kilometers walked %.2f", player.stats.kmWalked);
             PUSH_TEXT(text, LIGHTGRAY);
-            text = TextFormat("Slimes slain      %u", world->players[world->playerIdx].stats.slimesSlain);
+            text = TextFormat("Slimes slain      %u", player.stats.slimesSlain);
             PUSH_TEXT(text, LIGHTGRAY);
-            text = TextFormat("Times fist swung  %u", world->players[world->playerIdx].stats.timesFistSwung);
+            text = TextFormat("Times fist swung  %u", player.stats.timesFistSwung);
             PUSH_TEXT(text, LIGHTGRAY);
-            text = TextFormat("Times sword swung %u", world->players[world->playerIdx].stats.timesSwordSwung);
+            text = TextFormat("Times sword swung %u", player.stats.timesSwordSwung);
             PUSH_TEXT(text, LIGHTGRAY);
 
 #if SHOW_DEBUG_STATS
@@ -818,11 +828,19 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
         EndDrawing();
         //----------------------------------------------------------------------------------
 
+        if (connectedToServer && escape) {
+            netClient.Disconnect();
+            world = lobby;
+            escape = false;
+        }
+
         // If nobody else handled the escape key, time to exit!
         if (escape) {
             break;
         }
     }
+
+    netClient.CloseSocket();
 
     // TODO: Wrap these in classes to use destructors?
     delete lobby;

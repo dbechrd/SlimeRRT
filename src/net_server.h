@@ -6,7 +6,6 @@
 #include <cstdint>
 #include <unordered_map>
 
-#define NET_SERVER_CLIENTS_MAX 4
 #define NET_SERVER_PACKET_HISTORY_MAX 256
 
 struct NetAddressHash {
@@ -33,17 +32,16 @@ struct NetAddressEqual {
 };
 
 struct NetServerClient {
-    ENetPeer *peer                    {};
-    double    last_packet_received_at {};
-    size_t    usernameLength          {};
-    char      username                [USERNAME_LENGTH_MAX]{};
-    size_t    playerIdx               {};
-    PlayerControllerState input       {};
+    ENetPeer *peer              {};
+    uint32_t  connectionToken   {};  // unique identifier in addition to ip/port to detect reconnect from same UDP port
+    uint32_t  playerId          {};
+    PlayerControllerState input {};
 };
 
 struct NetServer {
     ENetHost *server {};
-    std::unordered_map<ENetAddress, NetServerClient, NetAddressHash, NetAddressEqual> clients{};
+    //std::unordered_map<ENetAddress, NetServerClient, NetAddressHash, NetAddressEqual> clients{};
+    NetServerClient clients[SERVER_MAX_PLAYERS]{};
 
     // TODO: Could have a packet history by message type? This would allow us
     // to only store history of important messages, and/or have different
@@ -72,5 +70,8 @@ private:
     ErrorType SendWelcomeBasket(NetServerClient &client);
 
     void ProcessMsg(NetServerClient &client, Packet &packet);
-    NetServerClient &NetServer::FindClient(ENetPeer *peer);
+
+    NetServerClient *AddClient    (ENetPeer *peer);
+    NetServerClient *FindClient   (ENetPeer *peer);
+    ErrorType        RemoveClient (ENetPeer *peer);
 };

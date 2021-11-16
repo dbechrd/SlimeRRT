@@ -397,12 +397,15 @@ void dlb_rand_test(void)
         assert(one_thru_four <= 4);
         counts[one_thru_four - 1]++;
     }
+#if 0
     printf("\ndlb_rand32i(1, 4) 10000 iterations:\n");
     for (int i = 0; i < 4; i++) {
         printf("[%2d] %2d\n", i + 1, counts[i]);
     }
+#endif
     //memset(counts, 0, sizeof(counts));
 
+#if 0
     printf("\ndlb_rand32f(1.0f, 4.0f) 10000 iterations\n");
     float min = FLT_MAX;
     float max = FLT_MIN;
@@ -413,6 +416,7 @@ void dlb_rand_test(void)
     }
     printf("min: %2f\n", min);
     printf("max: %2f\n", max);
+#endif
 }
 
 #endif

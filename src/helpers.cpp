@@ -31,9 +31,10 @@ void DrawTextFont(Font font, const char *text, float posX, float posY, int fontS
 
 const char *TextFormatIP(ENetAddress address)
 {
-    char asStr[64]{};
-    enet_address_get_host_ip_new(&address, asStr, sizeof(asStr) - 1);
-    const char *text = TextFormat("%s:%hu", asStr, address.port);
+    //char asStr[64]{};
+    //enet_address_get_host_ip_new(&address, asStr, sizeof(asStr) - 1);
+    //const char *text = TextFormat("%s:%hu", asStr, address.port);
+
     // TODO(dlb)[cleanup]: Manual extraction of IPv4 address (was used by zed_net)
     //unsigned char bytes[4] = {};
     //bytes[0] = address.host & 0xFF;
@@ -41,5 +42,16 @@ const char *TextFormatIP(ENetAddress address)
     //bytes[2] = (address.host >> 16) & 0xFF;
     //bytes[3] = (address.host >> 24) & 0xFF;
     //const char *text = TextFormat("%d.%d.%d.%d:%hu", bytes[0], bytes[1], bytes[2], bytes[3], address.port);
+
+    const char *text = TextFormat("%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x",
+        (int)address.host.u.Byte[0],  (int)address.host.u.Byte[1],
+        (int)address.host.u.Byte[2],  (int)address.host.u.Byte[3],
+        (int)address.host.u.Byte[4],  (int)address.host.u.Byte[5],
+        (int)address.host.u.Byte[6],  (int)address.host.u.Byte[7],
+        (int)address.host.u.Byte[8],  (int)address.host.u.Byte[9],
+        (int)address.host.u.Byte[10], (int)address.host.u.Byte[11],
+        (int)address.host.u.Byte[12], (int)address.host.u.Byte[13],
+        (int)address.host.u.Byte[14], (int)address.host.u.Byte[15]);
+
     return text;
 }

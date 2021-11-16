@@ -1,4 +1,5 @@
-﻿// -- windows.h flags --
+﻿#if 1
+// -- windows.h flags --
 #define VC_EXTRALEAN
 #define WIN32_LEAN_AND_MEAN
 #define NOGDICAPMASKS
@@ -67,6 +68,7 @@
 #pragma warning(pop)
 #undef far
 #undef near
+#endif
 
 #include "args.h"
 #include "error.h"
@@ -74,8 +76,6 @@
 #include "game_server.h"
 #include "server_cli.h"
 #include "../test/tests.h"
-
-#include <future>
 
 int main(int argc, char *argv[])
 {
@@ -107,7 +107,9 @@ int main(int argc, char *argv[])
         // TODO: Make CLI not be an entire client/player. Makes no sense for the CLI to show up in the world LUL.
         //ServerCLI serverCli{ args };
         //serverCli.Run("localhost", SERVER_PORT);
+        //AllocConsole();
     } else {
+        //FreeConsole();
         GameClient gameClient{ args };
         //gameClient.Run("slime.theprogrammingjunkie.com", SERVER_PORT);
         //gameClient.Run("127.0.0.1", SERVER_PORT);

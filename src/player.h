@@ -30,7 +30,8 @@ struct Player {
         uint32_t timesSwordSwung {};
     };
 
-    size_t          nameLength  {};
+    uint32_t        id          {};
+    uint32_t        nameLength  {};
     char            name[USERNAME_LENGTH_MAX]{};
     ActionState     actionState {};
     MoveState       moveState   {};
@@ -40,9 +41,8 @@ struct Player {
     PlayerInventory inventory   {};
     Stats           stats       {};
 
-    Player();
-    void SetName(const char *name, size_t nameLength);
-    void SetSpritesheet(const SpriteDef &spriteDef);
+    void Init();
+    void SetName(const char *name, uint32_t nameLength);
 
     Vector3 GetAttachPoint(AttachPoint attachPoint) const;
     const Item& GetSelectedItem() const;

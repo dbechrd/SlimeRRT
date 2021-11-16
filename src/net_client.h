@@ -12,6 +12,7 @@ struct NetClient {
     unsigned short  serverPort                    {};
     ENetHost       *client                        {};
     ENetPeer       *server                        {};
+    uint32_t        connectionToken               {};
     size_t          usernameLength                {};
     char            username[USERNAME_LENGTH_MAX] {};
     size_t          passwordLength                {};
@@ -37,9 +38,9 @@ struct NetClient {
 private:
     static const char *LOG_SRC;
 
-    ErrorType Auth();
     ErrorType SendRaw(const void *data, size_t size);
     ErrorType SendMsg(NetMessage &message);
+    ErrorType Auth();
     void ProcessMsg(Packet &packet);
     const char *NetClient::ServerStateString();
 };

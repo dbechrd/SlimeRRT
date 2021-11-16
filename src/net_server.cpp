@@ -28,20 +28,23 @@ ErrorType NetServer::OpenSocket(unsigned short socketPort)
     address.port = socketPort;
 
     server = enet_host_create(&address, SERVER_MAX_PLAYERS, 1, 0, 0);
-    if (!server) {
+    if (!server || !server->socket) {
         E_ASSERT(ErrorType::HostCreateFailed, "Failed to create host.");
     }
-    // TODO(dlb)[cleanup]: This probably isn't providing any additional value on top of if (!server) check
-    assert(server->socket);
+    printf("Listening on port %hu...\n", address.port);
     return ErrorType::Success;
 }
 
 ErrorType NetServer::SendRaw(const NetServerClient &client, const void *data, size_t size)
 {
-    assert(client.peer);
-    assert(client.peer->address.port);
     assert(data);
     assert(size <= PACKET_SIZE_MAX);
+
+    if (!client.peer || client.peer->state != ENET_PEER_STATE_CONNECTED) { // || !clients[i].playerId) {
+        return ErrorType::Success;
+    }
+
+    assert(client.peer->address.port);
 
     // TODO(dlb): Don't always use reliable flag.. figure out what actually needs to be reliable (e.g. chat)
     ENetPacket *packet = enet_packet_create(data, size, ENET_PACKET_FLAG_RELIABLE);
@@ -54,38 +57,60 @@ ErrorType NetServer::SendRaw(const NetServerClient &client, const void *data, si
     return ErrorType::Success;
 }
 
-ErrorType NetServer::SendMsg(const NetServerClient &client, NetMessage &message)
-{
-    ENetBuffer rawPacket = message.Serialize(*serverWorld);
-    //E_INFO("[SEND][%21s][%5u b] %16s ", TextFormatIP(client.peer->address), rawPacket.dataLength, message.TypeString());
-    E_ASSERT(SendRaw(client, rawPacket.data, rawPacket.dataLength), "Failed to send packet");
-    return ErrorType::Success;
-}
-
 ErrorType NetServer::BroadcastRaw(const void *data, size_t size)
 {
+    assert(data);
+    assert(size <= PACKET_SIZE_MAX);
+
     ErrorType err_code = ErrorType::Success;
 
+    // TODO(dlb): Don't always use reliable flag.. figure out what actually needs to be reliable (e.g. chat)
+    ENetPacket *packet = enet_packet_create(data, size, ENET_PACKET_FLAG_RELIABLE);
+    if (!packet) {
+        E_ASSERT(ErrorType::PacketCreateFailed, "Failed to create packet.");
+    }
+
     // Broadcast message to all connected clients
-    for (auto &kv : clients) {
-        assert(kv.second.peer);
-        assert(kv.second.peer->address.port);
-        ErrorType code = SendRaw(kv.second, data, size);
-        if (code != ErrorType::Success) {
+    for (int i = 0; i < SERVER_MAX_PLAYERS; i++) {
+        if (!clients[i].peer || clients[i].peer->state != ENET_PEER_STATE_CONNECTED) { // || !clients[i].playerId) {
+            continue;
+        }
+
+        NetServerClient &client = clients[i];
+        assert(client.peer);
+        assert(client.peer->address.port);
+        if (enet_peer_send(client.peer, 0, packet) < 0) {
             TraceLog(LOG_ERROR, "[NetServer] BROADCAST %u bytes failed", size);
-            err_code = code;
-            // TODO: Handle error somehow? Retry queue.. or..? Idk.. This seems fatal. Look up why Win32 might fail
+            err_code = ErrorType::PeerSendFailed;
         }
     }
 
     return err_code;
 }
 
+ErrorType NetServer::SendMsg(const NetServerClient &client, NetMessage &message)
+{
+    message.connectionToken = client.connectionToken;
+    ENetBuffer rawPacket = message.Serialize(*serverWorld);
+    //E_INFO("[SEND][%21s][%5u b] %16s ", TextFormatIP(client.peer->address), rawPacket.dataLength, message.TypeString());
+    E_ASSERT(SendRaw(client, rawPacket.data, rawPacket.dataLength), "Failed to send packet");
+    return ErrorType::Success;
+}
+
 ErrorType NetServer::BroadcastMsg(NetMessage &message)
 {
-    ENetBuffer rawPacket = message.Serialize(*serverWorld);
-    //E_INFO("[SEND][%21s][%5u b] %16s", "BROADCAST", rawPacket.dataLength, message.TypeString());
-    return BroadcastRaw(rawPacket.data, rawPacket.dataLength);
+    ErrorType err_code = ErrorType::Success;
+
+    // Broadcast message to all connected clients
+    for (int i = 0; i < SERVER_MAX_PLAYERS; i++) {
+        NetServerClient &client = clients[i];
+        ErrorType result = SendMsg(clients[i], message);
+        if (result != ErrorType::Success) {
+            err_code = result;
+        }
+    }
+
+    return err_code;
 }
 
 ErrorType NetServer::BroadcastChatMessage(const char *msg, size_t msgLength)
@@ -115,17 +140,19 @@ ErrorType NetServer::SendWelcomeBasket(NetServerClient &client)
         memcpy(userWelcomeBasket.data.welcome.motd, CSTR("Welcome to The Lonely Island"));
         userWelcomeBasket.data.welcome.width = serverWorld->map->width;
         userWelcomeBasket.data.welcome.height = serverWorld->map->height;
-        userWelcomeBasket.data.welcome.playerIdx = (uint32_t)client.playerIdx;
+        userWelcomeBasket.data.welcome.playerId = client.playerId;
         E_ASSERT(SendMsg(client, userWelcomeBasket), "Failed to send welcome basket");
     }
 
     {
         // TODO: Save from identify packet into NetServerClient, then user client.username
-        const char *clientUsername = client.username;
-        size_t clientUsernameLength = client.usernameLength;
-        const char *message = TextFormat("%.*s joined the game.", clientUsernameLength, clientUsername);
-        size_t messageLength = strlen(message);
-        E_ASSERT(BroadcastChatMessage(message, messageLength), "Failed to broadcast join notification");
+        Player *player = serverWorld->FindPlayer(client.playerId);
+        assert(player);
+        if (player) {
+            const char *message = TextFormat("%.*s joined the game.", player->nameLength, player->name);
+            size_t messageLength = strlen(message);
+            E_ASSERT(BroadcastChatMessage(message, messageLength), "Failed to broadcast join notification");
+        }
     }
 
     BroadcastWorldChunk();
@@ -168,16 +195,29 @@ void NetServer::ProcessMsg(NetServerClient &client, Packet &packet)
 {
     packet.netMessage.Deserialize(packet.rawBytes, *serverWorld);
 
+    if (packet.netMessage.type != NetMessage::Type::Identify &&
+        packet.netMessage.connectionToken != client.connectionToken)
+    {
+        // Received a message from a stale connection; discard it
+        printf("Ignoring %s packet from stale connection.\n", packet.netMessage.TypeString());
+        return;
+    }
+
     //E_INFO("[RECV][%21s][%5u b] %16s ", TextFormatIP(client.peer->address), packet.rawBytes.dataLength, packet.netMessage.TypeString());
 
     switch (packet.netMessage.type) {
         case NetMessage::Type::Identify: {
             NetMessage_Identify &identMsg = packet.netMessage.data.identify;
-            client.usernameLength = MIN(identMsg.usernameLength, USERNAME_LENGTH_MAX);
-            memcpy(client.username, identMsg.username, client.usernameLength);
 
-            assert(serverWorld->SpawnPlayer(client.username, client.usernameLength, client.playerIdx));
-            SendWelcomeBasket(client);
+            Player *player = serverWorld->SpawnPlayer(client.playerId);
+            if (player) {
+                client.connectionToken = packet.netMessage.connectionToken;
+                assert(identMsg.usernameLength);
+                player->SetName(identMsg.username, identMsg.usernameLength);
+                SendWelcomeBasket(client);
+            } else {
+                // TODO: Send server full message
+            }
 
             break;
         } case NetMessage::Type::ChatMessage: {
@@ -207,24 +247,59 @@ void NetServer::ProcessMsg(NetServerClient &client, Packet &packet)
 
             break;
         } default: {
-            assert("asdfasdf");
+            E_INFO("Unhandled packet type: %s\n", packet.netMessage.TypeString());
             break;
         }
     }
 }
 
-NetServerClient &NetServer::FindClient(ENetPeer *peer)
+NetServerClient *NetServer::AddClient(ENetPeer *peer)
 {
-    NetServerClient *client = (NetServerClient * )peer->data;
-    if (!client) {
-        auto kv = clients.find(peer->address);
-        if (kv == clients.end()) {
-            client = &clients[peer->address];
-        } else {
-            client = &kv->second;
+    for (int i = 0; i < SERVER_MAX_PLAYERS; i++) {
+        if (!clients[i].playerId) {
+            assert(!clients[i].peer);
+            clients[i].peer = peer;
+            peer->data = &clients[i];
+            return &clients[i];
         }
     }
-    return *client;
+    return 0;
+}
+
+NetServerClient *NetServer::FindClient(ENetPeer *peer)
+{
+    NetServerClient *client = (NetServerClient *)peer->data;
+    if (client) {
+        return client;
+    }
+
+    for (int i = 0; i < SERVER_MAX_PLAYERS; i++) {
+        if (clients[i].peer == peer) {
+            return &clients[i];
+        }
+    }
+    return 0;
+}
+
+ErrorType NetServer::RemoveClient(ENetPeer *peer)
+{
+    printf("Remove client %s\n", TextFormatIP(peer->address));
+    NetServerClient *client = FindClient(peer);
+    if (client) {
+        // TODO: Save from identify packet into NetServerClient, then user client.username
+        Player *player = serverWorld->FindPlayer(client->playerId);
+        if (player) {
+            const char *message = TextFormat("%.*s left the game.", player->nameLength, player->name);
+            size_t messageLength = strlen(message);
+            E_ASSERT(BroadcastChatMessage(message, messageLength), "Failed to broadcast join notification");
+        }
+
+        serverWorld->DespawnPlayer(client->playerId);
+        memset(client, 0, sizeof(*client));
+    }
+    peer->data = 0;
+    enet_peer_reset(peer);
+    return ErrorType::Success;
 }
 
 ErrorType NetServer::Listen()
@@ -242,15 +317,8 @@ ErrorType NetServer::Listen()
     while (svc > 0) {
         switch (event.type) {
             case ENET_EVENT_TYPE_CONNECT: {
-                //E_INFO("A new client connected from %x:%u.",
-                //    event.peer->address.host,
-                //    event.peer->address.port);
-                // TODO: Store any relevant client information here.
-
-                NetServerClient &client = FindClient(event.peer);
-                client.peer = event.peer;
-                client.last_packet_received_at = enet_time_get();
-                event.peer->data = &client;;
+                E_INFO("A new client connected from %x:%u.", TextFormatIP(event.peer->address));
+                AddClient(event.peer);
                 break;
             } case ENET_EVENT_TYPE_RECEIVE: {
                 //E_INFO("A packet of length %u was received from %x:%u on channel %u.",
@@ -277,34 +345,19 @@ ErrorType NetServer::Listen()
                 // When would ENetPacket get destroyed? Would that confuse ENet in some way?
                 enet_packet_destroy(event.packet);
 
-                NetServerClient &client = FindClient(event.peer);
-                ProcessMsg(client, packet);
-
-                client.last_packet_received_at = enet_time_get();
+                NetServerClient *client = FindClient(event.peer);
+                assert(client);
+                if (client) {
+                    ProcessMsg(*client, packet);
+                }
                 break;
             } case ENET_EVENT_TYPE_DISCONNECT: {
-                E_INFO("Client %x:%u disconnected.",
-                    event.peer->address.host,
-                    event.peer->address.port);
-                //TODO: Reset the peer's client information.
-                //event.peer->data = NULL;
-                auto kv = clients.find(event.peer->address);
-                if (kv != clients.end()) {
-                    enet_peer_reset(event.peer);
-                    memset(&kv->second, 0, sizeof(kv->second));
-                    clients.erase(event.peer->address);
-                }
+                E_INFO("%x:%u disconnected.", TextFormatIP(event.peer->address));
+                RemoveClient(event.peer);
                 break;
             } case ENET_EVENT_TYPE_DISCONNECT_TIMEOUT: {
-                E_WARN("Connection timed out for client %x:%hu.",
-                    event.peer->address.host,
-                    event.peer->address.port);
-                auto kv = clients.find(event.peer->address);
-                if (kv != clients.end()) {
-                    enet_peer_reset(event.peer);
-                    memset(&kv->second, 0, sizeof(kv->second));
-                    clients.erase(event.peer->address);
-                }
+                E_INFO("%x:%u disconnected due to timeout.", TextFormatIP(event.peer->address));
+                RemoveClient(event.peer);
                 break;
             } default: {
                 E_WARN("Unhandled event type: %d", event.type);
@@ -325,5 +378,6 @@ void NetServer::CloseSocket()
     }
     enet_host_service(server, nullptr, 0);
     enet_host_destroy(server);
-    clients.clear();
+    assert(sizeof(clients) > 8); // in case i change client list to a pointer and break the memset
+    memset(clients, 0, sizeof(clients));
 }

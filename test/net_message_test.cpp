@@ -13,10 +13,11 @@ void net_message_test()
     memcpy(msgWritten.data.chatMsg.message, CSTR("This is a test message"));
     msgWritten.data.chatMsg.messageLength = (uint32_t)strlen(msgWritten.data.chatMsg.message);
 
-    World world{};
-    ENetBuffer rawPacket = msgWritten.Serialize(world);
+    World *world = new World;
+    ENetBuffer rawPacket = msgWritten.Serialize(*world);
     NetMessage baseMsgRead{};
-    baseMsgRead.Deserialize(rawPacket, world);
+    baseMsgRead.Deserialize(rawPacket, *world);
+    delete world;
 
     assert(baseMsgRead.type == NetMessage::Type::ChatMessage);
     NetMessage_ChatMessage &msgRead = baseMsgRead.data.chatMsg;

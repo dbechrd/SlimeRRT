@@ -18,6 +18,10 @@ NetClient::~NetClient()
 
 ErrorType NetClient::OpenSocket()
 {
+    connectionToken = dlb_rand32u();
+    while (!connectionToken) {
+        connectionToken = dlb_rand32u();
+    }
     client = enet_host_create(nullptr, 1, 1, 0, 0);
     if (!client) {
         E_ASSERT(ErrorType::HostCreateFailed, "Failed to create host.");
@@ -61,33 +65,6 @@ ErrorType NetClient::Connect(const char *serverHost, unsigned short serverPort, 
 }
 #pragma warning(pop)
 
-ErrorType NetClient::Auth()
-{
-    assert(username);
-    assert(password);
-
-    NetMessage userIdent{};
-    userIdent.type = NetMessage::Type::Identify;
-    userIdent.data.identify.usernameLength = (uint32_t)usernameLength;
-    memcpy(userIdent.data.identify.username, username, usernameLength);
-    userIdent.data.identify.passwordLength = (uint32_t)passwordLength;
-    memcpy(userIdent.data.identify.password, password, passwordLength);
-
-    ENetBuffer rawPacket = userIdent.Serialize(*serverWorld);
-    ENetPacket *packet = enet_packet_create(rawPacket.data, rawPacket.dataLength, ENET_PACKET_FLAG_RELIABLE);
-    if (!packet) {
-        E_ASSERT(ErrorType::PacketCreateFailed, "Failed to create packet.");
-    }
-    if (enet_peer_send(server, 0, packet) < 0) {
-        E_ASSERT(ErrorType::PeerSendFailed, "Failed to send connection request.");
-    }
-
-    // Clear password from memory
-    memset(password, 0, sizeof(password));
-    passwordLength = 0;
-    return ErrorType::Success;
-}
-
 ErrorType NetClient::SendRaw(const void *data, size_t size)
 {
     assert(server);
@@ -109,10 +86,30 @@ ErrorType NetClient::SendRaw(const void *data, size_t size)
 
 ErrorType NetClient::SendMsg(NetMessage &message)
 {
+    message.connectionToken = connectionToken;
     ENetBuffer rawPacket = message.Serialize(*serverWorld);
     //E_INFO("[SEND][%21s][%5u b] %16s ", rawPacket.dataLength, message.TypeString());
     E_ASSERT(SendRaw(rawPacket.data, rawPacket.dataLength), "Failed to send packet");
     return ErrorType::Success;
+}
+
+ErrorType NetClient::Auth()
+{
+    assert(username);
+    assert(password);
+
+    NetMessage userIdent{};
+    userIdent.type = NetMessage::Type::Identify;
+    userIdent.data.identify.usernameLength = (uint32_t)usernameLength;
+    memcpy(userIdent.data.identify.username, username, usernameLength);
+    userIdent.data.identify.passwordLength = (uint32_t)passwordLength;
+    memcpy(userIdent.data.identify.password, password, passwordLength);
+
+    ErrorType result = SendMsg(userIdent);
+    // Clear password from memory
+    memset(password, 0, sizeof(password));
+    passwordLength = 0;
+    return result;
 }
 
 ErrorType NetClient::SendChatMessage(const char *message, size_t messageLength)
@@ -174,6 +171,12 @@ void NetClient::ProcessMsg(Packet &packet)
 {
     packet.netMessage.Deserialize(packet.rawBytes, *serverWorld);
 
+    if (connectionToken && packet.netMessage.connectionToken != connectionToken) {
+        // Received a message from a stale connection; discard it
+        printf("Ignoring %s packet from stale connection.\n", packet.netMessage.TypeString());
+        return;
+    }
+
     switch (packet.netMessage.type) {
         case NetMessage::Type::ChatMessage: {
             NetMessage_ChatMessage &chatMsg = packet.netMessage.data.chatMsg;
@@ -185,15 +188,11 @@ void NetClient::ProcessMsg(Packet &packet)
             NetMessage_Welcome &welcomeMsg = packet.netMessage.data.welcome;
             chatHistory.PushMessage(CSTR("Message of the day"), welcomeMsg.motd, welcomeMsg.motdLength);
 
-            // TODO: Use username (ensure null terminated or add player.nameLength field
-            delete serverWorld;
-            serverWorld = new World;
-
             serverWorld->map = serverWorld->mapSystem.Generate(serverWorld->rtt_rand, welcomeMsg.width, welcomeMsg.height);
             assert(serverWorld->map);
             // TODO: Get tileset ID from server
             serverWorld->map->tilesetId = TilesetID::TS_Overworld;
-            serverWorld->playerIdx = welcomeMsg.playerIdx;
+            serverWorld->playerId = welcomeMsg.playerId;
 
             break;
         } case NetMessage::Type::WorldChunk: {
@@ -247,14 +246,15 @@ ErrorType NetClient::Receive()
         ENetEvent event{};
         svc = enet_host_service(client, &event, 1);
 
-        if (server->state == ENET_PEER_STATE_CONNECTING &&
-            !server->lastReceiveTime &&
-            (enet_time_get() - server->lastSendTime) > 5000)
-        {
-            E_WARN("Failed to connect to server %s:%hu.", serverHost, server->host->address.port);
-            enet_peer_reset(server);
-            //E_ASSERT(ErrorType::PeerConnectFailed, "Failed to connect to server %s:%hu.", hostname, port);
-        }
+        //if (server &&
+        //    server->state == ENET_PEER_STATE_CONNECTING &&
+        //    !server->lastReceiveTime &&
+        //    (enet_time_get() - server->lastSendTime) > 5000)
+        //{
+        //    E_WARN("Failed to connect to server %s:%hu.", serverHost, server->host->address.port);
+        //    enet_peer_reset(server);
+        //    //E_ASSERT(ErrorType::PeerConnectFailed, "Failed to connect to server %s:%hu.", hostname, port);
+        //}
 
         static const char *prevState = 0;
         const char *curState = ServerStateString();
@@ -270,6 +270,8 @@ ErrorType NetClient::Receive()
                         event.peer->address.host,
                         event.peer->address.port);
 
+                    assert(!serverWorld);
+                    serverWorld = new World;
                     chatHistory.PushMessage(CSTR("Debug"), CSTR("Connected to server. :)"));
                     Auth();
 
@@ -307,16 +309,27 @@ ErrorType NetClient::Receive()
                     E_INFO("Disconnected from server %x:%u.",
                         event.peer->address.host,
                         event.peer->address.port);
-                    //TODO: Reset the peer's client information.
-                    //event.peer->data = NULL;
+
                     enet_peer_reset(server);
                     server = nullptr;
+                    if (serverWorld) {
+                        delete serverWorld;
+                        serverWorld = nullptr;
+                    }
+
+                    chatHistory.PushMessage(CSTR("Sam"), CSTR("Disconnected from server."));
                     break;
                 } case ENET_EVENT_TYPE_DISCONNECT_TIMEOUT: {
                     E_WARN("Connection timed out for server %x:%hu.",
                         event.peer->address.host,
                         event.peer->address.port);
+
                     enet_peer_reset(server);
+                    server = nullptr;
+                    if (serverWorld) {
+                        delete serverWorld;
+                        serverWorld = nullptr;
+                    }
 
                     chatHistory.PushMessage(CSTR("Sam"), CSTR("Your connection to the server timed out. :("));
                     break;
@@ -332,11 +345,17 @@ ErrorType NetClient::Receive()
 
 void NetClient::Disconnect()
 {
-    if (!server) return;
-
-    enet_peer_disconnect(server, 1);
-    enet_peer_reset(server);
-    server = nullptr;
+    if (server) {
+        enet_peer_disconnect(server, 1);
+        enet_host_service(client, nullptr, 0);
+        enet_peer_reset(server);
+        server = nullptr;
+    }
+    if (serverWorld) {
+        delete serverWorld;
+        serverWorld = nullptr;
+    }
+    connectionToken = 0;
 }
 
 void NetClient::CloseSocket()
@@ -345,5 +364,6 @@ void NetClient::CloseSocket()
     if (client) {
         enet_host_service(client, nullptr, 0);
         enet_host_destroy(client);
+        client = nullptr;
     }
 }
