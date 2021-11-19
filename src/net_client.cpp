@@ -143,7 +143,7 @@ ErrorType NetClient::SendChatMessage(const char *message, size_t messageLength)
     return result;
 }
 
-ErrorType NetClient::SendPlayerInput(const PlayerControllerState &input)
+ErrorType NetClient::SendPlayerInput(const NetMessage_Input &input)
 {
     if (!server || server->state != ENET_PEER_STATE_CONNECTED) {
         E_WARN("Not connected to server. Input not sent.");
@@ -155,39 +155,35 @@ ErrorType NetClient::SendPlayerInput(const PlayerControllerState &input)
 
     NetMessage netMessage{};
     netMessage.type = NetMessage::Type::Input;
-    netMessage.data.input.walkNorth  = input.walkNorth;
-    netMessage.data.input.walkEast   = input.walkEast;
-    netMessage.data.input.walkSouth  = input.walkSouth;
-    netMessage.data.input.walkWest   = input.walkWest;
-    netMessage.data.input.run        = input.run;
-    netMessage.data.input.attack     = input.attack;
-    netMessage.data.input.selectSlot = input.selectSlot;
+    netMessage.data.input = input;
 
     ErrorType result = SendMsg(netMessage);
     return result;
 }
 
-void NetClient::ProcessMsg(Packet &packet)
+void NetClient::ProcessMsg(ENetPacket &packet)
 {
-    packet.netMessage.Deserialize(packet.rawBytes, *serverWorld);
+    ENetBuffer packetBuffer{ packet.dataLength, packet.data };
+    NetMessage message{};
+    message.Deserialize(packetBuffer, *serverWorld);
 
-    if (connectionToken && packet.netMessage.connectionToken != connectionToken) {
+    if (connectionToken && message.connectionToken != connectionToken) {
         // Received a message from a stale connection; discard it
-        printf("Ignoring %s packet from stale connection.\n", packet.netMessage.TypeString());
+        printf("Ignoring %s packet from stale connection.\n", message.TypeString());
         return;
     }
 
-    switch (packet.netMessage.type) {
+    switch (message.type) {
         case NetMessage::Type::ChatMessage: {
-            NetMessage_ChatMessage &chatMsg = packet.netMessage.data.chatMsg;
-            memcpy(chatMsg.timestampStr, packet.timestampStr, sizeof(packet.timestampStr));
+            NetMessage_ChatMessage &chatMsg = message.data.chatMsg;
             chatHistory.PushNetMessage(chatMsg);
             break;
         } case NetMessage::Type::Welcome: {
             // TODO: Auth challenge. Store salt sent from server instead.. handshake stuffs
-            NetMessage_Welcome &welcomeMsg = packet.netMessage.data.welcome;
+            NetMessage_Welcome &welcomeMsg = message.data.welcome;
             chatHistory.PushMessage(CSTR("Message of the day"), welcomeMsg.motd, welcomeMsg.motdLength);
 
+            // TODO: Move this logic to net_message.cpp like all the other logic?
             serverWorld->map = serverWorld->mapSystem.Generate(serverWorld->rtt_rand, welcomeMsg.width, welcomeMsg.height);
             assert(serverWorld->map);
             // TODO: Get tileset ID from server
@@ -196,16 +192,16 @@ void NetClient::ProcessMsg(Packet &packet)
 
             break;
         } case NetMessage::Type::WorldChunk: {
-            //NetMessage_WorldChunk &worldChunk = packet.netMessage.data.worldChunk;
+            //NetMessage_WorldChunk &worldChunk = message.data.worldChunk;
             break;
         } case NetMessage::Type::WorldPlayers: {
-            //NetMessage_WorldPlayers &worldPlayers = packet.netMessage.data.worldPlayers;
+            //NetMessage_WorldPlayers &worldPlayers = message.data.worldPlayers;
             break;
         } case NetMessage::Type::WorldEntities: {
-            //NetMessage_WorldEntities &worldEntities = packet.netMessage.data.worldEntities;
+            //NetMessage_WorldEntities &worldEntities = message.data.worldEntities;
             break;
         } default: {
-            E_WARN("Unrecognized message type: %d", packet.netMessage.type);
+            E_WARN("Unexpected message type: %s", message.TypeString());
             break;
         }
     }
@@ -283,25 +279,18 @@ ErrorType NetClient::Receive()
                     //    event.peer->address.port,
                     //    event.channelID);
 
-                    Packet &packet = packetHistory.Alloc();
-                    packet.srcAddress = event.peer->address;
-                    packet.timestamp = enet_time_get();
-                    packet.rawBytes.data = calloc(event.packet->dataLength, sizeof(uint8_t));
-                    memcpy(packet.rawBytes.data, event.packet->data, event.packet->dataLength);
-                    packet.rawBytes.dataLength = event.packet->dataLength;
-
-                    // TODO: Refactor this out into helper function somewhere (it's also in net_client.c)
-                    time_t t = time(NULL);
-                    struct tm tm = *localtime(&t);
-                    int len = snprintf(packet.timestampStr, sizeof(packet.timestampStr), "%02d:%02d:%02d",
-                        tm.tm_hour, tm.tm_min, tm.tm_sec);
-                    assert(len < sizeof(packet.timestampStr));
+                    //Packet &packet = packetHistory.Alloc();
+                    //packet.srcAddress = event.peer->address;
+                    //packet.timestamp = enet_time_get();
+                    //packet.rawBytes.data = calloc(event.packet->dataLength, sizeof(uint8_t));
+                    //memcpy(packet.rawBytes.data, event.packet->data, event.packet->dataLength);
+                    //packet.rawBytes.dataLength = event.packet->dataLength;
 
                     // TODO: Could Packet just point to ENetPacket instead of copying and destroying?
                     // When would ENetPacket get destroyed? Would that confuse ENet in some way?
-                    enet_packet_destroy(event.packet);
 
-                    ProcessMsg(packet);
+                    ProcessMsg(*event.packet);
+                    enet_packet_destroy(event.packet);
                     //TraceLog(LOG_INFO, "[NetClient] RECV\n  %s said %s", senderStr, packet.rawBytes);
 
                     break;

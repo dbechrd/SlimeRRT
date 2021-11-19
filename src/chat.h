@@ -1,25 +1,16 @@
 #pragma once
-#include "error.h"
-#include "helpers.h"
 #include "net_message.h"
 #include "ring_buffer.h"
-#include <cstdint>
-#include <vector>
+#include "raylib/raylib.h"
 
-struct ChatMessage {
-    char   timestampStr[12]                 {};  // hh:MM:SS AM
-    size_t usernameLength                   {};
-    char   username[USERNAME_LENGTH_MAX]    {};
-    size_t messageLength                    {};
-    char   message[CHAT_MESSAGE_BUFFER_LEN] {};
-};
+struct ChatHistory {
 
-struct ChatHistory : RingBuffer<ChatMessage> {
-    ChatHistory() : RingBuffer(CHAT_MESSAGE_HISTORY) {}
+    size_t MessageCount() { return buffer.Count(); }
     void PushNetMessage(const NetMessage_ChatMessage &netChat);
     void PushMessage(const char *username, size_t usernameLength, const char *message, size_t messageLength);
-    void Render(Font &font, ChatHistory &chatHistory, Rectangle rect);
+    void Render(Font &font, Rectangle rect);
 
 private:
     static const char *LOG_SRC;
+    RingBuffer<NetMessage_ChatMessage, CLIENT_CHAT_HISTORY> buffer {};
 };

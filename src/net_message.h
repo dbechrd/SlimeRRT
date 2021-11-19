@@ -1,10 +1,11 @@
 #pragma once
-
 #include "bit_stream.h"
+#include "controller.h"
 #include "player.h"
 #include "slime.h"
 #include "tilemap.h"
-#include "world.h"
+
+struct World;
 
 struct NetMessage_Identify {
     // TODO: Encrypt packet
@@ -31,27 +32,42 @@ struct NetMessage_Welcome {
 };
 
 struct NetMessage_Input {
-    bool  walkNorth {};
-    bool  walkEast  {};
-    bool  walkSouth {};
-    bool  walkWest  {};
-    bool  run       {};
-    bool  attack    {};
+    uint32_t            tick       {};
+    bool                walkNorth  {};
+    bool                walkEast   {};
+    bool                walkSouth  {};
+    bool                walkWest   {};
+    bool                run        {};
+    bool                attack     {};
     PlayerInventorySlot selectSlot {};
+
+    void FromController(uint32_t tick, PlayerControllerState &controllerState) {
+        tick       = tick;
+        walkNorth  = controllerState.walkNorth;
+        walkEast   = controllerState.walkEast;
+        walkSouth  = controllerState.walkSouth;
+        walkWest   = controllerState.walkWest;
+        run        = controllerState.run;
+        attack     = controllerState.attack;
+        selectSlot = controllerState.selectSlot;
+    }
 };
 
 struct NetMessage_WorldChunk {
     uint32_t offsetX     {};
     uint32_t offsetY     {};
     uint32_t tilesLength {};
+    // world.tiles
 };
 
 struct NetMessage_WorldPlayers {
     bool unused{};
+    // world.players
 };
 
 struct NetMessage_WorldEntities {
     bool unused{};
+    // world.slimes
 };
 
 struct NetMessage {

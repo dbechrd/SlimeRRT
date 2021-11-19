@@ -191,27 +191,30 @@ ErrorType NetServer::BroadcastWorldEntities(void)
     return ErrorType::Success;
 }
 
-void NetServer::ProcessMsg(NetServerClient &client, Packet &packet)
+void NetServer::ProcessMsg(NetServerClient &client, ENetPacket &packet)
 {
-    packet.netMessage.Deserialize(packet.rawBytes, *serverWorld);
+    ENetBuffer packetBuffer{ packet.dataLength, packet.data };
+    NetMessage message{};
+    message.Deserialize(packetBuffer, *serverWorld);
 
-    if (packet.netMessage.type != NetMessage::Type::Identify &&
-        packet.netMessage.connectionToken != client.connectionToken)
+    if (message.type != NetMessage::Type::Identify &&
+        message.connectionToken != client.connectionToken)
     {
         // Received a message from a stale connection; discard it
-        printf("Ignoring %s packet from stale connection.\n", packet.netMessage.TypeString());
+        printf("Ignoring %s packet from stale connection.\n", message.TypeString());
         return;
     }
 
-    //E_INFO("[RECV][%21s][%5u b] %16s ", TextFormatIP(client.peer->address), packet.rawBytes.dataLength, packet.netMessage.TypeString());
+    //E_INFO("[RECV][%21s][%5u b] %16s ", TextFormatIP(client.peer->address), packet.rawBytes.dataLength, message.TypeString());
 
-    switch (packet.netMessage.type) {
+    switch (message.type) {
         case NetMessage::Type::Identify: {
-            NetMessage_Identify &identMsg = packet.netMessage.data.identify;
+            NetMessage_Identify &identMsg = message.data.identify;
 
-            Player *player = serverWorld->SpawnPlayer(client.playerId);
+            Player *player = serverWorld->SpawnPlayer();
             if (player) {
-                client.connectionToken = packet.netMessage.connectionToken;
+                client.playerId = player->id;
+                client.connectionToken = message.connectionToken;
                 assert(identMsg.usernameLength);
                 player->SetName(identMsg.username, identMsg.usernameLength);
                 SendWelcomeBasket(client);
@@ -221,7 +224,7 @@ void NetServer::ProcessMsg(NetServerClient &client, Packet &packet)
 
             break;
         } case NetMessage::Type::ChatMessage: {
-            NetMessage_ChatMessage &chatMsg = packet.netMessage.data.chatMsg;
+            NetMessage_ChatMessage &chatMsg = message.data.chatMsg;
 
             // TODO(security): Validate some session token that's not known to other people to prevent impersonation
             //assert(chatMsg.usernameLength == client.usernameLength);
@@ -232,22 +235,21 @@ void NetServer::ProcessMsg(NetServerClient &client, Packet &packet)
 
             // TODO(security): This is currently rebroadcasting user input to all other clients.. ripe for abuse
             // Broadcast chat message
-            BroadcastMsg(packet.netMessage);
+            BroadcastMsg(message);
             break;
         } case NetMessage::Type::Input: {
             // TODO: Save all unprocessed input (in a queue, with timestamp), not just latest input
-            NetMessage_Input &input = packet.netMessage.data.input;
-            client.input.walkNorth  = input.walkNorth;
-            client.input.walkEast   = input.walkEast;
-            client.input.walkSouth  = input.walkSouth;
-            client.input.walkWest   = input.walkWest;
-            client.input.run        = input.run;
-            client.input.attack     = input.attack;
-            client.input.selectSlot = input.selectSlot;
-
+            NetMessage_Input &input = client.inputHistory.Alloc();
+            input.walkNorth  = message.data.input.walkNorth;
+            input.walkEast   = message.data.input.walkEast;
+            input.walkSouth  = message.data.input.walkSouth;
+            input.walkWest   = message.data.input.walkWest;
+            input.run        = message.data.input.run;
+            input.attack     = message.data.input.attack;
+            input.selectSlot = message.data.input.selectSlot;
             break;
         } default: {
-            E_INFO("Unhandled packet type: %s\n", packet.netMessage.TypeString());
+            E_INFO("Unexpected message type: %s\n", message.TypeString());
             break;
         }
     }
@@ -327,29 +329,22 @@ ErrorType NetServer::Listen()
                 //    event.peer->address.port,
                 //    event.channelID);
 
-                Packet &packet = packetHistory.Alloc();
-                packet.srcAddress = event.peer->address;
-                packet.timestamp = enet_time_get();
-                packet.rawBytes.data = calloc(event.packet->dataLength, sizeof(uint8_t));
-                memcpy(packet.rawBytes.data, event.packet->data, event.packet->dataLength);
-                packet.rawBytes.dataLength = event.packet->dataLength;
-
-                // TODO: Refactor this out into helper function somewhere (it's also in net_client.c)
-                time_t t = time(NULL);
-                struct tm tm = *localtime(&t);
-                int len = snprintf(packet.timestampStr, sizeof(packet.timestampStr), "%02d:%02d:%02d", tm.tm_hour,
-                    tm.tm_min, tm.tm_sec);
-                assert(len < sizeof(packet.timestampStr));
+                //Packet &packet = packetHistory.Alloc();
+                //packet.srcAddress = event.peer->address;
+                //packet.timestamp = enet_time_get();
+                //packet.rawBytes.data = calloc(event.packet->dataLength, sizeof(uint8_t));
+                //memcpy(packet.rawBytes.data, event.packet->data, event.packet->dataLength);
+                //packet.rawBytes.dataLength = event.packet->dataLength;
 
                 // TODO: Could Packet just point to ENetPacket instead of copying and destroying?
                 // When would ENetPacket get destroyed? Would that confuse ENet in some way?
-                enet_packet_destroy(event.packet);
 
                 NetServerClient *client = FindClient(event.peer);
                 assert(client);
                 if (client) {
-                    ProcessMsg(*client, packet);
+                    ProcessMsg(*client, *event.packet);
                 }
+                enet_packet_destroy(event.packet);
                 break;
             } case ENET_EVENT_TYPE_DISCONNECT: {
                 E_INFO("%x:%u disconnected.", TextFormatIP(event.peer->address));

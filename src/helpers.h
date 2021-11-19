@@ -27,7 +27,12 @@
 //#define PACKET_SIZE_MAX        1024
 #define SERVER_USERNAME         "SERVER"
 #define SERVER_MAX_PLAYERS      8
-#define SERVER_TPS              30
+#define SERVER_TPS              5  //25 //30
+#define SERVER_INPUT_HISTORY    (SERVER_TPS)
+
+#define CLIENT_CHAT_HISTORY     256
+#define CLIENT_INPUT_HISTORY    (SERVER_TPS)
+#define CLIENT_WORLD_HISTORY    (SERVER_TPS)
 
 #define PACKET_SIZE_MAX         16384
 
@@ -56,8 +61,7 @@
 
 #define CHAT_MESSAGE_HISTORY    16
 #define CHAT_MESSAGE_LENGTH_MIN 0
-#define CHAT_MESSAGE_LENGTH_MAX 500  // not including nil terminator, must be < CHAT_MESSAGE_BUFFER_LEN
-#define CHAT_MESSAGE_BUFFER_LEN 512  // including nil terminator
+#define CHAT_MESSAGE_LENGTH_MAX 512  // not including nil terminator, must be < CHAT_MESSAGE_BUFFER_LEN
 
 //------------------------------------------------------------------------------
 // Macros
@@ -75,3 +79,4 @@
 //------------------------------------------------------------------------------
 void DrawTextFont(Font font, const char *text, float posX, float posY, int fontSize, Color color);
 const char *TextFormatIP(ENetAddress address);
+const char *TextFormatTimestamp();

@@ -1,21 +1,18 @@
 #pragma once
-#include <vector>
+#include <array>
 #include <cassert>
 
-template<typename T>
-struct RingBuffer : protected std::vector<T> {
-    RingBuffer(size_t size) {
-        std::vector<T>::resize(size);
-    }
+template<typename T, size_t BufferSize>
+struct RingBuffer : protected std::array<T, BufferSize> {
+    //RingBuffer(size_t size) {
+    //    std::vector<T>::resize(size);
+    //}
 
     T &Alloc()
     {
-        if (empty()) {
-            resize(CHAT_MESSAGE_HISTORY);
-        }
-        size_t size = std::vector<T>::size();
+        size_t size = std::array<T, BufferSize>::size();
         size_t idx = (first + count) % size;
-        T* ptr = std::vector<T>::data() + idx;
+        T* ptr = std::array<T, BufferSize>::data() + idx;
         T &elem = *new(ptr) T{};
         if (count < size) {
             count++;
@@ -27,7 +24,7 @@ struct RingBuffer : protected std::vector<T> {
 
     void Clear()
     {
-        std::vector<T>::clear();
+        std::array<T, BufferSize>::clear();
         first = 0;
         count = 0;
     }
@@ -48,17 +45,24 @@ struct RingBuffer : protected std::vector<T> {
 
     size_t Size()
     {
-        return std::vector<T>::size();
+        return std::array<T, BufferSize>::size();
     }
 
     T &At(size_t index)
     {
         assert(index < count);
-        size_t at = (first + index) % std::vector<T>::size();
-        return std::vector<T>::at(at);
+        size_t at = (first + index) % std::array<T, BufferSize>::size();
+        return std::array<T, BufferSize>::at(at);
+    }
+
+    T &Last()
+    {
+        assert(count);
+        size_t at = (first + count - 1) % std::array<T, BufferSize>::size();
+        return std::array<T, BufferSize>::at(at);
     }
 
 protected:
     size_t first{ 0 };  // index of first element
     size_t count{ 0 };  // current # of elements
-}; 
+};

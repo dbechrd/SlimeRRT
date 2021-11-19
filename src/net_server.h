@@ -35,7 +35,7 @@ struct NetServerClient {
     ENetPeer *peer              {};
     uint32_t  connectionToken   {};  // unique identifier in addition to ip/port to detect reconnect from same UDP port
     uint32_t  playerId          {};
-    PlayerControllerState input {};
+    RingBuffer<NetMessage_Input, SERVER_INPUT_HISTORY> inputHistory {};
 };
 
 struct NetServer {
@@ -46,8 +46,8 @@ struct NetServer {
     // TODO: Could have a packet history by message type? This would allow us
     // to only store history of important messages, and/or have different
     // buffer sizes for different types of message.
-    RingBuffer<Packet> packetHistory { NET_SERVER_PACKET_HISTORY_MAX };
-    ChatHistory        chatHistory   {};
+    //RingBuffer<Packet, NET_SERVER_PACKET_HISTORY_MAX> packetHistory {};
+    ChatHistory chatHistory {};
 
     World *serverWorld {};
 
@@ -69,7 +69,7 @@ private:
     ErrorType BroadcastChatMessage(const char *msg, size_t msgLength);
     ErrorType SendWelcomeBasket(NetServerClient &client);
 
-    void ProcessMsg(NetServerClient &client, Packet &packet);
+    void ProcessMsg(NetServerClient &client, ENetPacket &packet);
 
     NetServerClient *AddClient    (ENetPeer *peer);
     NetServerClient *FindClient   (ENetPeer *peer);

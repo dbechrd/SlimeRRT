@@ -1,66 +1,44 @@
 #include "chat.h"
 #include "error.h"
 #include "net_message.h"
-#include "packet.h"
 #include "raylib/raylib.h"
 #include <cassert>
 #include <cstring>
 
 const char *ChatHistory::LOG_SRC = "Chat";
 
+// TODO: Refactor this out into net_client / net_server, just memcpy the net message into the buffer
 void ChatHistory::PushNetMessage(const NetMessage_ChatMessage &netChat)
 {
-    assert(netChat.username);
-    assert(netChat.usernameLength);
-    assert(netChat.message);
-    assert(netChat.messageLength);
-
-    ChatMessage &chat = Alloc();
-
-    assert(sizeof(chat.timestampStr) == sizeof(netChat.timestampStr));
-    memcpy(chat.timestampStr, netChat.timestampStr, sizeof(netChat.timestampStr));
-
-    assert(netChat.usernameLength <= USERNAME_LENGTH_MAX);
-    chat.usernameLength = MIN(netChat.usernameLength, USERNAME_LENGTH_MAX);
-    memcpy(chat.username, netChat.username, chat.usernameLength);
-
-    assert(netChat.messageLength <= CHAT_MESSAGE_LENGTH_MAX);
-    chat.messageLength = MIN(netChat.messageLength, CHAT_MESSAGE_LENGTH_MAX);
-    memcpy(chat.message, netChat.message, chat.messageLength);
+    NetMessage_ChatMessage &chat = buffer.Alloc();
+    memcpy(&chat, &netChat, sizeof(netChat));
+    assert(!chat.timestampStr[0]); // If this triggers, FYI, your timestamp will be overwritten
+    const char *timestampStr = TextFormatTimestamp();
+    memcpy(chat.timestampStr, timestampStr, sizeof(timestampStr));
 }
 
 void ChatHistory::PushMessage(const char *username, size_t usernameLength, const char *message, size_t messageLength)
 {
     assert(username);
     assert(usernameLength);
+    assert(usernameLength <= USERNAME_LENGTH_MAX);
     assert(message);
     assert(messageLength);
-
-    ChatMessage &chat = Alloc();
-
-    char timestampStr[12];
-    time_t t = time(NULL);
-    struct tm tm = *localtime(&t);
-    int len = snprintf(timestampStr, sizeof(timestampStr), "%02d:%02d:%02d", tm.tm_hour,
-        tm.tm_min, tm.tm_sec);
-    assert(len < sizeof(timestampStr));
-
-    assert(sizeof(chat.timestampStr) == sizeof(timestampStr));
-    memcpy(chat.timestampStr, timestampStr, sizeof(timestampStr));
-
-    assert(usernameLength <= USERNAME_LENGTH_MAX);
-    chat.usernameLength = MIN(usernameLength, USERNAME_LENGTH_MAX);
-    memcpy(chat.username, username, chat.usernameLength);
-
     assert(messageLength <= CHAT_MESSAGE_LENGTH_MAX);
-    chat.messageLength = MIN(messageLength, CHAT_MESSAGE_LENGTH_MAX);
+
+    NetMessage_ChatMessage &chat = buffer.Alloc();
+    const char *timestampStr = TextFormatTimestamp();
+    memcpy(chat.timestampStr, timestampStr, sizeof(timestampStr));
+    chat.usernameLength = (uint32_t)MIN(usernameLength, USERNAME_LENGTH_MAX);
+    memcpy(chat.username, username, chat.usernameLength);
+    chat.messageLength = (uint32_t)MIN(messageLength, CHAT_MESSAGE_LENGTH_MAX);
     memcpy(chat.message, message, chat.messageLength);
 }
 
-void ChatHistory::Render(Font &font, ChatHistory &chatHistory, Rectangle rect)
+void ChatHistory::Render(Font &font, Rectangle rect)
 {
-    size_t chatHistoryMsgCount = chatHistory.Count();
-    if (!chatHistoryMsgCount) {
+    size_t chatMsgCount = buffer.Count();
+    if (!chatMsgCount) {
         return;
     }
 
@@ -77,8 +55,8 @@ void ChatHistory::Render(Font &font, ChatHistory &chatHistory, Rectangle rect)
     //DrawRectangle((int)chatX, (int)chatY, (int)chatWidth, (int)chatHeight, Fade(DARKGRAY, 0.8f));
     //DrawRectangleLines((int)chatX, (int)chatY, (int)chatWidth, (int)chatHeight, Fade(BLACK, 0.8f));
 
-    for (int i = (int)chatHistoryMsgCount - 1; i >= 0; i--) {
-        const ChatMessage &chatMsg = chatHistory.At(i);
+    for (int i = (int)chatMsgCount - 1; i >= 0; i--) {
+        const NetMessage_ChatMessage &chatMsg = buffer.At(i);
         assert(chatMsg.messageLength);
 
 #define CHECK_USERNAME(value) chatMsg.usernameLength == (sizeof(value) - 1) && !strncmp(chatMsg.username, (value), chatMsg.usernameLength);

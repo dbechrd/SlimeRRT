@@ -55,3 +55,13 @@ const char *TextFormatIP(ENetAddress address)
 
     return text;
 }
+
+const char *TextFormatTimestamp()
+{
+    static char timestampStr[TIMESTAMP_LENGTH];
+    time_t t = time(NULL);
+    struct tm tm = *localtime(&t);
+    int len = snprintf(timestampStr, sizeof(timestampStr), "%02d:%02d:%02d", tm.tm_hour, tm.tm_min, tm.tm_sec);
+    assert(len < sizeof(timestampStr));
+    return timestampStr;
+}

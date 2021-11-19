@@ -16,15 +16,17 @@ struct Slime {
         Attack = 2,
     };
 
-    const char *name         {};
+    uint32_t    id           {};
+    uint32_t    nameLength   {};
+    char        name         [USERNAME_LENGTH_MAX]{};
     Body3D      body         {};
     Combat      combat       {};
     Sprite      sprite       {};
     Action      action       {};
     double      randJumpIdle {};
 
-    Slime() = default;
-    Slime(const char *slimeName, const SpriteDef *spriteDef);
+    void Init   (void);
+    void SetName(const char *name, uint32_t nameLength);
 
     bool Move(double now, double dt, Vector2 offset);
     bool Combine(Slime &other);

@@ -158,8 +158,11 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
     }
 #endif
 
-    bool spawned = lobby->SpawnPlayer(lobby->playerId);
-    assert(spawned);
+    {
+        Player *player = lobby->SpawnPlayer();
+        assert(player);
+        lobby->playerId = player->id;
+    }
 
     {
         const float slimeRadius = 50.0f;
@@ -169,7 +172,7 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
         const float maxY = mapPixelsY - slimeRadius;
 
         Slime &sam = lobby->slimes[lobby->slimeCount++];
-        sam.name = "Sam";
+        sam.SetName(CSTR("Sam"));
         sam.combat.maxHitPoints = 100.0f; //100000.0f;
         sam.combat.hitPoints = sam.combat.maxHitPoints;
         sam.combat.meleeDamage = 0.0f;
@@ -205,13 +208,22 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
         frameAccum += MIN(now - frameStart, dtMax);
         frameStart = now;
 
+        if (IsWindowResized()) {
+            screenWidth = GetScreenWidth();
+            screenHeight = GetScreenHeight();
+            cameraReset = 1;
+        }
+
+        UpdateMusicStream(mus_background);
+        UpdateMusicStream(mus_whistle);
+
         const bool imguiUsingMouse = io.WantCaptureMouse;
         const bool imguiUsingKeyboard = io.WantCaptureKeyboard;
 
         const bool processMouse = !imguiUsingMouse;
         const bool processKeyboard = !imguiUsingKeyboard && !chatActive;
         PlayerControllerState input = PlayerControllerState::Query(processMouse, processKeyboard, cameraFree);
-
+                
         // Start the Dear ImGui frame
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
@@ -304,45 +316,52 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
             netClient.serverWorld->playerId &&
             netClient.serverWorld->FindPlayer(netClient.serverWorld->playerId);
 
-        // We joined a server we need to inherit the server's world
-        // TODO: Fix this very bad idea.
         if (connectedToServer) {
+            // We joined a server, switch to the server's world.
             world = netClient.serverWorld;
-            netClient.SendPlayerInput(input);
         } else {
             world = lobby;
+        }
+
+                NetMessage_Input *netInput = nullptr;
+        if (!netClient.inputHistory.Count()) {
+            netInput = &netClient.inputHistory.Alloc();
+        } else {
+            netInput = &netClient.inputHistory.Last();
+            if (netInput->tick < world->tick) {
+                netInput = &netClient.inputHistory.Alloc();
+            }
+        }
+        netInput->FromController(world->tick, input);
+
+        if (frameAccum > dt) {
+            while (frameAccum > dt) {
+                if (connectedToServer) {
+                    // TOOD: Do we need to send input more often? Probably.. how would it get there in time this way?
+                    netClient.SendPlayerInput(*netInput);
+                }
+                for (size_t i = 0; i < SERVER_MAX_PLAYERS; i++) {
+                    Player &p = world->players[i];
+                    //if (p.id) {
+                    //    static const PlayerControllerState noInput{};
+                    //    world->SimPlayer(now, dt, p, p.id == world->playerId ? input : noInput);
+                    //}
+                    if (p.id == world->playerId) {
+                        world->SimPlayer(now, dt, p, *netInput);
+                    }
+                }
+                //world->SimSlimes(now, dt);
+                world->particleSystem.Update(now, dt);
+                frameAccum -= dt;
+            }
         }
 
         Player *playerPtr = world->FindPlayer(world->playerId);
         assert(playerPtr);
         Player &player = *playerPtr;
 
-        if (frameAccum > dt) {
-            while (frameAccum > dt) {
-                for (size_t i = 0; i < SERVER_MAX_PLAYERS; i++) {
-                    Player &p = world->players[i];
-                    if (p.id) {
-                        static const PlayerControllerState noInput{};
-                        world->SimPlayer(now, dt, p, p.id == world->playerId ? input : noInput);
-                    }
-                }
-                world->SimSlimes(now, dt);
-                world->particleSystem.Update(now, dt);
-                frameAccum -= dt;
-            }
-        }
-
-        if (IsWindowResized()) {
-            screenWidth = GetScreenWidth();
-            screenHeight = GetScreenHeight();
-            cameraReset = 1;
-        }
-
-        UpdateMusicStream(mus_background);
-        UpdateMusicStream(mus_whistle);
-
         //if (!chatActive) {
-            findMouseTile = input.dbg_findMouseTile;
+            findMouseTile = input.dbgFindMouseTile;
 
             if (input.screenshot) {
                 time_t t = time(NULL);
@@ -355,7 +374,7 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
                 TakeScreenshot(screenshotName);
             }
 
-            if (input.dbg_imgui) {
+            if (input.dbgImgui) {
                 show_demo_window = !show_demo_window;
             }
 
@@ -363,19 +382,19 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
                 ToggleFullscreen();
             }
 
-            if (input.dbg_toggleVsync) {
+            if (input.dbgToggleVsync) {
                 IsWindowState(FLAG_VSYNC_HINT) ? ClearWindowState(FLAG_VSYNC_HINT) : SetWindowState(FLAG_VSYNC_HINT);
             }
 
-            if (input.dbg_chatMessage) {
+            if (input.dbgChatMessage) {
                 netClient.SendChatMessage(CSTR("User pressed the C key."));
             }
 
-            if (input.dbg_toggleFreecam) {
+            if (input.dbgToggleFreecam) {
                 cameraFree = !cameraFree;
             }
 #if DEMO_VIEW_RTREE
-            if (input.dbg_nextRtreeRect) {
+            if (input.dbgNextRtreeRect) {
                 if (next_rect_to_add < RECT_COUNT && (GetTime() - lastRectAddedAt > 0.1)) {
                     AABB aabb{};
                     aabb.min.x = floorf(rects[next_rect_to_add].x);
@@ -557,6 +576,9 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
                     world->players[i].Push(drawList);
                 }
             }
+
+            //s------------H----s------------H----s------------H----s------------H----s------------H----
+            //HHHHHHHHHHHHHHHHHHHH
 
             // Queue slimes for drawing
             for (const Slime &slime : world->slimes) {
@@ -772,21 +794,20 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
             const float margin = 6.0f;   // left/bottom margin
             const float pad = 4.0f;      // left/bottom pad
             const float inputBoxHeight = font.baseSize + pad * 2.0f;
-            const int linesOfText = (int)netClient.chatHistory.Count();
+            const int linesOfText = (int)netClient.chatHistory.MessageCount();
             const float chatWidth = 800.0f;
             const float chatHeight = linesOfText * (font.baseSize + pad) + pad;
             const float chatX = margin;
             const float chatY = screenHeight - margin - inputBoxHeight - chatHeight;
 
             // Render chat history
-            netClient.chatHistory.Render(font, netClient.chatHistory, { chatX, chatY, chatWidth, chatHeight });
+            netClient.chatHistory.Render(font, { chatX, chatY, chatWidth, chatHeight });
 
             // Render chat input box
             static GuiTextBoxAdvancedState chatInputState;
             if (chatActive) {
                 static int chatInputTextLen = 0;
-                static char chatInputText[CHAT_MESSAGE_BUFFER_LEN];
-                assert(CHAT_MESSAGE_LENGTH_MAX < CHAT_MESSAGE_BUFFER_LEN);
+                static char chatInputText[CHAT_MESSAGE_LENGTH_MAX];
 
                 Rectangle chatInputRect = { margin, screenHeight - margin - inputBoxHeight, chatWidth, inputBoxHeight };
                 //GuiTextBox(inputBox, chatInputText, CHAT_MESSAGE_LENGTH_MAX, true);

@@ -11,22 +11,32 @@
 
 #define SLIME_MAX_SCALE 3.0f
 
-Slime::Slime(const char *slimeName, const SpriteDef *spriteDef)
+void Slime::Init(void)
 {
-    name = slimeName;
-    action = Action::None;
+    assert(!sprite.spriteDef);
+
     body.restitution = 0.0f;
     body.drag = 0.95f;
     body.friction = 0.95f;
-    body.lastUpdated = GetTime();
-    sprite.spriteDef = spriteDef;
+
     sprite.scale = 1.0f;
-    sprite.direction = Direction::South;
-    combat.maxHitPoints = 5.0f;
+    const Spritesheet &spritesheet = SpritesheetCatalog::spritesheets[(int)SpritesheetID::Slime];
+    const SpriteDef *spriteDef = spritesheet.FindSprite("slime");
+    if (spriteDef) {
+        sprite.spriteDef = spriteDef;
+    }
+
+    combat.maxHitPoints = 10.0f;
     combat.hitPoints = combat.maxHitPoints;
     combat.meleeDamage = 3.0f;
     combat.lootTableId = LootTableID::LT_Slime;
     randJumpIdle = 0.0;
+}
+
+void Slime::SetName(const char *slimeName, uint32_t slimeNameLength)
+{
+    nameLength = MIN(slimeNameLength, USERNAME_LENGTH_MAX);
+    memcpy(name, slimeName, nameLength);
 }
 
 void Slime::UpdateDirection(Vector2 offset)

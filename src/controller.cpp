@@ -10,7 +10,7 @@ PlayerControllerState PlayerControllerState::Query(bool processMouse, bool proce
     // Global events
     if (processKeyboard) {
         input.escape = IsKeyPressed(KEY_ESCAPE);
-        input.dbg_imgui = IsKeyPressed(KEY_GRAVE);
+        input.dbgImgui = IsKeyPressed(KEY_GRAVE);
     }
 
     // Freecam events
@@ -27,7 +27,7 @@ PlayerControllerState PlayerControllerState::Query(bool processMouse, bool proce
             input.cameraRotateCCW = IsKeyDown(KEY_Q) && !IsKeyDown(KEY_E);
             input.cameraZoomOut = IsKeyPressed(KEY_Z);
             input.cameraReset = IsKeyPressed(KEY_R);
-            input.dbg_toggleFreecam = IsKeyPressed(KEY_F);
+            input.dbgToggleFreecam = IsKeyPressed(KEY_F);
         }
 
     // Normal gameplay events
@@ -48,11 +48,11 @@ PlayerControllerState PlayerControllerState::Query(bool processMouse, bool proce
             if (IsKeyPressed(KEY_TWO)  ) { input.selectSlot = PlayerInventorySlot::Slot_2; }
             if (IsKeyPressed(KEY_ONE)  ) { input.selectSlot = PlayerInventorySlot::Slot_1; }
             input.screenshot = IsKeyPressed(KEY_F11);
-            input.dbg_findMouseTile = IsKeyDown(KEY_LEFT_ALT);
-            input.dbg_toggleVsync = IsKeyPressed(KEY_V);
-            input.dbg_chatMessage = IsKeyPressed(KEY_C);
-            input.dbg_toggleFreecam = IsKeyPressed(KEY_F);
-            input.dbg_nextRtreeRect = IsKeyDown(KEY_N);
+            input.dbgFindMouseTile = IsKeyDown(KEY_LEFT_ALT);
+            input.dbgToggleVsync = IsKeyPressed(KEY_V);
+            input.dbgChatMessage = IsKeyPressed(KEY_C);
+            input.dbgToggleFreecam = IsKeyPressed(KEY_F);
+            input.dbgNextRtreeRect = IsKeyDown(KEY_N);
         }
     }
     return input;

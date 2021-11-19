@@ -1,7 +1,6 @@
 #pragma once
 #include "controller.h"
 #include "item_catalog.h"
-#include "net_message.h"
 #include "particles.h"
 #include "player.h"
 #include "slime.h"
@@ -9,9 +8,12 @@
 #include "dlb_rand.h"
 #include <vector>
 
+struct NetMessage_Input;
+
 struct World {
     uint64_t        rtt_seed       {};
     dlb_rand32_t    rtt_rand       {};
+    uint32_t        tick           {};
     Tilemap         *map           {};
     // TODO: PlayerSystem
     uint32_t        playerId       {};
@@ -27,10 +29,21 @@ struct World {
     World                       (void);
     ~World                      (void);
     const Vector3 GetWorldSpawn (void);
-    Player       *SpawnPlayer   (uint32_t &playerId);
-    void          DespawnPlayer (uint32_t playerId);
-    Player       *FindPlayer    (uint32_t playerId);  // DO NOT HOLD A POINTER TO THIS!
-    void          InitSlime     (Slime &slime);
-    void          SimPlayer     (double now, double dt, Player &player, const PlayerControllerState &input);
-    void          SimSlimes     (double now, double dt);
+
+    ////////////////////////////////////////////
+    // vvv DO NOT HOLD A POINTER TO THESE! vvv
+    //
+    Player *SpawnPlayer   (void);
+    Player *FindPlayer    (uint32_t playerId);
+    void    DespawnPlayer (uint32_t playerId);
+
+    Slime  *SpawnSlime    (void);
+    Slime  *FindSlime     (uint32_t slimeId);
+    void    DespawnSlime  (uint32_t slimeId);
+    //
+    // ^^^ DO NOT HOLD A POINTER TO THESE! ^^^
+    ////////////////////////////////////////////
+
+    void    SimPlayer     (double now, double dt, Player &player, const NetMessage_Input &input);
+    void    SimSlimes     (double now, double dt);
 };

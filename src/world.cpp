@@ -35,10 +35,8 @@ const Vector3 World::GetWorldSpawn(void)
     return worldSpawn;
 };
 
-Player *World::SpawnPlayer(uint32_t &playerId)
+Player *World::SpawnPlayer(void)
 {
-    DespawnPlayer(playerId);
-
     for (int i = 0; i < SERVER_MAX_PLAYERS; i++) {
         Player &player = players[i];
         if (player.id == 0) {
@@ -46,11 +44,10 @@ Player *World::SpawnPlayer(uint32_t &playerId)
             assert(!player.combat.maxHitPoints);
 
             static uint32_t nextId = 1;
-            playerId = nextId;
+            player.id = nextId;
             nextId = MAX(1, nextId + 1); // Prevent ID zero from being used on overflow
 
             player.Init();
-            player.id = playerId;
             player.body.position = GetWorldSpawn();
 
             return &player;
@@ -83,30 +80,59 @@ void World::DespawnPlayer(uint32_t playerId)
     }
 }
 
-void World::InitSlime(Slime &slime)
+Slime *World::SpawnSlime(void)
 {
-    if (slime.combat.maxHitPoints != 0) {
-        return;
+    for (int i = 0; i < WORLD_ENTITIES_MAX; i++) {
+        Slime &slime = slimes[i];
+        if (slime.id == 0) {
+            assert(!slime.nameLength);
+            assert(!slime.combat.maxHitPoints);
+
+            static uint32_t nextId = 1;
+            slime.id = nextId;
+            nextId = MAX(1, nextId + 1); // Prevent ID zero from being used on overflow
+
+            slime.Init();
+
+            // TODO: Move slime radius somewhere more logical.. some global table of magic numbers?
+            // Or.. use sprite size as radius
+            // Or.. implement a more general "place entity" solution for rocks, trees, monsters, etc.
+            const float slimeRadius = 50.0f;
+            const size_t mapPixelsX = (size_t)map->width * TILE_W;
+            const size_t mapPixelsY = (size_t)map->height * TILE_W;
+            const float maxX = mapPixelsX - slimeRadius;
+            const float maxY = mapPixelsY - slimeRadius;
+            slime.body.position.x = dlb_rand32f_range(slimeRadius, maxX);
+            slime.body.position.y = dlb_rand32f_range(slimeRadius, maxY);
+
+            return &slime;
+        }
+    }
+    return 0;
+}
+
+Slime *World::FindSlime(uint32_t slimeId)
+{
+    if (!slimeId) {
+        return 0;
     }
 
-    const Spritesheet &slimeSpritesheet = SpritesheetCatalog::spritesheets[(int)SpritesheetID::Slime];
-    const SpriteDef *slimeSpriteDef = slimeSpritesheet.FindSprite("slime");
+    for (int i = 0; i < WORLD_ENTITIES_MAX; i++) {
+        Slime &slime = slimes[i];
+        if (slime.id == slimeId) {
+            return &slime;
+        }
+    }
+    return 0;
+}
 
-    // TODO: Move slime radius somewhere more logical.. some global table of magic numbers?
-    const float slimeRadius = 50.0f;
-    const size_t mapPixelsX = (size_t)map->width * TILE_W;
-    const size_t mapPixelsY = (size_t)map->height * TILE_W;
-    const float maxX = mapPixelsX - slimeRadius;
-    const float maxY = mapPixelsY - slimeRadius;
-
-    slime.body.position.x = dlb_rand32f_range(slimeRadius, maxX);
-    slime.body.position.y = dlb_rand32f_range(slimeRadius, maxY);
-    slime.combat.maxHitPoints = 10.0f;
-    slime.combat.hitPoints = slime.combat.maxHitPoints;
-    slime.combat.meleeDamage = 0.0f;
-    slime.combat.lootTableId = LootTableID::LT_Slime;
-    slime.sprite.scale = 1.0f;
-    slime.sprite.spriteDef = slimeSpriteDef;
+void World::DespawnSlime(uint32_t slimeId)
+{
+    Slime *slime = FindSlime(slimeId);
+    if (slime) {
+        printf("Despawn slime %u\n", slimeId);
+        memset(slime, 0, sizeof(*slime));
+    }
 }
 
 void BloodParticlesFollowPlayer(ParticleFX &effect, void *userData)
@@ -118,7 +144,7 @@ void BloodParticlesFollowPlayer(ParticleFX &effect, void *userData)
     effect.origin = player->GetAttachPoint(Player::AttachPoint::Gut);
 }
 
-void World::SimPlayer(double now, double dt, Player &player, const PlayerControllerState &input)
+void World::SimPlayer(double now, double dt, Player &player, const NetMessage_Input &input)
 {
     assert(player.combat.maxHitPoints);
     //if (!player.combat.maxHitPoints) {

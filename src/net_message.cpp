@@ -147,22 +147,15 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                 Player &player = world.players[i];
 
                 uint32_t oldPlayerId = player.id;
-                stream.Process(player.id, 4, 0, UINT32_MAX);
+                stream.Process(player.id, 32, 0, UINT32_MAX);
 
-                // TODO: Fix this fuckery >:(
-                if (!oldPlayerId && player.id) {
-                    if (mode == BitStream::Mode::Reader) {
-                        assert(!player.sprite.spriteDef);
+                if (player.id != oldPlayerId) {
+                    // Id mismatch should only ever be possible on client side when something spawns/dies
+                    assert(mode == BitStream::Mode::Reader);
+                    if (player.id) {
                         player.Init();
                     } else {
-                        printf("Skip init player on server\n");
-                    }
-                }
-                if (oldPlayerId && !player.id) {
-                    if (mode == BitStream::Mode::Reader) {
                         world.DespawnPlayer(oldPlayerId);
-                    } else {
-                        printf("Skip init player on server\n");
                     }
                 }
 
@@ -194,13 +187,27 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
 
             for (size_t i = 0; i < world.slimeCount; i++) {
                 Slime &slime = world.slimes[i];
-                world.InitSlime(slime);
+
+                uint32_t oldSlimeId = slime.id;
+                stream.Process(slime.id, 32, 0, UINT32_MAX);
+
+                if (slime.id != oldSlimeId) {
+                    // Id mismatch should only ever be possible on client side when something spawns/dies
+                    assert(mode == BitStream::Mode::Reader);
+                    if (slime.id) {
+                        slime.Init();
+                    } else {
+                        world.DespawnSlime(oldSlimeId);
+                    }
+                }
+
                 // TODO: range validation on floats
                 stream.ProcessFloat(slime.body.position.x);
                 stream.ProcessFloat(slime.body.position.y);
                 stream.ProcessFloat(slime.body.position.z);
                 stream.ProcessFloat(slime.combat.hitPoints);
                 stream.ProcessFloat(slime.combat.maxHitPoints);
+                stream.ProcessFloat(slime.sprite.scale);
             }
 
             break;

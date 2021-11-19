@@ -10,16 +10,18 @@
 
 void Player::Init()
 {
+    assert(!sprite.spriteDef);
     printf("Init player\n");
 
     combat.hitPoints = 100.0f;
     combat.maxHitPoints = 100.0f;
     combat.meleeDamage = 1.0f;
+
     sprite.scale = 1.0f;
-    const Spritesheet &charlieSpritesheet = SpritesheetCatalog::spritesheets[(int)SpritesheetID::Charlie];
-    const SpriteDef *charlieSpriteDef = charlieSpritesheet.FindSprite("player_sword");
-    if (charlieSpriteDef) {
-        sprite.spriteDef = charlieSpriteDef;
+    const Spritesheet &spritesheet = SpritesheetCatalog::spritesheets[(int)SpritesheetID::Charlie];
+    const SpriteDef *spriteDef = spritesheet.FindSprite("player_sword");
+    if (spriteDef) {
+        sprite.spriteDef = spriteDef;
     }
 
     // TODO: Load selected slot from save file / server

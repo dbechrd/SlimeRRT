@@ -24,7 +24,8 @@ ErrorType GameServer::Run()
         world->slimeCount = WORLD_ENTITIES_MAX;
         for (size_t i = 0; i < world->slimeCount; i++) {
             Slime &slime = world->slimes[i];
-            world->InitSlime(slime);
+            uint32_t slimeId = 0;
+            world->SpawnSlime();
         }
     }
 
@@ -49,7 +50,7 @@ ErrorType GameServer::Run()
                     NetServerClient &client = netServer.clients[i];
                     Player *player = world->FindPlayer(client.playerId);
                     if (player) {
-                        world->SimPlayer(now, dt, *player, client.input);
+                        world->SimPlayer(now, dt, *player, client.inputHistory.Last());
                     }
                 }
                 world->SimSlimes(now, dt);
