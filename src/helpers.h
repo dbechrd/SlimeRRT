@@ -63,6 +63,9 @@
 #define CHAT_MESSAGE_LENGTH_MIN 0
 #define CHAT_MESSAGE_LENGTH_MAX 512  // not including nil terminator, must be < CHAT_MESSAGE_BUFFER_LEN
 
+#define WORLD_SNAPSHOT_PLAYERS_MAX  SERVER_MAX_PLAYERS
+#define WORLD_SNAPSHOT_ENTITIES_MAX 128
+
 //------------------------------------------------------------------------------
 // Macros
 //------------------------------------------------------------------------------

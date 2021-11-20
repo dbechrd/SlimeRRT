@@ -47,3 +47,9 @@ struct World {
     void    SimPlayer     (double now, double dt, Player &player, const NetMessage_Input &input);
     void    SimSlimes     (double now, double dt);
 };
+
+struct WorldSnapshot {
+    uint32_t tick    {};
+    Player   players [SERVER_MAX_PLAYERS]{};
+    Slime    slimes  [WORLD_ENTITIES_MAX]{};
+};

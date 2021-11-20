@@ -223,7 +223,7 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
         const bool processMouse = !imguiUsingMouse;
         const bool processKeyboard = !imguiUsingKeyboard && !chatActive;
         PlayerControllerState input = PlayerControllerState::Query(processMouse, processKeyboard, cameraFree);
-                
+
         // Start the Dear ImGui frame
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
@@ -323,38 +323,58 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
             world = lobby;
         }
 
-                NetMessage_Input *netInput = nullptr;
+        NetMessage_Input frameInput{};
+        frameInput.FromController(input);
+
+        NetMessage_Input *tickInput = nullptr;
         if (!netClient.inputHistory.Count()) {
-            netInput = &netClient.inputHistory.Alloc();
+            tickInput = &netClient.inputHistory.Alloc();
         } else {
-            netInput = &netClient.inputHistory.Last();
-            if (netInput->tick < world->tick) {
-                netInput = &netClient.inputHistory.Alloc();
+            tickInput = &netClient.inputHistory.Last();
+            if (tickInput->tick < world->tick) {
+                tickInput = &netClient.inputHistory.Alloc();
+                tickInput->tick = world->tick;
             }
         }
-        netInput->FromController(world->tick, input);
+        tickInput->FromController(input);
 
         if (frameAccum > dt) {
             while (frameAccum > dt) {
                 if (connectedToServer) {
-                    // TOOD: Do we need to send input more often? Probably.. how would it get there in time this way?
-                    netClient.SendPlayerInput(*netInput);
+                    // TOOD: Do we need to send input more often?
+                    netClient.SendPlayerInput(*tickInput);
                 }
-                for (size_t i = 0; i < SERVER_MAX_PLAYERS; i++) {
-                    Player &p = world->players[i];
-                    //if (p.id) {
-                    //    static const PlayerControllerState noInput{};
-                    //    world->SimPlayer(now, dt, p, p.id == world->playerId ? input : noInput);
-                    //}
-                    if (p.id == world->playerId) {
-                        world->SimPlayer(now, dt, p, *netInput);
-                    }
-                }
-                //world->SimSlimes(now, dt);
-                world->particleSystem.Update(now, dt);
                 frameAccum -= dt;
+                if (!connectedToServer) {
+                    for (size_t i = 0; i < SERVER_MAX_PLAYERS; i++) {
+                        Player &p = world->players[i];
+                        if (p.id) {
+                            static const NetMessage_Input noInput{};
+                            world->SimPlayer(now, dt, p, p.id == world->playerId ? *tickInput : noInput);
+                        }
+                        //if (p.id == world->playerId) {
+                        //    world->SimPlayer(now, dt, p, frameInput);
+                        //}
+                    }
+                    world->SimSlimes(now, dt);
+                    world->tick++;
+                }
             }
         }
+
+        //double localDt = (local->tick - remote->tick) * dt + frameAccum;
+        for (size_t i = 0; i < SERVER_MAX_PLAYERS; i++) {
+            Player &p = world->players[i];
+            if (p.id) {
+                static const NetMessage_Input noInput{};
+                world->SimPlayer(now, frameAccum, p, p.id == world->playerId ? frameInput : noInput);
+            }
+            //if (p.id == world->playerId) {
+            //    world->SimPlayer(now, dt, p, frameInput);
+            //}
+        }
+        world->SimSlimes(now, frameAccum);
+        world->particleSystem.Update(now, frameAccum);
 
         Player *playerPtr = world->FindPlayer(world->playerId);
         assert(playerPtr);
@@ -703,7 +723,7 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
         {
             int linesOfText = 8;
 #if SHOW_DEBUG_STATS
-            linesOfText += 7;
+            linesOfText += 9;
 #endif
             const float margin = 6.0f;   // left/top margin
             const float pad = 4.0f;      // left/top pad
@@ -742,6 +762,10 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
             PUSH_TEXT(text, LIGHTGRAY);
 
 #if SHOW_DEBUG_STATS
+            text = TextFormat("Tick          %u", world->tick);
+            PUSH_TEXT(text, GRAY);
+            text = TextFormat("Accum         %.03f", frameAccum);
+            PUSH_TEXT(text, GRAY);
             text = TextFormat("Camera speed  %.03f", cameraSpeed);
             PUSH_TEXT(text, GRAY);
             text = TextFormat("Zoom          %.03f", camera.zoom);

@@ -41,14 +41,14 @@ struct NetMessage_Input {
     bool                attack     {};
     PlayerInventorySlot selectSlot {};
 
-    void FromController(uint32_t tick, PlayerControllerState &controllerState) {
-        tick       = tick;
-        walkNorth  = controllerState.walkNorth;
-        walkEast   = controllerState.walkEast;
-        walkSouth  = controllerState.walkSouth;
-        walkWest   = controllerState.walkWest;
-        run        = controllerState.run;
-        attack     = controllerState.attack;
+    void FromController(PlayerControllerState &controllerState)
+    {
+        walkNorth  = walkNorth || controllerState.walkNorth;
+        walkEast   = walkEast  || controllerState.walkEast;
+        walkSouth  = walkSouth || controllerState.walkSouth;
+        walkWest   = walkWest  || controllerState.walkWest;
+        run        = run       || controllerState.run;
+        attack     = attack    || controllerState.attack;
         selectSlot = controllerState.selectSlot;
     }
 };
@@ -61,13 +61,13 @@ struct NetMessage_WorldChunk {
 };
 
 struct NetMessage_WorldPlayers {
-    bool unused{};
-    // world.players
+    uint32_t tick    {};
+    Player   players [WORLD_SNAPSHOT_PLAYERS_MAX]{};
 };
 
 struct NetMessage_WorldEntities {
-    bool unused{};
-    // world.slimes
+    uint32_t tick    {};
+    Player   slimes  [WORLD_SNAPSHOT_ENTITIES_MAX]{};
 };
 
 struct NetMessage {

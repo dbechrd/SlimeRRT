@@ -177,17 +177,27 @@ ErrorType NetServer::BroadcastWorldChunk(void)
 
 ErrorType NetServer::BroadcastWorldPlayers(void)
 {
-    NetMessage worldPlayers{};
-    worldPlayers.type = NetMessage::Type::WorldPlayers;
-    E_ASSERT(BroadcastMsg(worldPlayers), "Failed to send world players");
+    if (worldHistory.Count()) {
+        WorldSnapshot &worldSnapshot = worldHistory.Last();
+        NetMessage worldPlayers{};
+        worldPlayers.type = NetMessage::Type::WorldPlayers;
+        worldPlayers.data.worldPlayers.tick = worldSnapshot.tick;
+        memcpy(worldPlayers.data.worldPlayers.players, worldSnapshot.players, sizeof(worldPlayers.data.worldPlayers.players));
+        E_ASSERT(BroadcastMsg(worldPlayers), "Failed to send world players");
+    }
     return ErrorType::Success;
 }
 
 ErrorType NetServer::BroadcastWorldEntities(void)
 {
-    NetMessage worldEntities{};
-    worldEntities.type = NetMessage::Type::WorldEntities;
-    E_ASSERT(BroadcastMsg(worldEntities), "Failed to send world entities");
+    if (worldHistory.Count()) {
+        WorldSnapshot &worldSnapshot = worldHistory.Last();
+        NetMessage worldEntities{};
+        worldEntities.type = NetMessage::Type::WorldEntities;
+        worldEntities.data.worldEntities.tick = worldSnapshot.tick;
+        memcpy(worldEntities.data.worldEntities.slimes, worldSnapshot.slimes, sizeof(worldEntities.data.worldEntities.slimes));
+        E_ASSERT(BroadcastMsg(worldEntities), "Failed to send world entities");
+    }
     return ErrorType::Success;
 }
 

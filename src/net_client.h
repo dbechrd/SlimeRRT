@@ -18,8 +18,8 @@ struct NetClient {
 
     World          *serverWorld     {};
     ChatHistory     chatHistory     {};
-    RingBuffer<NetMessage_Input, CLIENT_INPUT_HISTORY> inputHistory;
-    //RingBuffer<WorldState, CLIENT_WORLD_HISTORY> worldHistory;
+    RingBuffer<NetMessage_Input, CLIENT_INPUT_HISTORY> inputHistory {};
+    RingBuffer<NetMessage_WorldPlayers, CLIENT_WORLD_HISTORY> worldHistory {};
 
     NetClient::~NetClient();
     ErrorType OpenSocket();

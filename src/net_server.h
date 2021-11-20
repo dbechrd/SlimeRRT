@@ -6,30 +6,28 @@
 #include <cstdint>
 #include <unordered_map>
 
-#define NET_SERVER_PACKET_HISTORY_MAX 256
-
-struct NetAddressHash {
-    std::size_t operator()(const ENetAddress &address) const
-    {
-        return (size_t)dlb_murmur3(&address.host, sizeof(address.host)) ^
-              ((size_t)dlb_murmur3(&address.port, sizeof(address.port)) << 1);
-    }
-};
-
-struct NetAddressEqual {
-    bool operator()(const ENetAddress &lhs, const ENetAddress &rhs) const
-    {
-        return lhs.host.u.Word[0] == rhs.host.u.Word[0] &&
-               lhs.host.u.Word[1] == rhs.host.u.Word[1] &&
-               lhs.host.u.Word[2] == rhs.host.u.Word[2] &&
-               lhs.host.u.Word[3] == rhs.host.u.Word[3] &&
-               lhs.host.u.Word[4] == rhs.host.u.Word[4] &&
-               lhs.host.u.Word[5] == rhs.host.u.Word[5] &&
-               lhs.host.u.Word[6] == rhs.host.u.Word[6] &&
-               lhs.host.u.Word[7] == rhs.host.u.Word[7] &&
-               lhs.port == rhs.port;
-    }
-};
+//struct NetAddressHash {
+//    std::size_t operator()(const ENetAddress &address) const
+//    {
+//        return (size_t)dlb_murmur3(&address.host, sizeof(address.host)) ^
+//              ((size_t)dlb_murmur3(&address.port, sizeof(address.port)) << 1);
+//    }
+//};
+//
+//struct NetAddressEqual {
+//    bool operator()(const ENetAddress &lhs, const ENetAddress &rhs) const
+//    {
+//        return lhs.host.u.Word[0] == rhs.host.u.Word[0] &&
+//               lhs.host.u.Word[1] == rhs.host.u.Word[1] &&
+//               lhs.host.u.Word[2] == rhs.host.u.Word[2] &&
+//               lhs.host.u.Word[3] == rhs.host.u.Word[3] &&
+//               lhs.host.u.Word[4] == rhs.host.u.Word[4] &&
+//               lhs.host.u.Word[5] == rhs.host.u.Word[5] &&
+//               lhs.host.u.Word[6] == rhs.host.u.Word[6] &&
+//               lhs.host.u.Word[7] == rhs.host.u.Word[7] &&
+//               lhs.port == rhs.port;
+//    }
+//};
 
 struct NetServerClient {
     ENetPeer *peer              {};
@@ -43,11 +41,8 @@ struct NetServer {
     //std::unordered_map<ENetAddress, NetServerClient, NetAddressHash, NetAddressEqual> clients{};
     NetServerClient clients[SERVER_MAX_PLAYERS]{};
 
-    // TODO: Could have a packet history by message type? This would allow us
-    // to only store history of important messages, and/or have different
-    // buffer sizes for different types of message.
-    //RingBuffer<Packet, NET_SERVER_PACKET_HISTORY_MAX> packetHistory {};
     ChatHistory chatHistory {};
+    RingBuffer<WorldSnapshot, CLIENT_WORLD_HISTORY> worldHistory {};
 
     World *serverWorld {};
 
