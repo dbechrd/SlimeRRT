@@ -20,7 +20,7 @@ struct World {
     Tilemap         *map           {};
     // TODO: PlayerSystem
     uint32_t        playerId       {};
-    Player          players        [SERVER_MAX_PLAYERS]{};
+    Player          players        [SERVER_PLAYERS_MAX]{};
     // TODO: SlimeSystem or EnemySystem
     Slime           slimes         [WORLD_ENTITIES_MAX]{};
     ParticleSystem  particleSystem {};
@@ -40,6 +40,7 @@ struct World {
     Player *FindPlayer    (uint32_t playerId);
     void    DespawnPlayer (uint32_t playerId);
 
+    void    SpawnSam      (void);
     Slime  *SpawnSlime    (uint32_t slimeId);
     Slime  *FindSlime     (uint32_t slimeId);
     void    DespawnSlime  (uint32_t slimeId);
@@ -47,12 +48,10 @@ struct World {
     // ^^^ DO NOT HOLD A POINTER TO THESE! ^^^
     ////////////////////////////////////////////
 
-    void Simulate(double now, double dt);
-
+    void Simulate(double dt);
     void GenerateSnapshot(WorldSnapshot &worldSnapshot);
-    void Interpolate(double dtAccum, double interpLag);
 
 private:
-    void SimPlayers(double now, double dt);
-    void SimSlimes(double now, double dt);
+    void SimPlayers(double dt);
+    void SimSlimes(double dt);
 };

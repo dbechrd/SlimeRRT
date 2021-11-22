@@ -27,14 +27,14 @@
 #define SERVER_PORT             4040
 //#define PACKET_SIZE_MAX        1024
 #define SERVER_USERNAME         "SERVER"
-#define SERVER_MAX_PLAYERS      8
-#define SERVER_TPS              5  //25 //30
-#define SERVER_INPUT_HISTORY    (SERVER_TPS)
-#define SERVER_WORLD_HISTORY    (SERVER_TPS)
+#define SERVER_PLAYERS_MAX      8
+#define SERVER_TPS              25  //25 //30
+#define SERVER_INPUT_HISTORY    (1000 / SERVER_TPS)
+#define SERVER_WORLD_HISTORY    (1000 / SERVER_TPS)
 
 #define CLIENT_CHAT_HISTORY     256
-#define CLIENT_INPUT_HISTORY    (SERVER_TPS)
-#define CLIENT_WORLD_HISTORY    (SERVER_TPS)
+#define CLIENT_INPUT_HISTORY    (1000 / SERVER_TPS)
+#define CLIENT_WORLD_HISTORY    (1000 / SERVER_TPS)
 
 #define PACKET_SIZE_MAX         16384
 
@@ -65,8 +65,8 @@
 #define CHAT_MESSAGE_LENGTH_MIN 0
 #define CHAT_MESSAGE_LENGTH_MAX 512  // not including nil terminator, must be < CHAT_MESSAGE_BUFFER_LEN
 
-#define WORLD_SNAPSHOT_PLAYERS_MAX  SERVER_MAX_PLAYERS
-#define WORLD_SNAPSHOT_ENTITIES_MAX 128
+#define WORLD_SNAPSHOT_PLAYERS_MAX  SERVER_PLAYERS_MAX
+#define WORLD_SNAPSHOT_ENTITIES_MAX 64
 
 //------------------------------------------------------------------------------
 // Macros

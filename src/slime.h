@@ -28,10 +28,10 @@ struct Slime {
     void Init   (void);
     void SetName(const char *name, uint32_t nameLength);
 
-    bool Move(double now, double dt, Vector2 offset);
+    bool Move(double dt, Vector2 offset);
     bool Combine(Slime &other);
-    bool Attack(double now, double dt);
-    void Update(double now, double dt);
+    bool Attack(double dt);
+    void Update(double dt);
     void Push(DrawList &drawList) const;
 
 private:

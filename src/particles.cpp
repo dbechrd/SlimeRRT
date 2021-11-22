@@ -52,7 +52,7 @@ Particle *ParticleSystem::Alloc(void)
     return particle;
 }
 
-ParticleFX *ParticleSystem::GenerateFX(ParticleFX_Type type, size_t particleCount, Vector3 origin, double duration, double now)
+ParticleFX *ParticleSystem::GenerateFX(ParticleFX_Type type, size_t particleCount, Vector3 origin, double duration)
 {
     assert((int)type > 0);
     assert((int)type < ParticleFX_Count);
@@ -77,7 +77,7 @@ ParticleFX *ParticleSystem::GenerateFX(ParticleFX_Type type, size_t particleCoun
     effect->type = type;
     effect->origin = origin;
     effect->duration = duration;
-    effect->startedAt = now;
+    effect->startedAt = glfwGetTime();
 
     registry[ParticleFX_Blood] = { particle_fx_blood_init, particle_fx_blood_update };
     registry[ParticleFX_Gold ] = { particle_fx_gold_init, particle_fx_gold_update };
@@ -113,7 +113,7 @@ size_t ParticleSystem::EffectsActive(void)
     return effectsActiveCount;
 }
 
-void ParticleSystem::Update(double now, double dt)
+void ParticleSystem::Update(double dt)
 {
     assert(particlesActiveCount <= MAX_PARTICLES);
     assert(effectsActiveCount <= MAX_EFFECTS);
@@ -139,14 +139,14 @@ void ParticleSystem::Update(double now, double dt)
             continue;  // particle is dead
 
         ParticleFX &effect = *particle.effect;
-        const float animTime = (float)(now - effect.startedAt);
+        const float animTime = (float)(glfwGetTime() - effect.startedAt);
         const float alpha = (float)((animTime - particle.spawnAt) / (particle.dieAt - particle.spawnAt));
         if (alpha >= 0.0f && alpha < 1.0f) {
             if (!particle.body.lastUpdated) {
                 particle.body.position = effect.origin;
             }
-            particle.body.Update(now, dt);
-            sprite_update(particle.sprite, now, dt);
+            particle.body.Update(dt);
+            sprite_update(particle.sprite, dt);
             registry[effect.type].update(particle, alpha);
         } else if (alpha >= 1.0f) {
             effect.particlesLeft--;

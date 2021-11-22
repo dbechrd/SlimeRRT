@@ -47,21 +47,26 @@ ErrorType GameServer::Run()
                 // Process queued player inputs
                 for (size_t i = 0; i < netServer.inputHistory.Count(); i++) {
                     InputSnapshot &inputSnapshot = netServer.inputHistory.At(i);
-                    Player *player = world->FindPlayer(inputSnapshot.ownerId);
-                    if (player) {
-                        assert(world->map);
-                        player->ProcessInput(inputSnapshot, *world->map);
-                        NetServerClient *client = netServer.FindClient(player->id);
-                        assert(client);
-                        if (client) {
-                            client->inputSeq = inputSnapshot.seq;
-                        }
+
+                    NetServerClient *client = netServer.FindClient(inputSnapshot.ownerId);
+                    if (!client || client->inputSeq >= inputSnapshot.seq) {
+                        continue;
                     }
+
+                    Player *player = world->FindPlayer(inputSnapshot.ownerId);
+                    if (!player) {
+                        continue;
+                    }
+
+                    assert(client->playerId == player->id);
+                    assert(world->map);
+                    player->ProcessInput(inputSnapshot);
+                    client->inputSeq = inputSnapshot.seq;
                 }
 
-                world->Simulate(now, dt);
+                world->Simulate(dt);
 
-                for (size_t i = 0; i < SERVER_MAX_PLAYERS; i++) {
+                for (size_t i = 0; i < SERVER_PLAYERS_MAX; i++) {
                     NetServerClient &client = netServer.clients[i];
                     if (client.playerId) {
                         WorldSnapshot &worldSnapshot = client.worldHistory.Alloc();

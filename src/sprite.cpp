@@ -84,7 +84,7 @@ Vector3 sprite_world_center(const Sprite &sprite, Vector3 position, float scale)
     return center;
 }
 
-void sprite_update(Sprite &sprite, double now, double dt)
+void sprite_update(Sprite &sprite, double dt)
 {
     UNUSED(dt);
     if (!sprite.spriteDef) {
@@ -96,10 +96,10 @@ void sprite_update(Sprite &sprite, double now, double dt)
     if (anim.frameCount > 1) {
         const double animFps = 24.0;
         const double animDelay = 1.0 / animFps;
-        if (now - sprite.lastAnimFrameStarted > animDelay) {
+        if (glfwGetTime() - sprite.lastAnimFrameStarted > animDelay) {
             sprite.animFrameIdx++;
             sprite.animFrameIdx %= anim.frameCount;
-            sprite.lastAnimFrameStarted = now;
+            sprite.lastAnimFrameStarted = glfwGetTime();
         }
     }
 }

@@ -16,8 +16,9 @@ struct Player {
     };
 
     enum class ActionState {
-        None      = 0,
-        Attacking = 1,
+        None        = 0,
+        AttackStart = 1,
+        Attacking   = 2,
     };
 
     enum class AttachPoint {
@@ -38,6 +39,7 @@ struct Player {
     char            name        [USERNAME_LENGTH_MAX]{};
     ActionState     actionState {};
     MoveState       moveState   {};
+    Vector2         moveBuffer  {};
     Body3D          body        {};
     Combat          combat      {};
     Sprite          sprite      {};
@@ -50,14 +52,14 @@ struct Player {
     Vector3 GetAttachPoint(AttachPoint attachPoint) const;
     const Item& GetSelectedItem() const;
 
-    void ProcessInput (InputSnapshot &input, const Tilemap &map);
-    void Update       (double now, double dt);
+    void ProcessInput (InputSnapshot &input);
+    void Update       (double dt, const Tilemap &map);
     void Push         (DrawList &drawList) const;
 
 private:
     void UpdateDirection (Vector2 offset);
-    bool Move            (double now, double dt, Vector2 offset);
-    bool Attack          (double now, double dt);
+    bool Move            (Vector2 offset);
+    bool Attack          (void);
 };
 
 float Player_Depth(const Drawable &drawable);

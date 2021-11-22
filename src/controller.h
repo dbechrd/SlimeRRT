@@ -29,6 +29,7 @@ struct PlayerControllerState {
     bool  dbgImgui         {};
     bool  dbgToggleVsync   {};
     bool  dbgChatMessage   {};
+    bool  dbgSpawnSam      {};
     bool  dbgToggleFreecam {};
     bool  dbgNextRtreeRect {};
 
@@ -38,7 +39,7 @@ struct PlayerControllerState {
 struct InputSnapshot {
     uint32_t seq        {};  // monotonic input sequence number
     uint32_t ownerId    {};  // player who generated this input
-    double   frameTime  {};  // now of frame when input was detected
+    uint32_t clientTick {};  // client tick when input was detected
     double   frameDt    {};  // dt of frame when input was detected
     bool     walkNorth  {};
     bool     walkEast   {};
@@ -49,12 +50,12 @@ struct InputSnapshot {
     uint32_t selectSlot {};  // PlayerInventorySlot
     bool     skipFx     {};  // oonce the input has been processed once, don't trigger FX (particles, sounds, etc.)
 
-    void FromController(uint32_t playerId, double now, double dt, PlayerControllerState &controllerState)
+    void FromController(uint32_t playerId, uint32_t tick, double dt, PlayerControllerState &controllerState)
     {
         static uint32_t nextSeqNum = 0;
         seq        = nextSeqNum++;
         ownerId    = playerId;
-        frameTime  = now;
+        clientTick = tick;
         frameDt    = dt;
         walkNorth  = controllerState.walkNorth;
         walkEast   = controllerState.walkEast;
@@ -63,5 +64,6 @@ struct InputSnapshot {
         run        = controllerState.run;
         attack     = controllerState.attack;
         selectSlot = controllerState.selectSlot;
+        skipFx     = false;
     }
 };

@@ -100,11 +100,8 @@ void Player::UpdateDirection(Vector2 offset)
     }
 }
 
-bool Player::Move(double now, double dt, Vector2 offset)
+bool Player::Move(Vector2 offset)
 {
-    UNUSED(now);
-    UNUSED(dt);  // offset is already in time slice space
-
     if (v2_is_zero(offset))
         return false;
 
@@ -121,16 +118,13 @@ bool Player::Move(double now, double dt, Vector2 offset)
     return true;
 }
 
-bool Player::Attack(double now, double dt)
+bool Player::Attack(void)
 {
-    UNUSED(dt);
-
     if (actionState == ActionState::None) {
         actionState = ActionState::Attacking;
-        //body.lastUpdated = now;
-        body.lastMoved = now;
-        combat.attackStartedAt = now;
-        combat.attackDuration = 0.1;
+        body.lastMoved = glfwGetTime();
+        combat.attackStartedAt = glfwGetTime();
+        combat.attackDuration = 0.2;
 
         const Item &selectedItem = GetSelectedItem();
         switch (selectedItem.id) {
@@ -149,7 +143,7 @@ bool Player::Attack(double now, double dt)
     return false;
 }
 
-void Player::ProcessInput(InputSnapshot &input, const Tilemap &map)
+void Player::ProcessInput(InputSnapshot &input)
 {
     assert(id);
     assert(input.ownerId == id);
@@ -159,20 +153,21 @@ void Player::ProcessInput(InputSnapshot &input, const Tilemap &map)
     }
 
     float playerSpeed = 4.0f;
-    Vector2 moveBuffer = {};
+
+    Vector2 move{};
 
     if (input.walkNorth || input.walkEast || input.walkSouth || input.walkWest) {
         if (input.walkNorth) {
-            moveBuffer.y -= 1.0f;
+            move.y -= 1.0f;
         }
         if (input.walkEast) {
-            moveBuffer.x += 1.0f;
+            move.x += 1.0f;
         }
         if (input.walkSouth) {
-            moveBuffer.y += 1.0f;
+            move.y += 1.0f;
         }
         if (input.walkWest) {
-            moveBuffer.x -= 1.0f;
+            move.x -= 1.0f;
         }
         if (input.run) {
             moveState = Player::MoveState::Running;
@@ -184,13 +179,27 @@ void Player::ProcessInput(InputSnapshot &input, const Tilemap &map)
         moveState = Player::MoveState::Idle;
     }
 
-    Vector2 moveOffset = v2_scale(v2_normalize(moveBuffer), METERS_TO_PIXELS(playerSpeed) * (float)input.frameDt);
-    if (!v2_is_zero(moveOffset)) {
+    Vector2 moveOffset = v2_scale(v2_normalize(move), METERS_TO_PIXELS(playerSpeed) * (float)input.frameDt);
+    moveBuffer = v2_add(moveBuffer, moveOffset);
+
+    if (input.attack && Attack()) {
+        sound_catalog_play(SoundID::Whoosh, 1.0f + dlb_rand32f_variance(0.1f));
+    }
+
+    // Skip sounds/particles etc. next time this input is used (e.g. during reconciliation)
+    input.skipFx = true;
+}
+
+void Player::Update(double dt, const Tilemap &map)
+{
+    assert(id);
+
+    if (!v2_is_zero(moveBuffer)) {
         const Vector2 curPos = body.GroundPosition();
         const Tile *curTile = map.TileAtWorldTry(curPos.x, curPos.y, 0, 0);
         const bool curWalkable = curTile && curTile->IsWalkable();
 
-        Vector2 newPos = v2_add(curPos, moveOffset);
+        Vector2 newPos = v2_add(curPos, moveBuffer);
         Tile *newTile = map.TileAtWorldTry(newPos.x, newPos.y, 0, 0);
 
         // NOTE: This extra logic allows the player to slide when attempting to move diagonally against a wall
@@ -204,63 +213,59 @@ void Player::ProcessInput(InputSnapshot &input, const Tilemap &map)
             if (!newTile || !newTile->IsWalkable()) {
                 // XY unwalkable, try only X offset
                 newPos = curPos;
-                newPos.x += moveOffset.x;
+                newPos.x += moveBuffer.x;
                 newTile = map.TileAtWorldTry(newPos.x, newPos.y, 0, 0);
                 if (!newTile || !newTile->IsWalkable()) {
                     // X unwalkable, try only Y offset
                     newPos = curPos;
-                    newPos.y += moveOffset.y;
+                    newPos.y += moveBuffer.y;
                     newTile = map.TileAtWorldTry(newPos.x, newPos.y, 0, 0);
                     if (!newTile || !newTile->IsWalkable()) {
                         // XY, and both slide directions are all unwalkable
-                        moveOffset.x = 0.0f;
-                        moveOffset.y = 0.0f;
+                        moveBuffer.x = 0.0f;
+                        moveBuffer.y = 0.0f;
 
                         // TODO: Play wall bonk sound (or splash for water? heh)
                         // TODO: Maybe bounce the player against the wall? This code doesn't do that nicely..
-                        //player_move(&charlie, v2_scale(v2_negate(moveOffset), 10.0f));
+                        //player_move(&charlie, v2_scale(v2_negate(moveBuffer), 10.0f));
                     } else {
                         // Y offset is walkable
-                        moveOffset.x = 0.0f;
+                        moveBuffer.x = 0.0f;
                     }
                 } else {
                     // X offset is walkable
-                    moveOffset.y = 0.0f;
+                    moveBuffer.y = 0.0f;
                 }
             }
         }
 
-        if (Move(input.frameTime, input.frameDt, moveOffset)) {
+        if (Move(moveBuffer)) {
             static double lastFootstep = 0;
-            double timeSinceLastFootstep = input.frameTime - lastFootstep;
-            if (timeSinceLastFootstep > 1.0f / playerSpeed) {
+            double timeSinceLastFootstep = glfwGetTime() - lastFootstep;
+            float distanceMoved = v2_length(moveBuffer);
+            if (timeSinceLastFootstep > 1.0f / distanceMoved) {
                 sound_catalog_play(SoundID::Footstep, 1.0f + dlb_rand32f_variance(0.5f));
-                lastFootstep = input.frameTime;
+                lastFootstep = glfwGetTime();
             }
         }
 
         if (body.position.x < 0.0f) {
             assert(!"wtf?");
         }
+
+        moveBuffer = {};
     }
 
-    if (input.attack) {
-        Attack(input.frameTime, input.frameDt);
-    }
-
-    // Skip sounds/particles etc. next time this input is used (e.g. during reconciliation)
-    input.skipFx = true;
-}
-
-void Player::Update(double now, double dt)
-{
-    assert(id);
-
-    const double timeSinceAttackStarted = now - combat.attackStartedAt;
-    if (timeSinceAttackStarted > combat.attackDuration) {
-        actionState = ActionState::None;
-        combat.attackStartedAt = 0;
-        combat.attackDuration = 0;
+    if (actionState == ActionState::Attacking) {
+        const double timeSinceAttackStarted = glfwGetTime() - combat.attackStartedAt;
+        if (timeSinceAttackStarted > combat.attackDuration) {
+            actionState = ActionState::None;
+            combat.attackStartedAt = 0;
+            combat.attackDuration = 0;
+            combat.attackFrame = 0;
+        } else {
+            combat.attackFrame++;
+        }
     }
 
     if (sprite.spriteDef) {
@@ -282,7 +287,11 @@ void Player::Update(double now, double dt)
                 }
                 case ActionState::Attacking: {
                     // sprite_by_name("player_sword_attack");
-                    sprite.spriteDef = &sheet->sprites[4];
+                    if (combat.attackFrame < 10) {
+                        sprite.spriteDef = &sheet->sprites[4];
+                    } else {
+                        sprite.spriteDef = &sheet->sprites[2];
+                    }
                     break;
                 }
             }
@@ -296,8 +305,8 @@ void Player::Update(double now, double dt)
         }
     }
 
-    body.Update(now, dt);
-    sprite_update(sprite, now, dt);
+    body.Update(dt);
+    sprite_update(sprite, dt);
 }
 
 void Player::Push(DrawList &drawList) const

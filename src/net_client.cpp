@@ -93,7 +93,7 @@ ErrorType NetClient::SendMsg(NetMessage &message)
     return ErrorType::Success;
 }
 
-ErrorType NetClient::Auth()
+ErrorType NetClient::Auth(void)
 {
     assert(username);
     assert(password);
@@ -160,7 +160,7 @@ ErrorType NetClient::SendPlayerInput()
 
     for (size_t i = 0; i < inputHistory.Count(); i++) {
         InputSnapshot &inputSnapshot = inputHistory.At(i);
-        if (inputSnapshot.seq > worldSnapshot.inputSeq) {
+        if (inputSnapshot.seq > inputSeq) {
             // TODO: Wrap multiple inputs into a single packet
             memset(&netMsg, 0, sizeof(netMsg));
             netMsg.type = NetMessage::Type::Input;
@@ -197,7 +197,7 @@ void NetClient::ReconcilePlayer()
 
     WorldSnapshot &latestSnapshot = worldHistory.Last();
     PlayerSnapshot *playerSnapshot = 0;
-    for (size_t i = 0; i < WORLD_SNAPSHOT_PLAYERS_MAX; i++) {
+    for (size_t i = 0; i < latestSnapshot.playerCount; i++) {
         if (latestSnapshot.players[i].id == serverWorld->playerId) {
             playerSnapshot = &latestSnapshot.players[i];
             break;
@@ -205,26 +205,15 @@ void NetClient::ReconcilePlayer()
     }
     assert(playerSnapshot);
     if (!playerSnapshot) {
-        // Server sent us a snapshot that doesn't contain our own player??
+        // Server sent us a slimeSnapshot that doesn't contain our own player??
         return;
     }
 
     // TODO: Do this more smoothly
-    // Roll back local player to server snapshot location
-    //player->nameLength = playerSnapshot->nameLength;
-    //memcpy(player->name, playerSnapshot->name, USERNAME_LENGTH_MAX);
-    player->body.acceleration.x = playerSnapshot->acc_x;
-    player->body.acceleration.y = playerSnapshot->acc_y;
-    player->body.acceleration.z = playerSnapshot->acc_z;
-    player->body.velocity.x     = playerSnapshot->vel_x;
-    player->body.velocity.y     = playerSnapshot->vel_y;
-    player->body.velocity.z     = playerSnapshot->vel_z;
-    player->body.prevPosition.x = playerSnapshot->prev_pos_x;
-    player->body.prevPosition.y = playerSnapshot->prev_pos_y;
-    player->body.prevPosition.z = playerSnapshot->prev_pos_z;
-    player->body.position.x     = playerSnapshot->pos_x;
-    player->body.position.y     = playerSnapshot->pos_y;
-    player->body.position.z     = playerSnapshot->pos_z;
+    // Roll back local player to server slimeSnapshot location
+    memcpy(player->name, playerSnapshot->name, USERNAME_LENGTH_MAX);
+    player->nameLength          = playerSnapshot->nameLength;
+    player->body.position       = playerSnapshot->position;
     player->combat.hitPoints    = playerSnapshot->hitPoints;
     player->combat.hitPointsMax = playerSnapshot->hitPointsMax;
 
@@ -234,9 +223,68 @@ void NetClient::ReconcilePlayer()
         // NOTE: Old input's ownerId might not match if the player recently
         // reconnect to a server and received a new playerId
         if (input.ownerId == player->id && input.seq > latestSnapshot.inputSeq) {
-            player->Update(input.frameTime, input.frameDt);
+            assert(serverWorld->map);
+            player->ProcessInput(input);
+            player->Update(input.frameDt, *serverWorld->map);
         }
     }
+}
+
+bool NetClient::InterpolateBody(Body3D &body, double renderAt)
+{
+    auto positionHistory = body.positionHistory;
+    const size_t historyLen = positionHistory.Count();
+    if (!historyLen) {
+        return true;
+    }
+
+    Vector3Snapshot first = positionHistory.At(0);
+    if (renderAt <= first.recvAt) {
+        body.position = first.v;
+        return true;
+    }
+
+    size_t right = 1;
+    while (right < positionHistory.Count() && renderAt >= positionHistory.At(right).recvAt) {
+        right++;
+    }
+
+    if (right == positionHistory.Count()) {
+        return false;  // assume despawned
+    }
+
+    Vector3Snapshot *a = &positionHistory.At(right - 1);
+    Vector3Snapshot *b = &positionHistory.At(right);
+    assert(a->recvAt <= renderAt);
+    assert(b->recvAt > renderAt);
+
+    double alpha = (renderAt - a->recvAt) / (b->recvAt - a->recvAt);
+    //entity.x = x0 + (x1 - x0) * alpha;
+    body.position = v3_add(a->v, v3_scale(v3_sub(b->v, a->v), (float)alpha));
+    return true;
+}
+
+void NetClient::Interpolate(double renderAt)
+{
+    for (size_t i = 0; i < SERVER_PLAYERS_MAX; i++) {
+        Player &player = serverWorld->players[i];
+        if (!player.id || player.id == serverWorld->playerId) {
+            continue;
+        }
+        if (!InterpolateBody(player.body, renderAt)) {
+            serverWorld->DespawnPlayer(player.id);
+        }
+    }
+    for (size_t i = 0; i < WORLD_ENTITIES_MAX; i++) {
+        Slime &slime = serverWorld->slimes[i];
+        if (!slime.id) {
+            continue;
+        }
+        if (!InterpolateBody(slime.body, renderAt)) {
+            serverWorld->DespawnSlime(slime.id);
+        }
+    }
+    return;
 }
 
 void NetClient::ProcessMsg(ENetPacket &packet)
@@ -275,6 +323,39 @@ void NetClient::ProcessMsg(ENetPacket &packet)
             WorldSnapshot &netSnapshot = netMsg.data.worldSnapshot;
             WorldSnapshot &worldSnapshot = worldHistory.Alloc();
             worldSnapshot = netSnapshot;
+            worldSnapshot.recvAt = glfwGetTime();
+
+            for (size_t i = 0; i < worldSnapshot.playerCount; i++) {
+                PlayerSnapshot &playerSnapshot = worldSnapshot.players[i];
+                Player *player = serverWorld->FindPlayer(playerSnapshot.id);
+                if (!player) {
+                    continue;
+                }
+
+                player->nameLength = playerSnapshot.nameLength;
+                memcpy(player->name, playerSnapshot.name, USERNAME_LENGTH_MAX);
+                auto &pos = player->body.positionHistory.Alloc();
+                pos.recvAt = worldSnapshot.recvAt;
+                pos.v = playerSnapshot.position;
+                player->combat.hitPoints = playerSnapshot.hitPoints;
+                player->combat.hitPointsMax = playerSnapshot.hitPointsMax;
+            }
+            for (size_t i = 0; i < worldSnapshot.slimeCount; i++) {
+                SlimeSnapshot &slimeSnapshot = worldSnapshot.slimes[i];
+                Slime *slime = serverWorld->FindSlime(slimeSnapshot.id);
+                if (!slime) {
+                    continue;
+                }
+
+                auto &pos = slime->body.positionHistory.Alloc();
+                pos.recvAt = worldSnapshot.recvAt;
+                pos.v = slimeSnapshot.position;
+                slime->combat.hitPoints = slimeSnapshot.hitPoints;
+                slime->combat.hitPointsMax = slimeSnapshot.hitPointsMax;
+                // TODO: Keep scale buffer and interpolate? Could be cool heh.
+                slime->sprite.scale = slimeSnapshot.scale;
+            }
+
             //memcpy(&worldSnapshot, &netSnapshot, sizeof(historySnapshot));
             break;
         } default: {

@@ -26,7 +26,7 @@ void Slime::Init(void)
         sprite.spriteDef = spriteDef;
     }
 
-    combat.hitPointsMax = 10.0f;
+    combat.hitPointsMax = 30.0f;
     combat.hitPoints = combat.hitPointsMax;
     combat.meleeDamage = 3.0f;
     combat.lootTableId = LootTableID::LT_Slime;
@@ -70,7 +70,7 @@ void Slime::UpdateDirection(Vector2 offset)
     }
 }
 
-bool Slime::Move(double now, double dt, Vector2 offset)
+bool Slime::Move(double dt, Vector2 offset)
 {
     UNUSED(dt);  // todo: use dt
 
@@ -83,7 +83,7 @@ bool Slime::Move(double now, double dt, Vector2 offset)
     }
 
     // On ground and hasn't moved for a bit
-    const double timeSinceJump = now - body.lastMoved;
+    const double timeSinceJump = glfwGetTime() - body.lastMoved;
     if (timeSinceJump > randJumpIdle) {
         action = Action::Jump;
         body.velocity.x += offset.x;
@@ -127,7 +127,7 @@ bool Slime::Combine(Slime &other)
     return true;
 }
 
-bool Slime::Attack(double now, double dt)
+bool Slime::Attack(double dt)
 {
     UNUSED(dt); // todo: use dt;
 
@@ -146,7 +146,7 @@ bool Slime::Attack(double now, double dt)
 #else
     if (body.landed) {
         action = Action::Attack;
-        combat.attackStartedAt = now;
+        combat.attackStartedAt = glfwGetTime();
         combat.attackDuration = 0.0;
         return true;
     }
@@ -154,9 +154,9 @@ bool Slime::Attack(double now, double dt)
     return false;
 }
 
-void Slime::Update(double now, double dt)
+void Slime::Update(double dt)
 {
-    body.Update(now, dt);
+    body.Update(dt);
     switch (action) {
         case Action::Jump: {
             if (body.OnGround()) {
@@ -167,7 +167,7 @@ void Slime::Update(double now, double dt)
             }
             break;
         } case Action::Attack: {
-            const double timeSinceAttackStarted = now - combat.attackStartedAt;
+            const double timeSinceAttackStarted = glfwGetTime() - combat.attackStartedAt;
             if (timeSinceAttackStarted > combat.attackDuration) {
                 action = Action::None;
                 combat.attackStartedAt = 0;
@@ -176,7 +176,7 @@ void Slime::Update(double now, double dt)
             break;
         }
     }
-    sprite_update(sprite, now, dt);
+    sprite_update(sprite, dt);
 }
 
 void Slime::Push(DrawList &drawList) const

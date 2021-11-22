@@ -75,8 +75,8 @@ struct ParticleSystem {
     size_t ParticlesActive (void);
     size_t EffectsActive   (void);
 
-    ParticleFX *GenerateFX (ParticleFX_Type type, size_t particleCount, Vector3 origin, double duration, double now);
-    void        Update     (double now, double dt);
+    ParticleFX *GenerateFX (ParticleFX_Type type, size_t particleCount, Vector3 origin, double duration);
+    void        Update     (double dt);
     void        Push       (DrawList &drawList);
 
 private:

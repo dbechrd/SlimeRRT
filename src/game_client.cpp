@@ -90,7 +90,7 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
         printf("ERROR: Failed to initialized audio device\n");
     }
     // NOTE: Minimum of 0.001 seems reasonable (0.0001 is still audible on max volume)
-    SetMasterVolume(0.01f);
+    //SetMasterVolume(0.01f);
     //SetMasterVolume(0.2f);
 
     DrawList::RegisterTypes();
@@ -109,7 +109,7 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
     UpdateMusicStream(mus_background);
 
     float mus_whistle_vmin = 0.0f;
-    float mus_whistle_vmax = 1.0f;
+    float mus_whistle_vmax = 0.0f; //1.0f;
     Music mus_whistle = LoadMusicStream("resources/whistle.ogg");
     SetMusicVolume(mus_whistle, mus_whistle_vmin);
     mus_whistle.looping = true;
@@ -122,6 +122,14 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
 
     World *lobby = new World;
     lobby->map = lobby->mapSystem.GenerateLobby();
+    lobby->SpawnSam();
+
+    {
+        Player *player = lobby->SpawnPlayer(0);
+        assert(player);
+        lobby->playerId = player->id;
+        player->combat.hitPoints = MAX(0, player->combat.hitPointsMax - 25);
+    }
 
 #if DEMO_VIEW_RTREE
     const int RECT_COUNT = 100;
@@ -149,31 +157,9 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
     }
 #endif
 
-    {
-        Player *player = lobby->SpawnPlayer(0);
-        assert(player);
-        lobby->playerId = player->id;
-        player->combat.hitPoints = player->combat.hitPointsMax / 2;
-    }
-
-    {
-        Slime *slime = lobby->SpawnSlime(0);
-        assert(slime);
-        Slime &sam = *slime;
-        sam.SetName(CSTR("Sam"));
-        sam.combat.hitPointsMax = 100.0f; //100000.0f;
-        sam.combat.hitPoints = sam.combat.hitPointsMax;
-        sam.combat.meleeDamage = -1.0f;
-        sam.combat.lootTableId = LootTableID::LT_Sam;
-        sam.body.position = v3_add(lobby->GetWorldSpawn(), { 0, -300.0f, 0 });
-        sam.sprite.scale = 2.0f;
-    }
-
-
     const double dt = 1.0f / SERVER_TPS;
     // NOTE: Limit delta time to 2 frames worth of updates to prevent chaos for large dt (e.g. when debugging)
     const double dtMax = dt * 2;
-    double tickAccum = 0.0f;
     double frameStart = glfwGetTime();
     double frameAccum = 0.0f;
     double frameDt = 0.0f;
@@ -191,10 +177,12 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
 
     // Main game loop
     while (!WindowShouldClose()) {
-        double now = glfwGetTime();
-        frameAccum += MIN(now - frameStart, dtMax);
-        frameDt = now - frameStart;
-        frameStart = now;
+        {
+            double now = glfwGetTime();
+            frameAccum += MIN(now - frameStart, dtMax);
+            frameDt = now - frameStart;
+            frameStart = now;
+        }
 
         if (IsWindowResized()) {
             screenWidth = GetScreenWidth();
@@ -315,44 +303,69 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
         assert(playerPtr);
         Player &player = *playerPtr;
 
-        InputSnapshot &inputSnapshot = netClient.inputHistory.Alloc();
-        inputSnapshot.FromController(player.id, now, frameDt, input);
-
         if (connectedToServer) {
             if (netClient.worldHistory.Count()) {
                 WorldSnapshot &worldSnapshot = netClient.worldHistory.Last();
+
                 if (world->tick < worldSnapshot.tick) {
                     world->tick = worldSnapshot.tick;
-
-                    // TODO: Create separate inputAccum / inputDt loop to send input more often than we receive snapshots
-                    netClient.SendPlayerInput();
 
                     // TODO: Update world state from worldSnapshot and re-apply input with input.tick > snapshot.tick
                     netClient.ReconcilePlayer();
                 }
+
+                InputSnapshot &inputSnapshot = netClient.inputHistory.Alloc();
+                inputSnapshot.FromController(player.id, world->tick, frameDt, input);
+
+                // TODO: Create separate inputAccum / inputDt loop to send input more often than we receive snapshots
+                netClient.SendPlayerInput();
+
+                player.ProcessInput(inputSnapshot);
+
+                assert(world->map);
+                player.Update(frameDt, *world->map);
+
+                // TODO: Interpolate all of the other entities in the world
+                double renderAt = glfwGetTime() - dt * 2;
+                netClient.Interpolate(renderAt);
+
+                world->particleSystem.Update(frameDt);
             }
-
-            //player.ProcessInput(inputSnapshot, *world->map);
-            //player.Update(now, frameDt);
-
-            // TODO: Interpolate all of the other entities in the world
-            //double dtAccum
-            //world->Interpolate(0, 0);
         } else {
+            InputSnapshot &inputSnapshot = netClient.inputHistory.Alloc();
+            inputSnapshot.FromController(player.id, world->tick, frameDt, input);
+
+#if 0
             if (frameAccum > dt) {
                 while (frameAccum > dt) {
-                    world->Simulate(now, dt);
+                    world->Simulate(dt);
                     world->tick++;
                     frameAccum -= dt;
                 }
             }
 
             assert(world->map);
-            player.ProcessInput(inputSnapshot, *world->map);
-            player.Update(now, frameDt);
-        }
+            player.ProcessInput(inputSnapshot);
 
-        world->particleSystem.Update(now, frameAccum);
+            for (size_t i = 0; i < SERVER_PLAYERS_MAX; i++) {
+                Player &p = world->players[i];
+                if (!p.id) continue;
+                p.Update(frameAccum, *world->map);
+            }
+            for (size_t i = 0; i < WORLD_ENTITIES_MAX; i++) {
+                Slime &s = world->slimes[i];
+                if (!s.id) continue;
+                s.Update(frameAccum);
+            }
+
+            world->particleSystem.Update(frameAccum);
+#else
+            player.ProcessInput(inputSnapshot);
+            world->Simulate(frameDt);
+            world->particleSystem.Update(frameDt);
+            world->tick++;
+#endif
+        }
 
         //if (!chatActive) {
             findMouseTile = input.dbgFindMouseTile;
@@ -382,6 +395,10 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
 
             if (input.dbgChatMessage) {
                 netClient.SendChatMessage(CSTR("User pressed the C key."));
+            }
+
+            if (world == lobby && input.dbgSpawnSam) {
+                lobby->SpawnSam();
             }
 
             if (input.dbgToggleFreecam) {
@@ -697,7 +714,7 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
         {
             int linesOfText = 8;
 #if SHOW_DEBUG_STATS
-            linesOfText += 9;
+            linesOfText += 10;
 #endif
             const float margin = 6.0f;   // left/top margin
             const float pad = 4.0f;      // left/top pad
@@ -738,7 +755,9 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
 #if SHOW_DEBUG_STATS
             text = TextFormat("Tick          %u", world->tick);
             PUSH_TEXT(text, GRAY);
-            text = TextFormat("Accum         %.03f", frameAccum);
+            text = TextFormat("framAccum     %.03f", frameAccum);
+            PUSH_TEXT(text, GRAY);
+            text = TextFormat("frameDt       %.03f", frameDt);
             PUSH_TEXT(text, GRAY);
             text = TextFormat("Camera speed  %.03f", cameraSpeed);
             PUSH_TEXT(text, GRAY);

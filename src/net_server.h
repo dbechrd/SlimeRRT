@@ -39,7 +39,7 @@ struct NetServerClient {
 struct NetServer {
     ENetHost *server {};
     //std::unordered_map<ENetAddress, NetServerClient, NetAddressHash, NetAddressEqual> clients{};
-    NetServerClient clients[SERVER_MAX_PLAYERS]{};
+    NetServerClient clients[SERVER_PLAYERS_MAX]{};
     RingBuffer<InputSnapshot, SERVER_INPUT_HISTORY> inputHistory {};
     World *serverWorld {};
 

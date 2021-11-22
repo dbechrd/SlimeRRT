@@ -106,7 +106,7 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
 
             stream.Process(input.seq, 32, 0, UINT32_MAX);
             stream.Process(input.ownerId, 32, 0, UINT32_MAX);
-            stream.ProcessDouble(input.frameTime);
+            stream.Process(input.clientTick, 32, 0, UINT32_MAX);
             stream.ProcessDouble(input.frameDt);
             stream.ProcessBool(input.walkNorth);
             stream.ProcessBool(input.walkEast);
@@ -144,8 +144,10 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
 
             stream.Process(worldSnapshot.tick, 32, 1, UINT32_MAX);
             stream.Process(worldSnapshot.inputSeq, 32, 0, UINT32_MAX);
+            stream.Process(worldSnapshot.playerCount, 4, 0, WORLD_SNAPSHOT_PLAYERS_MAX);
+            stream.Process(worldSnapshot.slimeCount, 9, 0, WORLD_SNAPSHOT_ENTITIES_MAX);
 
-            for (size_t i = 0; i < WORLD_SNAPSHOT_PLAYERS_MAX; i++) {
+            for (size_t i = 0; i < worldSnapshot.playerCount; i++) {
                 PlayerSnapshot &player = worldSnapshot.players[i];
 
                 stream.Process(player.id, 32, 0, UINT32_MAX);
@@ -168,33 +170,22 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                     }
 
                     // TODO: range validation on floats
-                    stream.ProcessFloat(player.acc_x);
-                    stream.ProcessFloat(player.acc_y);
-                    stream.ProcessFloat(player.acc_z);
-                    stream.ProcessFloat(player.vel_x);
-                    stream.ProcessFloat(player.vel_y);
-                    stream.ProcessFloat(player.vel_z);
-                    stream.ProcessFloat(player.prev_pos_x);
-                    stream.ProcessFloat(player.prev_pos_y);
-                    stream.ProcessFloat(player.prev_pos_z);
-                    stream.ProcessFloat(player.pos_x);
-                    stream.ProcessFloat(player.pos_y);
-                    stream.ProcessFloat(player.pos_z);
+                    stream.ProcessFloat(player.position.x);
+                    stream.ProcessFloat(player.position.y);
+                    stream.ProcessFloat(player.position.z);
                     stream.ProcessFloat(player.hitPoints);
                     stream.ProcessFloat(player.hitPointsMax);
                 }
             }
 
-            // TODO: ID compression?
-            // Find min(slime.id ? slime.id : UINT32_MAX) - 1 -> "baseID"
-            // Find bits_needed((max(slime.id) - min(slime.id)) + 1) -> # of bits per ID
-            // Write baseID
-            // Write bitsPerID
-            // For each slime:
-            //   Write (slime.id ? slime.id - baseID, 0, bitsPerID)
-
-            for (size_t i = 0; i < WORLD_SNAPSHOT_ENTITIES_MAX; i++) {
+            for (size_t i = 0; i < worldSnapshot.slimeCount; i++) {
                 SlimeSnapshot &slime = worldSnapshot.slimes[i];
+
+                bool alive = slime.id != 0;
+                stream.ProcessBool(alive);
+                if (!alive) {
+                    continue;
+                }
 
                 uint32_t prevId = slime.id;
                 stream.Process(slime.id, 32, 0, UINT32_MAX);
@@ -211,18 +202,9 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
 
                 if (slime.id) {
                     // TODO: range validation on floats
-                    stream.ProcessFloat(slime.acc_x);
-                    stream.ProcessFloat(slime.acc_y);
-                    stream.ProcessFloat(slime.acc_z);
-                    stream.ProcessFloat(slime.vel_x);
-                    stream.ProcessFloat(slime.vel_y);
-                    stream.ProcessFloat(slime.vel_z);
-                    stream.ProcessFloat(slime.prev_pos_x);
-                    stream.ProcessFloat(slime.prev_pos_y);
-                    stream.ProcessFloat(slime.prev_pos_z);
-                    stream.ProcessFloat(slime.pos_x);
-                    stream.ProcessFloat(slime.pos_y);
-                    stream.ProcessFloat(slime.pos_z);
+                    stream.ProcessFloat(slime.position.x);
+                    stream.ProcessFloat(slime.position.y);
+                    stream.ProcessFloat(slime.position.z);
                     stream.ProcessFloat(slime.hitPoints);
                     stream.ProcessFloat(slime.hitPointsMax);
                     stream.ProcessFloat(slime.scale);

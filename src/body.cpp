@@ -2,6 +2,7 @@
 #include "helpers.h"
 #include "maths.h"
 #include "spritesheet.h"
+#include "GLFW/glfw3.h"
 #include <cassert>
 #include <cmath>
 
@@ -31,7 +32,7 @@ bool Body3D::Resting() const
     return v3_is_zero(velocity) && OnGround();
 }
 
-void Body3D::Update(double now, double dt)
+void Body3D::Update(double dt)
 {
     // TODO: Account for dt in drag (How? exp()? I forgot..)
     //const float drag_coef = 1.0f - CLAMP(drawThing->drag, 0.0f, 1.0f);
@@ -70,13 +71,13 @@ void Body3D::Update(double now, double dt)
 
     // NOTE: Position can be updated manually outside of physics sim (e.g. player Move() controller)
     if (!v3_equal(position, prevPosition)) {
-        lastMoved = now;
+        lastMoved = glfwGetTime();
     }
     landed = (prevPosition.z > 0.0f && position.z == 0.0f);
 
-    const double timeSinceLastMove = now - lastMoved;
+    const double timeSinceLastMove = glfwGetTime() - lastMoved;
     idle = timeSinceLastMove > IDLE_THRESHOLD_SECONDS;
 
     prevPosition = position;
-    lastUpdated = now;
+    lastUpdated = glfwGetTime();
 }

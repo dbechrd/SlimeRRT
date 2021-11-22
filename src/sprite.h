@@ -18,6 +18,6 @@ Rectangle          sprite_frame_rect       (const Sprite &sprite);
 Rectangle          sprite_world_rect       (const Sprite &sprite, Vector3 position, float scale);
 Vector3            sprite_world_top_center (const Sprite &sprite, Vector3 position, float scale);
 Vector3            sprite_world_center     (const Sprite &sprite, Vector3 position, float scale);
-void               sprite_update           (      Sprite &sprite, double now, double dt);
+void               sprite_update           (      Sprite &sprite, double dt);
 bool               sprite_cull_body        (const Sprite &sprite, const struct Body3D &body, Rectangle cullRect);
 void               sprite_draw_body        (const Sprite &sprite, const struct Body3D &body, Color color);

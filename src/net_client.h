@@ -16,6 +16,7 @@ struct NetClient {
     size_t          passwordLength  {};
     char            password        [PASSWORD_LENGTH_MAX] {};
     World          *serverWorld     {};
+    uint32_t        inputSeq        {};  // seq # of input last sent to server
     RingBuffer<InputSnapshot, SERVER_INPUT_HISTORY> inputHistory {};
     RingBuffer<WorldSnapshot, SERVER_WORLD_HISTORY> worldHistory {};
 
@@ -26,6 +27,7 @@ struct NetClient {
     ErrorType SendPlayerInput();
     void      PredictPlayer();
     void      ReconcilePlayer();
+    void      Interpolate(double renderAt);
     ErrorType Receive();
     void Disconnect();
     void CloseSocket();
@@ -34,9 +36,10 @@ private:
     static const char *LOG_SRC;
     NetMessage netMsg {};
 
-    ErrorType   SendRaw    (const void *data, size_t size);
-    ErrorType   SendMsg    (NetMessage &message);
-    ErrorType   Auth       ();
-    void        ProcessMsg (ENetPacket &packet);
+    ErrorType   SendRaw         (const void *data, size_t size);
+    ErrorType   SendMsg         (NetMessage &message);
+    ErrorType   Auth            (void);
+    bool        InterpolateBody (Body3D &body, double renderAt);
+    void        ProcessMsg      (ENetPacket &packet);
     const char *ServerStateString();
 };

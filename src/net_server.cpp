@@ -26,7 +26,7 @@ ErrorType NetServer::OpenSocket(unsigned short socketPort)
     //address.host = enet_v4_localhost;
     address.port = socketPort;
 
-    server = enet_host_create(&address, SERVER_MAX_PLAYERS, 1, 0, 0);
+    server = enet_host_create(&address, SERVER_PLAYERS_MAX, 1, 0, 0);
     if (!server || !server->socket) {
         E_ASSERT(ErrorType::HostCreateFailed, "Failed to create host.");
     }
@@ -70,7 +70,7 @@ ErrorType NetServer::BroadcastRaw(const void *data, size_t size)
     }
 
     // Broadcast netMsg to all connected clients
-    for (int i = 0; i < SERVER_MAX_PLAYERS; i++) {
+    for (int i = 0; i < SERVER_PLAYERS_MAX; i++) {
         if (!clients[i].peer || clients[i].peer->state != ENET_PEER_STATE_CONNECTED) { // || !clients[i].playerId) {
             continue;
         }
@@ -89,9 +89,13 @@ ErrorType NetServer::BroadcastRaw(const void *data, size_t size)
 
 ErrorType NetServer::SendMsg(const NetServerClient &client, NetMessage &message)
 {
+    if (!client.peer || client.peer->state != ENET_PEER_STATE_CONNECTED) { // || !client.playerId) {
+        return ErrorType::Success;
+    }
+
     message.connectionToken = client.connectionToken;
     ENetBuffer rawPacket = message.Serialize(*serverWorld);
-    //E_INFO("[SEND][%21s][%5u b] %16s ", TextFormatIP(client.peer->address), rawPacket.dataLength, netMsg.TypeString());
+    E_INFO("[SEND][%21s][%5u b] %16s ", TextFormatIP(client.peer->address), rawPacket.dataLength, netMsg.TypeString());
     E_ASSERT(SendRaw(client, rawPacket.data, rawPacket.dataLength), "Failed to send packet");
     return ErrorType::Success;
 }
@@ -101,7 +105,7 @@ ErrorType NetServer::BroadcastMsg(NetMessage &message)
     ErrorType err_code = ErrorType::Success;
 
     // Broadcast netMsg to all connected clients
-    for (int i = 0; i < SERVER_MAX_PLAYERS; i++) {
+    for (int i = 0; i < SERVER_PLAYERS_MAX; i++) {
         NetServerClient &client = clients[i];
         ErrorType result = SendMsg(clients[i], message);
         if (result != ErrorType::Success) {
@@ -186,7 +190,7 @@ ErrorType NetServer::SendWorldSnapshot(NetServerClient &client, WorldSnapshot &w
 
 NetServerClient *NetServer::FindClient(uint32_t playerId)
 {
-    for (int i = 0; i < SERVER_MAX_PLAYERS; i++) {
+    for (int i = 0; i < SERVER_PLAYERS_MAX; i++) {
         if (clients[i].playerId == playerId) {
             return &clients[i];
         }
@@ -267,7 +271,7 @@ void NetServer::ProcessMsg(NetServerClient &client, ENetPacket &packet)
 
 NetServerClient *NetServer::AddClient(ENetPeer *peer)
 {
-    for (int i = 0; i < SERVER_MAX_PLAYERS; i++) {
+    for (int i = 0; i < SERVER_PLAYERS_MAX; i++) {
         if (!clients[i].playerId) {
             assert(!clients[i].peer);
             clients[i].peer = peer;
@@ -285,7 +289,7 @@ NetServerClient *NetServer::FindClient(ENetPeer *peer)
         return client;
     }
 
-    for (int i = 0; i < SERVER_MAX_PLAYERS; i++) {
+    for (int i = 0; i < SERVER_PLAYERS_MAX; i++) {
         if (clients[i].peer == peer) {
             return &clients[i];
         }

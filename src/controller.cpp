@@ -37,20 +37,21 @@ PlayerControllerState PlayerControllerState::Query(bool processMouse, bool proce
         }
         if (processKeyboard) {
             input.walkNorth = IsKeyDown(KEY_W) && !IsKeyDown(KEY_S);
-            input.walkEast = IsKeyDown(KEY_D) && !IsKeyDown(KEY_A);
+            input.walkEast  = IsKeyDown(KEY_D) && !IsKeyDown(KEY_A);
             input.walkSouth = IsKeyDown(KEY_S) && !IsKeyDown(KEY_W);
-            input.walkWest = IsKeyDown(KEY_A) && !IsKeyDown(KEY_D);
-            input.run = IsKeyDown(KEY_LEFT_SHIFT);
+            input.walkWest  = IsKeyDown(KEY_A) && !IsKeyDown(KEY_D);
+            input.run       = IsKeyDown(KEY_LEFT_SHIFT);
             if (IsKeyPressed(KEY_SIX)  ) { input.selectSlot = (uint32_t)PlayerInventorySlot::Slot_6; }
             if (IsKeyPressed(KEY_FIVE) ) { input.selectSlot = (uint32_t)PlayerInventorySlot::Slot_5; }
             if (IsKeyPressed(KEY_FOUR) ) { input.selectSlot = (uint32_t)PlayerInventorySlot::Slot_4; }
             if (IsKeyPressed(KEY_THREE)) { input.selectSlot = (uint32_t)PlayerInventorySlot::Slot_3; }
             if (IsKeyPressed(KEY_TWO)  ) { input.selectSlot = (uint32_t)PlayerInventorySlot::Slot_2; }
             if (IsKeyPressed(KEY_ONE)  ) { input.selectSlot = (uint32_t)PlayerInventorySlot::Slot_1; }
-            input.screenshot = IsKeyPressed(KEY_F11);
+            input.screenshot       = IsKeyPressed(KEY_F11);
             input.dbgFindMouseTile = IsKeyDown(KEY_LEFT_ALT);
-            input.dbgToggleVsync = IsKeyPressed(KEY_V);
-            input.dbgChatMessage = IsKeyPressed(KEY_C);
+            input.dbgToggleVsync   = IsKeyPressed(KEY_V);
+            input.dbgChatMessage   = IsKeyPressed(KEY_C);
+            input.dbgSpawnSam      = IsKeyPressed(KEY_KP_ENTER);
             input.dbgToggleFreecam = IsKeyPressed(KEY_F);
             input.dbgNextRtreeRect = IsKeyDown(KEY_N);
         }
