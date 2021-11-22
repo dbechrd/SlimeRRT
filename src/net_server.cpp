@@ -1,7 +1,6 @@
 #include "net_server.h"
 #include "bit_stream.h"
 #include "helpers.h"
-#include "packet.h"
 #include "error.h"
 #include "raylib/raylib.h"
 #include "dlb_types.h"
@@ -70,7 +69,7 @@ ErrorType NetServer::BroadcastRaw(const void *data, size_t size)
         E_ASSERT(ErrorType::PacketCreateFailed, "Failed to create packet.");
     }
 
-    // Broadcast message to all connected clients
+    // Broadcast netMsg to all connected clients
     for (int i = 0; i < SERVER_MAX_PLAYERS; i++) {
         if (!clients[i].peer || clients[i].peer->state != ENET_PEER_STATE_CONNECTED) { // || !clients[i].playerId) {
             continue;
@@ -92,7 +91,7 @@ ErrorType NetServer::SendMsg(const NetServerClient &client, NetMessage &message)
 {
     message.connectionToken = client.connectionToken;
     ENetBuffer rawPacket = message.Serialize(*serverWorld);
-    //E_INFO("[SEND][%21s][%5u b] %16s ", TextFormatIP(client.peer->address), rawPacket.dataLength, message.TypeString());
+    //E_INFO("[SEND][%21s][%5u b] %16s ", TextFormatIP(client.peer->address), rawPacket.dataLength, netMsg.TypeString());
     E_ASSERT(SendRaw(client, rawPacket.data, rawPacket.dataLength), "Failed to send packet");
     return ErrorType::Success;
 }
@@ -101,7 +100,7 @@ ErrorType NetServer::BroadcastMsg(NetMessage &message)
 {
     ErrorType err_code = ErrorType::Success;
 
-    // Broadcast message to all connected clients
+    // Broadcast netMsg to all connected clients
     for (int i = 0; i < SERVER_MAX_PLAYERS; i++) {
         NetServerClient &client = clients[i];
         ErrorType result = SendMsg(clients[i], message);
@@ -118,148 +117,149 @@ ErrorType NetServer::BroadcastChatMessage(const char *msg, size_t msgLength)
     assert(msg);
     assert(msgLength <= UINT32_MAX);
 
-    NetMessage netMessage{};
-    netMessage.type = NetMessage::Type::ChatMessage;
-    netMessage.data.chatMsg.usernameLength = sizeof(SERVER_USERNAME) - 1;
-    memcpy(netMessage.data.chatMsg.username, CSTR(SERVER_USERNAME));
-    netMessage.data.chatMsg.messageLength = (uint32_t)msgLength;
-    memcpy(netMessage.data.chatMsg.message, msg, msgLength);
-    return BroadcastMsg(netMessage);
+    memset(&netMsg, 0, sizeof(netMsg));
+    netMsg.type = NetMessage::Type::ChatMessage;
+    netMsg.data.chatMsg.usernameLength = sizeof(SERVER_USERNAME) - 1;
+    memcpy(netMsg.data.chatMsg.username, CSTR(SERVER_USERNAME));
+    netMsg.data.chatMsg.messageLength = (uint32_t)msgLength;
+    memcpy(netMsg.data.chatMsg.message, msg, msgLength);
+    return BroadcastMsg(netMsg);
 }
 
 ErrorType NetServer::SendWelcomeBasket(NetServerClient &client)
 {
     // TODO: Send current state to new client
     // - world (seed + entities)
-    // - player list
+    // - slime list
 
     {
-        NetMessage userWelcomeBasket{};
-        userWelcomeBasket.type = NetMessage::Type::Welcome;
-        userWelcomeBasket.data.welcome.motdLength = (uint32_t)(sizeof("Welcome to The Lonely Island") - 1);
-        memcpy(userWelcomeBasket.data.welcome.motd, CSTR("Welcome to The Lonely Island"));
-        userWelcomeBasket.data.welcome.width = serverWorld->map->width;
-        userWelcomeBasket.data.welcome.height = serverWorld->map->height;
-        userWelcomeBasket.data.welcome.playerId = client.playerId;
-        E_ASSERT(SendMsg(client, userWelcomeBasket), "Failed to send welcome basket");
+        memset(&netMsg, 0, sizeof(netMsg));
+        netMsg.type = NetMessage::Type::Welcome;
+        netMsg.data.welcome.motdLength = (uint32_t)(sizeof("Welcome to The Lonely Island") - 1);
+        memcpy(netMsg.data.welcome.motd, CSTR("Welcome to The Lonely Island"));
+        netMsg.data.welcome.width = serverWorld->map->width;
+        netMsg.data.welcome.height = serverWorld->map->height;
+        netMsg.data.welcome.playerId = client.playerId;
+        E_ASSERT(SendMsg(client, netMsg), "Failed to send welcome basket");
     }
 
-    {
-        // TODO: Save from identify packet into NetServerClient, then user client.username
-        Player *player = serverWorld->FindPlayer(client.playerId);
-        assert(player);
-        if (player) {
-            const char *message = TextFormat("%.*s joined the game.", player->nameLength, player->name);
-            size_t messageLength = strlen(message);
-            E_ASSERT(BroadcastChatMessage(message, messageLength), "Failed to broadcast join notification");
-        }
+    // TODO: Save from identify packet into NetServerClient, then use client.username
+    Player *player = serverWorld->FindPlayer(client.playerId);
+    assert(player);
+    if (player) {
+        const char *message = TextFormat("%.*s joined the game.", player->nameLength, player->name);
+        size_t messageLength = strlen(message);
+        E_ASSERT(BroadcastChatMessage(message, messageLength), "Failed to broadcast join notification");
     }
 
-    BroadcastWorldChunk();
-    BroadcastWorldPlayers();
-    BroadcastWorldEntities();
+    SendWorldChunk(client);
+    //SendWorldSnapshot(client);
 
     return ErrorType::Success;
 }
 
-ErrorType NetServer::BroadcastWorldChunk(void)
+ErrorType NetServer::SendWorldChunk(NetServerClient &client)
 {
-    NetMessage worldChunk{};
-    worldChunk.type = NetMessage::Type::WorldChunk;
-    worldChunk.data.worldChunk.offsetX = 0;
-    worldChunk.data.worldChunk.offsetY = 0;
+    memset(&netMsg, 0, sizeof(netMsg));
+    netMsg.type = NetMessage::Type::WorldChunk;
+    netMsg.data.worldChunk.offsetX = 0;
+    netMsg.data.worldChunk.offsetY = 0;
 
     uint32_t tileCount = (uint32_t)MIN(serverWorld->map->width * serverWorld->map->height, WORLD_CHUNK_TILES_MAX);
-    worldChunk.data.worldChunk.tilesLength = tileCount;
-    E_ASSERT(BroadcastMsg(worldChunk), "Failed to send world chunks");
+    netMsg.data.worldChunk.tilesLength = tileCount;
+    E_ASSERT(SendMsg(client, netMsg), "Failed to send world chunks");
     return ErrorType::Success;
 }
 
-ErrorType NetServer::BroadcastWorldPlayers(void)
+ErrorType NetServer::SendWorldSnapshot(NetServerClient &client, WorldSnapshot &worldSnapshot)
 {
-    if (worldHistory.Count()) {
-        WorldSnapshot &worldSnapshot = worldHistory.Last();
-        NetMessage worldPlayers{};
-        worldPlayers.type = NetMessage::Type::WorldPlayers;
-        worldPlayers.data.worldPlayers.tick = worldSnapshot.tick;
-        memcpy(worldPlayers.data.worldPlayers.players, worldSnapshot.players, sizeof(worldPlayers.data.worldPlayers.players));
-        E_ASSERT(BroadcastMsg(worldPlayers), "Failed to send world players");
-    }
+    assert(client.playerId);
+    assert(worldSnapshot.playerId == client.playerId);
+
+    memset(&netMsg, 0, sizeof(netMsg));
+    netMsg.type = NetMessage::Type::WorldSnapshot;
+    // TODO: Get rid of this memcpy?
+    memcpy(&netMsg.data.worldSnapshot, &worldSnapshot, sizeof(netMsg.data.worldSnapshot));
+    E_ASSERT(SendMsg(client, netMsg), "Failed to send world snapshot");
     return ErrorType::Success;
 }
 
-ErrorType NetServer::BroadcastWorldEntities(void)
+NetServerClient *NetServer::FindClient(uint32_t playerId)
 {
-    if (worldHistory.Count()) {
-        WorldSnapshot &worldSnapshot = worldHistory.Last();
-        NetMessage worldEntities{};
-        worldEntities.type = NetMessage::Type::WorldEntities;
-        worldEntities.data.worldEntities.tick = worldSnapshot.tick;
-        memcpy(worldEntities.data.worldEntities.slimes, worldSnapshot.slimes, sizeof(worldEntities.data.worldEntities.slimes));
-        E_ASSERT(BroadcastMsg(worldEntities), "Failed to send world entities");
+    for (int i = 0; i < SERVER_MAX_PLAYERS; i++) {
+        if (clients[i].playerId == playerId) {
+            return &clients[i];
+        }
     }
-    return ErrorType::Success;
+    return 0;
 }
 
 void NetServer::ProcessMsg(NetServerClient &client, ENetPacket &packet)
 {
-    ENetBuffer packetBuffer{ packet.dataLength, packet.data };
-    NetMessage message{};
-    message.Deserialize(packetBuffer, *serverWorld);
+    assert(serverWorld);
 
-    if (message.type != NetMessage::Type::Identify &&
-        message.connectionToken != client.connectionToken)
+    ENetBuffer packetBuffer{ packet.dataLength, packet.data };
+    memset(&netMsg, 0, sizeof(netMsg));
+    netMsg.Deserialize(packetBuffer, *serverWorld);
+
+    if (netMsg.type != NetMessage::Type::Identify &&
+        netMsg.connectionToken != client.connectionToken)
     {
-        // Received a message from a stale connection; discard it
-        printf("Ignoring %s packet from stale connection.\n", message.TypeString());
+        // Received a netMsg from a stale connection; discard it
+        printf("Ignoring %s packet from stale connection.\n", netMsg.TypeString());
         return;
     }
 
-    //E_INFO("[RECV][%21s][%5u b] %16s ", TextFormatIP(client.peer->address), packet.rawBytes.dataLength, message.TypeString());
+    //E_INFO("[RECV][%21s][%5u b] %16s ", TextFormatIP(client.peer->address), packet.rawBytes.dataLength, netMsg.TypeString());
 
-    switch (message.type) {
+    switch (netMsg.type) {
         case NetMessage::Type::Identify: {
-            NetMessage_Identify &identMsg = message.data.identify;
+            NetMessage_Identify &identMsg = netMsg.data.identify;
 
-            Player *player = serverWorld->SpawnPlayer();
+            static uint32_t nextId = 1;
+            Player *player = serverWorld->SpawnPlayer(nextId);
             if (player) {
+                nextId = MAX(1, nextId + 1); // Prevent ID zero from being used on overflow
                 client.playerId = player->id;
-                client.connectionToken = message.connectionToken;
+                client.connectionToken = netMsg.connectionToken;
                 assert(identMsg.usernameLength);
                 player->SetName(identMsg.username, identMsg.usernameLength);
                 SendWelcomeBasket(client);
             } else {
-                // TODO: Send server full message
+                // TODO: Send server full netMsg
             }
 
             break;
         } case NetMessage::Type::ChatMessage: {
-            NetMessage_ChatMessage &chatMsg = message.data.chatMsg;
+            NetMessage_ChatMessage &chatMsg = netMsg.data.chatMsg;
 
             // TODO(security): Validate some session token that's not known to other people to prevent impersonation
             //assert(chatMsg.usernameLength == client.usernameLength);
             //assert(!strncmp(chatMsg.username, client.username, client.usernameLength));
 
-            // Store chat message in chat history
-            chatHistory.PushNetMessage(chatMsg);
+            // Store chat netMsg in chat history
+            serverWorld->chatHistory.PushNetMessage(chatMsg);
 
             // TODO(security): This is currently rebroadcasting user input to all other clients.. ripe for abuse
-            // Broadcast chat message
-            BroadcastMsg(message);
+            // Broadcast chat netMsg
+            BroadcastMsg(netMsg);
             break;
         } case NetMessage::Type::Input: {
-            // TODO: Save all unprocessed input (in a queue, with timestamp), not just latest input
-            NetMessage_Input &input = client.inputHistory.Alloc();
-            input.walkNorth  = message.data.input.walkNorth;
-            input.walkEast   = message.data.input.walkEast;
-            input.walkSouth  = message.data.input.walkSouth;
-            input.walkWest   = message.data.input.walkWest;
-            input.run        = message.data.input.run;
-            input.attack     = message.data.input.attack;
-            input.selectSlot = message.data.input.selectSlot;
+            // TODO: Save all unprocessed input (in a queue, with timestamp)
+            InputSnapshot &netSnapshot = netMsg.data.input;
+            InputSnapshot &inputSnapshot = inputHistory.Alloc();
+            inputSnapshot = netSnapshot;
+            //memcpy(&inputSnapshot, &netSnapshot, sizeof(historySnapshot));
+            //inputSnapshot.walkNorth  = netMsg.data.input.walkNorth;
+            //inputSnapshot.walkEast   = netMsg.data.input.walkEast;
+            //inputSnapshot.walkSouth  = netMsg.data.input.walkSouth;
+            //inputSnapshot.walkWest   = netMsg.data.input.walkWest;
+            //inputSnapshot.run        = netMsg.data.input.run;
+            //inputSnapshot.attack     = netMsg.data.input.attack;
+            //inputSnapshot.selectSlot = netMsg.data.input.selectSlot;
             break;
         } default: {
-            E_INFO("Unexpected message type: %s\n", message.TypeString());
+            E_INFO("Unexpected netMsg type: %s\n", netMsg.TypeString());
             break;
         }
     }
@@ -338,16 +338,6 @@ ErrorType NetServer::Listen()
                 //    event.peer->address.host,
                 //    event.peer->address.port,
                 //    event.channelID);
-
-                //Packet &packet = packetHistory.Alloc();
-                //packet.srcAddress = event.peer->address;
-                //packet.timestamp = enet_time_get();
-                //packet.rawBytes.data = calloc(event.packet->dataLength, sizeof(uint8_t));
-                //memcpy(packet.rawBytes.data, event.packet->data, event.packet->dataLength);
-                //packet.rawBytes.dataLength = event.packet->dataLength;
-
-                // TODO: Could Packet just point to ENetPacket instead of copying and destroying?
-                // When would ENetPacket get destroyed? Would that confuse ENet in some way?
 
                 NetServerClient *client = FindClient(event.peer);
                 assert(client);

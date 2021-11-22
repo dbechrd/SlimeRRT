@@ -98,8 +98,9 @@ int main(int argc, char *argv[])
 
     std::thread serverThread([&args] {
         if (args.server) {
-            GameServer gameServer{ args };
-            gameServer.Run();
+            GameServer *gameServer = new GameServer(args);
+            gameServer->Run();
+            delete gameServer;
         }
     });
 
@@ -109,13 +110,14 @@ int main(int argc, char *argv[])
         //serverCli.Run("localhost", SERVER_PORT);
         //AllocConsole();
     } else {
-#ifndef DEBUG
+#ifndef _DEBUG
         FreeConsole();
 #endif
-        GameClient gameClient{ args };
-        //gameClient.Run("slime.theprogrammingjunkie.com", SERVER_PORT);
-        //gameClient.Run("127.0.0.1", SERVER_PORT);
-        gameClient.Run("localhost", SERVER_PORT);
+        GameClient *gameClient = new GameClient(args);
+        //gameClient->Run("slime.theprogrammingjunkie.com", SERVER_PORT);
+        //gameClient->Run("127.0.0.1", SERVER_PORT);
+        gameClient->Run("localhost", SERVER_PORT);
+        delete gameClient;
     }
 
     //--------------------------------
@@ -172,7 +174,6 @@ int main(int argc, char *argv[])
 #include "net_client.cpp"
 #include "net_server.cpp"
 #include "net_message.cpp"
-#include "packet.cpp"
 #include "particles.cpp"
 #include "particle_fx_blood.cpp"
 #include "particle_fx_gold.cpp"

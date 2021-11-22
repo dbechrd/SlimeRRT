@@ -45,10 +45,10 @@ struct Tilemap {
 
     ~Tilemap();
     void GenerateMinimap (void);
-    Tile *TileAt         (int tileX, int tileY);  // Return tile at grid position x,y, assert on failure
-    Tile *TileAtTry      (int tileX, int tileY);  // Return tile at grid position x,y, if it exists
-    Tile *TileAtWorld    (float x, float y, int *tileX, int *tileY);  // Return tile at pixel position in world space, assert on failure
-    Tile *TileAtWorldTry (float x, float y, int *tileX, int *tileY);  // Return tile at pixel position in world space, if it exists
+    Tile *TileAt         (int tileX, int tileY) const;  // Return tile at grid position x,y, assert on failure
+    Tile *TileAtTry      (int tileX, int tileY) const;  // Return tile at grid position x,y, if it exists
+    Tile *TileAtWorld    (float x, float y, int *tileX, int *tileY) const;  // Return tile at pixel position in world space, assert on failure
+    Tile *TileAtWorldTry (float x, float y, int *tileX, int *tileY) const;  // Return tile at pixel position in world space, if it exists
 };
 
 #define MAX_TILEMAPS 8

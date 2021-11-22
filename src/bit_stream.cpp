@@ -92,8 +92,19 @@ void BitStream::ProcessChar(char &chr)
 void BitStream::ProcessFloat(float &flt)
 {
     uint32_t word = *(uint32_t *)&flt;
-    Process(word, 32, ENTITY_POSITION_X_MIN, ENTITY_POSITION_X_MAX);
+    Process(word, 32, 0, UINT32_MAX);
     flt = *(float *)&word;
+}
+
+void BitStream::ProcessDouble(double &dbl)
+{
+    assert(sizeof(uint32_t) * 2 == sizeof(double));
+    uint32_t word0 = ((uint32_t *)&dbl)[0];
+    uint32_t word1 = ((uint32_t *)&dbl)[1];
+    Process(word0, 32, 0, UINT32_MAX);
+    Process(word1, 32, 0, UINT32_MAX);
+    ((uint32_t *)&dbl)[0] = word0;
+    ((uint32_t *)&dbl)[1] = word1;
 }
 
 // Flush word from scratch to buffer

@@ -4,7 +4,6 @@
 #include "raylib/raylib.h"
 
 struct ChatHistory {
-
     size_t MessageCount() { return buffer.Count(); }
     void PushNetMessage(const NetMessage_ChatMessage &netChat);
     void PushMessage(const char *username, size_t usernameLength, const char *message, size_t messageLength);

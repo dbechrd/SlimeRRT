@@ -15,8 +15,7 @@ const char *NetMessage::TypeString(void)
         case Type::ChatMessage   : return "ChatMessage";
         case Type::Welcome       : return "Welcome";
         case Type::WorldChunk    : return "WorldChunk";
-        case Type::WorldPlayers  : return "WorldPlayers";
-        case Type::WorldEntities : return "WorldEntities";
+        case Type::WorldSnapshot : return "WorldSnapshot";
         default                  : return "[NetMessage::Type]";
     }
 }
@@ -103,19 +102,19 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
 
             break;
         } case NetMessage::Type::Input: {
-            NetMessage_Input &input = data.input;
+            InputSnapshot &input = data.input;
 
+            stream.Process(input.seq, 32, 0, UINT32_MAX);
+            stream.Process(input.ownerId, 32, 0, UINT32_MAX);
+            stream.ProcessDouble(input.frameTime);
+            stream.ProcessDouble(input.frameDt);
             stream.ProcessBool(input.walkNorth);
             stream.ProcessBool(input.walkEast);
             stream.ProcessBool(input.walkSouth);
             stream.ProcessBool(input.walkWest);
             stream.ProcessBool(input.run);
             stream.ProcessBool(input.attack);
-            stream.Align();
-
-            uint32_t slot = (uint32_t)input.selectSlot;
-            stream.Process(slot, 4, (uint32_t)PlayerInventorySlot::None, (uint32_t)PlayerInventorySlot::Slot_6);
-            input.selectSlot = (PlayerInventorySlot)slot;
+            stream.Process(input.selectSlot, 4, (uint32_t)PlayerInventorySlot::None, (uint32_t)PlayerInventorySlot::Slot_6);
             stream.Align();
 
             break;
@@ -140,30 +139,28 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
             }
 
             break;
-        } case NetMessage::Type::WorldPlayers: {
-            NetMessage_WorldPlayers &worldPlayers = data.worldPlayers;
+        } case NetMessage::Type::WorldSnapshot: {
+            WorldSnapshot &worldSnapshot = data.worldSnapshot;
 
-            for (size_t i = 0; i < SERVER_MAX_PLAYERS; i++) {
-                Player &player = world.players[i];
+            stream.Process(worldSnapshot.tick, 32, 1, UINT32_MAX);
+            stream.Process(worldSnapshot.inputSeq, 32, 0, UINT32_MAX);
 
-                uint32_t oldPlayerId = player.id;
+            for (size_t i = 0; i < WORLD_SNAPSHOT_PLAYERS_MAX; i++) {
+                PlayerSnapshot &player = worldSnapshot.players[i];
+
                 stream.Process(player.id, 32, 0, UINT32_MAX);
 
-                if (player.id != oldPlayerId) {
-                    // Id mismatch should only ever be possible on client side when something spawns/dies
+                Player *existingPlayer = world.FindPlayer(player.id);
+                if (player.id && !existingPlayer) {
                     assert(mode == BitStream::Mode::Reader);
-                    if (player.id) {
-                        player.Init();
-                    } else {
-                        world.DespawnPlayer(oldPlayerId);
-                    }
+                    world.SpawnPlayer(player.id);
+                } else if (!player.id && existingPlayer) {
+                    assert(mode == BitStream::Mode::Reader);
+                    world.DespawnPlayer(player.id);
+                    continue; // Don't serialize other fields for inactive players
                 }
 
                 if (player.id) {
-                    // TODO: Don't send redundant information every single frame, need multiple messages:
-                    // PLAYER_LIST
-                    // PLAYER_CONNECT
-                    // PLAYER_STATE
                     stream.Process((uint32_t)player.nameLength, 6, USERNAME_LENGTH_MIN, USERNAME_LENGTH_MAX);
                     stream.Align();
                     for (size_t i = 0; i < player.nameLength; i++) {
@@ -171,43 +168,65 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                     }
 
                     // TODO: range validation on floats
-                    stream.ProcessFloat(player.body.position.x);
-                    stream.ProcessFloat(player.body.position.y);
-                    stream.ProcessFloat(player.combat.hitPoints);
-                    stream.ProcessFloat(player.combat.maxHitPoints);
+                    stream.ProcessFloat(player.acc_x);
+                    stream.ProcessFloat(player.acc_y);
+                    stream.ProcessFloat(player.acc_z);
+                    stream.ProcessFloat(player.vel_x);
+                    stream.ProcessFloat(player.vel_y);
+                    stream.ProcessFloat(player.vel_z);
+                    stream.ProcessFloat(player.prev_pos_x);
+                    stream.ProcessFloat(player.prev_pos_y);
+                    stream.ProcessFloat(player.prev_pos_z);
+                    stream.ProcessFloat(player.pos_x);
+                    stream.ProcessFloat(player.pos_y);
+                    stream.ProcessFloat(player.pos_z);
+                    stream.ProcessFloat(player.hitPoints);
+                    stream.ProcessFloat(player.hitPointsMax);
                 }
             }
 
-            break;
-        } case NetMessage::Type::WorldEntities: {
-            NetMessage_WorldEntities &worldEntities = data.worldEntities;
+            // TODO: ID compression?
+            // Find min(slime.id ? slime.id : UINT32_MAX) - 1 -> "baseID"
+            // Find bits_needed((max(slime.id) - min(slime.id)) + 1) -> # of bits per ID
+            // Write baseID
+            // Write bitsPerID
+            // For each slime:
+            //   Write (slime.id ? slime.id - baseID, 0, bitsPerID)
 
-            stream.Process(world.slimeCount, 32, 0, WORLD_ENTITIES_MAX);
-            stream.Align();
+            for (size_t i = 0; i < WORLD_SNAPSHOT_ENTITIES_MAX; i++) {
+                SlimeSnapshot &slime = worldSnapshot.slimes[i];
 
-            for (size_t i = 0; i < world.slimeCount; i++) {
-                Slime &slime = world.slimes[i];
-
-                uint32_t oldSlimeId = slime.id;
+                uint32_t prevId = slime.id;
                 stream.Process(slime.id, 32, 0, UINT32_MAX);
 
-                if (slime.id != oldSlimeId) {
-                    // Id mismatch should only ever be possible on client side when something spawns/dies
+                Slime *existingSlime = world.FindSlime(slime.id);
+                if (slime.id && !existingSlime) {
                     assert(mode == BitStream::Mode::Reader);
-                    if (slime.id) {
-                        slime.Init();
-                    } else {
-                        world.DespawnSlime(oldSlimeId);
-                    }
+                    world.SpawnSlime(slime.id);
+                } else if (!slime.id && existingSlime) {
+                    assert(mode == BitStream::Mode::Reader);
+                    world.DespawnSlime(slime.id);
+                    continue; // Don't serialize other fields for inactive slimes
                 }
 
-                // TODO: range validation on floats
-                stream.ProcessFloat(slime.body.position.x);
-                stream.ProcessFloat(slime.body.position.y);
-                stream.ProcessFloat(slime.body.position.z);
-                stream.ProcessFloat(slime.combat.hitPoints);
-                stream.ProcessFloat(slime.combat.maxHitPoints);
-                stream.ProcessFloat(slime.sprite.scale);
+                if (slime.id) {
+                    // TODO: range validation on floats
+                    stream.ProcessFloat(slime.acc_x);
+                    stream.ProcessFloat(slime.acc_y);
+                    stream.ProcessFloat(slime.acc_z);
+                    stream.ProcessFloat(slime.vel_x);
+                    stream.ProcessFloat(slime.vel_y);
+                    stream.ProcessFloat(slime.vel_z);
+                    stream.ProcessFloat(slime.prev_pos_x);
+                    stream.ProcessFloat(slime.prev_pos_y);
+                    stream.ProcessFloat(slime.prev_pos_z);
+                    stream.ProcessFloat(slime.pos_x);
+                    stream.ProcessFloat(slime.pos_y);
+                    stream.ProcessFloat(slime.pos_z);
+                    stream.ProcessFloat(slime.hitPoints);
+                    stream.ProcessFloat(slime.hitPointsMax);
+                    stream.ProcessFloat(slime.scale);
+                }
             }
 
             break;

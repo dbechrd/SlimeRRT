@@ -29,7 +29,7 @@ void DrawTextFont(Font font, const char *text, float posX, float posY, int fontS
     }
 }
 
-const char *TextFormatIP(ENetAddress address)
+const char *TextFormatIP(ENetAddress &address)
 {
     //char asStr[64]{};
     //enet_address_get_host_ip_new(&address, asStr, sizeof(asStr) - 1);

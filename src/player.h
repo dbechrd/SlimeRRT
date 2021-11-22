@@ -2,8 +2,11 @@
 #include "body.h"
 #include "combat.h"
 #include "draw_command.h"
-#include "sprite.h"
 #include "player_inventory.h"
+#include "ring_buffer.h"
+#include "sprite.h"
+
+struct Tilemap;
 
 struct Player {
     enum class MoveState {
@@ -32,7 +35,7 @@ struct Player {
 
     uint32_t        id          {};
     uint32_t        nameLength  {};
-    char            name[USERNAME_LENGTH_MAX]{};
+    char            name        [USERNAME_LENGTH_MAX]{};
     ActionState     actionState {};
     MoveState       moveState   {};
     Body3D          body        {};
@@ -47,13 +50,14 @@ struct Player {
     Vector3 GetAttachPoint(AttachPoint attachPoint) const;
     const Item& GetSelectedItem() const;
 
-    bool Move(double now, double dt, Vector2 offset);
-    bool Attack(double now, double dt);
-    void Update(double now, double dt);
-    void Push(DrawList &drawList) const;
+    void ProcessInput (InputSnapshot &input, const Tilemap &map);
+    void Update       (double now, double dt);
+    void Push         (DrawList &drawList) const;
 
 private:
-    void UpdateDirection(Vector2 offset);
+    void UpdateDirection (Vector2 offset);
+    bool Move            (double now, double dt, Vector2 offset);
+    bool Attack          (double now, double dt);
 };
 
 float Player_Depth(const Drawable &drawable);

@@ -13,7 +13,6 @@
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\net_client.cpp" />
     <ClCompile Include="src\net_server.cpp" />
-    <ClCompile Include="src\packet.cpp" />
     <ClCompile Include="src\particle_fx_blood.cpp" />
     <ClCompile Include="src\particle_fx_gold.cpp" />
     <ClCompile Include="src\particle_fx_goo.cpp" />
@@ -58,7 +57,6 @@
     <ClInclude Include="src\maths.h" />
     <ClInclude Include="src\net_client.h" />
     <ClInclude Include="src\net_server.h" />
-    <ClInclude Include="src\packet.h" />
     <ClInclude Include="src\particle_fx.h" />
     <ClInclude Include="src\particles.h" />
     <ClInclude Include="src\player.h" />
@@ -83,5 +81,6 @@
     <ClInclude Include="src\ring_buffer.h" />
     <ClInclude Include="src\loot_table.h" />
     <ClInclude Include="src\server_cli.h" />
+    <ClInclude Include="src\world_snapshot.h" />
   </ItemGroup>
 </Project>

@@ -4,6 +4,8 @@
 #include "player.h"
 #include "slime.h"
 #include "tilemap.h"
+#include "world_snapshot.h"
+#include "enet_zpl.h"
 
 struct World;
 
@@ -31,27 +33,9 @@ struct NetMessage_Welcome {
     uint32_t playerId   {};
 };
 
-struct NetMessage_Input {
-    uint32_t            tick       {};
-    bool                walkNorth  {};
-    bool                walkEast   {};
-    bool                walkSouth  {};
-    bool                walkWest   {};
-    bool                run        {};
-    bool                attack     {};
-    PlayerInventorySlot selectSlot {};
-
-    void FromController(PlayerControllerState &controllerState)
-    {
-        walkNorth  = walkNorth || controllerState.walkNorth;
-        walkEast   = walkEast  || controllerState.walkEast;
-        walkSouth  = walkSouth || controllerState.walkSouth;
-        walkWest   = walkWest  || controllerState.walkWest;
-        run        = run       || controllerState.run;
-        attack     = attack    || controllerState.attack;
-        selectSlot = controllerState.selectSlot;
-    }
-};
+//struct NetMessage_Input {
+//    InputSnapshot snapshot {};
+//};
 
 struct NetMessage_WorldChunk {
     uint32_t offsetX     {};
@@ -60,15 +44,30 @@ struct NetMessage_WorldChunk {
     // world.tiles
 };
 
-struct NetMessage_WorldPlayers {
-    uint32_t tick    {};
-    Player   players [WORLD_SNAPSHOT_PLAYERS_MAX]{};
-};
+//struct NetMessage_WorldSnapshot_Player {
+//    uint32_t id       {};
+//    uint32_t nameLen  {};
+//    char     name     [USERNAME_LENGTH_MAX]{};
+//    float    pos_x    {};
+//    float    pos_y    {};
+//    float    pos_z    {};
+//    float    hp       {};
+//    float    hpMax    {};
+//};
+//
+//struct NetMessage_WorldSnapshot_Slime {
+//    uint32_t id       {};
+//    float    pos_x    {};
+//    float    pos_y    {};
+//    float    pos_z    {};
+//    float    hp       {};
+//    float    hpMax    {};
+//    float    scale    {};
+//};
 
-struct NetMessage_WorldEntities {
-    uint32_t tick    {};
-    Player   slimes  [WORLD_SNAPSHOT_ENTITIES_MAX]{};
-};
+//struct NetMessage_WorldSnapshot {
+//    WorldSnapshot snapshot {};
+//};
 
 struct NetMessage {
     enum class Type : uint32_t {
@@ -78,8 +77,7 @@ struct NetMessage {
         Welcome,
         Input,
         WorldChunk,
-        WorldPlayers,
-        WorldEntities,
+        WorldSnapshot,
         Count
     };
 
@@ -90,10 +88,9 @@ struct NetMessage {
         NetMessage_Identify      identify;
         NetMessage_ChatMessage   chatMsg;
         NetMessage_Welcome       welcome;
-        NetMessage_Input         input;
         NetMessage_WorldChunk    worldChunk;
-        NetMessage_WorldPlayers  worldPlayers;
-        NetMessage_WorldEntities worldEntities;
+        WorldSnapshot            worldSnapshot;
+        InputSnapshot            input;
     } data {};
 
     const char *TypeString(void);

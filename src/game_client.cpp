@@ -120,15 +120,6 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
     Texture checkboardTexture = LoadTextureFromImage(checkerboardImage);
     UnloadImage(checkerboardImage);
 
-    // TODO: Move sprite loading to somewhere more sane
-    const Spritesheet &charlieSpritesheet = SpritesheetCatalog::spritesheets[(int)SpritesheetID::Charlie];
-    const SpriteDef *charlieSpriteDef = charlieSpritesheet.FindSprite("player_sword");
-    assert(charlieSpriteDef);
-
-    const Spritesheet &slimeSpritesheet = SpritesheetCatalog::spritesheets[(int)SpritesheetID::Slime];
-    const SpriteDef *slimeSpriteDef = slimeSpritesheet.FindSprite("slime");
-    assert(slimeSpriteDef);
-
     World *lobby = new World;
     lobby->map = lobby->mapSystem.GenerateLobby();
 
@@ -159,37 +150,33 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
 #endif
 
     {
-        Player *player = lobby->SpawnPlayer();
+        Player *player = lobby->SpawnPlayer(0);
         assert(player);
         lobby->playerId = player->id;
+        player->combat.hitPoints = player->combat.hitPointsMax / 2;
     }
 
     {
-        const float slimeRadius = 50.0f;
-        const size_t mapPixelsX = (size_t)lobby->map->width * TILE_W;
-        const size_t mapPixelsY = (size_t)lobby->map->height * TILE_W;
-        const float maxX = mapPixelsX - slimeRadius;
-        const float maxY = mapPixelsY - slimeRadius;
-
-        Slime &sam = lobby->slimes[lobby->slimeCount++];
+        Slime *slime = lobby->SpawnSlime(0);
+        assert(slime);
+        Slime &sam = *slime;
         sam.SetName(CSTR("Sam"));
-        sam.combat.maxHitPoints = 100.0f; //100000.0f;
-        sam.combat.hitPoints = sam.combat.maxHitPoints;
-        sam.combat.meleeDamage = 0.0f;
+        sam.combat.hitPointsMax = 100.0f; //100000.0f;
+        sam.combat.hitPoints = sam.combat.hitPointsMax;
+        sam.combat.meleeDamage = -1.0f;
         sam.combat.lootTableId = LootTableID::LT_Sam;
-        sam.body.position.x = dlb_rand32f_range(slimeRadius, maxX);
-        sam.body.position.y = dlb_rand32f_range(slimeRadius, maxY);
         sam.body.position = v3_add(lobby->GetWorldSpawn(), { 0, -300.0f, 0 });
         sam.sprite.scale = 2.0f;
-        sam.sprite.spriteDef = slimeSpriteDef;
     }
 
 
     const double dt = 1.0f / SERVER_TPS;
     // NOTE: Limit delta time to 2 frames worth of updates to prevent chaos for large dt (e.g. when debugging)
     const double dtMax = dt * 2;
+    double tickAccum = 0.0f;
     double frameStart = glfwGetTime();
     double frameAccum = 0.0f;
+    double frameDt = 0.0f;
 
     const int targetFPS = 60;
     //SetTargetFPS(targetFPS);
@@ -206,6 +193,7 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
     while (!WindowShouldClose()) {
         double now = glfwGetTime();
         frameAccum += MIN(now - frameStart, dtMax);
+        frameDt = now - frameStart;
         frameStart = now;
 
         if (IsWindowResized()) {
@@ -323,62 +311,48 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
             world = lobby;
         }
 
-        NetMessage_Input frameInput{};
-        frameInput.FromController(input);
-
-        NetMessage_Input *tickInput = nullptr;
-        if (!netClient.inputHistory.Count()) {
-            tickInput = &netClient.inputHistory.Alloc();
-        } else {
-            tickInput = &netClient.inputHistory.Last();
-            if (tickInput->tick < world->tick) {
-                tickInput = &netClient.inputHistory.Alloc();
-                tickInput->tick = world->tick;
-            }
-        }
-        tickInput->FromController(input);
-
-        if (frameAccum > dt) {
-            while (frameAccum > dt) {
-                if (connectedToServer) {
-                    // TOOD: Do we need to send input more often?
-                    netClient.SendPlayerInput(*tickInput);
-                }
-                frameAccum -= dt;
-                if (!connectedToServer) {
-                    for (size_t i = 0; i < SERVER_MAX_PLAYERS; i++) {
-                        Player &p = world->players[i];
-                        if (p.id) {
-                            static const NetMessage_Input noInput{};
-                            world->SimPlayer(now, dt, p, p.id == world->playerId ? *tickInput : noInput);
-                        }
-                        //if (p.id == world->playerId) {
-                        //    world->SimPlayer(now, dt, p, frameInput);
-                        //}
-                    }
-                    world->SimSlimes(now, dt);
-                    world->tick++;
-                }
-            }
-        }
-
-        //double localDt = (local->tick - remote->tick) * dt + frameAccum;
-        for (size_t i = 0; i < SERVER_MAX_PLAYERS; i++) {
-            Player &p = world->players[i];
-            if (p.id) {
-                static const NetMessage_Input noInput{};
-                world->SimPlayer(now, frameAccum, p, p.id == world->playerId ? frameInput : noInput);
-            }
-            //if (p.id == world->playerId) {
-            //    world->SimPlayer(now, dt, p, frameInput);
-            //}
-        }
-        world->SimSlimes(now, frameAccum);
-        world->particleSystem.Update(now, frameAccum);
-
         Player *playerPtr = world->FindPlayer(world->playerId);
         assert(playerPtr);
         Player &player = *playerPtr;
+
+        InputSnapshot &inputSnapshot = netClient.inputHistory.Alloc();
+        inputSnapshot.FromController(player.id, now, frameDt, input);
+
+        if (connectedToServer) {
+            if (netClient.worldHistory.Count()) {
+                WorldSnapshot &worldSnapshot = netClient.worldHistory.Last();
+                if (world->tick < worldSnapshot.tick) {
+                    world->tick = worldSnapshot.tick;
+
+                    // TODO: Create separate inputAccum / inputDt loop to send input more often than we receive snapshots
+                    netClient.SendPlayerInput();
+
+                    // TODO: Update world state from worldSnapshot and re-apply input with input.tick > snapshot.tick
+                    netClient.ReconcilePlayer();
+                }
+            }
+
+            //player.ProcessInput(inputSnapshot, *world->map);
+            //player.Update(now, frameDt);
+
+            // TODO: Interpolate all of the other entities in the world
+            //double dtAccum
+            //world->Interpolate(0, 0);
+        } else {
+            if (frameAccum > dt) {
+                while (frameAccum > dt) {
+                    world->Simulate(now, dt);
+                    world->tick++;
+                    frameAccum -= dt;
+                }
+            }
+
+            assert(world->map);
+            player.ProcessInput(inputSnapshot, *world->map);
+            player.Update(now, frameDt);
+        }
+
+        world->particleSystem.Update(now, frameAccum);
 
         //if (!chatActive) {
             findMouseTile = input.dbgFindMouseTile;
@@ -818,14 +792,14 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
             const float margin = 6.0f;   // left/bottom margin
             const float pad = 4.0f;      // left/bottom pad
             const float inputBoxHeight = font.baseSize + pad * 2.0f;
-            const int linesOfText = (int)netClient.chatHistory.MessageCount();
+            const int linesOfText = (int)world->chatHistory.MessageCount();
             const float chatWidth = 800.0f;
             const float chatHeight = linesOfText * (font.baseSize + pad) + pad;
             const float chatX = margin;
             const float chatY = screenHeight - margin - inputBoxHeight - chatHeight;
 
             // Render chat history
-            netClient.chatHistory.Render(font, { chatX, chatY, chatWidth, chatHeight });
+            world->chatHistory.Render(font, { chatX, chatY, chatWidth, chatHeight });
 
             // Render chat input box
             static GuiTextBoxAdvancedState chatInputState;
@@ -843,6 +817,7 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
                         switch (sendResult) {
                         case ErrorType::NotConnected:
                         {
+                            world->chatHistory.PushMessage(CSTR("Sam"), CSTR("You're not connected to a server. Nobody is listening. :("));
                             ImGui::OpenPopup("Log in");
                             break;
                         }

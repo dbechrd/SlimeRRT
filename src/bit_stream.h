@@ -22,10 +22,11 @@ struct BitStream {
     size_t BytesProcessed() const;
 
     // Read bits from scratch into word / Write bits form word to scratch
-    void Process      (uint32_t &word, uint8_t bits, uint32_t min, uint32_t max);
-    void ProcessBool  (bool &flag);
-    void ProcessChar  (char &chr);
-    void ProcessFloat (float &flt);
+    void Process       (uint32_t &word, uint8_t bits, uint32_t min, uint32_t max);
+    void ProcessBool   (bool &flag);
+    void ProcessChar   (char &chr);
+    void ProcessFloat  (float &flt);
+    void ProcessDouble (double &dbl);
 
     // Flush word from scratch to buffer
     void Flush();

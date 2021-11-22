@@ -35,17 +35,32 @@ const Vector3 World::GetWorldSpawn(void)
     return worldSpawn;
 };
 
-Player *World::SpawnPlayer(void)
+Player *World::SpawnPlayer(uint32_t playerId)
 {
+#if _DEBUG
+    if (playerId) {
+        for (int i = 0; i < SERVER_MAX_PLAYERS; i++) {
+            Player &player = players[i];
+            if (player.id == playerId) {
+                assert(!"This playerId is already in use!");
+            }
+        }
+    }
+#endif
+
     for (int i = 0; i < SERVER_MAX_PLAYERS; i++) {
         Player &player = players[i];
         if (player.id == 0) {
             assert(!player.nameLength);
-            assert(!player.combat.maxHitPoints);
+            assert(!player.combat.hitPointsMax);
 
-            static uint32_t nextId = 1;
-            player.id = nextId;
-            nextId = MAX(1, nextId + 1); // Prevent ID zero from being used on overflow
+            if (playerId) {
+                player.id = playerId;
+            } else {
+                static uint32_t nextId = 0;
+                nextId = MAX(1, nextId + 1); // Prevent ID zero from being used on overflow
+                player.id = nextId;
+            }
 
             player.Init();
             player.body.position = GetWorldSpawn();
@@ -80,17 +95,32 @@ void World::DespawnPlayer(uint32_t playerId)
     }
 }
 
-Slime *World::SpawnSlime(void)
+Slime *World::SpawnSlime(uint32_t slimeId)
 {
+#if _DEBUG
+    if (slimeId) {
+        for (int i = 0; i < WORLD_ENTITIES_MAX; i++) {
+            Slime &slime = slimes[i];
+            if (slime.id == slimeId) {
+                assert(!"This slimeId is already in use!");
+            }
+        }
+    }
+#endif
+
     for (int i = 0; i < WORLD_ENTITIES_MAX; i++) {
         Slime &slime = slimes[i];
         if (slime.id == 0) {
             assert(!slime.nameLength);
-            assert(!slime.combat.maxHitPoints);
+            assert(!slime.combat.hitPointsMax);
 
-            static uint32_t nextId = 1;
-            slime.id = nextId;
-            nextId = MAX(1, nextId + 1); // Prevent ID zero from being used on overflow
+            if (slimeId) {
+                slime.id = slimeId;
+            } else {
+                static uint32_t nextId = 0;
+                nextId = MAX(1, nextId + 1); // Prevent ID zero from being used on overflow
+                slime.id = nextId;
+            }
 
             slime.Init();
 
@@ -144,117 +174,36 @@ void BloodParticlesFollowPlayer(ParticleFX &effect, void *userData)
     effect.origin = player->GetAttachPoint(Player::AttachPoint::Gut);
 }
 
-void World::SimPlayer(double now, double dt, Player &player, const NetMessage_Input &input)
+void World::Simulate(double now, double dt)
 {
-    assert(player.combat.maxHitPoints);
-    //if (!player.combat.maxHitPoints) {
-    //    return;
-    //}
+    SimPlayers(now, dt);
+    SimSlimes(now, dt);
+}
 
-    if ((int)input.selectSlot) {
-        player.inventory.selectedSlot = input.selectSlot;
-    }
-
-    float playerSpeed = 4.0f;
-    Vector2 moveBuffer = {};
-
-    if (input.walkNorth || input.walkEast || input.walkSouth || input.walkWest) {
-        if (input.walkNorth) {
-            moveBuffer.y -= 1.0f;
-        }
-        if (input.walkEast) {
-            moveBuffer.x += 1.0f;
-        }
-        if (input.walkSouth) {
-            moveBuffer.y += 1.0f;
-        }
-        if (input.walkWest) {
-            moveBuffer.x -= 1.0f;
-        }
-        if (input.run) {
-            player.moveState = Player::MoveState::Running;
-            playerSpeed += 2.0f;
-        } else {
-            player.moveState = Player::MoveState::Walking;
-        }
-    } else {
-        player.moveState = Player::MoveState::Idle;
-    }
-
-    Vector2 moveOffset = v2_scale(v2_normalize(moveBuffer), METERS_TO_PIXELS(playerSpeed) * (float)dt);
-    if (!v2_is_zero(moveOffset)) {
-        const Vector2 curPos = player.body.GroundPosition();
-        const Tile *curTile = map->TileAtWorldTry(curPos.x, curPos.y, 0, 0);
-        const bool curWalkable = curTile && curTile->IsWalkable();
-
-        Vector2 newPos = v2_add(curPos, moveOffset);
-        Tile *newTile = map->TileAtWorldTry(newPos.x, newPos.y, 0, 0);
-
-        // NOTE: This extra logic allows the player to slide when attempting to move diagonally against a wall
-        // NOTE: If current tile isn't walkable, allow player to walk off it. This may not be the best solution
-        // if the player can accidentally end up on unwalkable tiles through gameplay, but currently the only
-        // way to end up on an unwalkable tile is to spawn there.
-        // TODO: We should fix spawning to ensure player spawns on walkable tile (can probably just manually
-        // generate something interesting in the center of the world that overwrites procgen, like Don't
-        // Starve's fancy arrival portal.
-        if (curWalkable) {
-            if (!newTile || !newTile->IsWalkable()) {
-                // XY unwalkable, try only X offset
-                newPos = curPos;
-                newPos.x += moveOffset.x;
-                newTile = map->TileAtWorldTry(newPos.x, newPos.y, 0, 0);
-                if (!newTile || !newTile->IsWalkable()) {
-                    // X unwalkable, try only Y offset
-                    newPos = curPos;
-                    newPos.y += moveOffset.y;
-                    newTile = map->TileAtWorldTry(newPos.x, newPos.y, 0, 0);
-                    if (!newTile || !newTile->IsWalkable()) {
-                        // XY, and both slide directions are all unwalkable
-                        moveOffset.x = 0.0f;
-                        moveOffset.y = 0.0f;
-
-                        // TODO: Play wall bonk sound (or splash for water? heh)
-                        // TODO: Maybe bounce the player against the wall? This code doesn't do that nicely..
-                        //player_move(&charlie, v2_scale(v2_negate(moveOffset), 10.0f));
-                    } else {
-                        // Y offset is walkable
-                        moveOffset.x = 0.0f;
-                    }
-                } else {
-                    // X offset is walkable
-                    moveOffset.y = 0.0f;
-                }
-            }
+void World::SimPlayers(double now, double dt)
+{
+    for (size_t i = 0; i < SERVER_MAX_PLAYERS; i++) {
+        Player &player = players[i];
+        if (!player.id) {
+            continue;
         }
 
-        if (player.Move(now, dt, moveOffset)) {
-            static double lastFootstep = 0;
-            double timeSinceLastFootstep = now - lastFootstep;
-            if (timeSinceLastFootstep > 1.0f / playerSpeed) {
-                sound_catalog_play(SoundID::Footstep, 1.0f + dlb_rand32f_variance(0.5f));
-                lastFootstep = now;
-            }
-        }
+        player.Update(now, dt);
 
-        if (player.body.position.x < 0.0f) {
-            assert(!"wtf?");
-        }
-    }
-
-    if (input.attack) {
-        const float playerAttackReach = METERS_TO_PIXELS(1.0f);
-
-        if (player.Attack(now, dt)) {
+        if (player.actionState == Player::ActionState::Attacking) {
+            const float playerAttackReach = METERS_TO_PIXELS(1.0f);
             float playerDamage;
 
             const Item &selectedItem = player.GetSelectedItem();
             switch (selectedItem.type) {
-                case ItemType::Weapon: {
+                case ItemType::Weapon:
+                {
                     const Item_Weapon &weapon = static_cast<const Item_Weapon &>(selectedItem);
                     playerDamage = weapon.damage;
                     break;
                 }
-                default: {
+                default:
+                {
                     playerDamage = player.combat.meleeDamage;
                     break;
                 }
@@ -262,13 +211,18 @@ void World::SimPlayer(double now, double dt, Player &player, const NetMessage_In
 
             size_t slimesHit = 0;
             for (Slime &slime : slimes) {
-                if (!slime.combat.hitPoints)
+                if (!slime.id) {
                     continue;
+                }
 
                 Vector3 playerToSlime = v3_sub(slime.body.position, player.body.position);
                 if (v3_length_sq(playerToSlime) <= playerAttackReach * playerAttackReach) {
-                    player.stats.damageDealt += MIN(slime.combat.hitPoints, playerDamage);
-                    slime.combat.hitPoints = MAX(0.0f, slime.combat.hitPoints - playerDamage);
+                    player.stats.damageDealt += CLAMP(playerDamage, 0.0f, slime.combat.hitPoints);
+                    slime.combat.hitPoints = CLAMP(
+                        slime.combat.hitPoints - playerDamage,
+                        0.0f,
+                        slime.combat.hitPointsMax
+                    );
                     if (!slime.combat.hitPoints) {
                         //sound_catalog_play(SoundID::Squeak, 0.75f + dlb_rand32f_variance(0.2f));
 
@@ -284,6 +238,7 @@ void World::SimPlayer(double now, double dt, Player &player, const NetMessage_In
                         particleSystem.GenerateFX(ParticleFX_Gold, (size_t)coins, deadCenter, 2.0, now);
                         sound_catalog_play(SoundID::Gold, 1.0f + dlb_rand32f_variance(0.1f));
 
+                        DespawnSlime(slime.id);
                         player.stats.slimesSlain++;
                     } else {
                         SoundID squish = dlb_rand32i_range(0, 1) ? SoundID::Squish1 : SoundID::Squish2;
@@ -299,10 +254,6 @@ void World::SimPlayer(double now, double dt, Player &player, const NetMessage_In
             sound_catalog_play(SoundID::Whoosh, 1.0f + dlb_rand32f_variance(0.1f));
         }
     }
-
-    player.Update(now, dt);
-
-    //SimSlimes(now, dt);
 }
 
 void World::SimSlimes(double now, double dt)
@@ -323,12 +274,13 @@ void World::SimSlimes(double now, double dt)
         }
     }
 
-    for (size_t slimeIdx = 0; slimeIdx < slimeCount; slimeIdx++) {
+    for (size_t slimeIdx = 0; slimeIdx < WORLD_ENTITIES_MAX; slimeIdx++) {
         Slime &slime = slimes[slimeIdx];
-        if (!slime.combat.hitPoints)
+        if (!slime.id) {
             continue;
+        }
 
-        // TODO: Actually find closest player via RTree
+        // TODO: Actually find closest alive player via RTree
         Player *closestPlayer = randomAlivePlayer;
         if (!closestPlayer || !closestPlayer->id) {
             slime.Update(now, dt);
@@ -348,10 +300,11 @@ void World::SimSlimes(double now, double dt)
             const Vector2 slimePosNew = v2_add(slimePos, slimeMove);
 
             int willCollide = 0;
-            for (size_t collideIdx = slimeIdx + 1; collideIdx < slimeCount; collideIdx++) {
+            for (size_t collideIdx = slimeIdx + 1; collideIdx < WORLD_ENTITIES_MAX; collideIdx++) {
                 Slime &otherSlime = slimes[collideIdx];
-                if (!otherSlime.combat.hitPoints)
+                if (!otherSlime.id) {
                     continue;
+                }
 
                 Vector2 otherSlimePos = otherSlime.body.GroundPosition();
                 const float zDist = fabsf(slime.body.position.z - otherSlime.body.position.z);
@@ -359,8 +312,8 @@ void World::SimSlimes(double now, double dt)
                 if (v2_length_sq(v2_sub(slimePos, otherSlimePos)) < SQUARED(radiusScaled) && zDist < radiusScaled) {
                     if (slime.Combine(otherSlime)) {
                         const Slime &dead = slime.combat.hitPoints == 0.0f ? slime : otherSlime;
-                        const Vector3 slimeBC = sprite_world_center(dead.sprite, dead.body.position, dead.sprite.scale
-                        );
+                        const Vector3 slimeBC = sprite_world_center(dead.sprite, dead.body.position, dead.sprite.scale);
+                        DespawnSlime(dead.id);
                         particleSystem.GenerateFX(ParticleFX_Goo, 20, slimeBC, 2.0, now);
                     }
                 }
@@ -379,9 +332,10 @@ void World::SimSlimes(double now, double dt)
         slimeToPlayer = v2_sub(closestPlayer->body.GroundPosition(), slime.body.GroundPosition());
         if (v2_length_sq(slimeToPlayer) <= SQUARED(slimeAttackReach)) {
             if (slime.Attack(now, dt)) {
-                closestPlayer->combat.hitPoints = MAX(
+                closestPlayer->combat.hitPoints = CLAMP(
+                    closestPlayer->combat.hitPoints - (slime.combat.meleeDamage * slime.sprite.scale),
                     0.0f,
-                    closestPlayer->combat.hitPoints - (slime.combat.meleeDamage * slime.sprite.scale)
+                    closestPlayer->combat.hitPointsMax
                 );
 
                 static double lastBleed = 0;
@@ -403,4 +357,67 @@ void World::SimSlimes(double now, double dt)
 
         slime.Update(now, dt);
     }
+}
+
+void World::GenerateSnapshot(WorldSnapshot &worldSnapshot)
+{
+    assert(worldSnapshot.playerId);
+    assert(worldSnapshot.tick);
+
+    assert(ARRAY_SIZE(worldSnapshot.players) <= ARRAY_SIZE(players));
+    assert(ARRAY_SIZE(worldSnapshot.slimes)  <= ARRAY_SIZE(slimes));
+    assert(ARRAY_SIZE(worldSnapshot.players) == WORLD_SNAPSHOT_PLAYERS_MAX);
+    assert(ARRAY_SIZE(worldSnapshot.slimes)  == WORLD_SNAPSHOT_ENTITIES_MAX);
+
+    // TODO: Find players/slimes/etc. that are actually near the player this snapshot is being generated for
+    for (size_t i = 0; i < WORLD_SNAPSHOT_PLAYERS_MAX; i++) {
+        worldSnapshot.players[i].id           = players[i].id                 ;
+        worldSnapshot.players[i].nameLength   = players[i].nameLength         ;
+        memcpy(worldSnapshot.players[i].name, players[i].name, USERNAME_LENGTH_MAX);
+        worldSnapshot.players[i].acc_x        = players[i].body.acceleration.x;
+        worldSnapshot.players[i].acc_y        = players[i].body.acceleration.y;
+        worldSnapshot.players[i].acc_z        = players[i].body.acceleration.z;
+        worldSnapshot.players[i].vel_x        = players[i].body.velocity.x    ;
+        worldSnapshot.players[i].vel_y        = players[i].body.velocity.y    ;
+        worldSnapshot.players[i].vel_z        = players[i].body.velocity.z    ;
+        worldSnapshot.players[i].prev_pos_x   = players[i].body.prevPosition.x;
+        worldSnapshot.players[i].prev_pos_y   = players[i].body.prevPosition.y;
+        worldSnapshot.players[i].prev_pos_z   = players[i].body.prevPosition.z;
+        worldSnapshot.players[i].pos_x        = players[i].body.position.x    ;
+        worldSnapshot.players[i].pos_y        = players[i].body.position.y    ;
+        worldSnapshot.players[i].pos_z        = players[i].body.position.z    ;
+        worldSnapshot.players[i].hitPoints    = players[i].combat.hitPoints   ;
+        worldSnapshot.players[i].hitPointsMax = players[i].combat.hitPointsMax;
+    }
+    for (size_t i = 0; i < WORLD_SNAPSHOT_ENTITIES_MAX; i++) {
+        worldSnapshot.slimes[i].id           = slimes[i].id                 ;
+        worldSnapshot.slimes[i].acc_x        = slimes[i].body.acceleration.x;
+        worldSnapshot.slimes[i].acc_y        = slimes[i].body.acceleration.y;
+        worldSnapshot.slimes[i].acc_z        = slimes[i].body.acceleration.z;
+        worldSnapshot.slimes[i].vel_x        = slimes[i].body.velocity.x    ;
+        worldSnapshot.slimes[i].vel_y        = slimes[i].body.velocity.y    ;
+        worldSnapshot.slimes[i].vel_z        = slimes[i].body.velocity.z    ;
+        worldSnapshot.slimes[i].prev_pos_x   = slimes[i].body.prevPosition.x;
+        worldSnapshot.slimes[i].prev_pos_y   = slimes[i].body.prevPosition.y;
+        worldSnapshot.slimes[i].prev_pos_z   = slimes[i].body.prevPosition.z;
+        worldSnapshot.slimes[i].pos_x        = slimes[i].body.position.x    ;
+        worldSnapshot.slimes[i].pos_y        = slimes[i].body.position.y    ;
+        worldSnapshot.slimes[i].pos_z        = slimes[i].body.position.z    ;
+        worldSnapshot.slimes[i].hitPoints    = slimes[i].combat.hitPoints   ;
+        worldSnapshot.slimes[i].hitPointsMax = slimes[i].combat.hitPointsMax;
+        worldSnapshot.slimes[i].scale        = slimes[i].sprite.scale       ;
+    }
+}
+
+void World::Interpolate(double dtAccum, double interpLag)
+{
+    //const size_t historyLen = worldHistory.Count();
+    //if (historyLen < 2) {
+    //    return;
+    //}
+    //
+    //WorldSnapshot &a = worldHistory.At(historyLen - 2);
+    //WorldSnapshot &b = worldHistory.At(historyLen - 1);
+    //
+    //return;
 }

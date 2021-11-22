@@ -56,14 +56,14 @@ void Tilemap::GenerateMinimap(void)
     free(minimapImg.data);
 }
 
-Tile *Tilemap::TileAt(int tileX, int tileY)
+Tile *Tilemap::TileAt(int tileX, int tileY) const
 {
     size_t idx = (size_t)tileY * width + tileX;
     assert(idx < (size_t)width * height);
     return &tiles[idx];
 }
 
-Tile *Tilemap::TileAtTry(int tileX, int tileY)
+Tile *Tilemap::TileAtTry(int tileX, int tileY) const
 {
     Tile *tile = NULL;
     if (tileX >= 0 && tileY >= 0 && tileX < (int)width && tileY < (int)width) {
@@ -74,7 +74,7 @@ Tile *Tilemap::TileAtTry(int tileX, int tileY)
     return tile;
 }
 
-Tile *Tilemap::TileAtWorld(float x, float y, int *tileX, int *tileY)
+Tile *Tilemap::TileAtWorld(float x, float y, int *tileX, int *tileY) const
 {
     assert(x >= 0);
     assert(y >= 0);
@@ -91,7 +91,7 @@ Tile *Tilemap::TileAtWorld(float x, float y, int *tileX, int *tileY)
     return tile;
 }
 
-Tile *Tilemap::TileAtWorldTry(float x, float y, int *tileX, int *tileY)
+Tile *Tilemap::TileAtWorldTry(float x, float y, int *tileX, int *tileY) const
 {
     if (x < 0 || y < 0 ||
         x >= (float)TILE_W * width ||

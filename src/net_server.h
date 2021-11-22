@@ -1,7 +1,6 @@
 #pragma once
 #include "chat.h"
 #include "error.h"
-#include "packet.h"
 #include "dlb_murmur3.h"
 #include <cstdint>
 #include <unordered_map>
@@ -30,32 +29,31 @@
 //};
 
 struct NetServerClient {
-    ENetPeer *peer              {};
-    uint32_t  connectionToken   {};  // unique identifier in addition to ip/port to detect reconnect from same UDP port
-    uint32_t  playerId          {};
-    RingBuffer<NetMessage_Input, SERVER_INPUT_HISTORY> inputHistory {};
+    ENetPeer *peer            {};
+    uint32_t  connectionToken {};  // unique identifier in addition to ip/port to detect reconnect from same UDP port
+    uint32_t  playerId        {};
+    uint32_t  inputSeq        {};  // sequence # of last processed input for this client
+    RingBuffer<WorldSnapshot, SERVER_WORLD_HISTORY> worldHistory {};
 };
 
 struct NetServer {
     ENetHost *server {};
     //std::unordered_map<ENetAddress, NetServerClient, NetAddressHash, NetAddressEqual> clients{};
     NetServerClient clients[SERVER_MAX_PLAYERS]{};
-
-    ChatHistory chatHistory {};
-    RingBuffer<WorldSnapshot, CLIENT_WORLD_HISTORY> worldHistory {};
-
+    RingBuffer<InputSnapshot, SERVER_INPUT_HISTORY> inputHistory {};
     World *serverWorld {};
 
     ~NetServer();
     ErrorType OpenSocket(unsigned short socketPort);
-    ErrorType BroadcastWorldChunk(void);
-    ErrorType BroadcastWorldPlayers(void);
-    ErrorType BroadcastWorldEntities(void);
+    ErrorType SendWorldChunk(NetServerClient &client);
+    ErrorType SendWorldSnapshot(NetServerClient &client, WorldSnapshot &worldSnapshot);
+    NetServerClient *FindClient(uint32_t playerId);
     ErrorType Listen();
     void CloseSocket();
 
 private:
     static const char *LOG_SRC;
+    NetMessage netMsg {};
 
     ErrorType SendRaw(const NetServerClient &client, const void *data, size_t size);
     ErrorType SendMsg(const NetServerClient &client, NetMessage &message);

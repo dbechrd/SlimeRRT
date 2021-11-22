@@ -24,7 +24,8 @@ struct RingBuffer : protected std::array<T, BufferSize> {
 
     void Clear()
     {
-        std::array<T, BufferSize>::clear();
+        // NOTE: Destructors will not be called when clearing a RingBuffer!
+        //std::array<T, BufferSize>::fill({});
         first = 0;
         count = 0;
     }

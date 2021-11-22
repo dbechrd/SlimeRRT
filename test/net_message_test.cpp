@@ -1,12 +1,11 @@
 #include "tests.h"
 #include "../src/net_message.h"
-#include "../src/packet.h"
 #include <cassert>
 #include <cstring>
 
 void net_message_test()
 {
-    NetMessage msgWritten{};
+    NetMessage &msgWritten = *(new NetMessage{});
     msgWritten.type = NetMessage::Type::ChatMessage;
     memcpy(msgWritten.data.chatMsg.username, CSTR("test username"));
     msgWritten.data.chatMsg.usernameLength = (uint32_t)strlen(msgWritten.data.chatMsg.username);
@@ -27,4 +26,5 @@ void net_message_test()
     assert(!strncmp(msgRead.username, msgWritten.data.chatMsg.username, msgRead.usernameLength));
     assert(msgRead.messageLength == msgWritten.data.chatMsg.messageLength);
     assert(!strncmp(msgRead.message, msgWritten.data.chatMsg.message, msgRead.messageLength));
+    delete &msgWritten;
 }

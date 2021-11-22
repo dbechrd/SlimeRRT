@@ -21,11 +21,10 @@ ErrorType GameServer::Run()
     netServer.serverWorld = world;
 
     {
-        world->slimeCount = WORLD_ENTITIES_MAX;
-        for (size_t i = 0; i < world->slimeCount; i++) {
+        for (size_t i = 0; i < WORLD_ENTITIES_MAX; i++) {
             Slime &slime = world->slimes[i];
             uint32_t slimeId = 0;
-            world->SpawnSlime();
+            world->SpawnSlime(0);
         }
     }
 
@@ -45,19 +44,39 @@ ErrorType GameServer::Run()
 
         if (frameAccum > dt) {
             while (frameAccum > dt) {
-                // TODO: Which order should they be processed in..?
-                for (int i = 0; i < SERVER_MAX_PLAYERS; i++) {
-                    NetServerClient &client = netServer.clients[i];
-                    Player *player = world->FindPlayer(client.playerId);
+                // Process queued player inputs
+                for (size_t i = 0; i < netServer.inputHistory.Count(); i++) {
+                    InputSnapshot &inputSnapshot = netServer.inputHistory.At(i);
+                    Player *player = world->FindPlayer(inputSnapshot.ownerId);
                     if (player) {
-                        world->SimPlayer(now, dt, *player, client.inputHistory.Last());
+                        assert(world->map);
+                        player->ProcessInput(inputSnapshot, *world->map);
+                        NetServerClient *client = netServer.FindClient(player->id);
+                        assert(client);
+                        if (client) {
+                            client->inputSeq = inputSnapshot.seq;
+                        }
                     }
                 }
-                world->SimSlimes(now, dt);
+
+                world->Simulate(now, dt);
+
+                for (size_t i = 0; i < SERVER_MAX_PLAYERS; i++) {
+                    NetServerClient &client = netServer.clients[i];
+                    if (client.playerId) {
+                        WorldSnapshot &worldSnapshot = client.worldHistory.Alloc();
+                        assert(!worldSnapshot.tick);  // ringbuffer alloc fucked up and didn't zero slot
+                        worldSnapshot.playerId = client.playerId;
+                        worldSnapshot.inputSeq = client.inputSeq;
+                        worldSnapshot.tick = world->tick;
+                        world->GenerateSnapshot(worldSnapshot);
+                        E_ASSERT(netServer.SendWorldSnapshot(client, worldSnapshot), "Failed to broadcast world snapshot");
+                    }
+                }
+
+                world->tick++;
                 frameAccum -= dt;
             }
-            E_ASSERT(netServer.BroadcastWorldPlayers(), "Failed to broadcast world players");
-            E_ASSERT(netServer.BroadcastWorldEntities(), "Failed to broadcast world entities");
         }
     }
 

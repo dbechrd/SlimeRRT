@@ -88,7 +88,7 @@ ErrorType NetClient::SendMsg(NetMessage &message)
 {
     message.connectionToken = connectionToken;
     ENetBuffer rawPacket = message.Serialize(*serverWorld);
-    //E_INFO("[SEND][%21s][%5u b] %16s ", rawPacket.dataLength, message.TypeString());
+    //E_INFO("[SEND][%21s][%5u b] %16s ", rawPacket.dataLength, netMsg.TypeString());
     E_ASSERT(SendRaw(rawPacket.data, rawPacket.dataLength), "Failed to send packet");
     return ErrorType::Success;
 }
@@ -98,14 +98,14 @@ ErrorType NetClient::Auth()
     assert(username);
     assert(password);
 
-    NetMessage userIdent{};
-    userIdent.type = NetMessage::Type::Identify;
-    userIdent.data.identify.usernameLength = (uint32_t)usernameLength;
-    memcpy(userIdent.data.identify.username, username, usernameLength);
-    userIdent.data.identify.passwordLength = (uint32_t)passwordLength;
-    memcpy(userIdent.data.identify.password, password, passwordLength);
+    memset(&netMsg, 0, sizeof(netMsg));
+    netMsg.type = NetMessage::Type::Identify;
+    netMsg.data.identify.usernameLength = (uint32_t)usernameLength;
+    memcpy(netMsg.data.identify.username, username, usernameLength);
+    netMsg.data.identify.passwordLength = (uint32_t)passwordLength;
+    memcpy(netMsg.data.identify.password, password, passwordLength);
+    ErrorType result = SendMsg(netMsg);
 
-    ErrorType result = SendMsg(userIdent);
     // Clear password from memory
     memset(password, 0, sizeof(password));
     passwordLength = 0;
@@ -115,8 +115,7 @@ ErrorType NetClient::Auth()
 ErrorType NetClient::SendChatMessage(const char *message, size_t messageLength)
 {
     if (!server || server->state != ENET_PEER_STATE_CONNECTED) {
-        E_WARN("Not connected to server. Chat message not sent.");
-        chatHistory.PushMessage(CSTR("Sam"), CSTR("You're not connected to a server. Nobody is listening. :("));
+        E_WARN("Not connected to server. Chat netMsg not sent.");
         return ErrorType::NotConnected;
     }
 
@@ -132,56 +131,135 @@ ErrorType NetClient::SendChatMessage(const char *message, size_t messageLength)
     // If we don't have a username yet (salt, client id, etc.) then we're not connected and can't send chat messages!
     // This would be weird since if we're not connected how do we see the chat box?
 
-    NetMessage netMessage{};
-    netMessage.type = NetMessage::Type::ChatMessage;
-    netMessage.data.chatMsg.usernameLength = (uint32_t)usernameLength;
-    memcpy(netMessage.data.chatMsg.username, username, usernameLength);
-    netMessage.data.chatMsg.messageLength = (uint32_t)messageLengthSafe;
-    memcpy(netMessage.data.chatMsg.message, message, messageLengthSafe);
-
-    ErrorType result = SendMsg(netMessage);
+    memset(&netMsg, 0, sizeof(netMsg));
+    netMsg.type = NetMessage::Type::ChatMessage;
+    netMsg.data.chatMsg.usernameLength = (uint32_t)usernameLength;
+    memcpy(netMsg.data.chatMsg.username, username, usernameLength);
+    netMsg.data.chatMsg.messageLength = (uint32_t)messageLengthSafe;
+    memcpy(netMsg.data.chatMsg.message, message, messageLengthSafe);
+    ErrorType result = SendMsg(netMsg);
     return result;
 }
 
-ErrorType NetClient::SendPlayerInput(const NetMessage_Input &input)
+ErrorType NetClient::SendPlayerInput()
 {
+    ErrorType result = ErrorType::Success;
+
     if (!server || server->state != ENET_PEER_STATE_CONNECTED) {
         E_WARN("Not connected to server. Input not sent.");
         return ErrorType::NotConnected;
     }
-
     assert(server);
     assert(server->address.port);
 
-    NetMessage netMessage{};
-    netMessage.type = NetMessage::Type::Input;
-    netMessage.data.input = input;
+    if (!worldHistory.Count()) {
+        return ErrorType::Success;
+    }
 
-    ErrorType result = SendMsg(netMessage);
+    WorldSnapshot &worldSnapshot = worldHistory.Last();
+
+    for (size_t i = 0; i < inputHistory.Count(); i++) {
+        InputSnapshot &inputSnapshot = inputHistory.At(i);
+        if (inputSnapshot.seq > worldSnapshot.inputSeq) {
+            // TODO: Wrap multiple inputs into a single packet
+            memset(&netMsg, 0, sizeof(netMsg));
+            netMsg.type = NetMessage::Type::Input;
+            netMsg.data.input = inputHistory.At(i);
+            ErrorType sendResult = SendMsg(netMsg);
+            if (sendResult != ErrorType::Success) {
+                result = sendResult;
+            }
+        }
+    }
+
     return result;
+}
+
+void NetClient::PredictPlayer()
+{
+    // TODO: What is "now" used for? Where do I get it from that makes sense?
+    //double now = glfwGetTime();
+    //player->Update(now, input.dt);
+}
+
+void NetClient::ReconcilePlayer()
+{
+    if (!serverWorld || !worldHistory.Count()) {
+        // Not connected to server, or no snapshots received yet
+        return;
+    }
+    Player *player = serverWorld->FindPlayer(serverWorld->playerId);
+    assert(player);
+    if (!player) {
+        // playerId is invalid??
+        return;
+    }
+
+    WorldSnapshot &latestSnapshot = worldHistory.Last();
+    PlayerSnapshot *playerSnapshot = 0;
+    for (size_t i = 0; i < WORLD_SNAPSHOT_PLAYERS_MAX; i++) {
+        if (latestSnapshot.players[i].id == serverWorld->playerId) {
+            playerSnapshot = &latestSnapshot.players[i];
+            break;
+        }
+    }
+    assert(playerSnapshot);
+    if (!playerSnapshot) {
+        // Server sent us a snapshot that doesn't contain our own player??
+        return;
+    }
+
+    // TODO: Do this more smoothly
+    // Roll back local player to server snapshot location
+    //player->nameLength = playerSnapshot->nameLength;
+    //memcpy(player->name, playerSnapshot->name, USERNAME_LENGTH_MAX);
+    player->body.acceleration.x = playerSnapshot->acc_x;
+    player->body.acceleration.y = playerSnapshot->acc_y;
+    player->body.acceleration.z = playerSnapshot->acc_z;
+    player->body.velocity.x     = playerSnapshot->vel_x;
+    player->body.velocity.y     = playerSnapshot->vel_y;
+    player->body.velocity.z     = playerSnapshot->vel_z;
+    player->body.prevPosition.x = playerSnapshot->prev_pos_x;
+    player->body.prevPosition.y = playerSnapshot->prev_pos_y;
+    player->body.prevPosition.z = playerSnapshot->prev_pos_z;
+    player->body.position.x     = playerSnapshot->pos_x;
+    player->body.position.y     = playerSnapshot->pos_y;
+    player->body.position.z     = playerSnapshot->pos_z;
+    player->combat.hitPoints    = playerSnapshot->hitPoints;
+    player->combat.hitPointsMax = playerSnapshot->hitPointsMax;
+
+    // Predict player for each input not yet handled by the server
+    for (size_t i = 0; i < inputHistory.Count(); i++) {
+        InputSnapshot &input = inputHistory.At(i);
+        // NOTE: Old input's ownerId might not match if the player recently
+        // reconnect to a server and received a new playerId
+        if (input.ownerId == player->id && input.seq > latestSnapshot.inputSeq) {
+            player->Update(input.frameTime, input.frameDt);
+        }
+    }
 }
 
 void NetClient::ProcessMsg(ENetPacket &packet)
 {
     ENetBuffer packetBuffer{ packet.dataLength, packet.data };
-    NetMessage message{};
-    message.Deserialize(packetBuffer, *serverWorld);
+    memset(&netMsg, 0, sizeof(netMsg));
+    netMsg.Deserialize(packetBuffer, *serverWorld);
 
-    if (connectionToken && message.connectionToken != connectionToken) {
-        // Received a message from a stale connection; discard it
-        printf("Ignoring %s packet from stale connection.\n", message.TypeString());
+    if (connectionToken && netMsg.connectionToken != connectionToken) {
+        // Received a netMsg from a stale connection; discard it
+        printf("Ignoring %s packet from stale connection.\n", netMsg.TypeString());
         return;
     }
 
-    switch (message.type) {
+    switch (netMsg.type) {
         case NetMessage::Type::ChatMessage: {
-            NetMessage_ChatMessage &chatMsg = message.data.chatMsg;
-            chatHistory.PushNetMessage(chatMsg);
+            NetMessage_ChatMessage &chatMsg = netMsg.data.chatMsg;
+            serverWorld->chatHistory.PushNetMessage(chatMsg);
             break;
         } case NetMessage::Type::Welcome: {
             // TODO: Auth challenge. Store salt sent from server instead.. handshake stuffs
-            NetMessage_Welcome &welcomeMsg = message.data.welcome;
-            chatHistory.PushMessage(CSTR("Message of the day"), welcomeMsg.motd, welcomeMsg.motdLength);
+            NetMessage_Welcome &welcomeMsg = netMsg.data.welcome;
+            serverWorld->chatHistory.PushMessage(CSTR("Message of the day"), welcomeMsg.motd, welcomeMsg.motdLength);
 
             // TODO: Move this logic to net_message.cpp like all the other logic?
             serverWorld->map = serverWorld->mapSystem.Generate(serverWorld->rtt_rand, welcomeMsg.width, welcomeMsg.height);
@@ -189,19 +267,18 @@ void NetClient::ProcessMsg(ENetPacket &packet)
             // TODO: Get tileset ID from server
             serverWorld->map->tilesetId = TilesetID::TS_Overworld;
             serverWorld->playerId = welcomeMsg.playerId;
-
             break;
         } case NetMessage::Type::WorldChunk: {
-            //NetMessage_WorldChunk &worldChunk = message.data.worldChunk;
+            //NetMessage_WorldChunk &worldChunk = netMsg.data.worldChunk;
             break;
-        } case NetMessage::Type::WorldPlayers: {
-            //NetMessage_WorldPlayers &worldPlayers = message.data.worldPlayers;
-            break;
-        } case NetMessage::Type::WorldEntities: {
-            //NetMessage_WorldEntities &worldEntities = message.data.worldEntities;
+        } case NetMessage::Type::WorldSnapshot: {
+            WorldSnapshot &netSnapshot = netMsg.data.worldSnapshot;
+            WorldSnapshot &worldSnapshot = worldHistory.Alloc();
+            worldSnapshot = netSnapshot;
+            //memcpy(&worldSnapshot, &netSnapshot, sizeof(historySnapshot));
             break;
         } default: {
-            E_WARN("Unexpected message type: %s", message.TypeString());
+            E_WARN("Unexpected netMsg type: %s", netMsg.TypeString());
             break;
         }
     }
@@ -268,9 +345,8 @@ ErrorType NetClient::Receive()
 
                     assert(!serverWorld);
                     serverWorld = new World;
-                    chatHistory.PushMessage(CSTR("Debug"), CSTR("Connected to server. :)"));
+                    serverWorld->chatHistory.PushMessage(CSTR("Debug"), CSTR("Connected to server. :)"));
                     Auth();
-
                     break;
                 } case ENET_EVENT_TYPE_RECEIVE: {
                     //E_INFO("A packet of length %u was received from %x:%u on channel %u.",
@@ -279,20 +355,9 @@ ErrorType NetClient::Receive()
                     //    event.peer->address.port,
                     //    event.channelID);
 
-                    //Packet &packet = packetHistory.Alloc();
-                    //packet.srcAddress = event.peer->address;
-                    //packet.timestamp = enet_time_get();
-                    //packet.rawBytes.data = calloc(event.packet->dataLength, sizeof(uint8_t));
-                    //memcpy(packet.rawBytes.data, event.packet->data, event.packet->dataLength);
-                    //packet.rawBytes.dataLength = event.packet->dataLength;
-
-                    // TODO: Could Packet just point to ENetPacket instead of copying and destroying?
-                    // When would ENetPacket get destroyed? Would that confuse ENet in some way?
-
                     ProcessMsg(*event.packet);
                     enet_packet_destroy(event.packet);
                     //TraceLog(LOG_INFO, "[NetClient] RECV\n  %s said %s", senderStr, packet.rawBytes);
-
                     break;
                 } case ENET_EVENT_TYPE_DISCONNECT: {
                     E_INFO("Disconnected from server %x:%u.",
@@ -305,8 +370,9 @@ ErrorType NetClient::Receive()
                         delete serverWorld;
                         serverWorld = nullptr;
                     }
-
-                    chatHistory.PushMessage(CSTR("Sam"), CSTR("Disconnected from server."));
+                    inputHistory.Clear();
+                    worldHistory.Clear();
+                    //serverWorld->chatHistory.PushMessage(CSTR("Sam"), CSTR("Disconnected from server."));
                     break;
                 } case ENET_EVENT_TYPE_DISCONNECT_TIMEOUT: {
                     E_WARN("Connection timed out for server %x:%hu.",
@@ -319,8 +385,9 @@ ErrorType NetClient::Receive()
                         delete serverWorld;
                         serverWorld = nullptr;
                     }
-
-                    chatHistory.PushMessage(CSTR("Sam"), CSTR("Your connection to the server timed out. :("));
+                    inputHistory.Clear();
+                    worldHistory.Clear();
+                    //serverWorld->chatHistory.PushMessage(CSTR("Sam"), CSTR("Your connection to the server timed out. :("));
                     break;
                 } default: {
                     assert(!"unhandled event type");
@@ -344,6 +411,8 @@ void NetClient::Disconnect()
         delete serverWorld;
         serverWorld = nullptr;
     }
+    inputHistory.Clear();
+    worldHistory.Clear();
     connectionToken = 0;
 }
 

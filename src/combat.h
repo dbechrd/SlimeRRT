@@ -2,7 +2,7 @@
 #include "loot_table.h"
 
 struct Combat {
-    float maxHitPoints      {};
+    float hitPointsMax      {};
     float hitPoints         {};
     float meleeDamage       {};  // TODO: add min/max and randomly choose?
     double attackStartedAt  {};

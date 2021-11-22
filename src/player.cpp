@@ -1,4 +1,5 @@
 #include "player.h"
+#include "controller.h"
 #include "draw_command.h"
 #include "healthbar.h"
 #include "item_catalog.h"
@@ -14,7 +15,7 @@ void Player::Init()
     printf("Init player\n");
 
     combat.hitPoints = 100.0f;
-    combat.maxHitPoints = 100.0f;
+    combat.hitPointsMax = 100.0f;
     combat.meleeDamage = 1.0f;
 
     sprite.scale = 1.0f;
@@ -148,8 +149,113 @@ bool Player::Attack(double now, double dt)
     return false;
 }
 
+void Player::ProcessInput(InputSnapshot &input, const Tilemap &map)
+{
+    assert(id);
+    assert(input.ownerId == id);
+
+    if (input.selectSlot) {
+        inventory.selectedSlot = (PlayerInventorySlot)input.selectSlot;
+    }
+
+    float playerSpeed = 4.0f;
+    Vector2 moveBuffer = {};
+
+    if (input.walkNorth || input.walkEast || input.walkSouth || input.walkWest) {
+        if (input.walkNorth) {
+            moveBuffer.y -= 1.0f;
+        }
+        if (input.walkEast) {
+            moveBuffer.x += 1.0f;
+        }
+        if (input.walkSouth) {
+            moveBuffer.y += 1.0f;
+        }
+        if (input.walkWest) {
+            moveBuffer.x -= 1.0f;
+        }
+        if (input.run) {
+            moveState = Player::MoveState::Running;
+            playerSpeed += 2.0f;
+        } else {
+            moveState = Player::MoveState::Walking;
+        }
+    } else {
+        moveState = Player::MoveState::Idle;
+    }
+
+    Vector2 moveOffset = v2_scale(v2_normalize(moveBuffer), METERS_TO_PIXELS(playerSpeed) * (float)input.frameDt);
+    if (!v2_is_zero(moveOffset)) {
+        const Vector2 curPos = body.GroundPosition();
+        const Tile *curTile = map.TileAtWorldTry(curPos.x, curPos.y, 0, 0);
+        const bool curWalkable = curTile && curTile->IsWalkable();
+
+        Vector2 newPos = v2_add(curPos, moveOffset);
+        Tile *newTile = map.TileAtWorldTry(newPos.x, newPos.y, 0, 0);
+
+        // NOTE: This extra logic allows the player to slide when attempting to move diagonally against a wall
+        // NOTE: If current tile isn't walkable, allow player to walk off it. This may not be the best solution
+        // if the player can accidentally end up on unwalkable tiles through gameplay, but currently the only
+        // way to end up on an unwalkable tile is to spawn there.
+        // TODO: We should fix spawning to ensure player spawns on walkable tile (can probably just manually
+        // generate something interesting in the center of the world that overwrites procgen, like Don't
+        // Starve's fancy arrival portal.
+        if (curWalkable) {
+            if (!newTile || !newTile->IsWalkable()) {
+                // XY unwalkable, try only X offset
+                newPos = curPos;
+                newPos.x += moveOffset.x;
+                newTile = map.TileAtWorldTry(newPos.x, newPos.y, 0, 0);
+                if (!newTile || !newTile->IsWalkable()) {
+                    // X unwalkable, try only Y offset
+                    newPos = curPos;
+                    newPos.y += moveOffset.y;
+                    newTile = map.TileAtWorldTry(newPos.x, newPos.y, 0, 0);
+                    if (!newTile || !newTile->IsWalkable()) {
+                        // XY, and both slide directions are all unwalkable
+                        moveOffset.x = 0.0f;
+                        moveOffset.y = 0.0f;
+
+                        // TODO: Play wall bonk sound (or splash for water? heh)
+                        // TODO: Maybe bounce the player against the wall? This code doesn't do that nicely..
+                        //player_move(&charlie, v2_scale(v2_negate(moveOffset), 10.0f));
+                    } else {
+                        // Y offset is walkable
+                        moveOffset.x = 0.0f;
+                    }
+                } else {
+                    // X offset is walkable
+                    moveOffset.y = 0.0f;
+                }
+            }
+        }
+
+        if (Move(input.frameTime, input.frameDt, moveOffset)) {
+            static double lastFootstep = 0;
+            double timeSinceLastFootstep = input.frameTime - lastFootstep;
+            if (timeSinceLastFootstep > 1.0f / playerSpeed) {
+                sound_catalog_play(SoundID::Footstep, 1.0f + dlb_rand32f_variance(0.5f));
+                lastFootstep = input.frameTime;
+            }
+        }
+
+        if (body.position.x < 0.0f) {
+            assert(!"wtf?");
+        }
+    }
+
+    if (input.attack) {
+        Attack(input.frameTime, input.frameDt);
+    }
+
+    // Skip sounds/particles etc. next time this input is used (e.g. during reconciliation)
+    input.skipFx = true;
+}
+
 void Player::Update(double now, double dt)
 {
+    assert(id);
+
     const double timeSinceAttackStarted = now - combat.attackStartedAt;
     if (timeSinceAttackStarted > combat.attackDuration) {
         actionState = ActionState::None;
@@ -169,7 +275,7 @@ void Player::Update(double now, double dt)
                     switch (body.idle) {
                         // TODO: sprite_by_name("player_sword");
                         case false: sprite.spriteDef = &sheet->sprites[2]; break;
-                            // TODO: sprite_by_name("player_sword_idle");
+                        // TODO: sprite_by_name("player_sword_idle");
                         case true:  sprite.spriteDef = &sheet->sprites[3]; break;
                     }
                     break;
@@ -184,7 +290,7 @@ void Player::Update(double now, double dt)
             switch (body.idle) {
                 // TODO: sprite_by_name("player_melee");
                 case false: sprite.spriteDef = &sheet->sprites[0]; break;
-                    // TODO: sprite_by_name("player_melee_idle");
+                // TODO: sprite_by_name("player_melee_idle");
                 case true:  sprite.spriteDef = &sheet->sprites[1]; break;
             }
         }
@@ -228,5 +334,5 @@ void Player_Draw(const Drawable &drawable)
     Shadow::Draw((int)playerGroundPos.x, (int)playerGroundPos.y, 16.0f, -6.0f);
 
     sprite_draw_body(player.sprite, player.body, WHITE);
-    HealthBar::Draw(10, player.sprite, player.body, player.name, player.combat.hitPoints, player.combat.maxHitPoints);
+    HealthBar::Draw(10, player.sprite, player.body, player.name, player.combat.hitPoints, player.combat.hitPointsMax);
 }

@@ -26,8 +26,8 @@ void Slime::Init(void)
         sprite.spriteDef = spriteDef;
     }
 
-    combat.maxHitPoints = 10.0f;
-    combat.hitPoints = combat.maxHitPoints;
+    combat.hitPointsMax = 10.0f;
+    combat.hitPoints = combat.hitPointsMax;
     combat.meleeDamage = 3.0f;
     combat.lootTableId = LootTableID::LT_Slime;
     randJumpIdle = 0.0;
@@ -118,7 +118,7 @@ bool Slime::Combine(Slime &other)
     // Combine slime B's attributes into slime A
     a->sprite.scale        = newScale;
     a->combat.hitPoints    = a->combat.hitPoints    + 0.5f * b->combat.hitPoints;
-    a->combat.maxHitPoints = a->combat.maxHitPoints + 0.5f * b->combat.maxHitPoints;
+    a->combat.hitPointsMax = a->combat.hitPointsMax + 0.5f * b->combat.hitPointsMax;
     //Vector3 halfAToB = v3_scale(v3_sub(b->body.position, a->body.position), 0.5f);
     //a->body.position = v3_add(a->body.position, halfAToB);
 
@@ -213,5 +213,5 @@ void Slime_Draw(const Drawable &drawable)
     Shadow::Draw((int)slimeBC.x, (int)slimeBC.y, 16.0f * slime.sprite.scale, -8.0f * slime.sprite.scale);
 
     sprite_draw_body(slime.sprite, slime.body, Fade(WHITE, 0.7f));
-    HealthBar::Draw(10, slime.sprite, slime.body, slime.name, slime.combat.hitPoints, slime.combat.maxHitPoints);
+    HealthBar::Draw(10, slime.sprite, slime.body, slime.name, slime.combat.hitPoints, slime.combat.hitPointsMax);
 }
