@@ -17,6 +17,8 @@ void sound_catalog_init()
     soundCatalog[(int)SoundID::Squish2    ] = LoadSound("resources/squish2.ogg");
     soundCatalog[(int)SoundID::Whoosh     ] = LoadSound("resources/whoosh1.ogg");
 
+    SetSoundVolume(soundCatalog[(int)SoundID::Whoosh], 0.3f);
+
     for (int i = 0; i < (int)SoundID::Count; i++) {
         if (!soundCatalog[i].sampleCount) {
             soundCatalog[i] = load_missing_ogg();

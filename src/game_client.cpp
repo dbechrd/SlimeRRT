@@ -585,11 +585,9 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
             for (size_t i = 0; i < ARRAY_SIZE(world->players); i++) {
                 if (world->players[i].id) {
                     world->players[i].Push(drawList);
+
                 }
             }
-
-            //s------------H----s------------H----s------------H----s------------H----s------------H----
-            //HHHHHHHHHHHHHHHHHHHH
 
             // Queue slimes for drawing
             for (const Slime &slime : world->slimes) {
@@ -691,17 +689,39 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
             lineOffset += fontHeight;
         }
 
-        // Render minimap
-        const int minimapMargin = 6;
-        const int minimapBorderWidth = 1;
-        const int minimapX = screenWidth - minimapMargin - world->map->minimap.width - minimapBorderWidth * 2;
-        const int minimapY = minimapMargin;
-        const int minimapW = world->map->minimap.width + minimapBorderWidth * 2;
-        const int minimapH = world->map->minimap.height + minimapBorderWidth * 2;
-        const int minimapTexX = minimapX + minimapBorderWidth;
-        const int minimapTexY = minimapY + minimapBorderWidth;
-        DrawRectangleLines(minimapX, minimapY, minimapW, minimapH, BLACK);
-        DrawTexture(world->map->minimap, minimapTexX, minimapTexY, WHITE);
+        {
+            // Render minimap
+            const int minimapMargin = 6;
+            const int minimapBorderWidth = 1;
+            const int minimapX = screenWidth - minimapMargin - world->map->minimap.width - minimapBorderWidth * 2;
+            const int minimapY = minimapMargin;
+            const int minimapW = world->map->minimap.width + minimapBorderWidth * 2;
+            const int minimapH = world->map->minimap.height + minimapBorderWidth * 2;
+            const int minimapTexX = minimapX + minimapBorderWidth;
+            const int minimapTexY = minimapY + minimapBorderWidth;
+            DrawRectangleLines(minimapX, minimapY, minimapW, minimapH, BLACK);
+            DrawTexture(world->map->minimap, minimapTexX, minimapTexY, WHITE);
+
+            // Draw players on map
+            for (size_t i = 0; i < ARRAY_SIZE(world->players); i++) {
+                Player &p = world->players[i];
+                if (p.id) {
+                    float x = (p.body.position.x / (world->map->width  * TILE_W)) * minimapW + minimapX;
+                    float y = (p.body.position.y / (world->map->height * TILE_W)) * minimapH + minimapY;
+                    DrawCircle((int)x, (int)y, 2.0f, Fade(RED, 0.7f));
+                }
+            }
+
+            // Draw slimes on map
+            for (size_t i = 0; i < ARRAY_SIZE(world->slimes); i++) {
+                Slime &s = world->slimes[i];
+                if (s.id) {
+                    float x = (s.body.position.x / (world->map->width  * TILE_W)) * minimapW + minimapX;
+                    float y = (s.body.position.y / (world->map->height * TILE_W)) * minimapH + minimapY;
+                    DrawCircle((int)x, (int)y, 2.0f, Fade(GREEN, 0.7f));
+                }
+            }
+        }
 
         const char *text = 0;
         float hudCursorY = 0;
