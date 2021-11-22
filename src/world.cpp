@@ -400,7 +400,7 @@ void World::GenerateSnapshot(WorldSnapshot &worldSnapshot)
         }
     }
     for (size_t i = 0; i < WORLD_ENTITIES_MAX; i++) {
-        if (v3_length_sq(v3_sub(player->body.position, slimes[i].body.position)) < SQUARED(600.0f)) {
+        if (v3_length_sq(v3_sub(player->body.position, slimes[i].body.position)) < SQUARED(1300.0f)) {
             worldSnapshot.slimes[worldSnapshot.slimeCount].id           = slimes[i].id                 ;
             worldSnapshot.slimes[worldSnapshot.slimeCount].position     = slimes[i].body.position      ;
             worldSnapshot.slimes[worldSnapshot.slimeCount].hitPoints    = slimes[i].combat.hitPoints   ;

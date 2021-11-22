@@ -164,6 +164,9 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
     double frameAccum = 0.0f;
     double frameDt = 0.0f;
 
+    const double inputDt = (1.0f / 60.0f);
+    double inputAccum = 0.0f;
+
     const int targetFPS = 60;
     //SetTargetFPS(targetFPS);
     SetWindowState(FLAG_VSYNC_HINT);
@@ -180,6 +183,7 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
         {
             double now = glfwGetTime();
             frameAccum += MIN(now - frameStart, dtMax);
+            inputAccum += MIN(now - frameStart, dtMax);
             frameDt = now - frameStart;
             frameStart = now;
         }
@@ -314,16 +318,18 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
                     netClient.ReconcilePlayer();
                 }
 
+                //while (inputAccum > inputDt) {
+                //
+                //}
+
                 InputSnapshot &inputSnapshot = netClient.inputHistory.Alloc();
                 inputSnapshot.FromController(player.id, world->tick, frameDt, input);
-
-                // TODO: Create separate inputAccum / inputDt loop to send input more often than we receive snapshots
                 netClient.SendPlayerInput();
-
                 player.ProcessInput(inputSnapshot);
+                inputAccum -= inputDt;
 
                 assert(world->map);
-                player.Update(frameDt, *world->map);
+                player.Update(inputDt, *world->map);
 
                 // TODO: Interpolate all of the other entities in the world
                 double renderAt = glfwGetTime() - dt * 2;
@@ -336,12 +342,10 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
             inputSnapshot.FromController(player.id, world->tick, frameDt, input);
 
 #if 0
-            if (frameAccum > dt) {
-                while (frameAccum > dt) {
-                    world->Simulate(dt);
-                    world->tick++;
-                    frameAccum -= dt;
-                }
+            while (frameAccum > dt) {
+                world->Simulate(dt);
+                world->tick++;
+                frameAccum -= dt;
             }
 
             assert(world->map);
@@ -702,23 +706,27 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
             DrawRectangleLines(minimapX, minimapY, minimapW, minimapH, BLACK);
             DrawTexture(world->map->minimap, minimapTexX, minimapTexY, WHITE);
 
+            // Draw slimes on map
+            for (size_t i = 0; i < ARRAY_SIZE(world->slimes); i++) {
+                Slime &s = world->slimes[i];
+                if (s.id) {
+                    float x = (s.body.position.x / (world->map->width * TILE_W)) * minimapW + minimapX;
+                    float y = (s.body.position.y / (world->map->height * TILE_W)) * minimapH + minimapY;
+                    DrawCircle((int)x, (int)y, 2.0f, Color{ 0, 170, 80, 255 });
+                }
+            }
+
             // Draw players on map
             for (size_t i = 0; i < ARRAY_SIZE(world->players); i++) {
                 Player &p = world->players[i];
                 if (p.id) {
                     float x = (p.body.position.x / (world->map->width  * TILE_W)) * minimapW + minimapX;
                     float y = (p.body.position.y / (world->map->height * TILE_W)) * minimapH + minimapY;
-                    DrawCircle((int)x, (int)y, 2.0f, Fade(RED, 0.7f));
-                }
-            }
-
-            // Draw slimes on map
-            for (size_t i = 0; i < ARRAY_SIZE(world->slimes); i++) {
-                Slime &s = world->slimes[i];
-                if (s.id) {
-                    float x = (s.body.position.x / (world->map->width  * TILE_W)) * minimapW + minimapX;
-                    float y = (s.body.position.y / (world->map->height * TILE_W)) * minimapH + minimapY;
-                    DrawCircle((int)x, (int)y, 2.0f, Fade(GREEN, 0.7f));
+                    const Color playerColor{ 220, 90, 20, 255 };
+                    DrawCircle((int)x, (int)y, 2.0f, playerColor);
+                    const char *pName = TextFormat("%.*s", p.nameLength, p.name);
+                    int nameWidth = MeasureText(pName, fontHeight);
+                    DrawTextFont(font, pName, x - nameWidth / 2, y - fontHeight - 4, fontHeight, YELLOW);
                 }
             }
         }

@@ -28,7 +28,7 @@
 //#define PACKET_SIZE_MAX        1024
 #define SERVER_USERNAME         "SERVER"
 #define SERVER_PLAYERS_MAX      8
-#define SERVER_TPS              25  //25 //30
+#define SERVER_TPS              10  //25 //30
 #define SERVER_INPUT_HISTORY    (1000 / SERVER_TPS)
 #define SERVER_WORLD_HISTORY    (1000 / SERVER_TPS)
 
