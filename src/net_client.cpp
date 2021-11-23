@@ -11,12 +11,12 @@
 
 const char *NetClient::LOG_SRC = "NetClient";
 
-NetClient::~NetClient()
+NetClient::~NetClient(void)
 {
     CloseSocket();
 }
 
-ErrorType NetClient::OpenSocket()
+ErrorType NetClient::OpenSocket(void)
 {
     connectionToken = dlb_rand32u();
     while (!connectionToken) {
@@ -141,7 +141,7 @@ ErrorType NetClient::SendChatMessage(const char *message, size_t messageLength)
     return result;
 }
 
-ErrorType NetClient::SendPlayerInput()
+ErrorType NetClient::SendPlayerInput(void)
 {
     ErrorType result = ErrorType::Success;
 
@@ -175,14 +175,14 @@ ErrorType NetClient::SendPlayerInput()
     return result;
 }
 
-void NetClient::PredictPlayer()
+void NetClient::PredictPlayer(void)
 {
     // TODO: What is "now" used for? Where do I get it from that makes sense?
     //double now = glfwGetTime();
     //player->Update(now, input.dt);
 }
 
-void NetClient::ReconcilePlayer()
+void NetClient::ReconcilePlayer(void)
 {
     if (!serverWorld || !worldHistory.Count()) {
         // Not connected to server, or no snapshots received yet
@@ -365,7 +365,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
     }
 }
 
-const char *NetClient::ServerStateString()
+const char *NetClient::ServerStateString(void)
 {
     if (!server)                                        return "UNITIALIZED                             ";
     switch (server->state) {
@@ -383,7 +383,7 @@ const char *NetClient::ServerStateString()
     }
 }
 
-ErrorType NetClient::Receive()
+ErrorType NetClient::Receive(void)
 {
     if (!server) {
         return ErrorType::Success;
@@ -480,7 +480,23 @@ ErrorType NetClient::Receive()
     return ErrorType::Success;
 }
 
-void NetClient::Disconnect()
+bool NetClient::IsConnecting(void)
+{
+    return server &&
+        (server->state >= ENET_PEER_STATE_CONNECTING && server->state < ENET_PEER_STATE_CONNECTED);
+}
+
+bool NetClient::IsConnected(void)
+{
+    return server && server->state == ENET_PEER_STATE_CONNECTED;
+}
+
+bool NetClient::IsDisconnected(void)
+{
+    return !server || server->state == ENET_PEER_STATE_DISCONNECTED;
+}
+
+void NetClient::Disconnect(void)
 {
     if (server) {
         enet_peer_disconnect(server, 1);
@@ -497,7 +513,7 @@ void NetClient::Disconnect()
     connectionToken = 0;
 }
 
-void NetClient::CloseSocket()
+void NetClient::CloseSocket(void)
 {
     Disconnect();
     if (client) {

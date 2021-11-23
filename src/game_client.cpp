@@ -27,6 +27,15 @@ using namespace std::chrono_literals;
 
 const char *GameClient::LOG_SRC = "GameClient";
 
+void CenteredText(const char *text, const char *textToMeasure = 0)
+{
+    if (!textToMeasure) textToMeasure = text;
+    auto windowWidth = ImGui::GetWindowSize().x;
+    auto textWidth = ImGui::CalcTextSize(textToMeasure).x;
+    ImGui::SetCursorPosX((windowWidth - textWidth) * 0.5f);
+    ImGui::Text(text);
+}
+
 ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
 {
     const char *title = "Attack the slimes!";
@@ -203,6 +212,8 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
         const bool processMouse = !imguiUsingMouse;
         const bool processKeyboard = !imguiUsingKeyboard && !chatActive;
         PlayerControllerState input = PlayerControllerState::Query(processMouse, processKeyboard, cameraFree);
+        bool escape = IsKeyPressed(KEY_ESCAPE);
+        bool findMouseTile = false;
 
         // Start the Dear ImGui frame
         ImGui_ImplOpenGL3_NewFrame();
@@ -213,74 +224,125 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
             ImGui::ShowDemoWindow(&show_demo_window);
         }
 
-        //ImGui::SetNextWindowSize(ImVec2(500, 0));
-        if ((!netClient.server || netClient.server->state != ENET_PEER_STATE_CONNECTED) &&
-            ImGui::BeginPopupModal("Log in", NULL, ImGuiWindowFlags_AlwaysAutoResize))
-        {
-            static char host[SERVER_HOST_LENGTH_MAX]{ "slime.theprogrammingjunkie.com" };
-            static int  port = SERVER_PORT;
-            static char username[USERNAME_LENGTH_MAX];
-            static char password[PASSWORD_LENGTH_MAX];
-
-            ImGui::Text("    Host:");
-            ImGui::SameLine();
-            ImGui::SetNextItemWidth(226);
-            ImGui::InputText("##host", host, sizeof(host), ImGuiInputTextFlags_Password | ImGuiInputTextFlags_ReadOnly);
-
-            ImGui::Text("    Port:");
-            ImGui::SameLine();
-            ImGui::SetNextItemWidth(89);
-            ImGui::InputInt("##port", &port, 1, 100, ImGuiInputTextFlags_ReadOnly);
-            port = CLAMP(port, 0, USHRT_MAX);
-
-            ImGui::Text("Username:");
-            ImGui::SameLine();
-            // https://github.com/ocornut/imgui/issues/455#issuecomment-167440172
-            if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && !ImGui::IsAnyItemActive() && !ImGui::IsMouseClicked(0)) {
-                ImGui::SetKeyboardFocusHere();
-            }
-            ImGui::SetNextItemWidth(226);
-            ImGui::InputText("##username", username, sizeof(username));
-
-            ImGui::Text("Password:");
-            ImGui::SameLine();
-            ImGui::SetNextItemWidth(226);
-            ImGui::InputText("##password", password, sizeof(password), ImGuiInputTextFlags_Password);
-
-            bool closePopup = false;
-
-            ImGui::SetCursorPosX(177.0f);
-            ImGui::PushStyleColor(ImGuiCol_Button, 0xFFBF8346);
-            bool login = ImGui::Button("Login", ImVec2(60, 0));
-            ImGui::PopStyleColor();
-            if (login ||
-                IsKeyPressed(io.KeyMap[ImGuiKey_Enter]) ||
-                IsKeyPressed(io.KeyMap[ImGuiKey_KeyPadEnter]))
-            {
-                E_ASSERT(netClient.Connect(host, (unsigned short)port, username, password), "Failed to connect to server");
-                closePopup = true;
+        if (netClient.IsConnected()) {
+            ImGui::CloseCurrentPopup();
+        } else {
+            ImGui::SetNextWindowSize(ImVec2(240, 0));
+            ImGui::SetNextWindowPos(ImVec2(6, 340));
+            auto rayDarkBlue = DARKBLUE;
+            ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(rayDarkBlue.r, rayDarkBlue.g, rayDarkBlue.b, rayDarkBlue.a));
+            ImGui::PushStyleColor(ImGuiCol_Border, IM_COL32_BLACK);
+            ImGui::Begin("##mini_menu", 0,
+                ImGuiWindowFlags_NoTitleBar |
+                ImGuiWindowFlags_NoMove |
+                ImGuiWindowFlags_NoResize |
+                ImGuiWindowFlags_NoCollapse
+            );
+            ImGui::PopStyleColor(2);
+            ImGui::Text("Play with friends!");
+            if (ImGui::Button("Connect to DandyNet", ImVec2(150, 0))) {
+                ImGui::OpenPopup("Connect to Server##login_window");
             }
 
-            ImGui::SameLine();
-            //ImGui::PushStyleColor(ImGuiCol_Button, 0xFF999999);
-            bool cancel = ImGui::Button("Cancel", ImVec2(60, 0));
-            //ImGui::PopStyleColor();
-            if (cancel || IsKeyPressed(io.KeyMap[ImGuiKey_Escape])) {
-                closePopup = true;
-            }
+            if (ImGui::BeginPopupModal("Connect to Server##login_window", 0, ImGuiWindowFlags_AlwaysAutoResize)) {
+                static char host[SERVER_HOST_LENGTH_MAX]{ "slime.theprogrammingjunkie.com" };
+                static int  port = SERVER_PORT;
+                static char username[USERNAME_LENGTH_MAX];
+                static char password[PASSWORD_LENGTH_MAX];
 
-            if (closePopup) {
-                ImGui::CloseCurrentPopup();
-                memset(username, 0, sizeof(username));
-                memset(password, 0, sizeof(password));
-                chatActive = false;
-            }
+                ImGui::Text("    Host:");
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(226);
+                ImGui::InputText("##host", host, sizeof(host), ImGuiInputTextFlags_Password | ImGuiInputTextFlags_ReadOnly);
 
-            ImGui::EndPopup();
+                ImGui::Text("    Port:");
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(89);
+                ImGui::InputInt("##port", &port, 1, 100, ImGuiInputTextFlags_ReadOnly);
+                port = CLAMP(port, 0, USHRT_MAX);
+
+                ImGui::Text("Username:");
+                ImGui::SameLine();
+                // https://github.com/ocornut/imgui/issues/455#issuecomment-167440172
+                if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && !ImGui::IsAnyItemActive() && !ImGui::IsMouseClicked(0)) {
+                    ImGui::SetKeyboardFocusHere();
+                }
+                ImGui::SetNextItemWidth(226);
+                ImGui::InputText("##username", username, sizeof(username));
+
+                ImGui::Text("Password:");
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(226);
+                ImGui::InputText("##password", password, sizeof(password), ImGuiInputTextFlags_Password);
+
+                static double connectingIdxLastUpdate = 0;
+                static int connectingIdx = 0;
+                static bool triedConnecting = false;
+                static double failedToConnectShownAt = 0;
+                if (netClient.IsConnecting()) {
+                    const char *text[3]{
+                        "Attempting to connect.",
+                        "Attempting to connect..",
+                        "Attempting to connect...",
+                    };
+                    CenteredText(text[connectingIdx], text[2]);
+                    triedConnecting = true;
+                    if (glfwGetTime() - connectingIdxLastUpdate > 0.2) {
+                        connectingIdx = (connectingIdx + 1) % ARRAY_SIZE(text);
+                        connectingIdxLastUpdate = glfwGetTime();
+                    }
+                } else {
+                    if (triedConnecting) {
+                        CenteredText("DandyNet is offline. :(");
+                        if (!failedToConnectShownAt) {
+                            failedToConnectShownAt = glfwGetTime();
+                        } else if (glfwGetTime() - failedToConnectShownAt > 5.0) {
+                            triedConnecting = false;
+                            failedToConnectShownAt = 0;
+                        }
+                    } else {
+                        ImGui::Text("");
+                    }
+                    connectingIdx = 0;
+                }
+
+                bool closePopup = escape;
+
+                ImGui::BeginDisabled(netClient.IsConnecting());
+
+                ImGui::SetCursorPosX(177.0f);
+                ImGui::PushStyleColor(ImGuiCol_Button, 0xFFBF8346);
+                bool login = ImGui::Button("Connect##login_window:connect", ImVec2(60, 0));
+                ImGui::PopStyleColor();
+                if (login ||
+                    IsKeyPressed(io.KeyMap[ImGuiKey_Enter]) ||
+                    IsKeyPressed(io.KeyMap[ImGuiKey_KeyPadEnter]))
+                {
+                    E_ASSERT(netClient.Connect(host, (unsigned short)port, username, password), "Failed to connect to server");
+                }
+
+                ImGui::SameLine();
+                //ImGui::PushStyleColor(ImGuiCol_Button, 0xFF999999);
+                bool cancel = ImGui::Button("Cancel##login_window:cancel", ImVec2(60, 0));
+                //ImGui::PopStyleColor();
+                if (cancel || IsKeyPressed(io.KeyMap[ImGuiKey_Escape])) {
+                    closePopup = true;
+                }
+
+                ImGui::EndDisabled();
+
+                if (closePopup) {
+                    ImGui::CloseCurrentPopup();
+                    memset(username, 0, sizeof(username));
+                    memset(password, 0, sizeof(password));
+                    chatActive = false;
+                    escape = false;
+                }
+
+                ImGui::EndPopup();
+            }
+            ImGui::End();
         }
-
-        bool escape = IsKeyPressed(KEY_ESCAPE);
-        bool findMouseTile = false;
 
         // HACK: No way to check if Raylib is currently recording.. :(
         //if (gifRecording) {
@@ -372,8 +434,6 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
         }
 
         //if (!chatActive) {
-            findMouseTile = input.dbgFindMouseTile;
-
             if (input.screenshot) {
                 time_t t = time(NULL);
                 struct tm tm = *localtime(&t);
@@ -568,7 +628,7 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
         Tile *mouseTile = 0;
         int mouseTileX = 0;
         int mouseTileY = 0;
-        if (findMouseTile) {
+        if (input.dbgFindMouseTile) {
             mouseTile = world->map->TileAtWorldTry(mousePosWorld.x, mousePosWorld.y, &mouseTileX, &mouseTileY);
             if (mouseTile) {
                 // Draw red outline on hovered tile
@@ -664,7 +724,7 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
         EndMode2D();
 
         // Render mouse tile tooltip
-        if (findMouseTile && mouseTile) {
+        if (input.dbgFindMouseTile && mouseTile) {
             const float tooltipOffsetX = 10.0f;
             const float tooltipOffsetY = 10.0f;
             const float tooltipPad = 4.0f;
@@ -746,7 +806,7 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
 #endif
             const float margin = 6.0f;   // left/top margin
             const float pad = 4.0f;      // left/top pad
-            const float hudWidth = 200.0f;
+            const float hudWidth = 240.0f;
             const float hudHeight = linesOfText * (fontHeight + pad) + pad;
 
             hudCursorY += margin;
@@ -865,7 +925,6 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
                         case ErrorType::NotConnected:
                         {
                             world->chatHistory.PushMessage(CSTR("Sam"), CSTR("You're not connected to a server. Nobody is listening. :("));
-                            ImGui::OpenPopup("Log in");
                             break;
                         }
                         }
@@ -895,15 +954,15 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
         EndDrawing();
         //----------------------------------------------------------------------------------
 
-        if (connectedToServer && escape) {
-            netClient.Disconnect();
-            world = lobby;
-            escape = false;
-        }
-
-        // If nobody else handled the escape key, time to exit!
         if (escape) {
-            break;
+            if (connectedToServer) {
+                netClient.Disconnect();
+                world = lobby;
+                escape = false;
+            } else {
+                // If nobody else handled the escape key, time to exit!
+                break;
+            }
         }
     }
 
