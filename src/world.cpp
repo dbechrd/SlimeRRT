@@ -11,12 +11,12 @@
 #include "spritesheet.h"
 #include "spritesheet_catalog.h"
 #include "tilemap.h"
-#include "world.h"
 #include "dlb_rand.h"
 #include <cassert>
 
 World::World(void)
 {
+    //tick = 1;
     rtt_seed = 16; //time(NULL);
     dlb_rand32_seed_r(&rtt_rand, rtt_seed, rtt_seed);
 }
@@ -39,7 +39,7 @@ Player *World::SpawnPlayer(uint32_t playerId)
 {
 #if _DEBUG
     if (playerId) {
-        for (int i = 0; i < SERVER_PLAYERS_MAX; i++) {
+        for (int i = 0; i < SV_MAX_PLAYERS; i++) {
             Player &player = players[i];
             if (player.id == playerId) {
                 assert(!"This playerId is already in use!");
@@ -48,7 +48,7 @@ Player *World::SpawnPlayer(uint32_t playerId)
     }
 #endif
 
-    for (int i = 0; i < SERVER_PLAYERS_MAX; i++) {
+    for (int i = 0; i < SV_MAX_PLAYERS; i++) {
         Player &player = players[i];
         if (player.id == 0) {
             assert(!player.nameLength);
@@ -77,7 +77,7 @@ Player *World::FindPlayer(uint32_t playerId)
         return 0;
     }
 
-    for (int i = 0; i < SERVER_PLAYERS_MAX; i++) {
+    for (int i = 0; i < SV_MAX_PLAYERS; i++) {
         Player &player = players[i];
         if (player.id == playerId) {
             return &player;
@@ -113,7 +113,7 @@ Slime *World::SpawnSlime(uint32_t slimeId)
 {
 #if _DEBUG
     if (slimeId) {
-        for (int i = 0; i < WORLD_ENTITIES_MAX; i++) {
+        for (int i = 0; i < SV_MAX_ENTITIES; i++) {
             Slime &slime = slimes[i];
             if (slime.id == slimeId) {
                 assert(!"This slimeId is already in use!");
@@ -122,7 +122,7 @@ Slime *World::SpawnSlime(uint32_t slimeId)
     }
 #endif
 
-    for (int i = 0; i < WORLD_ENTITIES_MAX; i++) {
+    for (int i = 0; i < SV_MAX_ENTITIES; i++) {
         Slime &slime = slimes[i];
         if (slime.id == 0) {
             assert(!slime.nameLength);
@@ -161,7 +161,7 @@ Slime *World::FindSlime(uint32_t slimeId)
         return 0;
     }
 
-    for (int i = 0; i < WORLD_ENTITIES_MAX; i++) {
+    for (int i = 0; i < SV_MAX_ENTITIES; i++) {
         Slime &slime = slimes[i];
         if (slime.id == slimeId) {
             return &slime;
@@ -198,14 +198,14 @@ void World::Simulate(double dt)
 
 void World::SimPlayers(double dt)
 {
-    for (size_t i = 0; i < SERVER_PLAYERS_MAX; i++) {
+    for (size_t i = 0; i < SV_MAX_PLAYERS; i++) {
         Player &player = players[i];
         if (!player.id) {
             continue;
         }
 
-        assert(map);
-        player.Update(dt, *map);
+        //assert(map);
+        //player.Update(dt, *map);
 
         if (player.actionState == Player::ActionState::Attacking && player.combat.attackFrame == 1) {
             const float playerAttackReach = METERS_TO_PIXELS(1.0f);
@@ -284,13 +284,13 @@ void World::SimSlimes(double dt)
     //double timeSinceLastSquish = now - lastSquish;
 
     Player *randomAlivePlayer = 0;
-    for (size_t i = 0; i < SERVER_PLAYERS_MAX; i++) {
+    for (size_t i = 0; i < SV_MAX_PLAYERS; i++) {
         if (players[i].id && players[i].combat.hitPoints > 0) {
             randomAlivePlayer = &players[i];
         }
     }
 
-    for (size_t slimeIdx = 0; slimeIdx < WORLD_ENTITIES_MAX; slimeIdx++) {
+    for (size_t slimeIdx = 0; slimeIdx < SV_MAX_ENTITIES; slimeIdx++) {
         Slime &slime = slimes[slimeIdx];
         if (!slime.id) {
             continue;
@@ -316,7 +316,7 @@ void World::SimSlimes(double dt)
             const Vector2 slimePosNew = v2_add(slimePos, slimeMove);
 
             int willCollide = 0;
-            for (size_t collideIdx = slimeIdx + 1; collideIdx < WORLD_ENTITIES_MAX; collideIdx++) {
+            for (size_t collideIdx = slimeIdx + 1; collideIdx < SV_MAX_ENTITIES; collideIdx++) {
                 Slime &otherSlime = slimes[collideIdx];
                 if (!otherSlime.id) {
                     continue;
@@ -378,8 +378,8 @@ void World::GenerateSnapshot(WorldSnapshot &worldSnapshot)
 
     assert(ARRAY_SIZE(worldSnapshot.players) <= ARRAY_SIZE(players));
     assert(ARRAY_SIZE(worldSnapshot.slimes)  <= ARRAY_SIZE(slimes));
-    assert(ARRAY_SIZE(worldSnapshot.players) == WORLD_SNAPSHOT_PLAYERS_MAX);
-    assert(ARRAY_SIZE(worldSnapshot.slimes)  == WORLD_SNAPSHOT_ENTITIES_MAX);
+    assert(ARRAY_SIZE(worldSnapshot.players) == SNAPSHOT_MAX_PLAYERS);
+    assert(ARRAY_SIZE(worldSnapshot.slimes)  == SNAPSHOT_MAX_ENTITIES);
 
     Player *player = FindPlayer(worldSnapshot.playerId);
     if (!player) {
@@ -387,7 +387,7 @@ void World::GenerateSnapshot(WorldSnapshot &worldSnapshot)
     }
 
     // TODO: Find players/slimes/etc. that are actually near the player this snapshot is being generated for
-    for (size_t i = 0; i < SERVER_PLAYERS_MAX; i++) {
+    for (size_t i = 0; i < SV_MAX_PLAYERS; i++) {
         memcpy(worldSnapshot.players[i].name, players[i].name, USERNAME_LENGTH_MAX);
         worldSnapshot.players[worldSnapshot.playerCount].id           = players[i].id                 ;
         worldSnapshot.players[worldSnapshot.playerCount].nameLength   = players[i].nameLength         ;
@@ -395,11 +395,11 @@ void World::GenerateSnapshot(WorldSnapshot &worldSnapshot)
         worldSnapshot.players[worldSnapshot.playerCount].hitPoints    = players[i].combat.hitPoints   ;
         worldSnapshot.players[worldSnapshot.playerCount].hitPointsMax = players[i].combat.hitPointsMax;
         worldSnapshot.playerCount++;
-        if (worldSnapshot.playerCount > WORLD_SNAPSHOT_PLAYERS_MAX) {
+        if (worldSnapshot.playerCount > SNAPSHOT_MAX_PLAYERS) {
             break;
         }
     }
-    for (size_t i = 0; i < WORLD_ENTITIES_MAX; i++) {
+    for (size_t i = 0; i < SV_MAX_ENTITIES; i++) {
         if (v3_length_sq(v3_sub(player->body.position, slimes[i].body.position)) < SQUARED(1300.0f)) {
             worldSnapshot.slimes[worldSnapshot.slimeCount].id           = slimes[i].id                 ;
             worldSnapshot.slimes[worldSnapshot.slimeCount].position     = slimes[i].body.position      ;
@@ -407,9 +407,66 @@ void World::GenerateSnapshot(WorldSnapshot &worldSnapshot)
             worldSnapshot.slimes[worldSnapshot.slimeCount].hitPointsMax = slimes[i].combat.hitPointsMax;
             worldSnapshot.slimes[worldSnapshot.slimeCount].scale        = slimes[i].sprite.scale       ;
             worldSnapshot.slimeCount++;
-            if (worldSnapshot.slimeCount > WORLD_SNAPSHOT_ENTITIES_MAX) {
+            if (worldSnapshot.slimeCount > SNAPSHOT_MAX_ENTITIES) {
                 break;
             }
         }
     }
+}
+
+bool World::InterpolateBody(Body3D &body, double renderAt)
+{
+    auto positionHistory = body.positionHistory;
+    const size_t historyLen = positionHistory.Count();
+    if (!historyLen) {
+        return true;
+    }
+
+    Vector3Snapshot first = positionHistory.At(0);
+    if (renderAt <= first.recvAt) {
+        body.position = first.v;
+        return true;
+    }
+
+    size_t right = 1;
+    while (right < positionHistory.Count() && renderAt >= positionHistory.At(right).recvAt) {
+        right++;
+    }
+
+    if (right == positionHistory.Count()) {
+        return false;  // assume despawned
+    }
+
+    Vector3Snapshot *a = &positionHistory.At(right - 1);
+    Vector3Snapshot *b = &positionHistory.At(right);
+    assert(a->recvAt <= renderAt);
+    assert(b->recvAt > renderAt);
+
+    double alpha = (renderAt - a->recvAt) / (b->recvAt - a->recvAt);
+    //entity.x = x0 + (x1 - x0) * alpha;
+    body.position = v3_add(a->v, v3_scale(v3_sub(b->v, a->v), (float)alpha));
+    return true;
+}
+
+void World::Interpolate(double renderAt)
+{
+    for (size_t i = 0; i < SV_MAX_PLAYERS; i++) {
+        Player &player = players[i];
+        if (!player.id || player.id == playerId) {
+            continue;
+        }
+        if (!InterpolateBody(player.body, renderAt)) {
+            DespawnPlayer(player.id);
+        }
+    }
+    for (size_t i = 0; i < SV_MAX_ENTITIES; i++) {
+        Slime &slime = slimes[i];
+        if (!slime.id) {
+            continue;
+        }
+        if (!InterpolateBody(slime.body, renderAt)) {
+            DespawnSlime(slime.id);
+        }
+    }
+    return;
 }

@@ -23,20 +23,28 @@
 //------------------------------------------------------------------------------
 // Constants
 //------------------------------------------------------------------------------
-#define SERVER_HOST_LENGTH_MAX  64
-#define SERVER_PORT             4040
-//#define PACKET_SIZE_MAX        1024
-#define SERVER_USERNAME         "SERVER"
-#define SERVER_PLAYERS_MAX      8
-#define SERVER_TPS              10  //25 //30
-#define SERVER_INPUT_HISTORY    (1000 / SERVER_TPS)
-#define SERVER_WORLD_HISTORY    (1000 / SERVER_TPS)
+#define SV_HOSTNAME_LENGTH_MAX  256
+#define SV_DEFAULT_PORT         4040
+#define SV_USERNAME             "SERVER"
+#define SV_MAX_PLAYERS          8
+#define SV_MAX_ENTITIES         256
+#define SV_TICK_RATE            5 //33 //25 //30
+#define SV_INPUT_HISTORY        ((1000 / SV_TICK_RATE) * SV_MAX_PLAYERS)
+#define SV_WORLD_HISTORY        (1000 / SV_TICK_RATE)
 
-#define CLIENT_CHAT_HISTORY     256
-#define CLIENT_INPUT_HISTORY    (1000 / SERVER_TPS)
-#define CLIENT_WORLD_HISTORY    (1000 / SERVER_TPS)
+#define SNAPSHOT_SEND_RATE      MIN(20, SV_TICK_RATE)
+#define SNAPSHOT_MAX_PLAYERS    SV_MAX_PLAYERS
+#define SNAPSHOT_MAX_ENTITIES   64
 
-#define PACKET_SIZE_MAX         16384
+#define CL_INPUT_SAMPLE_RATE    SV_TICK_RATE  // must be equal to SV_TICK_RATE
+#define CL_INPUT_SEND_RATE      SV_TICK_RATE  // can be <= CL_INPUT_SAMPLE_RATE
+#define CL_INPUT_SAMPLES_MAX    8
+#define CL_INPUT_HISTORY        (1000 / SV_TICK_RATE)
+#define CL_WORLD_HISTORY        (1000 / SV_TICK_RATE)
+#define CL_CHAT_HISTORY         256
+
+#define PACKET_SIZE_MAX         1024
+//#define PACKET_SIZE_MAX         16384
 
 // Min/max ASCII value for username/password/motd/message, etc.
 #define STRING_ASCII_MIN        32
@@ -48,6 +56,8 @@
 #define TIMESTAMP_LENGTH        12  // hh:MM:SS AM
 #define MOTD_LENGTH_MIN         0
 #define MOTD_LENGTH_MAX         64
+#define CHATMSG_LENGTH_MIN      0
+#define CHATMSG_LENGTH_MAX      512  // not including nil terminator, must be < CHATMSG_BUFFER_LEN
 #define WORLD_WIDTH_MIN         1
 #define WORLD_WIDTH_MAX         256
 #define WORLD_HEIGHT_MIN        1
@@ -55,18 +65,10 @@
 #define WORLD_CHUNK_WIDTH       16
 #define WORLD_CHUNK_HEIGHT      16
 #define WORLD_CHUNK_TILES_MAX   256
-#define WORLD_ENTITIES_MAX      256
 #define ENTITY_POSITION_X_MIN   0
 #define ENTITY_POSITION_X_MAX   UINT32_MAX  // Actually a float, so we need to allow full range
 #define ENTITY_POSITION_Y_MIN   0
 #define ENTITY_POSITION_Y_MAX   UINT32_MAX  // Actually a float, so we need to allow full range
-
-#define CHAT_MESSAGE_HISTORY    16
-#define CHAT_MESSAGE_LENGTH_MIN 0
-#define CHAT_MESSAGE_LENGTH_MAX 512  // not including nil terminator, must be < CHAT_MESSAGE_BUFFER_LEN
-
-#define WORLD_SNAPSHOT_PLAYERS_MAX  SERVER_PLAYERS_MAX
-#define WORLD_SNAPSHOT_ENTITIES_MAX 64
 
 //------------------------------------------------------------------------------
 // Macros

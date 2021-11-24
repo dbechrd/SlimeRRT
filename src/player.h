@@ -52,8 +52,7 @@ struct Player {
     Vector3 GetAttachPoint(AttachPoint attachPoint) const;
     const Item& GetSelectedItem() const;
 
-    void ProcessInput (InputSnapshot &input);
-    void Update       (double dt, const Tilemap &map);
+    void Update       (double dt, InputSample &input, const Tilemap &map);
     void Push         (DrawList &drawList) const;
 
 private:

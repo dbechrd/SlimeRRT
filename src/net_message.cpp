@@ -71,14 +71,14 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
         } case NetMessage::Type::ChatMessage: {
             NetMessage_ChatMessage &chatMsg = data.chatMsg;
 
-            assert(chatMsg.messageLength <= CHAT_MESSAGE_LENGTH_MAX);
+            assert(chatMsg.messageLength <= CHATMSG_LENGTH_MAX);
             stream.Process((uint32_t)chatMsg.usernameLength, 6, USERNAME_LENGTH_MIN, USERNAME_LENGTH_MAX);
             stream.Align();
             for (size_t i = 0; i < chatMsg.usernameLength; i++) {
                 stream.ProcessChar(chatMsg.username[i]);
             }
 
-            stream.Process((uint32_t)chatMsg.messageLength, 9, CHAT_MESSAGE_LENGTH_MIN, CHAT_MESSAGE_LENGTH_MAX);
+            stream.Process((uint32_t)chatMsg.messageLength, 9, CHATMSG_LENGTH_MIN, CHATMSG_LENGTH_MAX);
             stream.Align();
             for (size_t i = 0; i < chatMsg.messageLength; i++) {
                 stream.ProcessChar(chatMsg.message[i]);
@@ -102,19 +102,22 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
 
             break;
         } case NetMessage::Type::Input: {
-            InputSnapshot &input = data.input;
+            NetMessage_Input &input = data.input;
 
-            stream.Process(input.seq, 32, 0, UINT32_MAX);
-            stream.Process(input.ownerId, 32, 0, UINT32_MAX);
-            stream.Process(input.clientTick, 32, 0, UINT32_MAX);
-            stream.ProcessDouble(input.frameDt);
-            stream.ProcessBool(input.walkNorth);
-            stream.ProcessBool(input.walkEast);
-            stream.ProcessBool(input.walkSouth);
-            stream.ProcessBool(input.walkWest);
-            stream.ProcessBool(input.run);
-            stream.ProcessBool(input.attack);
-            stream.Process(input.selectSlot, 4, (uint32_t)PlayerInventorySlot::None, (uint32_t)PlayerInventorySlot::Slot_6);
+            assert(input.sampleCount <= CL_INPUT_SAMPLES_MAX);
+            stream.Process(input.sampleCount, 32, 0, UINT32_MAX);
+            for (size_t i = 0; i < input.sampleCount; i++) {
+                InputSample &sample = input.samples[i];
+                stream.Process(sample.ownerId, 32, 0, UINT32_MAX);
+                stream.Process(sample.clientTick, 32, 0, UINT32_MAX);
+                stream.ProcessBool(sample.walkNorth);
+                stream.ProcessBool(sample.walkEast);
+                stream.ProcessBool(sample.walkSouth);
+                stream.ProcessBool(sample.walkWest);
+                stream.ProcessBool(sample.run);
+                stream.ProcessBool(sample.attack);
+                stream.Process(sample.selectSlot, 4, (uint32_t)PlayerInventorySlot::None, (uint32_t)PlayerInventorySlot::Slot_6);
+            }
             stream.Align();
 
             break;
@@ -143,9 +146,9 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
             WorldSnapshot &worldSnapshot = data.worldSnapshot;
 
             stream.Process(worldSnapshot.tick, 32, 1, UINT32_MAX);
-            stream.Process(worldSnapshot.inputSeq, 32, 0, UINT32_MAX);
-            stream.Process(worldSnapshot.playerCount, 4, 0, WORLD_SNAPSHOT_PLAYERS_MAX);
-            stream.Process(worldSnapshot.slimeCount, 9, 0, WORLD_SNAPSHOT_ENTITIES_MAX);
+            //stream.Process(worldSnapshot.lastInputAck, 32, 0, UINT32_MAX);
+            stream.Process(worldSnapshot.playerCount, 4, 0, SNAPSHOT_MAX_PLAYERS);
+            stream.Process(worldSnapshot.slimeCount, 9, 0, SNAPSHOT_MAX_ENTITIES);
 
             for (size_t i = 0; i < worldSnapshot.playerCount; i++) {
                 PlayerSnapshot &player = worldSnapshot.players[i];

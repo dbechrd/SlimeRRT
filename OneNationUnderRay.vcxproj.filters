@@ -41,6 +41,7 @@
     <ClCompile Include="include\imgui\unity.cpp" />
     <ClCompile Include="src\loot_table.cpp" />
     <ClCompile Include="src\server_cli.cpp" />
+    <ClCompile Include="src\ui_login_form.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\bit_stream.h" />
@@ -82,5 +83,6 @@
     <ClInclude Include="src\loot_table.h" />
     <ClInclude Include="src\server_cli.h" />
     <ClInclude Include="src\world_snapshot.h" />
+    <ClInclude Include="src\ui_login_form.h" />
   </ItemGroup>
 </Project>

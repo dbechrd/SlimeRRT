@@ -24,14 +24,14 @@ void ChatHistory::PushMessage(const char *username, size_t usernameLength, const
     assert(usernameLength <= USERNAME_LENGTH_MAX);
     assert(message);
     assert(messageLength);
-    assert(messageLength <= CHAT_MESSAGE_LENGTH_MAX);
+    assert(messageLength <= CHATMSG_LENGTH_MAX);
 
     NetMessage_ChatMessage &chat = buffer.Alloc();
     const char *timestampStr = TextFormatTimestamp();
     memcpy(chat.timestampStr, timestampStr, sizeof(timestampStr));
     chat.usernameLength = (uint32_t)MIN(usernameLength, USERNAME_LENGTH_MAX);
     memcpy(chat.username, username, chat.usernameLength);
-    chat.messageLength = (uint32_t)MIN(messageLength, CHAT_MESSAGE_LENGTH_MAX);
+    chat.messageLength = (uint32_t)MIN(messageLength, CHATMSG_LENGTH_MAX);
     memcpy(chat.message, message, chat.messageLength);
 }
 

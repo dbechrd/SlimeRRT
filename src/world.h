@@ -20,9 +20,9 @@ struct World {
     Tilemap         *map           {};
     // TODO: PlayerSystem
     uint32_t        playerId       {};
-    Player          players        [SERVER_PLAYERS_MAX]{};
+    Player          players        [SV_MAX_PLAYERS]{};
     // TODO: SlimeSystem or EnemySystem
-    Slime           slimes         [WORLD_ENTITIES_MAX]{};
+    Slime           slimes         [SV_MAX_ENTITIES]{};
     ParticleSystem  particleSystem {};
     MapSystem       mapSystem      {};
     ItemCatalog     itemCatalog    {};
@@ -50,8 +50,10 @@ struct World {
 
     void Simulate(double dt);
     void GenerateSnapshot(WorldSnapshot &worldSnapshot);
+    void Interpolate(double renderAt);
 
 private:
     void SimPlayers(double dt);
     void SimSlimes(double dt);
+    bool InterpolateBody(Body3D &body, double renderAt);
 };

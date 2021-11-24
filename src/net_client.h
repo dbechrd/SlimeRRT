@@ -16,9 +16,9 @@ struct NetClient {
     size_t          passwordLength  {};
     char            password        [PASSWORD_LENGTH_MAX] {};
     World          *serverWorld     {};
-    uint32_t        inputSeq        {};  // seq # of input last sent to server
-    RingBuffer<InputSnapshot, SERVER_INPUT_HISTORY> inputHistory {};
-    RingBuffer<WorldSnapshot, SERVER_WORLD_HISTORY> worldHistory {};
+    //uint32_t        inputSeq        {};  // seq # of input last sent to server
+    RingBuffer<InputSample,   CL_INPUT_HISTORY> inputHistory {};
+    RingBuffer<WorldSnapshot, CL_WORLD_HISTORY> worldHistory {};
 
     ~NetClient();
     ErrorType OpenSocket      (void);
@@ -26,8 +26,7 @@ struct NetClient {
     ErrorType SendChatMessage (const char *message, size_t messageLength);
     ErrorType SendPlayerInput (void);
     void      PredictPlayer   (void);
-    void      ReconcilePlayer (void);
-    void      Interpolate     (double renderAt);
+    void      ReconcilePlayer (double tickDt);
     ErrorType Receive         (void);
     bool      IsConnecting    (void);
     bool      IsConnected     (void);
@@ -42,7 +41,6 @@ private:
     ErrorType   SendRaw           (const void *data, size_t size);
     ErrorType   SendMsg           (NetMessage &message);
     ErrorType   Auth              (void);
-    bool        InterpolateBody   (Body3D &body, double renderAt);
     void        ProcessMsg        (ENetPacket &packet);
     const char *ServerStateString (void);
 };

@@ -11,5 +11,5 @@ struct ChatHistory {
 
 private:
     static const char *LOG_SRC;
-    RingBuffer<NetMessage_ChatMessage, CLIENT_CHAT_HISTORY> buffer {};
+    RingBuffer<NetMessage_ChatMessage, CL_CHAT_HISTORY> buffer {};
 };

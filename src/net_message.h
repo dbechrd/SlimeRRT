@@ -22,7 +22,7 @@ struct NetMessage_ChatMessage {
     uint32_t usernameLength {};
     char     username       [USERNAME_LENGTH_MAX]{};
     uint32_t messageLength  {};
-    char     message        [CHAT_MESSAGE_LENGTH_MAX]{};
+    char     message        [CHATMSG_LENGTH_MAX]{};
 };
 
 struct NetMessage_Welcome {
@@ -33,9 +33,10 @@ struct NetMessage_Welcome {
     uint32_t playerId   {};
 };
 
-//struct NetMessage_Input {
-//    InputSnapshot snapshot {};
-//};
+struct NetMessage_Input {
+    uint32_t    sampleCount {};
+    InputSample samples     [CL_INPUT_SAMPLES_MAX]{};
+};
 
 struct NetMessage_WorldChunk {
     uint32_t offsetX     {};
@@ -43,31 +44,6 @@ struct NetMessage_WorldChunk {
     uint32_t tilesLength {};
     // world.tiles
 };
-
-//struct NetMessage_WorldSnapshot_Player {
-//    uint32_t id       {};
-//    uint32_t nameLen  {};
-//    char     name     [USERNAME_LENGTH_MAX]{};
-//    float    pos_x    {};
-//    float    pos_y    {};
-//    float    pos_z    {};
-//    float    hp       {};
-//    float    hpMax    {};
-//};
-//
-//struct NetMessage_WorldSnapshot_Slime {
-//    uint32_t id       {};
-//    float    pos_x    {};
-//    float    pos_y    {};
-//    float    pos_z    {};
-//    float    hp       {};
-//    float    hpMax    {};
-//    float    scale    {};
-//};
-
-//struct NetMessage_WorldSnapshot {
-//    WorldSnapshot snapshot {};
-//};
 
 struct NetMessage {
     enum class Type : uint32_t {
@@ -85,12 +61,12 @@ struct NetMessage {
     Type type = Type::Unknown;
 
     union {
-        NetMessage_Identify      identify;
-        NetMessage_ChatMessage   chatMsg;
-        NetMessage_Welcome       welcome;
-        NetMessage_WorldChunk    worldChunk;
-        WorldSnapshot            worldSnapshot;
-        InputSnapshot            input;
+        NetMessage_Identify    identify;
+        NetMessage_ChatMessage chatMsg;
+        NetMessage_Welcome     welcome;
+        NetMessage_WorldChunk  worldChunk;
+        WorldSnapshot          worldSnapshot;
+        NetMessage_Input       input;
     } data {};
 
     const char *TypeString(void);

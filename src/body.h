@@ -22,7 +22,7 @@ struct Body3D {
     bool    landed       {};
     bool    idle         {};
 
-    RingBuffer<Vector3Snapshot, CLIENT_WORLD_HISTORY> positionHistory {};
+    RingBuffer<Vector3Snapshot, CL_WORLD_HISTORY> positionHistory {};
 
     Vector2 BottomCenter() const;
     Vector2 GroundPosition() const;

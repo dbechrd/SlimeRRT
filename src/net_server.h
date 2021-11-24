@@ -29,18 +29,19 @@
 //};
 
 struct NetServerClient {
-    ENetPeer *peer            {};
-    uint32_t  connectionToken {};  // unique identifier in addition to ip/port to detect reconnect from same UDP port
-    uint32_t  playerId        {};
-    uint32_t  inputSeq        {};  // sequence # of last processed input for this client
-    RingBuffer<WorldSnapshot, SERVER_WORLD_HISTORY> worldHistory {};
+    ENetPeer *peer               {};
+    uint32_t  connectionToken    {};  // unique identifier in addition to ip/port to detect reconnect from same UDP port
+    uint32_t  playerId           {};
+    uint32_t  lastInputAck       {};  // sequence # of last processed input for this client
+    double    lastSnapshotSentAt {};
+    RingBuffer<WorldSnapshot, SV_WORLD_HISTORY> worldHistory {};
 };
 
 struct NetServer {
     ENetHost *server {};
     //std::unordered_map<ENetAddress, NetServerClient, NetAddressHash, NetAddressEqual> clients{};
-    NetServerClient clients[SERVER_PLAYERS_MAX]{};
-    RingBuffer<InputSnapshot, SERVER_INPUT_HISTORY> inputHistory {};
+    NetServerClient clients[SV_MAX_PLAYERS]{};
+    RingBuffer<InputSample, SV_INPUT_HISTORY> inputHistory {};
     World *serverWorld {};
 
     ~NetServer();
@@ -62,6 +63,7 @@ private:
     ErrorType BroadcastChatMessage(const char *msg, size_t msgLength);
     ErrorType SendWelcomeBasket(NetServerClient &client);
 
+    bool IsValidInput(const NetServerClient &client, const InputSample &sample);
     void ProcessMsg(NetServerClient &client, ENetPacket &packet);
 
     NetServerClient *AddClient    (ENetPeer *peer);

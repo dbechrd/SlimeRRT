@@ -107,16 +107,16 @@ int main(int argc, char *argv[])
     if (args.server) {
         // TODO: Make CLI not be an entire client/player. Makes no sense for the CLI to show up in the world LUL.
         //ServerCLI serverCli{ args };
-        //serverCli.Run("localhost", SERVER_PORT);
+        //serverCli.Run("localhost", SV_DEFAULT_PORT);
         //AllocConsole();
     } else {
 #ifndef _DEBUG
         FreeConsole();
 #endif
         GameClient *gameClient = new GameClient(args);
-        //gameClient->Run("slime.theprogrammingjunkie.com", SERVER_PORT);
-        //gameClient->Run("127.0.0.1", SERVER_PORT);
-        gameClient->Run("localhost", SERVER_PORT);
+        //gameClient->Run("slime.theprogrammingjunkie.com", SV_DEFAULT_PORT);
+        //gameClient->Run("127.0.0.1", SV_DEFAULT_PORT);
+        gameClient->Run("localhost", SV_DEFAULT_PORT);
         delete gameClient;
     }
 
@@ -189,5 +189,6 @@ int main(int argc, char *argv[])
 #include "spritesheet_catalog.cpp"
 #include "tilemap.cpp"
 #include "tileset.cpp"
+#include "ui_login_form.cpp"
 #include "world.cpp"
 #include "../test/tests.cpp"

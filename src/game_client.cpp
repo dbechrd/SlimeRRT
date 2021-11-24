@@ -8,6 +8,7 @@
 #include "rtree.h"
 #include "sound_catalog.h"
 #include "spritesheet_catalog.h"
+#include "ui_login_form.h"
 #include "dlb_types.h"
 
 #include "raylib/raygui.h"
@@ -26,15 +27,6 @@
 using namespace std::chrono_literals;
 
 const char *GameClient::LOG_SRC = "GameClient";
-
-void CenteredText(const char *text, const char *textToMeasure = 0)
-{
-    if (!textToMeasure) textToMeasure = text;
-    auto windowWidth = ImGui::GetWindowSize().x;
-    auto textWidth = ImGui::CalcTextSize(textToMeasure).x;
-    ImGui::SetCursorPosX((windowWidth - textWidth) * 0.5f);
-    ImGui::Text(text);
-}
 
 ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
 {
@@ -130,6 +122,7 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
     UnloadImage(checkerboardImage);
 
     World *lobby = new World;
+    lobby->tick = 1;
     lobby->map = lobby->mapSystem.GenerateLobby();
     lobby->SpawnSam();
 
@@ -166,15 +159,13 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
     }
 #endif
 
-    const double dt = 1.0f / SERVER_TPS;
-    // NOTE: Limit delta time to 2 frames worth of updates to prevent chaos for large dt (e.g. when debugging)
-    const double dtMax = dt * 2;
+    const double tickDt = 1.0f / SV_TICK_RATE;
+    const double tickDtMax = tickDt * 2.0f;
+    double tickAccum = 0.0f;
+    const double sendInputDt = 1.0f / CL_INPUT_SEND_RATE;
+    const double sendInputDtMax = sendInputDt * 2.0f;
+    double sendInputAccum = 0.0f;
     double frameStart = glfwGetTime();
-    double frameAccum = 0.0f;
-    double frameDt = 0.0f;
-
-    const double inputDt = (1.0f / 60.0f);
-    double inputAccum = 0.0f;
 
     const int targetFPS = 60;
     //SetTargetFPS(targetFPS);
@@ -189,13 +180,12 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
 
     // Main game loop
     while (!WindowShouldClose()) {
-        {
-            double now = glfwGetTime();
-            frameAccum += MIN(now - frameStart, dtMax);
-            inputAccum += MIN(now - frameStart, dtMax);
-            frameDt = now - frameStart;
-            frameStart = now;
-        }
+        double now = glfwGetTime();
+        double frameDt = now - frameStart;
+        // Limit delta time to prevent spiraling for after long hitches (e.g. hitting a breakpoint)
+        tickAccum += MIN(frameDt, tickDtMax);
+        sendInputAccum += MIN(sendInputDt, sendInputDtMax);
+        frameStart = now;
 
         if (IsWindowResized()) {
             screenWidth = GetScreenWidth();
@@ -224,129 +214,11 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
             ImGui::ShowDemoWindow(&show_demo_window);
         }
 
-        if (netClient.IsConnected()) {
-            ImGui::CloseCurrentPopup();
-        } else {
-            ImGui::SetNextWindowSize(ImVec2(240, 0));
-            ImGui::SetNextWindowPos(ImVec2(6, 340));
-            auto rayDarkBlue = DARKBLUE;
-            ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(rayDarkBlue.r, rayDarkBlue.g, rayDarkBlue.b, rayDarkBlue.a));
-            ImGui::PushStyleColor(ImGuiCol_Border, IM_COL32_BLACK);
-            ImGui::Begin("##mini_menu", 0,
-                ImGuiWindowFlags_NoTitleBar |
-                ImGuiWindowFlags_NoMove |
-                ImGuiWindowFlags_NoResize |
-                ImGuiWindowFlags_NoCollapse
-            );
-            ImGui::PopStyleColor(2);
-            ImGui::Text("Play with friends!");
-            if (ImGui::Button("Connect to DandyNet", ImVec2(150, 0))) {
-                ImGui::OpenPopup("Connect to Server##login_window");
-            }
-
-            if (ImGui::BeginPopupModal("Connect to Server##login_window", 0, ImGuiWindowFlags_AlwaysAutoResize)) {
-                static char host[SERVER_HOST_LENGTH_MAX]{ "slime.theprogrammingjunkie.com" };
-                static int  port = SERVER_PORT;
-                static char username[USERNAME_LENGTH_MAX];
-                static char password[PASSWORD_LENGTH_MAX];
-
-                ImGui::Text("    Host:");
-                ImGui::SameLine();
-                ImGui::SetNextItemWidth(226);
-                ImGui::InputText("##host", host, sizeof(host), ImGuiInputTextFlags_Password | ImGuiInputTextFlags_ReadOnly);
-
-                ImGui::Text("    Port:");
-                ImGui::SameLine();
-                ImGui::SetNextItemWidth(89);
-                ImGui::InputInt("##port", &port, 1, 100, ImGuiInputTextFlags_ReadOnly);
-                port = CLAMP(port, 0, USHRT_MAX);
-
-                ImGui::Text("Username:");
-                ImGui::SameLine();
-                // https://github.com/ocornut/imgui/issues/455#issuecomment-167440172
-                if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && !ImGui::IsAnyItemActive() && !ImGui::IsMouseClicked(0)) {
-                    ImGui::SetKeyboardFocusHere();
-                }
-                ImGui::SetNextItemWidth(226);
-                ImGui::InputText("##username", username, sizeof(username));
-
-                ImGui::Text("Password:");
-                ImGui::SameLine();
-                ImGui::SetNextItemWidth(226);
-                ImGui::InputText("##password", password, sizeof(password), ImGuiInputTextFlags_Password);
-
-                static double connectingIdxLastUpdate = 0;
-                static int connectingIdx = 0;
-                static bool triedConnecting = false;
-                static double failedToConnectShownAt = 0;
-                if (netClient.IsConnecting()) {
-                    const char *text[3]{
-                        "Attempting to connect.",
-                        "Attempting to connect..",
-                        "Attempting to connect...",
-                    };
-                    CenteredText(text[connectingIdx], text[2]);
-                    triedConnecting = true;
-                    if (glfwGetTime() - connectingIdxLastUpdate > 0.2) {
-                        connectingIdx = (connectingIdx + 1) % ARRAY_SIZE(text);
-                        connectingIdxLastUpdate = glfwGetTime();
-                    }
-                } else {
-                    if (triedConnecting) {
-                        CenteredText("DandyNet is offline. :(");
-                        if (!failedToConnectShownAt) {
-                            failedToConnectShownAt = glfwGetTime();
-                        } else if (glfwGetTime() - failedToConnectShownAt > 5.0) {
-                            triedConnecting = false;
-                            failedToConnectShownAt = 0;
-                        }
-                    } else {
-                        ImGui::Text("");
-                    }
-                    connectingIdx = 0;
-                }
-
-                bool closePopup = escape;
-
-                ImGui::BeginDisabled(netClient.IsConnecting());
-
-                ImGui::SetCursorPosX(177.0f);
-                ImGui::PushStyleColor(ImGuiCol_Button, 0xFFBF8346);
-                bool login = ImGui::Button("Connect##login_window:connect", ImVec2(60, 0));
-                ImGui::PopStyleColor();
-                if (login ||
-                    IsKeyPressed(io.KeyMap[ImGuiKey_Enter]) ||
-                    IsKeyPressed(io.KeyMap[ImGuiKey_KeyPadEnter]))
-                {
-                    E_ASSERT(netClient.Connect(host, (unsigned short)port, username, password), "Failed to connect to server");
-                }
-
-                ImGui::SameLine();
-                //ImGui::PushStyleColor(ImGuiCol_Button, 0xFF999999);
-                bool cancel = ImGui::Button("Cancel##login_window:cancel", ImVec2(60, 0));
-                //ImGui::PopStyleColor();
-                if (cancel || IsKeyPressed(io.KeyMap[ImGuiKey_Escape])) {
-                    closePopup = true;
-                }
-
-                ImGui::EndDisabled();
-
-                if (closePopup) {
-                    ImGui::CloseCurrentPopup();
-                    memset(username, 0, sizeof(username));
-                    memset(password, 0, sizeof(password));
-                    chatActive = false;
-                    escape = false;
-                }
-
-                ImGui::EndPopup();
-            }
-            ImGui::End();
-        }
+        UILoginForm(netClient, io, escape);
 
         // HACK: No way to check if Raylib is currently recording.. :(
         //if (gifRecording) {
-        //    dt = 1.0 / 10.0;
+        //    tickDt = 1.0 / 10.0;
         //}
 
         E_ASSERT(netClient.Receive(), "Failed to receive packets");
@@ -373,64 +245,71 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
             if (netClient.worldHistory.Count()) {
                 WorldSnapshot &worldSnapshot = netClient.worldHistory.Last();
 
-                if (world->tick < worldSnapshot.tick) {
-                    world->tick = worldSnapshot.tick;
+                //if (world->tick < worldSnapshot.tick) {
+                //    world->tick = worldSnapshot.tick;
 
-                    // TODO: Update world state from worldSnapshot and re-apply input with input.tick > snapshot.tick
-                    netClient.ReconcilePlayer();
+                //    // TODO: Update world state from worldSnapshot and re-apply input with input.tick > snapshot.tick
+                //    netClient.ReconcilePlayer(tickDt);
+                //}
+                // TODO: Update world state from worldSnapshot and re-apply input with input.tick > snapshot.tick
+                netClient.ReconcilePlayer(tickDt);
+
+                // Send input to server at a fixed rate that matches server tick rate
+                while (sendInputAccum > sendInputDt) {
+                    netClient.SendPlayerInput();
+                    sendInputAccum -= sendInputDt;
                 }
 
-                //while (inputAccum > inputDt) {
-                //
-                //}
+                while (tickAccum > tickDt) {
+                    InputSample &inputSample = netClient.inputHistory.Alloc();
+                    inputSample.FromController(player.id, world->tick, input);
 
-                InputSnapshot &inputSnapshot = netClient.inputHistory.Alloc();
-                inputSnapshot.FromController(player.id, world->tick, frameDt, input);
-                netClient.SendPlayerInput();
-                player.ProcessInput(inputSnapshot);
-                inputAccum -= inputDt;
+                    assert(world->map);
+                    player.Update(tickDt, inputSample, *world->map);
+                    world->particleSystem.Update(tickDt);
 
-                assert(world->map);
-                player.Update(inputDt, *world->map);
+                    world->tick++;
+                    tickAccum -= tickDt;
+                }
 
-                // TODO: Interpolate all of the other entities in the world
-                double renderAt = glfwGetTime() - dt * 2;
-                netClient.Interpolate(renderAt);
-
-                world->particleSystem.Update(frameDt);
+                // Interpolate all of the other entities in the world
+                double renderAt = glfwGetTime() - ((1000.0 / SNAPSHOT_SEND_RATE) * 2.0) / 1000.0;
+                world->Interpolate(renderAt);
             }
         } else {
-            InputSnapshot &inputSnapshot = netClient.inputHistory.Alloc();
-            inputSnapshot.FromController(player.id, world->tick, frameDt, input);
+            while (tickAccum > tickDt) {
+                InputSample &inputSample = netClient.inputHistory.Alloc();
+                inputSample.FromController(player.id, world->tick, input);
 
-#if 0
-            while (frameAccum > dt) {
-                world->Simulate(dt);
+                // Process queued player inputs
+                for (size_t i = 0; i < netClient.inputHistory.Count(); i++) {
+                    InputSample &histSample = netClient.inputHistory.At(i);
+                    if (histSample.clientTick != world->tick) {
+                        // TODO: If < world->tick, discard from queue
+                        continue;
+                    }
+
+                    assert(world->map);
+                    player.Update(tickDt, histSample, *world->map);
+                }
+
+                world->Simulate(tickDt);
+                world->particleSystem.Update(tickDt);
+
+                WorldSnapshot &worldSnapshot = netClient.worldHistory.Alloc();
+                assert(!worldSnapshot.tick);  // ringbuffer alloc fucked up and didn't zero slot
+                worldSnapshot.playerId = player.id;
+                //worldSnapshot.lastInputAck = world->tick;
+                worldSnapshot.tick = world->tick;
+                world->GenerateSnapshot(worldSnapshot);
+
                 world->tick++;
-                frameAccum -= dt;
+                tickAccum -= tickDt;
             }
 
-            assert(world->map);
-            player.ProcessInput(inputSnapshot);
-
-            for (size_t i = 0; i < SERVER_PLAYERS_MAX; i++) {
-                Player &p = world->players[i];
-                if (!p.id) continue;
-                p.Update(frameAccum, *world->map);
-            }
-            for (size_t i = 0; i < WORLD_ENTITIES_MAX; i++) {
-                Slime &s = world->slimes[i];
-                if (!s.id) continue;
-                s.Update(frameAccum);
-            }
-
-            world->particleSystem.Update(frameAccum);
-#else
-            player.ProcessInput(inputSnapshot);
-            world->Simulate(frameDt);
-            world->particleSystem.Update(frameDt);
-            world->tick++;
-#endif
+            // Interpolate all of the other entities in the world
+            double renderAt = glfwGetTime() - tickDt * 2;
+            world->Interpolate(renderAt);
         }
 
         //if (!chatActive) {
@@ -843,7 +722,7 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
 #if SHOW_DEBUG_STATS
             text = TextFormat("Tick          %u", world->tick);
             PUSH_TEXT(text, GRAY);
-            text = TextFormat("framAccum     %.03f", frameAccum);
+            text = TextFormat("framAccum     %.03f", tickAccum);
             PUSH_TEXT(text, GRAY);
             text = TextFormat("frameDt       %.03f", frameDt);
             PUSH_TEXT(text, GRAY);
@@ -912,12 +791,12 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
             static GuiTextBoxAdvancedState chatInputState;
             if (chatActive) {
                 static int chatInputTextLen = 0;
-                static char chatInputText[CHAT_MESSAGE_LENGTH_MAX];
+                static char chatInputText[CHATMSG_LENGTH_MAX];
 
                 Rectangle chatInputRect = { margin, screenHeight - margin - inputBoxHeight, chatWidth, inputBoxHeight };
-                //GuiTextBox(inputBox, chatInputText, CHAT_MESSAGE_LENGTH_MAX, true);
-                //GuiTextBoxEx(inputBox, chatInputText, CHAT_MESSAGE_LENGTH_MAX, true);
-                if (GuiTextBoxAdvanced(&chatInputState, chatInputRect, chatInputText, &chatInputTextLen, CHAT_MESSAGE_LENGTH_MAX, io.WantCaptureKeyboard)) {
+                //GuiTextBox(inputBox, chatInputText, CHATMSG_LENGTH_MAX, true);
+                //GuiTextBoxEx(inputBox, chatInputText, CHATMSG_LENGTH_MAX, true);
+                if (GuiTextBoxAdvanced(&chatInputState, chatInputRect, chatInputText, &chatInputTextLen, CHATMSG_LENGTH_MAX, io.WantCaptureKeyboard)) {
                     size_t messageLength = chatInputTextLen;
                     if (messageLength) {
                         ErrorType sendResult = netClient.SendChatMessage(chatInputText, messageLength);

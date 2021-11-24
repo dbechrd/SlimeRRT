@@ -95,8 +95,8 @@ ErrorType NetClient::SendMsg(NetMessage &message)
 
 ErrorType NetClient::Auth(void)
 {
-    assert(username);
-    assert(password);
+    assert(usernameLength);
+    assert(passwordLength);
 
     memset(&netMsg, 0, sizeof(netMsg));
     netMsg.type = NetMessage::Type::Identify;
@@ -125,8 +125,8 @@ ErrorType NetClient::SendChatMessage(const char *message, size_t messageLength)
 
     // TODO: Account for header size, determine MTU we want to aim for, and perhaps do auto-segmentation somewhere
     assert(messageLength);
-    assert(messageLength <= CHAT_MESSAGE_LENGTH_MAX);
-    size_t messageLengthSafe = MIN(messageLength, CHAT_MESSAGE_LENGTH_MAX);
+    assert(messageLength <= CHATMSG_LENGTH_MAX);
+    size_t messageLengthSafe = MIN(messageLength, CHATMSG_LENGTH_MAX);
 
     // If we don't have a username yet (salt, client id, etc.) then we're not connected and can't send chat messages!
     // This would be weird since if we're not connected how do we see the chat box?
@@ -143,8 +143,6 @@ ErrorType NetClient::SendChatMessage(const char *message, size_t messageLength)
 
 ErrorType NetClient::SendPlayerInput(void)
 {
-    ErrorType result = ErrorType::Success;
-
     if (!server || server->state != ENET_PEER_STATE_CONNECTED) {
         E_WARN("Not connected to server. Input not sent.");
         return ErrorType::NotConnected;
@@ -152,27 +150,27 @@ ErrorType NetClient::SendPlayerInput(void)
     assert(server);
     assert(server->address.port);
 
-    if (!worldHistory.Count()) {
+    if (!worldHistory.Count() || !inputHistory.Count()) {
         return ErrorType::Success;
     }
 
     WorldSnapshot &worldSnapshot = worldHistory.Last();
 
-    for (size_t i = 0; i < inputHistory.Count(); i++) {
-        InputSnapshot &inputSnapshot = inputHistory.At(i);
-        if (inputSnapshot.seq > inputSeq) {
-            // TODO: Wrap multiple inputs into a single packet
-            memset(&netMsg, 0, sizeof(netMsg));
-            netMsg.type = NetMessage::Type::Input;
-            netMsg.data.input = inputHistory.At(i);
-            ErrorType sendResult = SendMsg(netMsg);
-            if (sendResult != ErrorType::Success) {
-                result = sendResult;
-            }
+    memset(&netMsg, 0, sizeof(netMsg));
+    netMsg.type = NetMessage::Type::Input;
+
+    uint32_t sampleCount = 0;
+    for (size_t i = 0; i < inputHistory.Count() && sampleCount < CL_INPUT_SAMPLES_MAX; i++) {
+        InputSample &inputSample = inputHistory.At(i);
+        if (inputSample.clientTick > worldSnapshot.tick) {
+            if (sampleCount == 0) { printf("\nSending input for ticks:"); }
+            printf(" %u", inputSample.clientTick);
+            netMsg.data.input.samples[sampleCount++] = inputSample;
         }
     }
-
-    return result;
+    fflush(stdout);
+    netMsg.data.input.sampleCount = sampleCount;
+    return SendMsg(netMsg);
 }
 
 void NetClient::PredictPlayer(void)
@@ -182,7 +180,7 @@ void NetClient::PredictPlayer(void)
     //player->Update(now, input.dt);
 }
 
-void NetClient::ReconcilePlayer(void)
+void NetClient::ReconcilePlayer(double tickDt)
 {
     if (!serverWorld || !worldHistory.Count()) {
         // Not connected to server, or no snapshots received yet
@@ -219,72 +217,14 @@ void NetClient::ReconcilePlayer(void)
 
     // Predict player for each input not yet handled by the server
     for (size_t i = 0; i < inputHistory.Count(); i++) {
-        InputSnapshot &input = inputHistory.At(i);
+        InputSample &input = inputHistory.At(i);
         // NOTE: Old input's ownerId might not match if the player recently
         // reconnect to a server and received a new playerId
-        if (input.ownerId == player->id && input.seq > latestSnapshot.inputSeq) {
+        if (input.ownerId == player->id && input.clientTick > latestSnapshot.tick) {
             assert(serverWorld->map);
-            player->ProcessInput(input);
-            player->Update(input.frameDt, *serverWorld->map);
+            player->Update(tickDt, input, *serverWorld->map);
         }
     }
-}
-
-bool NetClient::InterpolateBody(Body3D &body, double renderAt)
-{
-    auto positionHistory = body.positionHistory;
-    const size_t historyLen = positionHistory.Count();
-    if (!historyLen) {
-        return true;
-    }
-
-    Vector3Snapshot first = positionHistory.At(0);
-    if (renderAt <= first.recvAt) {
-        body.position = first.v;
-        return true;
-    }
-
-    size_t right = 1;
-    while (right < positionHistory.Count() && renderAt >= positionHistory.At(right).recvAt) {
-        right++;
-    }
-
-    if (right == positionHistory.Count()) {
-        return false;  // assume despawned
-    }
-
-    Vector3Snapshot *a = &positionHistory.At(right - 1);
-    Vector3Snapshot *b = &positionHistory.At(right);
-    assert(a->recvAt <= renderAt);
-    assert(b->recvAt > renderAt);
-
-    double alpha = (renderAt - a->recvAt) / (b->recvAt - a->recvAt);
-    //entity.x = x0 + (x1 - x0) * alpha;
-    body.position = v3_add(a->v, v3_scale(v3_sub(b->v, a->v), (float)alpha));
-    return true;
-}
-
-void NetClient::Interpolate(double renderAt)
-{
-    for (size_t i = 0; i < SERVER_PLAYERS_MAX; i++) {
-        Player &player = serverWorld->players[i];
-        if (!player.id || player.id == serverWorld->playerId) {
-            continue;
-        }
-        if (!InterpolateBody(player.body, renderAt)) {
-            serverWorld->DespawnPlayer(player.id);
-        }
-    }
-    for (size_t i = 0; i < WORLD_ENTITIES_MAX; i++) {
-        Slime &slime = serverWorld->slimes[i];
-        if (!slime.id) {
-            continue;
-        }
-        if (!InterpolateBody(slime.body, renderAt)) {
-            serverWorld->DespawnSlime(slime.id);
-        }
-    }
-    return;
 }
 
 void NetClient::ProcessMsg(ENetPacket &packet)
@@ -324,6 +264,10 @@ void NetClient::ProcessMsg(ENetPacket &packet)
             WorldSnapshot &worldSnapshot = worldHistory.Alloc();
             worldSnapshot = netSnapshot;
             worldSnapshot.recvAt = glfwGetTime();
+
+            if (!serverWorld->tick) {
+                serverWorld->tick = worldSnapshot.tick + 1;
+            }
 
             for (size_t i = 0; i < worldSnapshot.playerCount; i++) {
                 PlayerSnapshot &playerSnapshot = worldSnapshot.players[i];

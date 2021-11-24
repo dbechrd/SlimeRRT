@@ -143,7 +143,7 @@ bool Player::Attack(void)
     return false;
 }
 
-void Player::ProcessInput(InputSnapshot &input)
+void Player::Update(double dt, InputSample &input, const Tilemap &map)
 {
     assert(id);
     assert(input.ownerId == id);
@@ -153,7 +153,6 @@ void Player::ProcessInput(InputSnapshot &input)
     }
 
     float playerSpeed = 4.0f;
-
     Vector2 move{};
 
     if (input.walkNorth || input.walkEast || input.walkSouth || input.walkWest) {
@@ -179,7 +178,7 @@ void Player::ProcessInput(InputSnapshot &input)
         moveState = Player::MoveState::Idle;
     }
 
-    Vector2 moveOffset = v2_scale(v2_normalize(move), METERS_TO_PIXELS(playerSpeed) * (float)input.frameDt);
+    Vector2 moveOffset = v2_scale(v2_normalize(move), METERS_TO_PIXELS(playerSpeed) * (float)dt);
     moveBuffer = v2_add(moveBuffer, moveOffset);
 
     if (input.attack && Attack()) {
@@ -188,11 +187,6 @@ void Player::ProcessInput(InputSnapshot &input)
 
     // Skip sounds/particles etc. next time this input is used (e.g. during reconciliation)
     input.skipFx = true;
-}
-
-void Player::Update(double dt, const Tilemap &map)
-{
-    assert(id);
 
     if (!v2_is_zero(moveBuffer)) {
         const Vector2 curPos = body.GroundPosition();

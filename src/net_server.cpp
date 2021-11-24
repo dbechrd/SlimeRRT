@@ -26,7 +26,7 @@ ErrorType NetServer::OpenSocket(unsigned short socketPort)
     //address.host = enet_v4_localhost;
     address.port = socketPort;
 
-    server = enet_host_create(&address, SERVER_PLAYERS_MAX, 1, 0, 0);
+    server = enet_host_create(&address, SV_MAX_PLAYERS, 1, 0, 0);
     if (!server || !server->socket) {
         E_ASSERT(ErrorType::HostCreateFailed, "Failed to create host.");
     }
@@ -70,7 +70,7 @@ ErrorType NetServer::BroadcastRaw(const void *data, size_t size)
     }
 
     // Broadcast netMsg to all connected clients
-    for (int i = 0; i < SERVER_PLAYERS_MAX; i++) {
+    for (int i = 0; i < SV_MAX_PLAYERS; i++) {
         if (!clients[i].peer || clients[i].peer->state != ENET_PEER_STATE_CONNECTED) { // || !clients[i].playerId) {
             continue;
         }
@@ -95,7 +95,7 @@ ErrorType NetServer::SendMsg(const NetServerClient &client, NetMessage &message)
 
     message.connectionToken = client.connectionToken;
     ENetBuffer rawPacket = message.Serialize(*serverWorld);
-    E_INFO("[SEND][%21s][%5u b] %16s ", TextFormatIP(client.peer->address), rawPacket.dataLength, netMsg.TypeString());
+    //E_INFO("[SEND][%21s][%5u b] %16s ", TextFormatIP(client.peer->address), rawPacket.dataLength, netMsg.TypeString());
     E_ASSERT(SendRaw(client, rawPacket.data, rawPacket.dataLength), "Failed to send packet");
     return ErrorType::Success;
 }
@@ -105,7 +105,7 @@ ErrorType NetServer::BroadcastMsg(NetMessage &message)
     ErrorType err_code = ErrorType::Success;
 
     // Broadcast netMsg to all connected clients
-    for (int i = 0; i < SERVER_PLAYERS_MAX; i++) {
+    for (int i = 0; i < SV_MAX_PLAYERS; i++) {
         NetServerClient &client = clients[i];
         ErrorType result = SendMsg(clients[i], message);
         if (result != ErrorType::Success) {
@@ -123,8 +123,8 @@ ErrorType NetServer::BroadcastChatMessage(const char *msg, size_t msgLength)
 
     memset(&netMsg, 0, sizeof(netMsg));
     netMsg.type = NetMessage::Type::ChatMessage;
-    netMsg.data.chatMsg.usernameLength = sizeof(SERVER_USERNAME) - 1;
-    memcpy(netMsg.data.chatMsg.username, CSTR(SERVER_USERNAME));
+    netMsg.data.chatMsg.usernameLength = sizeof(SV_USERNAME) - 1;
+    memcpy(netMsg.data.chatMsg.username, CSTR(SV_USERNAME));
     netMsg.data.chatMsg.messageLength = (uint32_t)msgLength;
     memcpy(netMsg.data.chatMsg.message, msg, msgLength);
     return BroadcastMsg(netMsg);
@@ -185,17 +185,52 @@ ErrorType NetServer::SendWorldSnapshot(NetServerClient &client, WorldSnapshot &w
     // TODO: Get rid of this memcpy?
     memcpy(&netMsg.data.worldSnapshot, &worldSnapshot, sizeof(netMsg.data.worldSnapshot));
     E_ASSERT(SendMsg(client, netMsg), "Failed to send world snapshot");
+
+    client.lastSnapshotSentAt = glfwGetTime();
     return ErrorType::Success;
 }
 
 NetServerClient *NetServer::FindClient(uint32_t playerId)
 {
-    for (int i = 0; i < SERVER_PLAYERS_MAX; i++) {
+    for (int i = 0; i < SV_MAX_PLAYERS; i++) {
         if (clients[i].playerId == playerId) {
             return &clients[i];
         }
     }
     return 0;
+}
+
+bool NetServer::IsValidInput(const NetServerClient &client, const InputSample &sample)
+{
+    // If ownerId doesn't match, ignore
+    if (sample.ownerId != client.playerId) {
+        // TODO: Disconnect someone trying to impersonate?
+        // Maybe their ID changed due to a recent reconnect? Check connection age.
+        return false;
+    }
+
+    // If sample with this tick has already been ack'd (or is past due), ignore
+    if (sample.clientTick <= client.lastInputAck) {
+        // TODO: Disconnect someone trying to send exceptionally old inputs?
+        return false;
+    }
+
+    // If sample is too far in the future, ignore
+    if (sample.clientTick > client.lastInputAck + (1000 / SV_TICK_RATE)) {
+        // TODO: Disconnect someone trying to send futuristic inputs?
+        printf("Input too far in future.. ignoring (%u > %u)\n", sample.clientTick, client.lastInputAck);
+        return false;
+    }
+
+    // If sample already exists, ignore
+    for (size_t i = 0; i < inputHistory.Count(); i++) {
+        InputSample &histSample = inputHistory.At(i);
+        if (histSample.ownerId == sample.ownerId && histSample.clientTick == sample.clientTick) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 void NetServer::ProcessMsg(NetServerClient &client, ENetPacket &packet)
@@ -249,18 +284,19 @@ void NetServer::ProcessMsg(NetServerClient &client, ENetPacket &packet)
             BroadcastMsg(netMsg);
             break;
         } case NetMessage::Type::Input: {
-            // TODO: Save all unprocessed input (in a queue, with timestamp)
-            InputSnapshot &netSnapshot = netMsg.data.input;
-            InputSnapshot &inputSnapshot = inputHistory.Alloc();
-            inputSnapshot = netSnapshot;
-            //memcpy(&inputSnapshot, &netSnapshot, sizeof(historySnapshot));
-            //inputSnapshot.walkNorth  = netMsg.data.input.walkNorth;
-            //inputSnapshot.walkEast   = netMsg.data.input.walkEast;
-            //inputSnapshot.walkSouth  = netMsg.data.input.walkSouth;
-            //inputSnapshot.walkWest   = netMsg.data.input.walkWest;
-            //inputSnapshot.run        = netMsg.data.input.run;
-            //inputSnapshot.attack     = netMsg.data.input.attack;
-            //inputSnapshot.selectSlot = netMsg.data.input.selectSlot;
+            NetMessage_Input &input = netMsg.data.input;
+            if (input.sampleCount <= CL_INPUT_SAMPLES_MAX) {
+                for (size_t i = 0; i < input.sampleCount; i++) {
+                    InputSample &sample = input.samples[i];
+                    if (sample.clientTick && IsValidInput(client, sample)) {
+                        InputSample &histSample = inputHistory.Alloc();
+                        histSample = sample;
+                        printf("Received input for tick %u\n", histSample.clientTick);
+                    }
+                }
+            } else {
+                // Invalid message format, disconnect naughty user?
+            }
             break;
         } default: {
             E_INFO("Unexpected netMsg type: %s\n", netMsg.TypeString());
@@ -271,12 +307,16 @@ void NetServer::ProcessMsg(NetServerClient &client, ENetPacket &packet)
 
 NetServerClient *NetServer::AddClient(ENetPeer *peer)
 {
-    for (int i = 0; i < SERVER_PLAYERS_MAX; i++) {
-        if (!clients[i].playerId) {
-            assert(!clients[i].peer);
-            clients[i].peer = peer;
-            peer->data = &clients[i];
-            return &clients[i];
+    for (int i = 0; i < SV_MAX_PLAYERS; i++) {
+        NetServerClient &client = clients[i];
+        if (!client.playerId) {
+            assert(!client.peer);
+            client.peer = peer;
+            peer->data = &client;
+
+            assert(serverWorld->tick);
+            client.lastInputAck = serverWorld->tick - 1;
+            return &client;
         }
     }
     return 0;
@@ -289,7 +329,7 @@ NetServerClient *NetServer::FindClient(ENetPeer *peer)
         return client;
     }
 
-    for (int i = 0; i < SERVER_PLAYERS_MAX; i++) {
+    for (int i = 0; i < SV_MAX_PLAYERS; i++) {
         if (clients[i].peer == peer) {
             return &clients[i];
         }

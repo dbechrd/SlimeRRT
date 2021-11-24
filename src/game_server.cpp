@@ -21,67 +21,74 @@ ErrorType GameServer::Run()
     netServer.serverWorld = world;
 
     {
-        for (size_t i = 0; i < WORLD_ENTITIES_MAX; i++) {
+        for (size_t i = 0; i < SV_MAX_ENTITIES; i++) {
             Slime &slime = world->slimes[i];
             uint32_t slimeId = 0;
             world->SpawnSlime(0);
         }
     }
 
-    E_ASSERT(netServer.OpenSocket(SERVER_PORT), "Failed to open socket");
+    E_ASSERT(netServer.OpenSocket(SV_DEFAULT_PORT), "Failed to open socket");
 
-    const double dt = 1.0f / SERVER_TPS;
+    const double tickDt = 1.0f / SV_TICK_RATE;
+    double tickAccum = 0.0f;
     double frameStart = glfwGetTime();
-    double frameAccum = 0.0f;
 
     bool running = true;
     while (running) {
         E_ASSERT(netServer.Listen(), "Failed to listen on socket");
 
         double now = glfwGetTime();
-        frameAccum += now - frameStart;
+        tickAccum += now - frameStart;
         frameStart = now;
 
-        if (frameAccum > dt) {
-            while (frameAccum > dt) {
-                // Process queued player inputs
-                for (size_t i = 0; i < netServer.inputHistory.Count(); i++) {
-                    InputSnapshot &inputSnapshot = netServer.inputHistory.At(i);
-
-                    NetServerClient *client = netServer.FindClient(inputSnapshot.ownerId);
-                    if (!client || client->inputSeq >= inputSnapshot.seq) {
-                        continue;
-                    }
-
-                    Player *player = world->FindPlayer(inputSnapshot.ownerId);
-                    if (!player) {
-                        continue;
-                    }
-
-                    assert(client->playerId == player->id);
-                    assert(world->map);
-                    player->ProcessInput(inputSnapshot);
-                    client->inputSeq = inputSnapshot.seq;
+        while (tickAccum > tickDt) {
+            // Process queued player inputs
+            size_t inputHistoryLen = netServer.inputHistory.Count();
+            for (size_t i = 0; i < inputHistoryLen; i++) {
+                InputSample &inputSample = netServer.inputHistory.At(i);
+                if (inputSample.clientTick != world->tick) {
+                    // TODO: If < world->tick, discard from queue
+                    continue;
                 }
 
-                world->Simulate(dt);
+                NetServerClient *client = netServer.FindClient(inputSample.ownerId);
+                if (!client) {
+                    continue;
+                }
+                //assert(client->lastInputAck < world->tick);
 
-                for (size_t i = 0; i < SERVER_PLAYERS_MAX; i++) {
-                    NetServerClient &client = netServer.clients[i];
-                    if (client.playerId) {
-                        WorldSnapshot &worldSnapshot = client.worldHistory.Alloc();
-                        assert(!worldSnapshot.tick);  // ringbuffer alloc fucked up and didn't zero slot
-                        worldSnapshot.playerId = client.playerId;
-                        worldSnapshot.inputSeq = client.inputSeq;
-                        worldSnapshot.tick = world->tick;
-                        world->GenerateSnapshot(worldSnapshot);
-                        E_ASSERT(netServer.SendWorldSnapshot(client, worldSnapshot), "Failed to broadcast world snapshot");
-                    }
+                Player *player = world->FindPlayer(inputSample.ownerId);
+                if (!player) {
+                    continue;
                 }
 
-                world->tick++;
-                frameAccum -= dt;
+                assert(client->playerId == player->id);
+                assert(world->map);
+                player->Update(tickDt, inputSample, *world->map);
+
+                client->lastInputAck = inputSample.clientTick;
             }
+
+            world->Simulate(tickDt);
+
+            for (size_t i = 0; i < SV_MAX_PLAYERS; i++) {
+                NetServerClient &client = netServer.clients[i];
+                if (client.playerId && (glfwGetTime() - client.lastSnapshotSentAt) > (1000.0 / SNAPSHOT_SEND_RATE) / 1000.0) {
+                    printf("Sending snapshot for tick %u to player %u\n", world->tick, client.playerId);
+                    client.lastInputAck = world->tick;
+                    WorldSnapshot &worldSnapshot = client.worldHistory.Alloc();
+                    assert(!worldSnapshot.tick);  // ringbuffer alloc fucked up and didn't zero slot
+                    worldSnapshot.playerId = client.playerId;
+                    //worldSnapshot.lastInputAck = client.lastInputAck;
+                    worldSnapshot.tick = world->tick;
+                    world->GenerateSnapshot(worldSnapshot);
+                    E_ASSERT(netServer.SendWorldSnapshot(client, worldSnapshot), "Failed to broadcast world snapshot");
+                }
+            }
+
+            world->tick++;
+            tickAccum -= tickDt;
         }
     }
 
