@@ -1,6 +1,4 @@
 #include "tests.h"
-#define DLB_RAND_TEST
-#include "dlb_rand.h"
 
 void maths_test();
 void dlb_rand_test();
@@ -15,6 +13,6 @@ void run_tests()
     net_message_test();
 }
 
-#include "bitstream_test.cpp"
 #include "maths_test.cpp"
+#include "bitstream_test.cpp"
 #include "net_message_test.cpp"

@@ -22,7 +22,7 @@ struct SlimeSnapshot {
 
 struct WorldSnapshot {
     uint32_t       playerId     {};  // id of player this snapshot is intended for
-    //uint32_t       lastInputAck {};  // sequence # of last processed input
+    uint32_t       lastInputAck {};  // sequence # of last processed input
     uint32_t       tick         {};
     double         recvAt       {};  // not sent over network, auto-populated when received
     uint32_t       playerCount  {};  // players in this snapshot

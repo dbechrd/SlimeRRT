@@ -3,6 +3,7 @@
 #include "chat.h"
 #include "world.h"
 #include "raylib/raylib.h"
+#include "enet_zpl.h"
 #include <cassert>
 #include <cstdio>
 #include <cstdlib>
@@ -162,9 +163,9 @@ ErrorType NetClient::SendPlayerInput(void)
     uint32_t sampleCount = 0;
     for (size_t i = 0; i < inputHistory.Count() && sampleCount < CL_INPUT_SAMPLES_MAX; i++) {
         InputSample &inputSample = inputHistory.At(i);
-        if (inputSample.clientTick > worldSnapshot.tick) {
-            if (sampleCount == 0) { printf("\nSending input for ticks:"); }
-            printf(" %u", inputSample.clientTick);
+        if (inputSample.seq > worldSnapshot.lastInputAck) {
+            if (sampleCount == 0) { printf("\nSending input seq:"); }
+            printf(" %u", inputSample.seq);
             netMsg.data.input.samples[sampleCount++] = inputSample;
         }
     }
@@ -220,7 +221,7 @@ void NetClient::ReconcilePlayer(double tickDt)
         InputSample &input = inputHistory.At(i);
         // NOTE: Old input's ownerId might not match if the player recently
         // reconnect to a server and received a new playerId
-        if (input.ownerId == player->id && input.clientTick > latestSnapshot.tick) {
+        if (input.ownerId == player->id && input.seq > latestSnapshot.lastInputAck) {
             assert(serverWorld->map);
             player->Update(tickDt, input, *serverWorld->map);
         }
@@ -266,7 +267,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
             worldSnapshot.recvAt = glfwGetTime();
 
             if (!serverWorld->tick) {
-                serverWorld->tick = worldSnapshot.tick + 1;
+                //serverWorld->tick = worldSnapshot.tick + 2;
             }
 
             for (size_t i = 0; i < worldSnapshot.playerCount; i++) {

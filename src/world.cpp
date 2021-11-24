@@ -387,7 +387,8 @@ void World::GenerateSnapshot(WorldSnapshot &worldSnapshot)
     }
 
     // TODO: Find players/slimes/etc. that are actually near the player this snapshot is being generated for
-    for (size_t i = 0; i < SV_MAX_PLAYERS; i++) {
+    worldSnapshot.playerCount = 0;
+    for (size_t i = 0; i < SV_MAX_PLAYERS && worldSnapshot.playerCount < SNAPSHOT_MAX_PLAYERS; i++) {
         memcpy(worldSnapshot.players[i].name, players[i].name, USERNAME_LENGTH_MAX);
         worldSnapshot.players[worldSnapshot.playerCount].id           = players[i].id                 ;
         worldSnapshot.players[worldSnapshot.playerCount].nameLength   = players[i].nameLength         ;
@@ -395,11 +396,9 @@ void World::GenerateSnapshot(WorldSnapshot &worldSnapshot)
         worldSnapshot.players[worldSnapshot.playerCount].hitPoints    = players[i].combat.hitPoints   ;
         worldSnapshot.players[worldSnapshot.playerCount].hitPointsMax = players[i].combat.hitPointsMax;
         worldSnapshot.playerCount++;
-        if (worldSnapshot.playerCount > SNAPSHOT_MAX_PLAYERS) {
-            break;
-        }
     }
-    for (size_t i = 0; i < SV_MAX_ENTITIES; i++) {
+    worldSnapshot.slimeCount = 0;
+    for (size_t i = 0; i < SV_MAX_ENTITIES && worldSnapshot.slimeCount < SNAPSHOT_MAX_ENTITIES; i++) {
         if (v3_length_sq(v3_sub(player->body.position, slimes[i].body.position)) < SQUARED(1300.0f)) {
             worldSnapshot.slimes[worldSnapshot.slimeCount].id           = slimes[i].id                 ;
             worldSnapshot.slimes[worldSnapshot.slimeCount].position     = slimes[i].body.position      ;
@@ -407,9 +406,6 @@ void World::GenerateSnapshot(WorldSnapshot &worldSnapshot)
             worldSnapshot.slimes[worldSnapshot.slimeCount].hitPointsMax = slimes[i].combat.hitPointsMax;
             worldSnapshot.slimes[worldSnapshot.slimeCount].scale        = slimes[i].sprite.scale       ;
             worldSnapshot.slimeCount++;
-            if (worldSnapshot.slimeCount > SNAPSHOT_MAX_ENTITIES) {
-                break;
-            }
         }
     }
 }
@@ -429,11 +425,13 @@ bool World::InterpolateBody(Body3D &body, double renderAt)
     }
 
     size_t right = 1;
-    while (right < positionHistory.Count() && renderAt >= positionHistory.At(right).recvAt) {
+    Vector3Snapshot rightSnap{};
+    while (right < positionHistory.Count() && (rightSnap = positionHistory.At(right), renderAt >= rightSnap.recvAt)) {
         right++;
     }
 
     if (right == positionHistory.Count()) {
+        printf("renderAt %f not between %f and %f\n", renderAt, first.recvAt, rightSnap.recvAt);
         return false;  // assume despawned
     }
 

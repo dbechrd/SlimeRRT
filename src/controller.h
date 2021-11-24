@@ -38,9 +38,9 @@ struct PlayerControllerState {
 };
 
 struct InputSample {
-    //uint32_t seq        {};  // monotonic input sequence number
+    uint32_t seq        {};  // monotonic input sequence number
     uint32_t ownerId    {};  // player who generated this input
-    uint32_t clientTick {};  // client tick when input was detected
+    //uint32_t clientTick {};  // client tick when input was detected
     bool     walkNorth  {};
     bool     walkEast   {};
     bool     walkSouth  {};
@@ -52,11 +52,11 @@ struct InputSample {
 
     void FromController(uint32_t playerId, uint32_t tick, PlayerControllerState &controllerState)
     {
-        //static uint32_t nextSeqNum = 0;
-        //nextSeqNum = MAX(1, nextSeqNum + 1);
-        //seq        = nextSeqNum;
+        static uint32_t nextSeqNum = 0;
+        nextSeqNum = MAX(1, nextSeqNum + 1);
+        seq        = nextSeqNum;
         ownerId    = playerId;
-        clientTick = tick;
+        //clientTick = tick;
         walkNorth  = controllerState.walkNorth;
         walkEast   = controllerState.walkEast;
         walkSouth  = controllerState.walkSouth;

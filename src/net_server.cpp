@@ -210,22 +210,22 @@ bool NetServer::IsValidInput(const NetServerClient &client, const InputSample &s
     }
 
     // If sample with this tick has already been ack'd (or is past due), ignore
-    if (sample.clientTick <= client.lastInputAck) {
+    if (sample.seq <= client.lastInputAck) {
         // TODO: Disconnect someone trying to send exceptionally old inputs?
         return false;
     }
 
     // If sample is too far in the future, ignore
-    if (sample.clientTick > client.lastInputAck + (1000 / SV_TICK_RATE)) {
-        // TODO: Disconnect someone trying to send futuristic inputs?
-        printf("Input too far in future.. ignoring (%u > %u)\n", sample.clientTick, client.lastInputAck);
-        return false;
-    }
+    //if (sample.seq > client.lastInputAck + (1000 / SV_TICK_RATE)) {
+    //    // TODO: Disconnect someone trying to send futuristic inputs?
+    //    printf("Input too far in future.. ignoring (%u > %u)\n", sample.clientTick, client.lastInputAck);
+    //    return false;
+    //}
 
     // If sample already exists, ignore
     for (size_t i = 0; i < inputHistory.Count(); i++) {
         InputSample &histSample = inputHistory.At(i);
-        if (histSample.ownerId == sample.ownerId && histSample.clientTick == sample.clientTick) {
+        if (histSample.ownerId == sample.ownerId && histSample.seq == sample.seq) {
             return false;
         }
     }
@@ -288,10 +288,10 @@ void NetServer::ProcessMsg(NetServerClient &client, ENetPacket &packet)
             if (input.sampleCount <= CL_INPUT_SAMPLES_MAX) {
                 for (size_t i = 0; i < input.sampleCount; i++) {
                     InputSample &sample = input.samples[i];
-                    if (sample.clientTick && IsValidInput(client, sample)) {
+                    if (sample.seq && IsValidInput(client, sample)) {
                         InputSample &histSample = inputHistory.Alloc();
                         histSample = sample;
-                        printf("Received input for tick %u\n", histSample.clientTick);
+                        printf("Received input #%u\n", histSample.seq);
                     }
                 }
             } else {

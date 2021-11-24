@@ -11,18 +11,19 @@
 #include "ui_login_form.h"
 #include "dlb_types.h"
 
-#include "raylib/raygui.h"
-#include "raylib/raylib.h"
 #define GRAPHICS_API_OPENGL_33
 #include "raylib/rlgl.h"
+#include "raylib/raylib.h"
+//#include "raylib/raygui.h"
+//#include "gui_textbox_extended.h"
 
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_opengl3.h"
 #include "imgui/imgui_impl_glfw.h"
 #include "GLFW/glfw3.h"
 
-#include <chrono>
-#include <future>
+//#include <chrono>
+//#include <future>
 
 using namespace std::chrono_literals;
 
@@ -60,7 +61,7 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
     Font font = LoadFontEx("C:/Windows/Fonts/consola.ttf", fontHeight, 0, 0);
     //font = LoadFontEx("resources/UbuntuMono-Regular.ttf", fontHeight, 0, 0);
     assert(font.texture.id);
-    GuiSetFont(font);
+    //GuiSetFont(font);
 
     HealthBar::SetFont(GetFontDefault());
 
@@ -245,20 +246,14 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
             if (netClient.worldHistory.Count()) {
                 WorldSnapshot &worldSnapshot = netClient.worldHistory.Last();
 
-                //if (world->tick < worldSnapshot.tick) {
-                //    world->tick = worldSnapshot.tick;
+                if (world->tick < worldSnapshot.tick) {
+                    world->tick = worldSnapshot.tick;
 
-                //    // TODO: Update world state from worldSnapshot and re-apply input with input.tick > snapshot.tick
-                //    netClient.ReconcilePlayer(tickDt);
-                //}
-                // TODO: Update world state from worldSnapshot and re-apply input with input.tick > snapshot.tick
-                netClient.ReconcilePlayer(tickDt);
-
-                // Send input to server at a fixed rate that matches server tick rate
-                while (sendInputAccum > sendInputDt) {
-                    netClient.SendPlayerInput();
-                    sendInputAccum -= sendInputDt;
+                    // TODO: Update world state from worldSnapshot and re-apply input with input.tick > snapshot.tick
+                    netClient.ReconcilePlayer(tickDt);
                 }
+                // TODO: Update world state from worldSnapshot and re-apply input with input.tick > snapshot.tick
+                //netClient.ReconcilePlayer(tickDt);
 
                 while (tickAccum > tickDt) {
                     InputSample &inputSample = netClient.inputHistory.Alloc();
@@ -272,26 +267,23 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
                     tickAccum -= tickDt;
                 }
 
+                // Send input to server at a fixed rate that matches server tick rate
+                while (sendInputAccum > sendInputDt) {
+                    netClient.SendPlayerInput();
+                    sendInputAccum -= sendInputDt;
+                }
+
                 // Interpolate all of the other entities in the world
-                double renderAt = glfwGetTime() - ((1000.0 / SNAPSHOT_SEND_RATE) * 2.0) / 1000.0;
+                double renderAt = glfwGetTime() - (110.0 / 1000.0); //((1000.0 / (SNAPSHOT_SEND_RATE * 1.0)) / 1000.0);
                 world->Interpolate(renderAt);
             }
         } else {
             while (tickAccum > tickDt) {
-                InputSample &inputSample = netClient.inputHistory.Alloc();
+                InputSample inputSample{};
                 inputSample.FromController(player.id, world->tick, input);
 
-                // Process queued player inputs
-                for (size_t i = 0; i < netClient.inputHistory.Count(); i++) {
-                    InputSample &histSample = netClient.inputHistory.At(i);
-                    if (histSample.clientTick != world->tick) {
-                        // TODO: If < world->tick, discard from queue
-                        continue;
-                    }
-
-                    assert(world->map);
-                    player.Update(tickDt, histSample, *world->map);
-                }
+                assert(world->map);
+                player.Update(tickDt, inputSample, *world->map);
 
                 world->Simulate(tickDt);
                 world->particleSystem.Update(tickDt);
@@ -788,29 +780,27 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
             world->chatHistory.Render(font, { chatX, chatY, chatWidth, chatHeight });
 
             // Render chat input box
-            static GuiTextBoxAdvancedState chatInputState;
+            //static GuiTextBoxAdvancedState chatInputState;
             if (chatActive) {
                 static int chatInputTextLen = 0;
                 static char chatInputText[CHATMSG_LENGTH_MAX];
 
                 Rectangle chatInputRect = { margin, screenHeight - margin - inputBoxHeight, chatWidth, inputBoxHeight };
-                //GuiTextBox(inputBox, chatInputText, CHATMSG_LENGTH_MAX, true);
-                //GuiTextBoxEx(inputBox, chatInputText, CHATMSG_LENGTH_MAX, true);
-                if (GuiTextBoxAdvanced(&chatInputState, chatInputRect, chatInputText, &chatInputTextLen, CHATMSG_LENGTH_MAX, io.WantCaptureKeyboard)) {
-                    size_t messageLength = chatInputTextLen;
-                    if (messageLength) {
-                        ErrorType sendResult = netClient.SendChatMessage(chatInputText, messageLength);
-                        switch (sendResult) {
-                        case ErrorType::NotConnected:
-                        {
-                            world->chatHistory.PushMessage(CSTR("Sam"), CSTR("You're not connected to a server. Nobody is listening. :("));
-                            break;
-                        }
-                        }
-                        memset(chatInputText, 0, sizeof(chatInputText));
-                        chatInputTextLen = 0;
-                    }
-                }
+                //if (GuiTextBoxAdvanced(&chatInputState, chatInputRect, chatInputText, &chatInputTextLen, CHATMSG_LENGTH_MAX, io.WantCaptureKeyboard)) {
+                //    size_t messageLength = chatInputTextLen;
+                //    if (messageLength) {
+                //        ErrorType sendResult = netClient.SendChatMessage(chatInputText, messageLength);
+                //        switch (sendResult) {
+                //            case ErrorType::NotConnected:
+                //            {
+                //                world->chatHistory.PushMessage(CSTR("Sam"), CSTR("You're not connected to a server. Nobody is listening. :("));
+                //                break;
+                //            }
+                //        }
+                //        memset(chatInputText, 0, sizeof(chatInputText));
+                //        chatInputTextLen = 0;
+                //    }
+                //}
 
                 if (escape) {
                     chatActive = false;
@@ -823,7 +813,7 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
             // HACK: Check for this *after* rendering chat to avoid pressing "t" causing it to show up in the chat box
             if (!chatActive && !io.WantCaptureKeyboard && IsKeyDown(KEY_T)) {
                 chatActive = true;
-                GuiSetActiveTextbox(&chatInputState);
+                //GuiSetActiveTextbox(&chatInputState);
             }
         }
 

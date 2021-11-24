@@ -70,49 +70,36 @@
         #pragma warning (disable: 4146) // unary minus operator applied to unsigned type
     #endif
 
-    #ifndef ENET_NO_PRAGMA_LINK
-    #pragma comment(lib, "ws2_32.lib")
-    #pragma comment(lib, "winmm.lib")
-    #endif
+    //#ifndef ENET_NO_PRAGMA_LINK
+    //#pragma comment(lib, "ws2_32.lib")
+    //#pragma comment(lib, "winmm.lib")
+    //#endif
 
-    #if _MSC_VER >= 1910
-    /* It looks like there were changes as of Visual Studio 2017 and there are no 32/64 bit
-       versions of _InterlockedExchange[operation], only InterlockedExchange[operation]
-       (without leading underscore), so we have to distinguish between compiler versions */
-    #define NOT_UNDERSCORED_INTERLOCKED_EXCHANGE
-    #endif
-
-    #ifdef __GNUC__
-    #if (_WIN32_WINNT < 0x0501)
-    #undef _WIN32_WINNT
-    #define _WIN32_WINNT 0x0501
-    #endif
-    #endif
-
-    #include <winsock2.h>
-    #include <ws2tcpip.h>
-    #include <mmsystem.h>
-
-    #include <intrin.h>
-
-    #if defined(_WIN32) && defined(_MSC_VER)
-    #if _MSC_VER < 1900
-    typedef struct timespec {
-        long tv_sec;
-        long tv_nsec;
-    };
-    #endif
-    #define CLOCK_MONOTONIC 0
-    #endif
-
-    typedef SOCKET ENetSocket;
-    #define ENET_SOCKET_NULL INVALID_SOCKET
+    //typedef SOCKET ENetSocket;
+    typedef uintptr_t ENetSocket;  // HACK: Avoid having to pull in SOCKET from Windows headers
+    //#define ENET_SOCKET_NULL INVALID_SOCKET
+    #define ENET_SOCKET_NULL (uintptr_t)(~0)
 
     #define ENET_HOST_TO_NET_16(value) (htons(value))
     #define ENET_HOST_TO_NET_32(value) (htonl(value))
 
     #define ENET_NET_TO_HOST_16(value) (ntohs(value))
     #define ENET_NET_TO_HOST_32(value) (ntohl(value))
+
+#if 1
+    // HACK(dlb): To avoid Windows.h pollution, trick in6addr.h into working without it
+    #define WINAPI_FAMILY_PARTITION(x) 1
+    #define FAR
+    #define USHORT unsigned short
+    #define UCHAR unsigned char
+    #include <in6addr.h>
+    #undef UCHAR
+    #undef USHORT
+    #undef FAR
+    #undef WINAPI_FAMILY_PARTITION
+#else
+    typedef IN6_ADDR ENetIpv6Addr;
+#endif
 
     typedef struct {
         size_t dataLength;
@@ -131,12 +118,13 @@
     #define ENET_API extern
     #endif // ENET_DLL
 
-    typedef fd_set ENetSocketSet;
+    // HACK(dlb): Disable functions that require fd_set to avoid winsock header dependency
+    //typedef fd_set ENetSocketSet;
 
-    #define ENET_SOCKETSET_EMPTY(sockset)          FD_ZERO(&(sockset))
-    #define ENET_SOCKETSET_ADD(sockset, socket)    FD_SET(socket, &(sockset))
-    #define ENET_SOCKETSET_REMOVE(sockset, socket) FD_CLR(socket, &(sockset))
-    #define ENET_SOCKETSET_CHECK(sockset, socket)  FD_ISSET(socket, &(sockset))
+    //#define ENET_SOCKETSET_EMPTY(sockset)          FD_ZERO(&(sockset))
+    //#define ENET_SOCKETSET_ADD(sockset, socket)    FD_SET(socket, &(sockset))
+    //#define ENET_SOCKETSET_REMOVE(sockset, socket) FD_CLR(socket, &(sockset))
+    //#define ENET_SOCKETSET_CHECK(sockset, socket)  FD_ISSET(socket, &(sockset))
 #else
     #include <sys/types.h>
     #include <sys/ioctl.h>
@@ -217,7 +205,8 @@ const struct in6_addr enet_v4_localhost = {{{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 const struct in6_addr enet_v6_anyaddr   = {{{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }}};
 const struct in6_addr enet_v6_noaddr    = {{{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff }}};
 const struct in6_addr enet_v6_localhost = {{{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01 }}};
-#define ENET_HOST_ANY       in6addr_any
+//#define ENET_HOST_ANY       in6addr_any
+#define ENET_HOST_ANY       enet_v6_anyaddr
 #define ENET_HOST_BROADCAST 0xFFFFFFFFU
 #define ENET_PORT_ANY       0
 
@@ -891,7 +880,8 @@ extern "C" {
     ENET_API int        enet_socket_get_option(ENetSocket, ENetSocketOption, int *);
     ENET_API int        enet_socket_shutdown(ENetSocket, ENetSocketShutdown);
     ENET_API void       enet_socket_destroy(ENetSocket);
-    ENET_API int        enet_socketset_select(ENetSocket, ENetSocketSet *, ENetSocketSet *, enet_uint32);
+    // HACK(dlb): Disable functions that require fd_set to avoid winsock header dependency
+    //ENET_API int        enet_socketset_select(ENetSocket, ENetSocketSet *, ENetSocketSet *, enet_uint32);
 
     /** Attempts to parse the printable form of the IP address in the parameter hostName
         and sets the host field in the address parameter if successful.
@@ -1029,6 +1019,36 @@ extern "C" {
 extern "C" {
 #endif
 
+#if _MSC_VER >= 1910
+/* It looks like there were changes as of Visual Studio 2017 and there are no 32/64 bit
+    versions of _InterlockedExchange[operation], only InterlockedExchange[operation]
+    (without leading underscore), so we have to distinguish between compiler versions */
+#define NOT_UNDERSCORED_INTERLOCKED_EXCHANGE
+#endif
+
+#ifdef __GNUC__
+#if (_WIN32_WINNT < 0x0501)
+#undef _WIN32_WINNT
+#define _WIN32_WINNT 0x0501
+#endif
+#endif
+
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <mmsystem.h>
+
+#include <intrin.h>
+
+#if defined(_WIN32) && defined(_MSC_VER)
+#if _MSC_VER < 1900
+typedef struct timespec {
+    long tv_sec;
+    long tv_nsec;
+};
+#endif
+#define CLOCK_MONOTONIC 0
+#endif
+
 // =======================================================================//
 // !
 // ! Atomics
@@ -1164,7 +1184,6 @@ extern "C" {
        uninitialized memory without running into undefined behavior, and because the
        __atomic versions generate more efficient code since we don't need to rely on
        CAS when we don't actually want it.
-
        Note that we use acquire-release memory order (like mutexes do). We could use
        sequentially consistent memory order but that has lower performance and is
        almost always unneeded. */
@@ -1194,7 +1213,6 @@ extern "C" {
         /* Could use __auto_type instead of typeof but that shouldn't work in C++.
            The ({ }) syntax is a GCC extension called statement expression. It lets
            us return a value out of the macro.
-
            TODO We should return bool here instead of the old value to avoid the ABA
            problem. */
         #define ENET_ATOMIC_CAS(ptr, old_value, new_value)                                                      \
@@ -5646,7 +5664,7 @@ extern "C" {
         return recvLength;
     } /* enet_socket_receive */
 
-    int enet_socketset_select(ENetSocket maxSocket, ENetSocketSet *readSet, ENetSocketSet *writeSet, enet_uint32 timeout) {
+    int enet_socketset_select(ENetSocket maxSocket, fd_set *readSet, fd_set *writeSet, enet_uint32 timeout) {
         struct timeval timeVal;
 
         timeVal.tv_sec  = timeout / 1000;
@@ -6025,7 +6043,7 @@ extern "C" {
         return (int) recvLength;
     } /* enet_socket_receive */
 
-    int enet_socketset_select(ENetSocket maxSocket, ENetSocketSet *readSet, ENetSocketSet *writeSet, enet_uint32 timeout) {
+    int enet_socketset_select(ENetSocket maxSocket, fd_set *readSet, fd_set *writeSet, enet_uint32 timeout) {
         struct timeval timeVal{};
 
         timeVal.tv_sec  = timeout / 1000;

@@ -42,6 +42,8 @@
     <ClCompile Include="src\loot_table.cpp" />
     <ClCompile Include="src\server_cli.cpp" />
     <ClCompile Include="src\ui_login_form.cpp" />
+    <ClCompile Include="src\jail_enet.cpp" />
+    <ClCompile Include="src\jail_win32_console.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\bit_stream.h" />
@@ -84,5 +86,7 @@
     <ClInclude Include="src\server_cli.h" />
     <ClInclude Include="src\world_snapshot.h" />
     <ClInclude Include="src\ui_login_form.h" />
+    <ClInclude Include="src\jail_windows_h.h" />
+    <ClInclude Include="src\jail_win32_console.h" />
   </ItemGroup>
 </Project>

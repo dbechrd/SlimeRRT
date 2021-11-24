@@ -28,11 +28,11 @@
 #define SV_USERNAME             "SERVER"
 #define SV_MAX_PLAYERS          8
 #define SV_MAX_ENTITIES         256
-#define SV_TICK_RATE            5 //33 //25 //30
+#define SV_TICK_RATE            20 //33 //25 //30
 #define SV_INPUT_HISTORY        ((1000 / SV_TICK_RATE) * SV_MAX_PLAYERS)
 #define SV_WORLD_HISTORY        (1000 / SV_TICK_RATE)
 
-#define SNAPSHOT_SEND_RATE      MIN(20, SV_TICK_RATE)
+#define SNAPSHOT_SEND_RATE      20 //MIN(20, SV_TICK_RATE)
 #define SNAPSHOT_MAX_PLAYERS    SV_MAX_PLAYERS
 #define SNAPSHOT_MAX_ENTITIES   64
 

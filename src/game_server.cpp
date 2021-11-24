@@ -46,28 +46,29 @@ ErrorType GameServer::Run()
             // Process queued player inputs
             size_t inputHistoryLen = netServer.inputHistory.Count();
             for (size_t i = 0; i < inputHistoryLen; i++) {
-                InputSample &inputSample = netServer.inputHistory.At(i);
-                if (inputSample.clientTick != world->tick) {
-                    // TODO: If < world->tick, discard from queue
-                    continue;
-                }
+                InputSample &sample = netServer.inputHistory.At(i);
 
-                NetServerClient *client = netServer.FindClient(inputSample.ownerId);
+                NetServerClient *client = netServer.FindClient(sample.ownerId);
                 if (!client) {
                     continue;
                 }
                 //assert(client->lastInputAck < world->tick);
 
-                Player *player = world->FindPlayer(inputSample.ownerId);
+                if (sample.seq <= client->lastInputAck) {
+                    // TODO: If < world->tick, discard from queue
+                    continue;
+                }
+
+                Player *player = world->FindPlayer(sample.ownerId);
                 if (!player) {
                     continue;
                 }
 
                 assert(client->playerId == player->id);
                 assert(world->map);
-                player->Update(tickDt, inputSample, *world->map);
+                player->Update(tickDt, sample, *world->map);
 
-                client->lastInputAck = inputSample.clientTick;
+                client->lastInputAck = sample.seq;
             }
 
             world->Simulate(tickDt);
@@ -76,11 +77,10 @@ ErrorType GameServer::Run()
                 NetServerClient &client = netServer.clients[i];
                 if (client.playerId && (glfwGetTime() - client.lastSnapshotSentAt) > (1000.0 / SNAPSHOT_SEND_RATE) / 1000.0) {
                     printf("Sending snapshot for tick %u to player %u\n", world->tick, client.playerId);
-                    client.lastInputAck = world->tick;
                     WorldSnapshot &worldSnapshot = client.worldHistory.Alloc();
                     assert(!worldSnapshot.tick);  // ringbuffer alloc fucked up and didn't zero slot
                     worldSnapshot.playerId = client.playerId;
-                    //worldSnapshot.lastInputAck = client.lastInputAck;
+                    worldSnapshot.lastInputAck = client.lastInputAck;
                     worldSnapshot.tick = world->tick;
                     world->GenerateSnapshot(worldSnapshot);
                     E_ASSERT(netServer.SendWorldSnapshot(client, worldSnapshot), "Failed to broadcast world snapshot");

@@ -108,8 +108,8 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
             stream.Process(input.sampleCount, 32, 0, UINT32_MAX);
             for (size_t i = 0; i < input.sampleCount; i++) {
                 InputSample &sample = input.samples[i];
+                stream.Process(sample.seq, 32, 0, UINT32_MAX);
                 stream.Process(sample.ownerId, 32, 0, UINT32_MAX);
-                stream.Process(sample.clientTick, 32, 0, UINT32_MAX);
                 stream.ProcessBool(sample.walkNorth);
                 stream.ProcessBool(sample.walkEast);
                 stream.ProcessBool(sample.walkSouth);
@@ -146,7 +146,7 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
             WorldSnapshot &worldSnapshot = data.worldSnapshot;
 
             stream.Process(worldSnapshot.tick, 32, 1, UINT32_MAX);
-            //stream.Process(worldSnapshot.lastInputAck, 32, 0, UINT32_MAX);
+            stream.Process(worldSnapshot.lastInputAck, 32, 0, UINT32_MAX);
             stream.Process(worldSnapshot.playerCount, 4, 0, SNAPSHOT_MAX_PLAYERS);
             stream.Process(worldSnapshot.slimeCount, 9, 0, SNAPSHOT_MAX_ENTITIES);
 
