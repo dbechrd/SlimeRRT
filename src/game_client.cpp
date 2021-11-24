@@ -246,8 +246,9 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
             if (netClient.worldHistory.Count()) {
                 WorldSnapshot &worldSnapshot = netClient.worldHistory.Last();
 
-                if (world->tick < worldSnapshot.tick) {
-                    world->tick = worldSnapshot.tick;
+                static uint32_t lastTickAck = 0;
+                if (lastTickAck < worldSnapshot.tick) {
+                    lastTickAck = worldSnapshot.tick;
 
                     // TODO: Update world state from worldSnapshot and re-apply input with input.tick > snapshot.tick
                     netClient.ReconcilePlayer(tickDt);
@@ -257,13 +258,12 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
 
                 while (tickAccum > tickDt) {
                     InputSample &inputSample = netClient.inputHistory.Alloc();
-                    inputSample.FromController(player.id, world->tick, input);
+                    inputSample.FromController(player.id, lastTickAck, input);
 
                     assert(world->map);
                     player.Update(tickDt, inputSample, *world->map);
                     world->particleSystem.Update(tickDt);
 
-                    world->tick++;
                     tickAccum -= tickDt;
                 }
 
@@ -274,7 +274,8 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
                 }
 
                 // Interpolate all of the other entities in the world
-                double renderAt = glfwGetTime() - (110.0 / 1000.0); //((1000.0 / (SNAPSHOT_SEND_RATE * 1.0)) / 1000.0);
+                //double renderAt = glfwGetTime() - (110.0 / 1000.0); //((1000.0 / (SNAPSHOT_SEND_RATE * 1.0)) / 1000.0);
+                double renderAt = worldSnapshot.recvAt;
                 world->Interpolate(renderAt);
             }
         } else {
@@ -657,7 +658,7 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
                     DrawCircle((int)x, (int)y, 2.0f, playerColor);
                     const char *pName = TextFormat("%.*s", p.nameLength, p.name);
                     int nameWidth = MeasureText(pName, fontHeight);
-                    DrawTextFont(font, pName, x - nameWidth / 2, y - fontHeight - 4, fontHeight, YELLOW);
+                    DrawTextFont(font, pName, x - (float)(nameWidth / 2), y - fontHeight - 4, fontHeight, YELLOW);
                 }
             }
         }

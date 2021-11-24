@@ -50,17 +50,18 @@ ErrorType GameServer::Run()
 
                 NetServerClient *client = netServer.FindClient(sample.ownerId);
                 if (!client) {
+                    //printf("Client not found, cannot sample input #%u from %u\n", sample.seq, sample.ownerId);
                     continue;
                 }
-                //assert(client->lastInputAck < world->tick);
 
                 if (sample.seq <= client->lastInputAck) {
-                    // TODO: If < world->tick, discard from queue
+                    //printf("Ignoring old input #%u from %u\n", sample.seq, sample.ownerId);
                     continue;
                 }
 
                 Player *player = world->FindPlayer(sample.ownerId);
                 if (!player) {
+                    printf("Player not found, cannot sample input #%u from %u\n", sample.seq, sample.ownerId);
                     continue;
                 }
 

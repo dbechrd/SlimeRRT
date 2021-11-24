@@ -414,35 +414,60 @@ bool World::InterpolateBody(Body3D &body, double renderAt)
 {
     auto positionHistory = body.positionHistory;
     const size_t historyLen = positionHistory.Count();
-    if (!historyLen) {
+
+    // If no history, nothing to interpolate yet
+    if (historyLen == 0) {
+        printf("No snapshot history to interpolate from\n");
         return true;
     }
 
-    Vector3Snapshot first = positionHistory.At(0);
-    if (renderAt <= first.recvAt) {
-        body.position = first.v;
-        return true;
-    }
-
-    size_t right = 1;
-    Vector3Snapshot rightSnap{};
-    while (right < positionHistory.Count() && (rightSnap = positionHistory.At(right), renderAt >= rightSnap.recvAt)) {
+    // Find first snapshot after renderAt time
+    size_t right = 0;
+    while (right < historyLen && positionHistory.At(right).recvAt <= renderAt) {
         right++;
     }
 
-    if (right == positionHistory.Count()) {
-        printf("renderAt %f not between %f and %f\n", renderAt, first.recvAt, rightSnap.recvAt);
-        return false;  // assume despawned
+    // renderAt is before any snapshots, show entity at oldest snapshot
+    if (right == 0) {
+        Vector3Snapshot &oldest = positionHistory.At(0);
+
+        assert(renderAt < oldest.recvAt);
+        printf("renderAt %f before oldest snapshot %f\n", renderAt, oldest.recvAt);
+
+        body.position = oldest.v;
+    // renderAt is after all snapshots, show entity at newest snapshot
+    } else if (right == historyLen) {
+        // TODO: Extrapolate beyond latest snapshot if/when this happens? Should be mostly avoidable..
+        Vector3Snapshot &newest = positionHistory.At(historyLen - 1);
+
+        assert(renderAt >= newest.recvAt);
+        if (renderAt > newest.recvAt) {
+            printf("renderAt %f after newest snapshot %f\n", renderAt, newest.recvAt);
+        }
+
+        // TODO: Send explicitly despawn event from server
+        // If we haven't seen an entity in 4 snapshots, chances are it's gone
+        if (renderAt > newest.recvAt + (1.0 / SNAPSHOT_SEND_RATE) * 4) {
+            printf("Despawning body due to inactivity\n");
+            return false;
+        }
+
+        body.position = newest.v;
+    // renderAt is between two snapshots
+    } else {
+        assert(right > 0);
+        assert(right < historyLen);
+        Vector3Snapshot &a = positionHistory.At(right);
+        Vector3Snapshot &b = positionHistory.At(right - 1);
+
+        assert(renderAt >= a.recvAt);
+        assert(renderAt < b.recvAt);
+
+        // Linear interpolation: body.x = x0 + (x1 - x0) * alpha;
+        double alpha = (renderAt - a.recvAt) / (b.recvAt - a.recvAt);
+        body.position = v3_add(a.v, v3_scale(v3_sub(b.v, a.v), (float)alpha));
     }
 
-    Vector3Snapshot *a = &positionHistory.At(right - 1);
-    Vector3Snapshot *b = &positionHistory.At(right);
-    assert(a->recvAt <= renderAt);
-    assert(b->recvAt > renderAt);
-
-    double alpha = (renderAt - a->recvAt) / (b->recvAt - a->recvAt);
-    //entity.x = x0 + (x1 - x0) * alpha;
-    body.position = v3_add(a->v, v3_scale(v3_sub(b->v, a->v), (float)alpha));
     return true;
 }
 
