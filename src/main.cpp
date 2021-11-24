@@ -65,6 +65,36 @@ int main(int argc, char *argv[])
     return 0;
 }
 
+#pragma warning(push)
+#pragma warning(disable:26819)
+#define DLB_MURMUR3_IMPLEMENTATION
+#include "dlb_murmur3.h"
+#undef DLB_MURMUR3_IMPLEMENTATION
+#pragma warning(pop)
+
+#define DLB_RAND_IMPLEMENTATION
+#define DLB_RAND_TEST
+#include "dlb_rand.h"
+#undef DLB_RAND_TEST
+#undef DLB_RAND_IMPLEMENTATION
+
+#pragma warning(push)
+#pragma warning(disable:6031)  // Return value ignored
+#pragma warning(disable:26812)
+#define RAYGUI_IMPLEMENTATION
+#include "raylib/raygui.h"
+#undef RAYGUI_IMPLEMENTATION
+#pragma warning(pop)
+
+#if 0
+#pragma warning(push)
+#pragma warning(disable: 4244)  // conversion from 'int' to 'float'
+#pragma warning(disable: 4267)  // conversion from 'size_t' to 'int'
+#define GUI_TEXTBOX_EXTENDED_IMPLEMENTATION
+#include "gui_textbox_extended.h"
+#pragma warning(pop)
+#endif
+
 #include "args.cpp"
 #include "bit_stream.cpp"
 #include "body.cpp"
@@ -101,29 +131,3 @@ int main(int argc, char *argv[])
 #include "ui_login_form.cpp"
 #include "world.cpp"
 #include "../test/tests.cpp"
-
-#pragma warning(push)
-#pragma warning(disable:26819)
-#define DLB_MURMUR3_IMPLEMENTATION
-#include "dlb_murmur3.h"
-#pragma warning(pop)
-
-#define DLB_RAND_IMPLEMENTATION
-#define DLB_RAND_TEST
-#include "dlb_rand.h"
-
-#if 0
-#pragma warning(push)
-#pragma warning(disable:6031)  // Return value ignored
-#pragma warning(disable:26812)
-#define RAYGUI_IMPLEMENTATION
-#include "raylib/raygui.h"
-#pragma warning(pop)
-
-#pragma warning(push)
-#pragma warning(disable: 4244)  // conversion from 'int' to 'float'
-#pragma warning(disable: 4267)  // conversion from 'size_t' to 'int'
-#define GUI_TEXTBOX_EXTENDED_IMPLEMENTATION
-#include "gui_textbox_extended.h"
-#pragma warning(pop)
-#endif

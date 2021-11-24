@@ -11,21 +11,16 @@
 #include "ui_login_form.h"
 #include "dlb_types.h"
 
+#include "raylib/raylib.h"
+#include "raylib/raygui.h"
+//#include "gui_textbox_extended.h"
 #define GRAPHICS_API_OPENGL_33
 #include "raylib/rlgl.h"
-#include "raylib/raylib.h"
-//#include "raylib/raygui.h"
-//#include "gui_textbox_extended.h"
 
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_opengl3.h"
 #include "imgui/imgui_impl_glfw.h"
 #include "GLFW/glfw3.h"
-
-//#include <chrono>
-//#include <future>
-
-using namespace std::chrono_literals;
 
 const char *GameClient::LOG_SRC = "GameClient";
 
@@ -61,7 +56,7 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
     Font font = LoadFontEx("C:/Windows/Fonts/consola.ttf", fontHeight, 0, 0);
     //font = LoadFontEx("resources/UbuntuMono-Regular.ttf", fontHeight, 0, 0);
     assert(font.texture.id);
-    //GuiSetFont(font);
+    GuiSetFont(font);
 
     HealthBar::SetFont(GetFontDefault());
 
@@ -231,11 +226,15 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
             netClient.serverWorld->playerId &&
             netClient.serverWorld->FindPlayer(netClient.serverWorld->playerId);
 
-        if (connectedToServer) {
+        if (connectedToServer && world != netClient.serverWorld) {
             // We joined a server, switch to the server's world.
             world = netClient.serverWorld;
-        } else {
+            tickAccum = 0;
+            sendInputAccum = 0;
+        } if (!connectedToServer && world != lobby ){
             world = lobby;
+            tickAccum = 0;
+            sendInputAccum = 0;
         }
 
         Player *playerPtr = world->FindPlayer(world->playerId);
@@ -781,27 +780,27 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
             world->chatHistory.Render(font, { chatX, chatY, chatWidth, chatHeight });
 
             // Render chat input box
-            //static GuiTextBoxAdvancedState chatInputState;
+            static GuiTextBoxAdvancedState chatInputState;
             if (chatActive) {
                 static int chatInputTextLen = 0;
                 static char chatInputText[CHATMSG_LENGTH_MAX];
 
                 Rectangle chatInputRect = { margin, screenHeight - margin - inputBoxHeight, chatWidth, inputBoxHeight };
-                //if (GuiTextBoxAdvanced(&chatInputState, chatInputRect, chatInputText, &chatInputTextLen, CHATMSG_LENGTH_MAX, io.WantCaptureKeyboard)) {
-                //    size_t messageLength = chatInputTextLen;
-                //    if (messageLength) {
-                //        ErrorType sendResult = netClient.SendChatMessage(chatInputText, messageLength);
-                //        switch (sendResult) {
-                //            case ErrorType::NotConnected:
-                //            {
-                //                world->chatHistory.PushMessage(CSTR("Sam"), CSTR("You're not connected to a server. Nobody is listening. :("));
-                //                break;
-                //            }
-                //        }
-                //        memset(chatInputText, 0, sizeof(chatInputText));
-                //        chatInputTextLen = 0;
-                //    }
-                //}
+                if (GuiTextBoxAdvanced(&chatInputState, chatInputRect, chatInputText, &chatInputTextLen, CHATMSG_LENGTH_MAX, io.WantCaptureKeyboard)) {
+                    size_t messageLength = chatInputTextLen;
+                    if (messageLength) {
+                        ErrorType sendResult = netClient.SendChatMessage(chatInputText, messageLength);
+                        switch (sendResult) {
+                            case ErrorType::NotConnected:
+                            {
+                                world->chatHistory.PushMessage(CSTR("Sam"), CSTR("You're not connected to a server. Nobody is listening. :("));
+                                break;
+                            }
+                        }
+                        memset(chatInputText, 0, sizeof(chatInputText));
+                        chatInputTextLen = 0;
+                    }
+                }
 
                 if (escape) {
                     chatActive = false;
@@ -814,7 +813,7 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
             // HACK: Check for this *after* rendering chat to avoid pressing "t" causing it to show up in the chat box
             if (!chatActive && !io.WantCaptureKeyboard && IsKeyDown(KEY_T)) {
                 chatActive = true;
-                //GuiSetActiveTextbox(&chatInputState);
+                GuiSetActiveTextbox(&chatInputState);
             }
         }
 

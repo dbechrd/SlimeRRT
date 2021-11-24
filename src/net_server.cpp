@@ -315,7 +315,6 @@ NetServerClient *NetServer::AddClient(ENetPeer *peer)
             peer->data = &client;
 
             assert(serverWorld->tick);
-            client.lastInputAck = serverWorld->tick - 1;
             return &client;
         }
     }

@@ -2,8 +2,8 @@
 #include "args.h"
 #include "error.h"
 #include "net_client.h"
-#include "world.h"
-#include <thread>
+
+struct World;
 
 struct GameClient{
     GameClient(Args args) : args(args) {};

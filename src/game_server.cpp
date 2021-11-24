@@ -43,6 +43,7 @@ ErrorType GameServer::Run()
         frameStart = now;
 
         while (tickAccum > tickDt) {
+            // TODO: Limit how many inputs player is allowed to send us each tick
             // Process queued player inputs
             size_t inputHistoryLen = netServer.inputHistory.Count();
             for (size_t i = 0; i < inputHistoryLen; i++) {
