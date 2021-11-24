@@ -770,14 +770,11 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
             const float margin = 6.0f;   // left/bottom margin
             const float pad = 4.0f;      // left/bottom pad
             const float inputBoxHeight = font.baseSize + pad * 2.0f;
-            const int linesOfText = (int)world->chatHistory.MessageCount();
             const float chatWidth = 800.0f;
-            const float chatHeight = linesOfText * (font.baseSize + pad) + pad;
-            const float chatX = margin;
-            const float chatY = screenHeight - margin - inputBoxHeight - chatHeight;
+            const float chatBottom = screenHeight - margin - inputBoxHeight;
 
             // Render chat history
-            world->chatHistory.Render(font, { chatX, chatY, chatWidth, chatHeight });
+            world->chatHistory.Render(font, margin, chatBottom, chatWidth, chatActive);
 
             // Render chat input box
             static GuiTextBoxAdvancedState chatInputState;
@@ -797,6 +794,7 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
                                 break;
                             }
                         }
+                        chatActive = false;
                         memset(chatInputText, 0, sizeof(chatInputText));
                         chatInputTextLen = 0;
                     }
@@ -804,9 +802,9 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
 
                 if (escape) {
                     chatActive = false;
-                    escape = false;
                     memset(chatInputText, 0, sizeof(chatInputText));
                     chatInputTextLen = 0;
+                    escape = false;
                 }
             }
 

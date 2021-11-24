@@ -2042,8 +2042,10 @@ bool GuiTextBoxAdvanced(GuiTextBoxAdvancedState *textboxState, Rectangle bounds,
     }
 
     GuiDrawRectangle(bounds, GuiGetStyle(TEXTBOX, BORDER_WIDTH),
-        Fade(GetColor(GuiGetStyle(TEXTBOX, BORDER + (state*3))), guiAlpha),
-        Fade(GetColor(GuiGetStyle(TEXTBOX, baseColorProperty)), guiAlpha)
+        //Fade(GetColor(GuiGetStyle(TEXTBOX, BORDER + (state*3))), guiAlpha),
+        //Fade(GetColor(GuiGetStyle(TEXTBOX, baseColorProperty)), guiAlpha)
+        Fade(BLACK, 0.8f),
+        Fade({ 50, 50, 50, 255 }, 0.6f)
     );
 
     if (guiActiveTextbox == textboxState)
@@ -2076,13 +2078,14 @@ bool GuiTextBoxAdvanced(GuiTextBoxAdvancedState *textboxState, Rectangle bounds,
 
             if (!readOnly && ((framesCounter/20)%2 == 0))
             {
-                GuiDrawRectangle(cursor, 0, BLANK, Fade(GetColor(GuiGetStyle(TEXTBOX, BORDER_COLOR_PRESSED)), guiAlpha));
-                //GuiDrawRectangle(cursor, 0, BLANK, Fade(DARKGRAY, guiAlpha));
+                //GuiDrawRectangle(cursor, 0, BLANK, Fade(GetColor(GuiGetStyle(TEXTBOX, BORDER_COLOR_PRESSED)), guiAlpha));
+                GuiDrawRectangle(cursor, 0, BLANK, Fade(RAYWHITE, guiAlpha));
             }
         }
     }
 
-    Color textColor = GetColor(GuiGetStyle(TEXTBOX, TEXT + (state*3)));
+    //Color textColor = GetColor(GuiGetStyle(TEXTBOX, TEXT + (state * 3)));
+    Color textColor = RAYWHITE;
     if (selectionLength)
     {
         //textColor = RAYWHITE;
@@ -4065,8 +4068,9 @@ static void GuiDrawText(const char *text, Rectangle bounds, int alignment, Color
 
         DrawTextEx(guiFont, text, shadowPosition, (float)GuiGetStyle(DEFAULT, TEXT_SIZE), (float)GuiGetStyle(DEFAULT, TEXT_SPACING), shadowTint);
 #endif
-        tint = BLACK;
-        DrawTextEx(guiFont, text, position, (float)GuiGetStyle(DEFAULT, TEXT_SIZE), (float)GuiGetStyle(DEFAULT, TEXT_SPACING), tint);
+        //tint = BLACK;
+        DrawTextFont(guiFont, text, position.x, position.y, GuiGetStyle(DEFAULT, TEXT_SIZE), tint);
+        //DrawTextEx(guiFont, text, position, (float)GuiGetStyle(DEFAULT, TEXT_SIZE), (float)GuiGetStyle(DEFAULT, TEXT_SPACING), tint);
         //---------------------------------------------------------------------------------
     }
 }

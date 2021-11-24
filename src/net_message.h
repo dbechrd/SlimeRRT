@@ -18,6 +18,7 @@ struct NetMessage_Identify {
 };
 
 struct NetMessage_ChatMessage {
+    double   recvAt         {};
     char     timestampStr   [TIMESTAMP_LENGTH]{};  // hh:MM:SS AM
     uint32_t usernameLength {};
     char     username       [USERNAME_LENGTH_MAX]{};

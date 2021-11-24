@@ -48,7 +48,7 @@ int main(int argc, char *argv[])
         // { l:1913 t : 1 r : 2887 b : 1048 }
         SetConsolePosition(1913, 1, 2887 - 1913, 1048 - 1);
 #else
-        FreeConsole();
+        HideConsole();
 #endif
         GameClient *gameClient = new GameClient(args);
         //gameClient->Run("slime.theprogrammingjunkie.com", SV_DEFAULT_PORT);

@@ -417,7 +417,7 @@ bool World::InterpolateBody(Body3D &body, double renderAt)
 
     // If no history, nothing to interpolate yet
     if (historyLen == 0) {
-        printf("No snapshot history to interpolate from\n");
+        //printf("No snapshot history to interpolate from\n");
         return true;
     }
 
