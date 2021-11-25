@@ -16,8 +16,8 @@
 
 World::World(void)
 {
-    //tick = 1;
-    rtt_seed = 16; //time(NULL);
+    rtt_seed = 16;
+    //rtt_seed = time(NULL);
     dlb_rand32_seed_r(&rtt_rand, rtt_seed, rtt_seed);
 }
 
@@ -446,8 +446,8 @@ bool World::InterpolateBody(Body3D &body, double renderAt)
         }
 
         // TODO: Send explicitly despawn event from server
-        // If we haven't seen an entity in 4 snapshots, chances are it's gone
-        if (renderAt > newest.recvAt + (1.0 / SNAPSHOT_SEND_RATE) * 4) {
+        // If we haven't seen an entity in 2 snapshots, chances are it's gone
+        if (renderAt > newest.recvAt) { // + (1.0 / SNAPSHOT_SEND_RATE) * 2) {
             printf("Despawning body due to inactivity\n");
             return false;
         }
@@ -457,9 +457,12 @@ bool World::InterpolateBody(Body3D &body, double renderAt)
     } else {
         assert(right > 0);
         assert(right < historyLen);
-        Vector3Snapshot &a = positionHistory.At(right);
-        Vector3Snapshot &b = positionHistory.At(right - 1);
+        Vector3Snapshot &a = positionHistory.At(right - 1);
+        Vector3Snapshot &b = positionHistory.At(right);
 
+        if (renderAt < a.recvAt) {
+            assert(renderAt);
+        }
         assert(renderAt >= a.recvAt);
         assert(renderAt < b.recvAt);
 

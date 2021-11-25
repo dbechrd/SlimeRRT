@@ -51,9 +51,7 @@ int main(int argc, char *argv[])
         HideConsole();
 #endif
         GameClient *gameClient = new GameClient(args);
-        //gameClient->Run("slime.theprogrammingjunkie.com", SV_DEFAULT_PORT);
-        //gameClient->Run("127.0.0.1", SV_DEFAULT_PORT);
-        gameClient->Run("localhost", SV_DEFAULT_PORT);
+        gameClient->Run();
         delete gameClient;
     }
 

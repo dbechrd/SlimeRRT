@@ -24,7 +24,7 @@
 
 const char *GameClient::LOG_SRC = "GameClient";
 
-ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
+ErrorType GameClient::Run(void)
 {
     const char *title = "Attack the slimes!";
     if (args.server) {
@@ -155,12 +155,12 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
     }
 #endif
 
-    const double tickDt = 1.0f / SV_TICK_RATE;
-    const double tickDtMax = tickDt * 2.0f;
-    double tickAccum = 0.0f;
-    const double sendInputDt = 1.0f / CL_INPUT_SEND_RATE;
-    const double sendInputDtMax = sendInputDt * 2.0f;
-    double sendInputAccum = 0.0f;
+    const double tickDt = 1.0 / SV_TICK_RATE;
+    const double tickDtMax = tickDt * 2.0;
+    double tickAccum = 0;
+    const double sendInputDt = 1.0 / CL_INPUT_SEND_RATE;
+    const double sendInputDtMax = sendInputDt * 2.0;
+    double sendInputAccum = 0;
     double frameStart = glfwGetTime();
 
     const int targetFPS = 60;
@@ -255,7 +255,7 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
                 // TODO: Update world state from worldSnapshot and re-apply input with input.tick > snapshot.tick
                 //netClient.ReconcilePlayer(tickDt);
 
-                while (tickAccum > tickDt) {
+                //while (tickAccum > tickDt) {
                     InputSample &inputSample = netClient.inputHistory.Alloc();
                     inputSample.FromController(player.id, lastTickAck, input);
 
@@ -264,7 +264,7 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
                     world->particleSystem.Update(tickDt);
 
                     tickAccum -= tickDt;
-                }
+                //}
 
                 // Send input to server at a fixed rate that matches server tick rate
                 while (sendInputAccum > sendInputDt) {
@@ -273,8 +273,10 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
                 }
 
                 // Interpolate all of the other entities in the world
-                //double renderAt = glfwGetTime() - (110.0 / 1000.0); //((1000.0 / (SNAPSHOT_SEND_RATE * 1.0)) / 1000.0);
-                double renderAt = worldSnapshot.recvAt;
+                //double renderAt = glfwGetTime() - ((1000.0 / (SNAPSHOT_SEND_RATE * 5.0)) / 1000.0);
+                //double renderAt = glfwGetTime() - ((1.0 / SNAPSHOT_SEND_RATE) * 2.0 + (1.0 / netClient.server->lastRoundTripTime) * 2.0);
+                double renderAt = glfwGetTime() - (100.0 / 1000.0);
+                //double renderAt = worldSnapshot.recvAt;
                 world->Interpolate(renderAt);
             }
         } else {
@@ -674,6 +676,9 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
             int linesOfText = 8;
 #if SHOW_DEBUG_STATS
             linesOfText += 10;
+            if (netClient.server) {
+                linesOfText++;
+            }
 #endif
             const float margin = 6.0f;   // left/top margin
             const float pad = 4.0f;      // left/top pad
@@ -718,6 +723,10 @@ ErrorType GameClient::Run(const char *serverHost, unsigned short serverPort)
             PUSH_TEXT(text, GRAY);
             text = TextFormat("frameDt       %.03f", frameDt);
             PUSH_TEXT(text, GRAY);
+            if (netClient.server) {
+                text = TextFormat("lastRTT       %u", netClient.server->lastRoundTripTime);
+                PUSH_TEXT(text, GRAY);
+            }
             text = TextFormat("Camera speed  %.03f", cameraSpeed);
             PUSH_TEXT(text, GRAY);
             text = TextFormat("Zoom          %.03f", camera.zoom);

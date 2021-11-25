@@ -181,12 +181,9 @@ void Player::Update(double dt, InputSample &input, const Tilemap &map)
     Vector2 moveOffset = v2_scale(v2_normalize(move), METERS_TO_PIXELS(playerSpeed) * (float)dt);
     moveBuffer = v2_add(moveBuffer, moveOffset);
 
-    if (input.attack && Attack()) {
+    if (!input.skipFx && input.attack && Attack()) {
         sound_catalog_play(SoundID::Whoosh, 1.0f + dlb_rand32f_variance(0.1f));
     }
-
-    // Skip sounds/particles etc. next time this input is used (e.g. during reconciliation)
-    input.skipFx = true;
 
     if (!v2_is_zero(moveBuffer)) {
         const Vector2 curPos = body.GroundPosition();
@@ -237,7 +234,7 @@ void Player::Update(double dt, InputSample &input, const Tilemap &map)
             static double lastFootstep = 0;
             double timeSinceLastFootstep = glfwGetTime() - lastFootstep;
             float distanceMoved = v2_length(moveBuffer);
-            if (timeSinceLastFootstep > 1.0f / distanceMoved) {
+            if (!input.skipFx && timeSinceLastFootstep > 1.0f / distanceMoved) {
                 sound_catalog_play(SoundID::Footstep, 1.0f + dlb_rand32f_variance(0.5f));
                 lastFootstep = glfwGetTime();
             }
@@ -301,6 +298,9 @@ void Player::Update(double dt, InputSample &input, const Tilemap &map)
 
     body.Update(dt);
     sprite_update(sprite, dt);
+
+    // Skip sounds/particles etc. next time this input is used (e.g. during reconciliation)
+    input.skipFx = true;
 }
 
 void Player::Push(DrawList &drawList) const

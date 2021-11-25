@@ -7,7 +7,7 @@ struct World;
 
 struct GameClient{
     GameClient(Args args) : args(args) {};
-    ErrorType Run(const char *serverHost, unsigned short serverPort);
+    ErrorType Run(void);
 
 private:
     static const char *LOG_SRC;
