@@ -24,8 +24,9 @@ void  particle_draw  (const Drawable &drawable);
 //-----------------------------------------------------------------------------
 
 enum ParticleFX_Type {
-    ParticleFX_Dead,
+    ParticleFX_Empty,
     ParticleFX_Blood,
+    ParticleFX_Gem,
     ParticleFX_Gold,
     ParticleFX_Goo,
     ParticleFX_Count

@@ -345,8 +345,8 @@ bool Scanner::ParseHeader(Spritesheet &spritesheet)
     if (!ConsumePositiveInt(&animationCount)) {
         TraceLog(LOG_ERROR, "'%s': Expected animation_count.\n" USAGE, fileName);
         return false;
-    } else if (animationCount <= 0) {
-        TraceLog(LOG_ERROR, "'%s': animation_count must be a positive, non-zero integer.\n" USAGE, fileName);
+    } else if (animationCount < 0) {
+        TraceLog(LOG_ERROR, "'%s': animation_count must be a positive integer or zero.\n" USAGE, fileName);
         return false;
     }
 

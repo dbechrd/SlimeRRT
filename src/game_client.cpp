@@ -8,6 +8,7 @@
 #include "rtree.h"
 #include "sound_catalog.h"
 #include "spritesheet_catalog.h"
+#include "structures/structure.h"
 #include "ui_login_form.h"
 #include "dlb_types.h"
 
@@ -120,7 +121,7 @@ ErrorType GameClient::Run(void)
     World *lobby = new World;
     lobby->tick = 1;
     lobby->map = lobby->mapSystem.GenerateLobby();
-    lobby->SpawnSam();
+    Slime &sam = lobby->SpawnSam();
 
     {
         Player *player = lobby->SpawnPlayer(0);
@@ -306,6 +307,13 @@ ErrorType GameClient::Run(void)
             world->Interpolate(renderAt);
         }
 
+        static bool samTreasureRoom = false;
+        if (!samTreasureRoom && world == lobby && !sam.combat.hitPoints) {
+            Structure::Spawn(*world->map, MAX(0, int(player.body.position.x / TILE_W) - 3), MAX(0, int(player.body.position.y / TILE_W) - 5));
+            world->particleSystem.GenerateFX(ParticleFX_Gem, 16, player.body.position, 2.0f);
+            samTreasureRoom = true;
+        }
+
         //if (!chatActive) {
             if (input.screenshot) {
                 time_t t = time(NULL);
@@ -336,6 +344,7 @@ ErrorType GameClient::Run(void)
 
             if (world == lobby && input.dbgSpawnSam) {
                 lobby->SpawnSam();
+                samTreasureRoom = false;
             }
 
             if (input.dbgToggleFreecam) {

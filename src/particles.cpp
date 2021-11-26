@@ -71,7 +71,7 @@ ParticleFX *ParticleSystem::GenerateFX(ParticleFX_Type type, size_t particleCoun
     effectsActiveCount++;
 
     // Sanity checks to ensure previous effect was freed properly and/or free list is returning valid pointers
-    assert(effect->type == ParticleFX_Dead);
+    assert(effect->type == ParticleFX_Empty);
     assert(effect->particlesLeft == 0);
 
     effect->type = type;
@@ -80,8 +80,9 @@ ParticleFX *ParticleSystem::GenerateFX(ParticleFX_Type type, size_t particleCoun
     effect->startedAt = glfwGetTime();
 
     registry[ParticleFX_Blood] = { particle_fx_blood_init, particle_fx_blood_update };
-    registry[ParticleFX_Gold ] = { particle_fx_gold_init, particle_fx_gold_update };
-    registry[ParticleFX_Goo  ] = { particle_fx_goo_init, particle_fx_goo_update };
+    registry[ParticleFX_Gem  ] = { particle_fx_gem_init,   particle_fx_gem_update   };
+    registry[ParticleFX_Gold ] = { particle_fx_gold_init,  particle_fx_gold_update  };
+    registry[ParticleFX_Goo  ] = { particle_fx_goo_init,   particle_fx_goo_update   };
 
     Particle *prev = 0;
     for (size_t i = 0; i < particleCount; i++) {
@@ -94,6 +95,7 @@ ParticleFX *ParticleSystem::GenerateFX(ParticleFX_Type type, size_t particleCoun
         }
 
         particle->effect = effect;
+        assert(registry[effect->type].init);
         registry[effect->type].init(*particle, *effect);
         effect->particlesLeft++;
 
@@ -121,7 +123,7 @@ void ParticleSystem::Update(double dt)
     size_t effectsCounted = 0;
     for (size_t i = 0; effectsCounted < effectsActiveCount; i++) {
         ParticleFX &effect = effects[i];
-        if (effect.type == ParticleFX_Dead)
+        if (effect.type == ParticleFX_Empty)
             continue;
 
         if (effect.callbacks[ParticleFXEvent_BeforeUpdate].function) {
@@ -147,6 +149,7 @@ void ParticleSystem::Update(double dt)
             }
             particle.body.Update(dt);
             sprite_update(particle.sprite, dt);
+            assert(registry[effect.type].update);
             registry[effect.type].update(particle, alpha);
         } else if (alpha >= 1.0f) {
             effect.particlesLeft--;
@@ -163,7 +166,7 @@ void ParticleSystem::Update(double dt)
     effectsCounted = 0;
     for (size_t i = 0; effectsCounted < effectsActiveCount; i++) {
         ParticleFX &effect = effects[i];
-        if (effect.type == ParticleFX_Dead)
+        if (effect.type == ParticleFX_Empty)
             continue;
 
         // note: ParticleFXEvent_AfterUpdate would go here if I ever care about that..

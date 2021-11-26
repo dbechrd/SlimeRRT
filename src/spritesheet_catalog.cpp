@@ -10,5 +10,6 @@ namespace SpritesheetCatalog {
         spritesheets[(int)SpritesheetID::Charlie].LoadFromFile("resources/charlie.txt");
         spritesheets[(int)SpritesheetID::Coin   ].LoadFromFile("resources/coin_gold.txt");
         spritesheets[(int)SpritesheetID::Slime  ].LoadFromFile("resources/slime.txt");
+        spritesheets[(int)SpritesheetID::Items  ].LoadFromFile("resources/items.txt");
     }
 }

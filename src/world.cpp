@@ -95,18 +95,19 @@ void World::DespawnPlayer(uint32_t playerId)
     }
 }
 
-void World::SpawnSam(void)
+Slime &World::SpawnSam(void)
 {
     Slime *slime = SpawnSlime(0);
     assert(slime);
     Slime &sam = *slime;
     sam.SetName(CSTR("Sam"));
-    sam.combat.hitPointsMax = 100.0f; //100000.0f;
+    sam.combat.hitPointsMax = 20.0f; //100000.0f;
     sam.combat.hitPoints = sam.combat.hitPointsMax;
     sam.combat.meleeDamage = -1.0f;
     sam.combat.lootTableId = LootTableID::LT_Sam;
     sam.body.position = v3_add(GetWorldSpawn(), { 0, -300.0f, 0 });
     sam.sprite.scale = 2.0f;
+    return sam;
 }
 
 Slime *World::SpawnSlime(uint32_t slimeId)
@@ -251,7 +252,7 @@ void World::SimPlayers(double dt)
                         player.stats.coinsCollected += coins;
 
                         Vector3 deadCenter = sprite_world_center(slime.sprite, slime.body.position, slime.sprite.scale);
-                        particleSystem.GenerateFX(ParticleFX_Gold, (size_t)coins, deadCenter, 2.0);
+                        particleSystem.GenerateFX(ParticleFX_Gold, (size_t)coins / 16, deadCenter, 2.0);
                         sound_catalog_play(SoundID::Gold, 1.0f + dlb_rand32f_variance(0.1f));
 
                         DespawnSlime(slime.id);

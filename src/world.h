@@ -40,7 +40,7 @@ struct World {
     Player *FindPlayer    (uint32_t playerId);
     void    DespawnPlayer (uint32_t playerId);
 
-    void    SpawnSam      (void);
+    Slime  &SpawnSam      (void);
     Slime  *SpawnSlime    (uint32_t slimeId);
     Slime  *FindSlime     (uint32_t slimeId);
     void    DespawnSlime  (uint32_t slimeId);

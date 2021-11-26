@@ -6,6 +6,7 @@ enum class SpritesheetID {
     Charlie,
     Coin,
     Slime,
+    Items,
     Count
 };
 
