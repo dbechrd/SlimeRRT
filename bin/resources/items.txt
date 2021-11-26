@@ -3,19 +3,22 @@ spritesheet 4 4 4 resources/items.png
 
 # frame <name> <x> <y> <width> <height>
 # row 1 (gems)
-frame item_ruby    0 0 32 32
-frame item_emerald 32 0 32 32
-frame item_saphire 64 0 32 32
-frame item_diamond 96 0 32 32
+frame item_ruby           0 0 32 32
+frame item_emerald       32 0 32 32
+frame item_saphire       64 0 32 32
+frame item_diamond       96 0 32 32
+frame item_golden_chest 128 0 32 32
 
 # animation <name> <frame0> [frame1] ... [frame15]
-animation item_ruby    0
-animation item_emerald 1
-animation item_saphire 2
-animation item_diamond 3
+animation item_ruby         0
+animation item_emerald      1
+animation item_saphire      2
+animation item_diamond      3
+animation item_golden_chest 4
 
 # sprite <name> <anim_n> <anim_e> <anim_s> <anim_w> <anim_ne> <anim_se> <anim_sw> <anim_nw>
-sprite item_ruby    0 - - - - - - -
-sprite item_emerald 1 - - - - - - -
-sprite item_saphire 2 - - - - - - -
-sprite item_diamond 3 - - - - - - -
+sprite item_ruby         0 - - - - - - -
+sprite item_emerald      1 - - - - - - -
+sprite item_saphire      2 - - - - - - -
+sprite item_diamond      3 - - - - - - -
+sprite item_golden_chest 4 - - - - - - -

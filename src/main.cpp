@@ -115,6 +115,7 @@ int main(int argc, char *argv[])
 #include "particle_fx_blood.cpp"
 #include "particle_fx_gem.cpp"
 #include "particle_fx_gold.cpp"
+#include "particle_fx_golden_chest.cpp"
 #include "particle_fx_goo.cpp"
 #include "player.cpp"
 #include "player_inventory.cpp"

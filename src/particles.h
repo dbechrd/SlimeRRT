@@ -28,6 +28,7 @@ enum ParticleFX_Type {
     ParticleFX_Blood,
     ParticleFX_Gem,
     ParticleFX_Gold,
+    ParticleFX_GoldenChest,
     ParticleFX_Goo,
     ParticleFX_Count
 };

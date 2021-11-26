@@ -79,10 +79,11 @@ ParticleFX *ParticleSystem::GenerateFX(ParticleFX_Type type, size_t particleCoun
     effect->duration = duration;
     effect->startedAt = glfwGetTime();
 
-    registry[ParticleFX_Blood] = { particle_fx_blood_init, particle_fx_blood_update };
-    registry[ParticleFX_Gem  ] = { particle_fx_gem_init,   particle_fx_gem_update   };
-    registry[ParticleFX_Gold ] = { particle_fx_gold_init,  particle_fx_gold_update  };
-    registry[ParticleFX_Goo  ] = { particle_fx_goo_init,   particle_fx_goo_update   };
+    registry[ParticleFX_Blood      ] = { particle_fx_blood_init,         particle_fx_blood_update        };
+    registry[ParticleFX_Gem        ] = { particle_fx_gem_init,           particle_fx_gem_update          };
+    registry[ParticleFX_Gold       ] = { particle_fx_gold_init,          particle_fx_gold_update         };
+    registry[ParticleFX_GoldenChest] = { particle_fx_golden_chest_init,  particle_fx_golden_chest_update };
+    registry[ParticleFX_Goo        ] = { particle_fx_goo_init,           particle_fx_goo_update          };
 
     Particle *prev = 0;
     for (size_t i = 0; i < particleCount; i++) {
@@ -145,7 +146,7 @@ void ParticleSystem::Update(double dt)
         const float alpha = (float)((animTime - particle.spawnAt) / (particle.dieAt - particle.spawnAt));
         if (alpha >= 0.0f && alpha < 1.0f) {
             if (!particle.body.lastUpdated) {
-                particle.body.position = effect.origin;
+                particle.body.position = v3_add(particle.body.position, effect.origin);
             }
             particle.body.Update(dt);
             sprite_update(particle.sprite, dt);

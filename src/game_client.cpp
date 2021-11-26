@@ -309,8 +309,13 @@ ErrorType GameClient::Run(void)
 
         static bool samTreasureRoom = false;
         if (!samTreasureRoom && world == lobby && !sam.combat.hitPoints) {
-            Structure::Spawn(*world->map, MAX(0, int(player.body.position.x / TILE_W) - 3), MAX(0, int(player.body.position.y / TILE_W) - 5));
-            world->particleSystem.GenerateFX(ParticleFX_Gem, 16, player.body.position, 2.0f);
+            uint32_t chestX = MAX(0, int(player.body.position.x / TILE_W));
+            uint32_t chestY = MAX(0, int(player.body.position.y / TILE_W) - 2);
+            Structure::Spawn(*world->map, chestX - 3, chestY - 4);
+            Vector3 chestPos{ (chestX * TILE_W) + TILE_W * 0.5f, float(chestY * TILE_W), 0.0f };
+            world->particleSystem.GenerateFX(ParticleFX_GoldenChest, 1, chestPos, 4.0f);
+            world->particleSystem.GenerateFX(ParticleFX_Gem, 16, chestPos, 4.0f);
+            sound_catalog_play(SoundID::Gold, 1.0f + dlb_rand32f_variance(0.4f));
             samTreasureRoom = true;
         }
 

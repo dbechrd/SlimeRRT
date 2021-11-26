@@ -253,7 +253,6 @@ void World::SimPlayers(double dt)
 
                         Vector3 deadCenter = sprite_world_center(slime.sprite, slime.body.position, slime.sprite.scale);
                         particleSystem.GenerateFX(ParticleFX_Gold, (size_t)coins / 16, deadCenter, 2.0);
-                        sound_catalog_play(SoundID::Gold, 1.0f + dlb_rand32f_variance(0.1f));
 
                         DespawnSlime(slime.id);
                         player.stats.slimesSlain++;

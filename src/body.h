@@ -20,6 +20,7 @@ struct Body3D {
     double  lastUpdated  {};
     double  lastMoved    {};
     bool    landed       {};
+    bool    bounced      {};
     bool    idle         {};
 
     RingBuffer<Vector3Snapshot, CL_WORLD_HISTORY> positionHistory {};

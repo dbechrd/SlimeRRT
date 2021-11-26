@@ -49,6 +49,8 @@ void Body3D::Update(double dt)
         position.y += velocity.y * (float)dt;
         position.z += velocity.z * (float)dt;
 
+        bounced = position.z <= 0.0f;
+
         float friction_coef = 1.0f;
         if (position.z <= 0.0f) {
             // Bounce
@@ -74,6 +76,7 @@ void Body3D::Update(double dt)
         lastMoved = glfwGetTime();
     }
     landed = (prevPosition.z > 0.0f && position.z == 0.0f);
+    bounced = bounced && !v3_is_zero(velocity);
 
     const double timeSinceLastMove = glfwGetTime() - lastMoved;
     idle = timeSinceLastMove > IDLE_THRESHOLD_SECONDS;

@@ -16,6 +16,7 @@ void sound_catalog_init()
     soundCatalog[(int)SoundID::Squish1    ] = LoadSound("resources/squish1.ogg");
     soundCatalog[(int)SoundID::Squish2    ] = LoadSound("resources/squish2.ogg");
     soundCatalog[(int)SoundID::Whoosh     ] = LoadSound("resources/whoosh1.ogg");
+    soundCatalog[(int)SoundID::GemBounce  ] = LoadSound("resources/gem_bounce.wav");
 
     SetSoundVolume(soundCatalog[(int)SoundID::Whoosh], 0.3f);
 
@@ -39,7 +40,7 @@ void sound_catalog_play(SoundID id, float pitch)
     //}
 
     SetSoundPitch(soundCatalog[(int)id], pitch);
-    PlaySound(soundCatalog[(int)id]);
+    PlaySoundMulti(soundCatalog[(int)id]);
 }
 
 bool sound_catalog_playing(SoundID id)

@@ -10,6 +10,7 @@ enum class SoundID {
     Squish1,
     Squish2,
     Whoosh,
+    GemBounce,
     Count
 };
 
