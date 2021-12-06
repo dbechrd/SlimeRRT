@@ -428,6 +428,8 @@ ErrorType GameClient::Run(void)
         const float invZoom = 1.0f / camera.zoom;
 #endif
 
+        // TODO: Fix music fade; do mus_background.fadeOut and mus_whistle.fadeIn and let the music catalog handle
+        // updating the volumes for each track independently over time.
         /*if (player.body.idle && whistleAlpha < 1.0f) {
             whistleAlpha = CLAMP(whistleAlpha + 0.005f, 0.0f, 1.0f);
             SetMusicVolume(mus_background, LERP(mus_background_vmin, mus_background_vmax, 1.0f - whistleAlpha));
@@ -801,9 +803,8 @@ ErrorType GameClient::Run(void)
 
                 Rectangle chatInputRect = { margin, screenHeight - margin - inputBoxHeight, chatWidth, inputBoxHeight };
                 if (GuiTextBoxAdvanced(&chatInputState, chatInputRect, chatInputText, &chatInputTextLen, CHATMSG_LENGTH_MAX, io.WantCaptureKeyboard)) {
-                    size_t messageLength = chatInputTextLen;
-                    if (messageLength) {
-                        ErrorType sendResult = netClient.SendChatMessage(chatInputText, messageLength);
+                    if (chatInputTextLen) {
+                        ErrorType sendResult = netClient.SendChatMessage(chatInputText, chatInputTextLen);
                         switch (sendResult) {
                             case ErrorType::NotConnected:
                             {
