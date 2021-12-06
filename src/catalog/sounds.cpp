@@ -1,12 +1,11 @@
 #include "catalog/sounds.h"
-#include "helpers.h"
 #include "raylib/raylib.h"
 #include <cassert>
 
 namespace Catalog {
     void Sounds::Load(void)
     {
-        byId[(size_t)SoundID::Empty      ] = LoadMissingOGG();
+        byId[(size_t)SoundID::Empty      ] = MissingOggSound();
         byId[(size_t)SoundID::Footstep   ] = LoadSound("resources/footstep1.ogg");
         byId[(size_t)SoundID::Gold       ] = LoadSound("resources/gold1.ogg");
         byId[(size_t)SoundID::Slime_Stab1] = LoadSound("resources/slime_stab1.ogg");
@@ -20,7 +19,7 @@ namespace Catalog {
 
         for (size_t i = 0; i < (size_t)SoundID::Count; i++) {
             if (!byId[i].sampleCount) {
-                byId[i] = LoadMissingOGG();
+                byId[i] = MissingOggSound();
             }
         }
     }
@@ -67,10 +66,33 @@ namespace Catalog {
         return playing;
     }
 
-    Sound Sounds::LoadMissingOGG(void)
+    Sound Sounds::MissingOggSound(void)
     {
-        // NOTE: Generated with `xxd -i <filename>`
-        static const unsigned char MISSING_OGG[7277] = {
+        static Sound missingOggSound{};
+        if (!missingOggSound.sampleCount) {
+            Wave missingOggWav = MissingOggWave();
+            missingOggSound = LoadSoundFromWave(missingOggWav);
+            assert(missingOggSound.sampleCount);
+        }
+        return missingOggSound;
+    }
+
+    Wave Sounds::MissingOggWave(void)
+    {
+        static Wave missingOggWave{};
+        if (!missingOggWave.sampleCount) {
+            size_t missingOggSize = 0;
+            const unsigned char *missingOggData = MissingOggData(missingOggSize);
+            missingOggWave = LoadWaveFromMemory(".ogg", missingOggData, (int)missingOggSize);
+            assert(missingOggWave.sampleCount);
+        }
+        return missingOggWave;
+    }
+
+    // NOTE: Generated with `xxd -i <filename>`
+    const unsigned char *Sounds::MissingOggData(size_t &fileSize)
+    {
+        static unsigned char missing_ogg_bytes[] = {
             0x4f, 0x67, 0x67, 0x53, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x96, 0x3e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xea, 0xd5,
             0xff, 0x21, 0x01, 0x1e, 0x01, 0x76, 0x6f, 0x72, 0x62, 0x69, 0x73, 0x00,
@@ -679,15 +701,7 @@ namespace Catalog {
             0x01, 0xdc, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00
         };
-
-        static Sound missingOgg = {};
-        if (!missingOgg.sampleCount) {
-            Wave missingOggWav = LoadWaveFromMemory(".ogg", MISSING_OGG, ARRAY_SIZE(MISSING_OGG));
-            assert(missingOggWav.sampleCount);
-            missingOgg = LoadSoundFromWave(missingOggWav);
-            UnloadWave(missingOggWav);
-            assert(missingOgg.sampleCount);
-        }
-        return missingOgg;
+        fileSize = ARRAY_SIZE(missing_ogg_bytes);
+        return missing_ogg_bytes;
     }
 }

@@ -1,5 +1,4 @@
 #pragma once
-#include "helpers.h"
 
 namespace Catalog {
     enum class SoundID {
@@ -21,9 +20,12 @@ namespace Catalog {
         const Sound &FindById(SoundID id) const;
         void Play(SoundID id, float pitch);
         bool Playing(SoundID id);
+        const unsigned char *Sounds::MissingOggData(size_t &fileSize);
 
     private:
-        Sound LoadMissingOGG(void);
         Sound byId[(size_t)SoundID::Count];
+
+        Sound MissingOggSound(void);
+        Wave Sounds::MissingOggWave(void);
     } g_sounds;
 }

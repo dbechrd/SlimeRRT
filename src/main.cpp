@@ -97,6 +97,7 @@ int main(int argc, char *argv[])
 #include "bit_stream.cpp"
 #include "body.cpp"
 #include "catalog/items.cpp"
+#include "catalog/musics.cpp"
 #include "catalog/particle_fx.cpp"
 #include "catalog/sounds.cpp"
 #include "catalog/spritesheets.cpp"

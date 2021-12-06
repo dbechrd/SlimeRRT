@@ -878,6 +878,7 @@ ErrorType GameClient::Run(void)
     UnloadMusicStream(mus_whistle);
     UnloadFont(font);
     Catalog::g_sounds.Unload();
+    Catalog::g_musics.Unload();
     CloseAudioDevice();
 
     ImGui_ImplOpenGL3_Shutdown();
