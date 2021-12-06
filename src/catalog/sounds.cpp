@@ -18,7 +18,7 @@ namespace Catalog {
         SetSoundVolume(byId[(size_t)SoundID::Whoosh], 0.3f);
 
         for (size_t i = 0; i < (size_t)SoundID::Count; i++) {
-            if (!byId[i].sampleCount) {
+            if (!byId[i].frameCount) {
                 byId[i] = MissingOggSound();
             }
         }
@@ -27,7 +27,7 @@ namespace Catalog {
     void Sounds::Unload(void)
     {
         for (size_t i = 0; i < (size_t)SoundID::Count; i++) {
-            if (byId[i].sampleCount) {
+            if (byId[i].frameCount) {
                 UnloadSound(byId[i]);
             }
         }
@@ -42,7 +42,7 @@ namespace Catalog {
     {
         assert((size_t)id >= 0);
         assert((size_t)id < ARRAY_SIZE(byId));
-        if (!byId[(size_t)id].sampleCount) {
+        if (!byId[(size_t)id].frameCount) {
             return;
         }
 
@@ -58,7 +58,7 @@ namespace Catalog {
     {
         assert((size_t)id >= 0);
         assert((size_t)id < ARRAY_SIZE(byId));
-        if (!byId[(size_t)id].sampleCount) {
+        if (!byId[(size_t)id].frameCount) {
             return false;
         }
 
@@ -69,10 +69,10 @@ namespace Catalog {
     Sound Sounds::MissingOggSound(void)
     {
         static Sound missingOggSound{};
-        if (!missingOggSound.sampleCount) {
+        if (!missingOggSound.frameCount) {
             Wave missingOggWav = MissingOggWave();
             missingOggSound = LoadSoundFromWave(missingOggWav);
-            assert(missingOggSound.sampleCount);
+            assert(missingOggSound.frameCount);
         }
         return missingOggSound;
     }
@@ -80,11 +80,11 @@ namespace Catalog {
     Wave Sounds::MissingOggWave(void)
     {
         static Wave missingOggWave{};
-        if (!missingOggWave.sampleCount) {
+        if (!missingOggWave.frameCount) {
             size_t missingOggSize = 0;
             const unsigned char *missingOggData = MissingOggData(missingOggSize);
             missingOggWave = LoadWaveFromMemory(".ogg", missingOggData, (int)missingOggSize);
-            assert(missingOggWave.sampleCount);
+            assert(missingOggWave.frameCount);
         }
         return missingOggWave;
     }

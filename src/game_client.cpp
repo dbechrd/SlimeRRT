@@ -100,22 +100,6 @@ ErrorType GameClient::Run(void)
 
     DrawList drawList{};
 
-    float mus_background_vmin = 0.02f;
-    float mus_background_vmax = 0.2f;
-    Music mus_background = LoadMusicStream("resources/fluquor_copyright.ogg");
-    mus_background.looping = true;
-    //PlayMusicStream(mus_background);
-    SetMusicVolume(mus_background, mus_background_vmax);
-    UpdateMusicStream(mus_background);
-
-    float mus_whistle_vmin = 0.0f;
-    float mus_whistle_vmax = 0.0f; //1.0f;
-    Music mus_whistle = LoadMusicStream("resources/whistle.ogg");
-    SetMusicVolume(mus_whistle, mus_whistle_vmin);
-    mus_whistle.looping = true;
-
-    float whistleAlpha = 0.0f;
-
     Image checkerboardImage = GenImageChecked(monitorWidth, monitorHeight, 32, 32, LIGHTGRAY, GRAY);
     Texture checkboardTexture = LoadTextureFromImage(checkerboardImage);
     UnloadImage(checkerboardImage);
@@ -191,9 +175,6 @@ ErrorType GameClient::Run(void)
             screenHeight = GetScreenHeight();
             cameraReset = 1;
         }
-
-        UpdateMusicStream(mus_background);
-        UpdateMusicStream(mus_whistle);
 
         const bool imguiUsingMouse = io.WantCaptureMouse;
         const bool imguiUsingKeyboard = io.WantCaptureKeyboard;
@@ -447,7 +428,7 @@ ErrorType GameClient::Run(void)
         const float invZoom = 1.0f / camera.zoom;
 #endif
 
-        if (player.body.idle && whistleAlpha < 1.0f) {
+        /*if (player.body.idle && whistleAlpha < 1.0f) {
             whistleAlpha = CLAMP(whistleAlpha + 0.005f, 0.0f, 1.0f);
             SetMusicVolume(mus_background, LERP(mus_background_vmin, mus_background_vmax, 1.0f - whistleAlpha));
             SetMusicVolume(mus_whistle, LERP(mus_whistle_vmin, mus_whistle_vmax, whistleAlpha));
@@ -461,7 +442,7 @@ ErrorType GameClient::Run(void)
             if (whistleAlpha == 0.0f) {
                 StopMusicStream(mus_whistle);
             }
-        }
+        }*/
 
         //----------------------------------------------------------------------------------
         // Draw
@@ -538,7 +519,7 @@ ErrorType GameClient::Run(void)
                     (float)TILE_W * zoomMipLevel,
                     (float)TILE_W * zoomMipLevel
                 };
-                DrawRectangleLinesEx(mouseTileRect, 1 * (int)invZoom, RED);
+                DrawRectangleLinesEx(mouseTileRect, floorf(invZoom), RED);
             }
         }
 
@@ -816,7 +797,7 @@ ErrorType GameClient::Run(void)
             static GuiTextBoxAdvancedState chatInputState;
             if (chatActive) {
                 static int chatInputTextLen = 0;
-                static char chatInputText[CHATMSG_LENGTH_MAX];
+                static char chatInputText[CHATMSG_LENGTH_MAX]{};
 
                 Rectangle chatInputRect = { margin, screenHeight - margin - inputBoxHeight, chatWidth, inputBoxHeight };
                 if (GuiTextBoxAdvanced(&chatInputState, chatInputRect, chatInputText, &chatInputTextLen, CHATMSG_LENGTH_MAX, io.WantCaptureKeyboard)) {
@@ -874,8 +855,6 @@ ErrorType GameClient::Run(void)
     // TODO: Wrap these in classes to use destructors?
     delete lobby;
     UnloadTexture(checkboardTexture);
-    UnloadMusicStream(mus_background);
-    UnloadMusicStream(mus_whistle);
     UnloadFont(font);
     Catalog::g_sounds.Unload();
     Catalog::g_musics.Unload();

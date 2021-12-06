@@ -90,6 +90,7 @@ int main(int argc, char *argv[])
 #pragma warning(disable: 4267)  // conversion from 'size_t' to 'int'
 #define GUI_TEXTBOX_EXTENDED_IMPLEMENTATION
 #include "gui_textbox_extended.h"
+#undef GUI_TEXTBOX_EXTENDED_IMPLEMENTATION
 #pragma warning(pop)
 #endif
 

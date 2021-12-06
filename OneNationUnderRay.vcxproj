@@ -16,9 +16,6 @@
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\jail_win32_console.cpp" />
   </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="src\item_stack.h" />
-  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>

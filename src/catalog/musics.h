@@ -18,8 +18,9 @@ namespace Catalog {
         void Load(void);
         void Unload(void);
         const Music &FindById(MusicID id) const;
-        void Play(MusicID id, float pitch);
-        bool Playing(MusicID id);
+        void Play(MusicID id, float pitch) const;
+        bool Playing(MusicID id) const;
+        void Update(void) const;
 
     private:
         Music Musics::MissingOggMusic(void);
