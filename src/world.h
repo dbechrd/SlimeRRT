@@ -1,7 +1,7 @@
 #pragma once
 #include "chat.h"
 #include "controller.h"
-#include "item_catalog.h"
+#include "catalog/items.h"
 #include "particles.h"
 #include "player.h"
 #include "slime.h"
@@ -11,23 +11,22 @@
 #include <vector>
 
 struct World {
-    uint64_t        rtt_seed       {};
-    dlb_rand32_t    rtt_rand       {};
-    uint32_t        tick           {};
-    double          clockStart     {};
-    double          clock          {};
-    double          dtUpdate       {};
-    Tilemap         *map           {};
+    uint64_t              rtt_seed           {};
+    dlb_rand32_t          rtt_rand           {};
+    uint32_t              tick               {};
+    double                clockStart         {};
+    double                clock              {};
+    double                dtUpdate           {};
+    Tilemap               *map               {};
     // TODO: PlayerSystem
-    uint32_t        playerId       {};
-    Player          players        [SV_MAX_PLAYERS]{};
+    uint32_t              playerId           {};
+    Player                players            [SV_MAX_PLAYERS]{};
     // TODO: SlimeSystem or EnemySystem
-    Slime           slimes         [SV_MAX_ENTITIES]{};
-    ParticleSystem  particleSystem {};
-    MapSystem       mapSystem      {};
-    ItemCatalog     itemCatalog    {};
-    LootSystem      lootSystem     {};
-    ChatHistory     chatHistory    {};
+    Slime                 slimes             [SV_MAX_ENTITIES]{};
+    ParticleSystem        particleSystem     {};
+    MapSystem             mapSystem          {};
+    LootSystem            lootSystem         {};
+    ChatHistory           chatHistory        {};
 
     World                       (void);
     ~World                      (void);
@@ -44,6 +43,9 @@ struct World {
     Slime  *SpawnSlime    (uint32_t slimeId);
     Slime  *FindSlime     (uint32_t slimeId);
     void    DespawnSlime  (uint32_t slimeId);
+
+    Player *FindClosestPlayer(Vector2 worldPos, float maxDist);
+    Player *FindClosestSlime(Vector2 worldPos, float maxDist);
     //
     // ^^^ DO NOT HOLD A POINTER TO THESE! ^^^
     ////////////////////////////////////////////

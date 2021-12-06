@@ -1,5 +1,5 @@
 #include "particles.h"
-#include "particle_fx.h"
+#include "catalog/particle_fx.h"
 #include "sprite.h"
 #include "spritesheet.h"
 #include "helpers.h"
@@ -52,16 +52,16 @@ Particle *ParticleSystem::Alloc(void)
     return particle;
 }
 
-ParticleFX *ParticleSystem::GenerateFX(ParticleFX_Type type, size_t particleCount, Vector3 origin, double duration)
+ParticleEffect *ParticleSystem::GenerateEffect(Catalog::ParticleEffectID type, size_t particleCount, Vector3 origin, double duration)
 {
-    assert((int)type > 0);
-    assert((int)type < ParticleFX_Count);
+    assert((size_t)type > 0);
+    assert((size_t)type < (size_t)Catalog::ParticleEffectID::Count);
     assert(particleCount);
     assert(duration);
     assert(duration > 0.0);
 
     // Allocate effect
-    ParticleFX *effect = effectsFree;
+    ParticleEffect *effect = effectsFree;
     if (!effect) {
         //assert(!"Particle effect pool is full");
         //TraceLog(LOG_ERROR, "Particle effect pool is full; discarding particle effect.\n");
@@ -71,19 +71,13 @@ ParticleFX *ParticleSystem::GenerateFX(ParticleFX_Type type, size_t particleCoun
     effectsActiveCount++;
 
     // Sanity checks to ensure previous effect was freed properly and/or free list is returning valid pointers
-    assert(effect->type == ParticleFX_Empty);
+    assert(effect->id == Catalog::ParticleEffectID::Empty);
     assert(effect->particlesLeft == 0);
 
-    effect->type = type;
+    effect->id = type;
     effect->origin = origin;
     effect->duration = duration;
     effect->startedAt = glfwGetTime();
-
-    registry[ParticleFX_Blood      ] = { particle_fx_blood_init,         particle_fx_blood_update        };
-    registry[ParticleFX_Gem        ] = { particle_fx_gem_init,           particle_fx_gem_update          };
-    registry[ParticleFX_Gold       ] = { particle_fx_gold_init,          particle_fx_gold_update         };
-    registry[ParticleFX_GoldenChest] = { particle_fx_golden_chest_init,  particle_fx_golden_chest_update };
-    registry[ParticleFX_Goo        ] = { particle_fx_goo_init,           particle_fx_goo_update          };
 
     Particle *prev = 0;
     for (size_t i = 0; i < particleCount; i++) {
@@ -96,8 +90,8 @@ ParticleFX *ParticleSystem::GenerateFX(ParticleFX_Type type, size_t particleCoun
         }
 
         particle->effect = effect;
-        assert(registry[effect->type].init);
-        registry[effect->type].init(*particle, *effect);
+        assert(Catalog::g_particleFx.FindById(effect->id).init);
+        Catalog::g_particleFx.FindById(effect->id).init(*particle, *effect);
         effect->particlesLeft++;
 
         prev = particle;
@@ -123,13 +117,13 @@ void ParticleSystem::Update(double dt)
 
     size_t effectsCounted = 0;
     for (size_t i = 0; effectsCounted < effectsActiveCount; i++) {
-        ParticleFX &effect = effects[i];
-        if (effect.type == ParticleFX_Empty)
+        ParticleEffect &effect = effects[i];
+        if (effect.id == Catalog::ParticleEffectID::Empty)
             continue;
 
-        if (effect.callbacks[ParticleFXEvent_BeforeUpdate].function) {
-            effect.callbacks[ParticleFXEvent_BeforeUpdate].function(
-                effect, effect.callbacks[ParticleFXEvent_BeforeUpdate].userData
+        if (effect.callbacks[(size_t)ParticleEffectEvent::BeforeUpdate].function) {
+            effect.callbacks[(size_t)ParticleEffectEvent::BeforeUpdate].function(
+                effect, effect.callbacks[(size_t)ParticleEffectEvent::BeforeUpdate].userData
             );
         }
         effectsCounted++;
@@ -141,7 +135,7 @@ void ParticleSystem::Update(double dt)
         if (!particle.effect)
             continue;  // particle is dead
 
-        ParticleFX &effect = *particle.effect;
+        ParticleEffect &effect = *particle.effect;
         const float animTime = (float)(glfwGetTime() - effect.startedAt);
         const float alpha = (float)((animTime - particle.spawnAt) / (particle.dieAt - particle.spawnAt));
         if (alpha >= 0.0f && alpha < 1.0f) {
@@ -150,8 +144,8 @@ void ParticleSystem::Update(double dt)
             }
             particle.body.Update(dt);
             sprite_update(particle.sprite, dt);
-            assert(registry[effect.type].update);
-            registry[effect.type].update(particle, alpha);
+            assert(Catalog::g_particleFx.FindById(effect.id).update);
+            Catalog::g_particleFx.FindById(effect.id).update(particle, alpha);
         } else if (alpha >= 1.0f) {
             effect.particlesLeft--;
 
@@ -166,16 +160,16 @@ void ParticleSystem::Update(double dt)
 
     effectsCounted = 0;
     for (size_t i = 0; effectsCounted < effectsActiveCount; i++) {
-        ParticleFX &effect = effects[i];
-        if (effect.type == ParticleFX_Empty)
+        ParticleEffect &effect = effects[i];
+        if (effect.id == Catalog::ParticleEffectID::Empty)
             continue;
 
-        // note: ParticleFXEvent_AfterUpdate would go here if I ever care about that..
+        // note: ParticleEffectEvent_AfterUpdate would go here if I ever care about that..
 
         if (!effect.particlesLeft) {
-            if (effect.callbacks[(int)ParticleFXEvent_Dying].function) {
-                effect.callbacks[(int)ParticleFXEvent_Dying].function(
-                    effect, effect.callbacks[(int)ParticleFXEvent_Dying].userData
+            if (effect.callbacks[(size_t)ParticleEffectEvent::Dying].function) {
+                effect.callbacks[(size_t)ParticleEffectEvent::Dying].function(
+                    effect, effect.callbacks[(size_t)ParticleEffectEvent::Dying].userData
                 );
             }
 

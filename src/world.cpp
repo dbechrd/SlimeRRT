@@ -1,15 +1,15 @@
 #include "world.h"
 #include "body.h"
+#include "catalog/sounds.h"
+#include "catalog/spritesheets.h"
 #include "controller.h"
 #include "helpers.h"
+#include "item_stack.h"
 #include "maths.h"
 #include "particles.h"
 #include "player.h"
-#include "player_inventory.h"
 #include "slime.h"
-#include "sound_catalog.h"
 #include "spritesheet.h"
-#include "spritesheet_catalog.h"
 #include "tilemap.h"
 #include "dlb_rand.h"
 #include <cassert>
@@ -62,7 +62,9 @@ Player *World::SpawnPlayer(uint32_t playerId)
                 player.id = nextId;
             }
 
-            player.Init();
+            const Spritesheet &spritesheet = Catalog::g_spritesheets.FindById(Catalog::SpritesheetID::Charlie);
+            const SpriteDef *spriteDef = spritesheet.FindSprite("player_sword");
+            player.Init(spriteDef);
             player.body.position = GetWorldSpawn();
 
             return &player;
@@ -81,6 +83,20 @@ Player *World::FindPlayer(uint32_t playerId)
         Player &player = players[i];
         if (player.id == playerId) {
             return &player;
+        }
+    }
+    return 0;
+}
+
+Player *World::FindClosestPlayer(Vector2 worldPos, float maxDist)
+{
+    for (size_t i = 0; i < SV_MAX_PLAYERS; i++) {
+        if (players[i].id && players[i].combat.hitPoints > 0) {
+            Vector2 toPlayer = v2_sub(players[i].body.GroundPosition(), worldPos);
+            const float toPlayerDistSq = v2_length_sq(toPlayer);
+            if (toPlayerDistSq <= SQUARED(maxDist)) {
+                return &players[i];
+            }
         }
     }
     return 0;
@@ -176,15 +192,15 @@ void World::DespawnSlime(uint32_t slimeId)
     Slime *slime = FindSlime(slimeId);
     if (slime) {
         const Vector3 slimeBC = sprite_world_center(slime->sprite, slime->body.position, slime->sprite.scale);
-        particleSystem.GenerateFX(ParticleFX_Goo, 20, slimeBC, 2.0);
+        particleSystem.GenerateEffect(Catalog::ParticleEffectID::Goo, 20, slimeBC, 2.0);
         printf("Despawn slime %u\n", slimeId);
         memset(slime, 0, sizeof(*slime));
     }
 }
 
-void BloodParticlesFollowPlayer(ParticleFX &effect, void *userData)
+void BloodParticlesFollowPlayer(ParticleEffect &effect, void *userData)
 {
-    assert(effect.type == ParticleFX_Blood);
+    assert(effect.id == Catalog::ParticleEffectID::Blood);
     assert(userData);
 
     Player *player = (Player *)userData;
@@ -212,19 +228,11 @@ void World::SimPlayers(double dt)
             const float playerAttackReach = METERS_TO_PIXELS(1.0f);
             float playerDamage;
 
-            const Item &selectedItem = player.GetSelectedItem();
-            switch (selectedItem.type) {
-                case ItemType::Weapon:
-                {
-                    const Item_Weapon &weapon = static_cast<const Item_Weapon &>(selectedItem);
-                    playerDamage = weapon.damage;
-                    break;
-                }
-                default:
-                {
-                    playerDamage = player.combat.meleeDamage;
-                    break;
-                }
+            const ItemStack &selectedStack = player.GetSelectedItem();
+            const Catalog::Item &selectedItem = Catalog::g_items.FindById(selectedStack.id);
+            playerDamage = selectedItem.damage;
+            if (selectedItem.id == Catalog::ItemID::Empty) {
+                playerDamage = player.combat.meleeDamage;
             }
 
             size_t slimesHit = 0;
@@ -252,22 +260,22 @@ void World::SimPlayers(double dt)
                         player.stats.coinsCollected += coins;
 
                         Vector3 deadCenter = sprite_world_center(slime.sprite, slime.body.position, slime.sprite.scale);
-                        particleSystem.GenerateFX(ParticleFX_Gold, (size_t)coins / 16, deadCenter, 2.0);
+                        particleSystem.GenerateEffect(Catalog::ParticleEffectID::Gold, (size_t)coins / 16, deadCenter, 2.0);
 
                         DespawnSlime(slime.id);
                         player.stats.slimesSlain++;
                     } else {
-                        SoundID squish = dlb_rand32i_range(0, 1) ? SoundID::Squish1 : SoundID::Squish2;
-                        sound_catalog_play(squish, 1.0f + dlb_rand32f_variance(0.2f));
+                        Catalog::SoundID squish = dlb_rand32i_range(0, 1) ? Catalog::SoundID::Squish1 : Catalog::SoundID::Squish2;
+                        Catalog::g_sounds.Play(squish, 1.0f + dlb_rand32f_variance(0.2f));
                     }
                     slimesHit++;
                 }
             }
 
             if (slimesHit) {
-                sound_catalog_play(SoundID::Slime_Stab1, 1.0f + dlb_rand32f_variance(0.1f));
+                Catalog::g_sounds.Play(Catalog::SoundID::Slime_Stab1, 1.0f + dlb_rand32f_variance(0.1f));
             }
-            sound_catalog_play(SoundID::Whoosh, 1.0f + dlb_rand32f_variance(0.1f));
+            Catalog::g_sounds.Play(Catalog::SoundID::Whoosh, 1.0f + dlb_rand32f_variance(0.1f));
         }
     }
 }
@@ -297,7 +305,7 @@ void World::SimSlimes(double dt)
         }
 
         // TODO: Actually find closest alive player via RTree
-        Player *closestPlayer = randomAlivePlayer;
+        Player *closestPlayer = FindClosestPlayer(slime.body.GroundPosition(), slimeAttackTrack);
         if (!closestPlayer || !closestPlayer->id) {
             slime.Update(dt);
             continue;
@@ -337,8 +345,8 @@ void World::SimSlimes(double dt)
             }
 
             if (!willCollide && slime.Move(dt, slimeMove)) {
-                SoundID squish = dlb_rand32i_range(0, 1) ? SoundID::Squish1 : SoundID::Squish2;
-                sound_catalog_play(squish, 1.0f + dlb_rand32f_variance(0.2f));
+                Catalog::SoundID squish = dlb_rand32i_range(0, 1) ? Catalog::SoundID::Squish1 : Catalog::SoundID::Squish2;
+                Catalog::g_sounds.Play(squish, 1.0f + dlb_rand32f_variance(0.2f));
             }
         }
 
@@ -357,10 +365,10 @@ void World::SimSlimes(double dt)
 
                 if (glfwGetTime() - lastBleed > bleedDuration / 3.0) {
                     Vector3 playerGut = closestPlayer->GetAttachPoint(Player::AttachPoint::Gut);
-                    ParticleFX *bloodParticles = particleSystem.GenerateFX(ParticleFX_Blood, 32, playerGut, bleedDuration);
+                    ParticleEffect *bloodParticles = particleSystem.GenerateEffect(Catalog::ParticleEffectID::Blood, 32, playerGut, bleedDuration);
                     if (bloodParticles) {
-                        bloodParticles->callbacks[(int)ParticleFXEvent_BeforeUpdate].function = BloodParticlesFollowPlayer;
-                        bloodParticles->callbacks[(int)ParticleFXEvent_BeforeUpdate].userData = closestPlayer;
+                        bloodParticles->callbacks[(size_t)ParticleEffectEvent::BeforeUpdate].function = BloodParticlesFollowPlayer;
+                        bloodParticles->callbacks[(size_t)ParticleEffectEvent::BeforeUpdate].userData = closestPlayer;
                     }
                     lastBleed = glfwGetTime();
                 }

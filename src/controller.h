@@ -33,6 +33,7 @@ struct PlayerControllerState {
     bool  dbgSpawnSam      {};
     bool  dbgToggleFreecam {};
     bool  dbgNextRtreeRect {};
+    bool  dbgKillRtreeRect {};
 
     static PlayerControllerState Query(bool ignoreMouse, bool ignoreKeyboard, bool freeCamera);
 };

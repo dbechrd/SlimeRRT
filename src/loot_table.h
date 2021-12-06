@@ -1,5 +1,5 @@
 #pragma once
-#include "item.h"
+#include "catalog/items.h"
 
 enum class LootTableID {
     LT_Sam,
@@ -16,7 +16,7 @@ enum class LootTableID {
 };
 
 struct LootDrop {
-    ItemType itemType {};
+    Catalog::ItemType itemType {};
     uint32_t minCount {};
     uint32_t maxCount {};
 };
@@ -32,7 +32,7 @@ struct LootSystem {
     void     RollDrops  (LootTableID lootTableId);
 
 private:
-    void AddDropToTable (LootTableID lootTableId, ItemType itemType, uint32_t min, uint32_t max);
+    void AddDropToTable (LootTableID lootTableId, Catalog::ItemType itemType, uint32_t min, uint32_t max);
 
     LootTable lootTableRegistry[(size_t)LootTableID::Count]{};
 };

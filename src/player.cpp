@@ -2,14 +2,14 @@
 #include "controller.h"
 #include "draw_command.h"
 #include "healthbar.h"
-#include "item_catalog.h"
+#include "catalog/items.h"
 #include "maths.h"
 #include "shadow.h"
 #include "sprite.h"
 #include "spritesheet.h"
 #include <cassert>
 
-void Player::Init()
+void Player::Init(const SpriteDef *spriteDef)
 {
     assert(!sprite.spriteDef);
     printf("Init player\n");
@@ -19,18 +19,14 @@ void Player::Init()
     combat.meleeDamage = 1.0f;
 
     sprite.scale = 1.0f;
-    const Spritesheet &spritesheet = SpritesheetCatalog::spritesheets[(int)SpritesheetID::Charlie];
-    const SpriteDef *spriteDef = spritesheet.FindSprite("player_sword");
-    if (spriteDef) {
-        sprite.spriteDef = spriteDef;
-    }
+    sprite.spriteDef = spriteDef;
 
     // TODO: Load selected slot from save file / server
     inventory.selectedSlot = PlayerInventorySlot::Slot_1;
 
     // TODO: Load inventory from save file / server
-    inventory.slots[(int)PlayerInventorySlot::Slot_1] = { ItemID::Weapon_Sword ,  1 };
-    inventory.slots[(int)PlayerInventorySlot::Coins ] = { ItemID::Currency_Coin,  0 };
+    inventory.slots[(int)PlayerInventorySlot::Slot_1] = { Catalog::ItemID::Weapon_Sword ,  1 };
+    inventory.slots[(int)PlayerInventorySlot::Coins ] = { Catalog::ItemID::Currency_Coin,  0 };
 
     // TODO: Load stats from save file / server
     //stats.coinsCollected = 33;
@@ -60,11 +56,10 @@ Vector3 Player::GetAttachPoint(AttachPoint attachPoint) const
     return attach;
 }
 
-const Item &Player::GetSelectedItem() const
+const ItemStack &Player::GetSelectedItem() const
 {
-    const ItemStack &selectedStack = inventory.slots[(int)inventory.selectedSlot];
-    const Item &selectedItem = ItemCatalog::instance.FindById(selectedStack.id);
-    return selectedItem;
+    const ItemStack &selectedStack = inventory.slots[(size_t)inventory.selectedSlot];
+    return selectedStack;
 }
 
 void Player::UpdateDirection(Vector2 offset)
@@ -126,9 +121,9 @@ bool Player::Attack(void)
         combat.attackStartedAt = glfwGetTime();
         combat.attackDuration = 0.2;
 
-        const Item &selectedItem = GetSelectedItem();
-        switch (selectedItem.id) {
-            case ItemID::Weapon_Sword: {
+        const ItemStack &selectedStack = GetSelectedItem();
+        switch (selectedStack.id) {
+            case Catalog::ItemID::Weapon_Sword: {
                 stats.timesSwordSwung++;
                 break;
             }
@@ -182,7 +177,7 @@ void Player::Update(double dt, InputSample &input, const Tilemap &map)
     moveBuffer = v2_add(moveBuffer, moveOffset);
 
     if (!input.skipFx && input.attack && Attack()) {
-        sound_catalog_play(SoundID::Whoosh, 1.0f + dlb_rand32f_variance(0.1f));
+        Catalog::g_sounds.Play(Catalog::SoundID::Whoosh, 1.0f + dlb_rand32f_variance(0.1f));
     }
 
     if (!v2_is_zero(moveBuffer)) {
@@ -235,7 +230,7 @@ void Player::Update(double dt, InputSample &input, const Tilemap &map)
             double timeSinceLastFootstep = glfwGetTime() - lastFootstep;
             float distanceMoved = v2_length(moveBuffer);
             if (!input.skipFx && timeSinceLastFootstep > 1.0f / distanceMoved) {
-                sound_catalog_play(SoundID::Footstep, 1.0f + dlb_rand32f_variance(0.5f));
+                Catalog::g_sounds.Play(Catalog::SoundID::Footstep, 1.0f + dlb_rand32f_variance(0.5f));
                 lastFootstep = glfwGetTime();
             }
         }
@@ -264,8 +259,8 @@ void Player::Update(double dt, InputSample &input, const Tilemap &map)
         const Spritesheet *sheet = sprite.spriteDef->spritesheet;
         assert(sheet->sprites.size() == 5);
 
-        const Item &selectedItem = GetSelectedItem();
-        if (selectedItem.id == ItemID::Weapon_Sword) {
+        const ItemStack &selectedStack = GetSelectedItem();
+        if (selectedStack.id == Catalog::ItemID::Weapon_Sword) {
             switch (actionState) {
                 case ActionState::None: {
                     switch (body.idle) {

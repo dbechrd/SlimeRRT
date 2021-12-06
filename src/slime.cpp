@@ -20,7 +20,7 @@ void Slime::Init(void)
     body.friction = 0.95f;
 
     sprite.scale = 1.0f;
-    const Spritesheet &spritesheet = SpritesheetCatalog::spritesheets[(int)SpritesheetID::Slime];
+    const Spritesheet &spritesheet = Catalog::g_spritesheets.FindById(Catalog::SpritesheetID::Slime);
     const SpriteDef *spriteDef = spritesheet.FindSprite("slime");
     if (spriteDef) {
         sprite.spriteDef = spriteDef;

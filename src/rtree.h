@@ -66,7 +66,8 @@ namespace RTree {
             assert(&chunk->entries[slot] == entry);
 
             // Zero the memory
-            entry = {};
+            *entry = {};
+            assert(entry->metadata.chunk == 0);
 
             // Clear bitset flag
             chunk->in_use.reset(slot);
@@ -104,7 +105,7 @@ namespace RTree {
     };
 
     // Note: We could also support additional search modes:
-    // - CompareContained     // return entries containted by the search AABB
+    // - CompareContained     // return entries contained by the search AABB
     // - CompareContains      // return entries which contain the search AABB
     // As well as range deletion (delete all nodes which meet the comparison constraint)
     enum class CompareMode {
@@ -209,7 +210,7 @@ namespace RTree {
             leaf->count--;
 
             // Zero last entry which is no longer in use
-            leaf->entries[leaf->count] = {};
+            *leaf->entries[leaf->count] = {};
             //memset(leaf->entries[leaf->count], 0, sizeof(*leaf->entries));
             assert(leaf->entries[leaf->count]->udata == 0);
 

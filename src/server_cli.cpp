@@ -1,4 +1,4 @@
-#include "item_catalog.h"
+#include "catalog/items.h"
 #include "loot_table.h"
 #include "net_client.h"
 #include "server_cli.h"

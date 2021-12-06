@@ -53,7 +53,8 @@ PlayerControllerState PlayerControllerState::Query(bool processMouse, bool proce
             input.dbgChatMessage   = IsKeyPressed(KEY_C);
             input.dbgSpawnSam      = IsKeyPressed(KEY_KP_ENTER);
             input.dbgToggleFreecam = IsKeyPressed(KEY_F);
-            input.dbgNextRtreeRect = IsKeyDown(KEY_N);
+            input.dbgNextRtreeRect = IsKeyDown(KEY_N) && !IsKeyDown(KEY_K);
+            input.dbgKillRtreeRect = IsKeyDown(KEY_K) && !IsKeyDown(KEY_N);
         }
     }
     return input;

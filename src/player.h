@@ -1,12 +1,30 @@
 #pragma once
 #include "body.h"
+#include "catalog/items.h"
 #include "combat.h"
 #include "draw_command.h"
-#include "player_inventory.h"
+#include "item_stack.h"
 #include "ring_buffer.h"
 #include "sprite.h"
 
 struct Tilemap;
+
+enum class PlayerInventorySlot {
+    None = 0,
+    Slot_1 = 1,
+    Slot_2 = 2,
+    Slot_3 = 3,
+    Slot_4 = 4,
+    Slot_5 = 5,
+    Slot_6 = 6,
+    Coins = 7,
+    Count
+};
+
+struct PlayerInventory {
+    PlayerInventorySlot selectedSlot{};
+    ItemStack slots[(int)PlayerInventorySlot::Count]{};
+};
 
 struct Player {
     enum class MoveState {
@@ -46,11 +64,11 @@ struct Player {
     PlayerInventory inventory   {};
     Stats           stats       {};
 
-    void Init();
+    void Init(const SpriteDef *spriteDef);
     void SetName(const char *name, uint32_t nameLength);
 
     Vector3 GetAttachPoint(AttachPoint attachPoint) const;
-    const Item& GetSelectedItem() const;
+    const ItemStack& GetSelectedItem() const;
 
     void Update       (double dt, InputSample &input, const Tilemap &map);
     void Push         (DrawList &drawList) const;

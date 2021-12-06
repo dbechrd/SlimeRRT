@@ -1,13 +1,13 @@
 #include "draw_command.h"
 #include "game_client.h"
 #include "healthbar.h"
-#include "item_catalog.h"
+#include "catalog/items.h"
 #include "loot_table.h"
 #include "net_client.h"
 #include "particles.h"
 #include "rtree.h"
-#include "sound_catalog.h"
-#include "spritesheet_catalog.h"
+#include "catalog/sounds.h"
+#include "catalog/spritesheets.h"
 #include "structures/structure.h"
 #include "ui_login_form.h"
 #include "dlb_types.h"
@@ -92,8 +92,10 @@ ErrorType GameClient::Run(void)
     //SetMasterVolume(0.2f);
 
     DrawList::RegisterTypes();
-    sound_catalog_init();
-    SpritesheetCatalog::Load();
+    Catalog::g_items.Load();
+    Catalog::g_particleFx.Load();
+    Catalog::g_sounds.Load();
+    Catalog::g_spritesheets.Load();
     tileset_init();
 
     DrawList drawList{};
@@ -313,9 +315,9 @@ ErrorType GameClient::Run(void)
             uint32_t chestY = MAX(0, int(player.body.position.y / TILE_W) - 2);
             Structure::Spawn(*world->map, chestX - 3, chestY - 4);
             Vector3 chestPos{ (chestX * TILE_W) + TILE_W * 0.5f, float(chestY * TILE_W), 0.0f };
-            world->particleSystem.GenerateFX(ParticleFX_GoldenChest, 1, chestPos, 4.0f);
-            world->particleSystem.GenerateFX(ParticleFX_Gem, 16, chestPos, 4.0f);
-            sound_catalog_play(SoundID::Gold, 1.0f + dlb_rand32f_variance(0.4f));
+            world->particleSystem.GenerateEffect(Catalog::ParticleEffectID::GoldenChest, 1, chestPos, 4.0f);
+            world->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Gem, 16, chestPos, 4.0f);
+            Catalog::g_sounds.Play(Catalog::SoundID::Gold, 1.0f + dlb_rand32f_variance(0.4f));
             samTreasureRoom = true;
         }
 
@@ -359,16 +361,27 @@ ErrorType GameClient::Run(void)
             if (input.dbgNextRtreeRect) {
                 if (next_rect_to_add < RECT_COUNT && (GetTime() - lastRectAddedAt > 0.1)) {
                     AABB aabb{};
-                    aabb.min.x = floorf(rects[next_rect_to_add].x);
-                    aabb.min.y = floorf(rects[next_rect_to_add].y);
-                    aabb.max.x = floorf(rects[next_rect_to_add].x + rects[next_rect_to_add].width);
-                    aabb.max.y = floorf(rects[next_rect_to_add].y + rects[next_rect_to_add].height);
+                    aabb.min.x = rects[next_rect_to_add].x;
+                    aabb.min.y = rects[next_rect_to_add].y;
+                    aabb.max.x = rects[next_rect_to_add].x + rects[next_rect_to_add].width;
+                    aabb.max.y = rects[next_rect_to_add].y + rects[next_rect_to_add].height;
                     tree.Insert(aabb, next_rect_to_add);
                     next_rect_to_add++;
                     lastRectAddedAt = GetTime();
                 }
             } else {
                 lastRectAddedAt = 0;
+            }
+
+            if (input.dbgKillRtreeRect) {
+                size_t lastIdx = next_rect_to_add - 1;
+                AABB aabb{};
+                aabb.min.x = rects[lastIdx].x;
+                aabb.min.y = rects[lastIdx].y;
+                aabb.max.x = rects[lastIdx].x + rects[lastIdx].width;
+                aabb.max.y = rects[lastIdx].y + rects[lastIdx].height;
+                tree.Delete(aabb, lastIdx);
+                next_rect_to_add--;
             }
 #endif
             // Camera reset (zoom and rotation)
@@ -864,7 +877,7 @@ ErrorType GameClient::Run(void)
     UnloadMusicStream(mus_background);
     UnloadMusicStream(mus_whistle);
     UnloadFont(font);
-    sound_catalog_free();
+    Catalog::g_sounds.Unload();
     CloseAudioDevice();
 
     ImGui_ImplOpenGL3_Shutdown();
