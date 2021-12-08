@@ -3,27 +3,38 @@
 namespace Catalog {
     enum class MusicID {
         Empty,
-        Footstep,
-        Gold,
-        Slime_Stab1,
-        Squeak,
-        Squish1,
-        Squish2,
-        Whoosh,
-        GemBounce,
+        CopyrightBG,
+        Whistle,
         Count
+    };
+
+    struct MusicMixer {
+        //--------------------------------
+        // TODO: User-facing settings
+        //--------------------------------
+        float masterVolume  {};  // base multiplier for all other volumes
+        float volumeLimit   [(size_t)MusicID::Count]{};  // max volume (requested by user)
+        float volume        [(size_t)MusicID::Count]{};  // current volume
+        float volumeTarget  [(size_t)MusicID::Count]{};  // @no-serialize target volume for currently active transition (e.g. fade)
+        float volumeSpeed   [(size_t)MusicID::Count]{};  // @no-serialize TODO: Transition curves?
+        //--------------------------------
+        // Internal settings
+        //--------------------------------
+        // TODO: expose via config file
+        float bgMusicDuckTo {};  // volume when ducked behind idle track (perhaps pre-mix these in the source file / transition track?)
     };
 
     struct Musics {
         void Load(void);
         void Unload(void);
-        const Music &FindById(MusicID id) const;
+        Music &FindById(MusicID id);
         void Play(MusicID id, float pitch) const;
         bool Playing(MusicID id) const;
-        void Update(void) const;
+        void Update(float dt);
 
+        MusicMixer mixer{};
     private:
+        Music byId[(size_t)MusicID::Count]{};
         Music Musics::MissingOggMusic(void);
-        Music byId[(size_t)MusicID::Count];
     } g_musics;
 }

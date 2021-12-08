@@ -88,11 +88,11 @@ ErrorType GameClient::Run(void)
         printf("ERROR: Failed to initialized audio device\n");
     }
     // NOTE: Minimum of 0.001 seems reasonable (0.0001 is still audible on max volume)
-    //SetMasterVolume(0.01f);
-    //SetMasterVolume(0.2f);
+    SetMasterVolume(0.1f);
 
     DrawList::RegisterTypes();
     Catalog::g_items.Load();
+    Catalog::g_musics.Load();
     Catalog::g_particleFx.Load();
     Catalog::g_sounds.Load();
     Catalog::g_spritesheets.Load();
@@ -170,6 +170,8 @@ ErrorType GameClient::Run(void)
         sendInputAccum += MIN(sendInputDt, sendInputDtMax);
         frameStart = now;
 
+        Catalog::g_musics.Update((float)frameDt);
+
         if (IsWindowResized()) {
             screenWidth = GetScreenWidth();
             screenHeight = GetScreenHeight();
@@ -195,6 +197,31 @@ ErrorType GameClient::Run(void)
         }
 
         UILoginForm(netClient, io, escape);
+
+        ImGui::SetNextWindowSize(ImVec2(350, 0));
+        ImGui::SetNextWindowPos(ImVec2(6, 398));
+        auto rayDarkBlue = DARKBLUE;
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(rayDarkBlue.r, rayDarkBlue.g, rayDarkBlue.b, rayDarkBlue.a));
+        ImGui::PushStyleColor(ImGuiCol_Border, IM_COL32_BLACK);
+        ImGui::Begin("##music_mixer", 0,
+            ImGuiWindowFlags_NoTitleBar |
+            ImGuiWindowFlags_NoMove |
+            ImGuiWindowFlags_NoResize |
+            ImGuiWindowFlags_NoCollapse
+        );
+        ImGui::PopStyleColor(2);
+        ImGui::Text("Music mixer");
+        ImGui::Separator();
+        for (size_t i = 1; i < (size_t)Catalog::MusicID::Count; i++) {
+            ImGui::PushID((int)i);
+            ImGui::SliderFloat("vLimit  ", &Catalog::g_musics.mixer.volumeLimit [i], 0.0f, 1.0f, "%.03f", 1.0f);
+            ImGui::SliderFloat("vVolume ", &Catalog::g_musics.mixer.volume      [i], 0.0f, 1.0f, "%.03f", 1.0f);
+            ImGui::SliderFloat("vSpeed  ", &Catalog::g_musics.mixer.volumeSpeed [i], 0.0f, 10.0f, "%.03f", 1.0f);
+            ImGui::SliderFloat("vTarget ", &Catalog::g_musics.mixer.volumeTarget[i], 0.0f, 1.0f, "%.03f", 1.0f);
+            ImGui::Separator();
+            ImGui::PopID();
+        }
+        ImGui::End();
 
         // HACK: No way to check if Raylib is currently recording.. :(
         //if (gifRecording) {
@@ -857,8 +884,8 @@ ErrorType GameClient::Run(void)
     delete lobby;
     UnloadTexture(checkboardTexture);
     UnloadFont(font);
-    Catalog::g_sounds.Unload();
     Catalog::g_musics.Unload();
+    Catalog::g_sounds.Unload();
     CloseAudioDevice();
 
     ImGui_ImplOpenGL3_Shutdown();

@@ -40,7 +40,6 @@ namespace Catalog {
 
     void Sounds::Play(SoundID id, float pitch)
     {
-        assert((size_t)id >= 0);
         assert((size_t)id < ARRAY_SIZE(byId));
         if (!byId[(size_t)id].frameCount) {
             return;
@@ -56,7 +55,6 @@ namespace Catalog {
 
     bool Sounds::Playing(SoundID id)
     {
-        assert((size_t)id >= 0);
         assert((size_t)id < ARRAY_SIZE(byId));
         if (!byId[(size_t)id].frameCount) {
             return false;

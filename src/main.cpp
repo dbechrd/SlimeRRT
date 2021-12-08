@@ -77,6 +77,7 @@ int main(int argc, char *argv[])
 #undef DLB_RAND_IMPLEMENTATION
 
 #pragma warning(push)
+#pragma warning(disable:4244)  // converstion from float to int possible loss of data
 #pragma warning(disable:6031)  // Return value ignored
 #pragma warning(disable:26812)
 #define RAYGUI_IMPLEMENTATION
