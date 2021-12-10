@@ -13,7 +13,7 @@ namespace Catalog {
         // TODO: User-facing settings
         //--------------------------------
         float masterVolume  {};  // base multiplier for all other volumes
-        float volumeLimit   [(size_t)MusicID::Count]{};  // max volume (requested by user)
+        float volumeMaster  [(size_t)MusicID::Count]{};  // max volume (requested by user)
         float volume        [(size_t)MusicID::Count]{};  // current volume
         float volumeTarget  [(size_t)MusicID::Count]{};  // @no-serialize target volume for currently active transition (e.g. fade)
         float volumeSpeed   [(size_t)MusicID::Count]{};  // @no-serialize TODO: Transition curves?

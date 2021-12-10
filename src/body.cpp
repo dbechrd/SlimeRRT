@@ -79,7 +79,9 @@ void Body3D::Update(double dt)
     bounced = bounced && !v3_is_zero(velocity);
 
     const double timeSinceLastMove = glfwGetTime() - lastMoved;
+    bool prevIdle = idle;
     idle = timeSinceLastMove > IDLE_THRESHOLD_SECONDS;
+    idleChanged = idle != prevIdle;
 
     prevPosition = position;
     lastUpdated = glfwGetTime();

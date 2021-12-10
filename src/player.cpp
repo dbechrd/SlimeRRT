@@ -294,6 +294,16 @@ void Player::Update(double dt, InputSample &input, const Tilemap &map)
     body.Update(dt);
     sprite_update(sprite, dt);
 
+    if (!input.skipFx && body.idleChanged) {
+        // TODO: PushEvent(BODY_IDLE_CHANGED, body.idle);
+
+        //fadeTo(music, target, speed = 1.0) { music.targetVol = float }
+        //fadeIn(music, speed = 1.0) { fade(Music, 1.0, speed) }
+        //fadeOut(music, speed = 1.0) { fadeTo(Music, 0.0, speed) }
+
+        // TODO: HandleEvent, body.idle ? (fadeIn(idleMusic), fadeTo(bgMusic, 0.1)) : (fadeOut(idleMusic), fadeIn(bgMusic))
+    }
+
     // Skip sounds/particles etc. next time this input is used (e.g. during reconciliation)
     input.skipFx = true;
 }

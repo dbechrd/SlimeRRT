@@ -214,10 +214,10 @@ ErrorType GameClient::Run(void)
         ImGui::Separator();
         for (size_t i = 1; i < (size_t)Catalog::MusicID::Count; i++) {
             ImGui::PushID((int)i);
-            ImGui::SliderFloat("vLimit  ", &Catalog::g_musics.mixer.volumeLimit [i], 0.0f, 1.0f, "%.03f", 1.0f);
-            ImGui::SliderFloat("vVolume ", &Catalog::g_musics.mixer.volume      [i], 0.0f, 1.0f, "%.03f", 1.0f);
-            ImGui::SliderFloat("vSpeed  ", &Catalog::g_musics.mixer.volumeSpeed [i], 0.0f, 10.0f, "%.03f", 1.0f);
-            ImGui::SliderFloat("vTarget ", &Catalog::g_musics.mixer.volumeTarget[i], 0.0f, 1.0f, "%.03f", 1.0f);
+            ImGui::SliderFloat("vLimit  ", &Catalog::g_musics.mixer.volumeMaster[i], 0.0f, 1.0f, "%.03f");
+            ImGui::SliderFloat("vVolume ", &Catalog::g_musics.mixer.volume      [i], 0.0f, 1.0f, "%.03f");
+            ImGui::SliderFloat("vSpeed  ", &Catalog::g_musics.mixer.volumeSpeed [i], 0.0f, 2.0f, "%.03f");
+            ImGui::SliderFloat("vTarget ", &Catalog::g_musics.mixer.volumeTarget[i], 0.0f, 1.0f, "%.03f");
             ImGui::Separator();
             ImGui::PopID();
         }
@@ -454,24 +454,6 @@ ErrorType GameClient::Run(void)
         camera.zoom = CLAMP(roundedZoom, minZoom, maxZoom);
         const float invZoom = 1.0f / camera.zoom;
 #endif
-
-        // TODO: Fix music fade; do mus_background.fadeOut and mus_whistle.fadeIn and let the music catalog handle
-        // updating the volumes for each track independently over time.
-        /*if (player.body.idle && whistleAlpha < 1.0f) {
-            whistleAlpha = CLAMP(whistleAlpha + 0.005f, 0.0f, 1.0f);
-            SetMusicVolume(mus_background, LERP(mus_background_vmin, mus_background_vmax, 1.0f - whistleAlpha));
-            SetMusicVolume(mus_whistle, LERP(mus_whistle_vmin, mus_whistle_vmax, whistleAlpha));
-            if (!IsMusicPlaying(mus_whistle)) {
-                PlayMusicStream(mus_whistle);
-            }
-        } else if (!player.body.idle && whistleAlpha > 0.0f) {
-            whistleAlpha = CLAMP(whistleAlpha - 0.01f, 0.0f, 1.0f);
-            SetMusicVolume(mus_background, LERP(mus_background_vmin, mus_background_vmax, 1.0f - whistleAlpha));
-            SetMusicVolume(mus_whistle, LERP(mus_whistle_vmin, mus_whistle_vmax, whistleAlpha));
-            if (whistleAlpha == 0.0f) {
-                StopMusicStream(mus_whistle);
-            }
-        }*/
 
         //----------------------------------------------------------------------------------
         // Draw

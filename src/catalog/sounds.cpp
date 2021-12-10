@@ -21,6 +21,7 @@ namespace Catalog {
             if (!byId[i].frameCount) {
                 byId[i] = MissingOggSound();
             }
+            SetSoundVolume(byId[i], 0.0f);
         }
     }
 

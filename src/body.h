@@ -22,6 +22,7 @@ struct Body3D {
     bool    landed       {};
     bool    bounced      {};
     bool    idle         {};
+    bool    idleChanged  {};
 
     RingBuffer<Vector3Snapshot, CL_WORLD_HISTORY> positionHistory {};
 
