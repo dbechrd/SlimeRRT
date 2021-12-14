@@ -8,6 +8,7 @@
 #include "rtree.h"
 #include "catalog/sounds.h"
 #include "catalog/spritesheets.h"
+#include "catalog/tracks.h"
 #include "structures/structure.h"
 #include "ui_login_form.h"
 #include "dlb_types.h"
@@ -87,16 +88,17 @@ ErrorType GameClient::Run(void)
     if (!IsAudioDeviceReady()) {
         printf("ERROR: Failed to initialized audio device\n");
     }
-    // NOTE: Minimum of 0.001 seems reasonable (0.0001 is still audible on max volume)
-    SetMasterVolume(0.1f);
 
     DrawList::RegisterTypes();
     Catalog::g_items.Load();
-    Catalog::g_musics.Load();
+    Catalog::g_mixer.Load();
     Catalog::g_particleFx.Load();
     Catalog::g_sounds.Load();
     Catalog::g_spritesheets.Load();
+    Catalog::g_tracks.Load();
     tileset_init();
+
+    Catalog::g_mixer.masterVolume = 0.5f;
 
     DrawList drawList{};
 
@@ -170,7 +172,8 @@ ErrorType GameClient::Run(void)
         sendInputAccum += MIN(sendInputDt, sendInputDtMax);
         frameStart = now;
 
-        Catalog::g_musics.Update((float)frameDt);
+        SetMasterVolume(VolumeCorrection(Catalog::g_mixer.masterVolume));
+        Catalog::g_tracks.Update((float)frameDt);
 
         if (IsWindowResized()) {
             screenWidth = GetScreenWidth();
@@ -200,7 +203,7 @@ ErrorType GameClient::Run(void)
 
         ImGui::SetNextWindowSize(ImVec2(350, 0));
         ImGui::SetNextWindowPos(ImVec2(6, 398));
-        auto rayDarkBlue = DARKBLUE;
+        auto rayDarkBlue = DARKGRAY;
         ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(rayDarkBlue.r, rayDarkBlue.g, rayDarkBlue.b, rayDarkBlue.a));
         ImGui::PushStyleColor(ImGuiCol_Border, IM_COL32_BLACK);
         ImGui::Begin("##music_mixer", 0,
@@ -210,16 +213,25 @@ ErrorType GameClient::Run(void)
             ImGuiWindowFlags_NoCollapse
         );
         ImGui::PopStyleColor(2);
-        ImGui::Text("Music mixer");
-        ImGui::Separator();
-        for (size_t i = 1; i < (size_t)Catalog::MusicID::Count; i++) {
-            ImGui::PushID((int)i);
-            ImGui::SliderFloat("vLimit  ", &Catalog::g_musics.mixer.volumeMaster[i], 0.0f, 1.0f, "%.03f");
-            ImGui::SliderFloat("vVolume ", &Catalog::g_musics.mixer.volume      [i], 0.0f, 1.0f, "%.03f");
-            ImGui::SliderFloat("vSpeed  ", &Catalog::g_musics.mixer.volumeSpeed [i], 0.0f, 2.0f, "%.03f");
-            ImGui::SliderFloat("vTarget ", &Catalog::g_musics.mixer.volumeTarget[i], 0.0f, 1.0f, "%.03f");
-            ImGui::Separator();
-            ImGui::PopID();
+        ImGui::SliderFloat("Master", &Catalog::g_mixer.masterVolume, 0.0f, 1.0f, "%.03f");
+        ImGui::SliderFloat("Music ", &Catalog::g_mixer.musicVolume,  0.0f, 1.0f, "%.03f");
+        ImGui::SliderFloat("Sfx   ", &Catalog::g_mixer.sfxVolume,    0.0f, 1.0f, "%.03f");
+        ImGui::Text("Tracks:");
+        for (size_t i = 1; i < (size_t)Catalog::TrackID::Count; i++) {
+            if (ImGui::TreeNode(Catalog::TrackIDString((Catalog::TrackID)i))) {
+                ImGui::SliderFloat("vLimit  ", &Catalog::g_tracks.mixer.volumeLimit [i], 0.0f, 1.0f, "%.03f");
+                ImGui::SliderFloat("vVolume ", &Catalog::g_tracks.mixer.volume      [i], 0.0f, 1.0f, "%.03f");
+                ImGui::SliderFloat("vSpeed  ", &Catalog::g_tracks.mixer.volumeSpeed [i], 0.0f, 2.0f, "%.03f");
+                ImGui::SliderFloat("vTarget ", &Catalog::g_tracks.mixer.volumeTarget[i], 0.0f, 1.0f, "%.03f");
+                ImGui::TreePop();
+            }
+        }
+        ImGui::Text("Sfx:");
+        for (size_t i = 1; i < (size_t)Catalog::SoundID::Count; i++) {
+            if (ImGui::TreeNode(Catalog::SoundIDString((Catalog::SoundID)i))) {
+                ImGui::SliderFloat("vLimit  ", &Catalog::g_sounds.mixer.volumeLimit [i], 0.0f, 1.0f, "%.03f");
+                ImGui::TreePop();
+            }
         }
         ImGui::End();
 
@@ -866,7 +878,7 @@ ErrorType GameClient::Run(void)
     delete lobby;
     UnloadTexture(checkboardTexture);
     UnloadFont(font);
-    Catalog::g_musics.Unload();
+    Catalog::g_tracks.Unload();
     Catalog::g_sounds.Unload();
     CloseAudioDevice();
 

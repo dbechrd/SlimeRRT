@@ -65,3 +65,11 @@ const char *TextFormatTimestamp()
     assert(len < sizeof(timestampStr));
     return timestampStr;
 }
+
+float VolumeCorrection(float volume)
+{
+    // Exponential equation for approximate linear loudness, with direct linear fallback in the lower range
+    float mapped = volume < 0.296f ? 0.1f * volume : exp(5.0f * volume - 5.0f);
+    float clamped = CLAMP(mapped, 0.0f, 1.0f);
+    return clamped;
+}

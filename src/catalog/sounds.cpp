@@ -1,8 +1,24 @@
 #include "catalog/sounds.h"
+#include "helpers.h"
 #include "raylib/raylib.h"
 #include <cassert>
 
 namespace Catalog {
+    const char *SoundIDString(SoundID id)
+    {
+        switch (id) {
+            case SoundID::Footstep:    return "Footstep";
+            case SoundID::Gold:        return "Gold";
+            case SoundID::Slime_Stab1: return "Slime_Stab1";
+            case SoundID::Squeak:      return "Squeak";
+            case SoundID::Squish1:     return "Squish1";
+            case SoundID::Squish2:     return "Squish2";
+            case SoundID::Whoosh:      return "Whoosh";
+            case SoundID::GemBounce:   return "GemBounce";
+        }
+        return 0;
+    }
+
     void Sounds::Load(void)
     {
         byId[(size_t)SoundID::Empty      ] = MissingOggSound();
@@ -15,13 +31,11 @@ namespace Catalog {
         byId[(size_t)SoundID::Whoosh     ] = LoadSound("resources/whoosh1.ogg");
         byId[(size_t)SoundID::GemBounce  ] = LoadSound("resources/gem_bounce.wav");
 
-        SetSoundVolume(byId[(size_t)SoundID::Whoosh], 0.3f);
-
         for (size_t i = 0; i < (size_t)SoundID::Count; i++) {
             if (!byId[i].frameCount) {
                 byId[i] = MissingOggSound();
             }
-            SetSoundVolume(byId[i], 0.0f);
+            mixer.volumeLimit[i] = 1.0f;
         }
     }
 
@@ -50,6 +64,8 @@ namespace Catalog {
         //    return;
         //}
 
+        float volume = mixer.volumeLimit[(size_t)id] * g_mixer.sfxVolume;
+        SetSoundVolume(byId[(size_t)id], VolumeCorrection(volume));
         SetSoundPitch(byId[(size_t)id], pitch);
         PlaySoundMulti(byId[(size_t)id]);
     }

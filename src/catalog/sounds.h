@@ -14,6 +14,12 @@ namespace Catalog {
         Count
     };
 
+    const char *SoundIDString(SoundID id);
+
+    struct SoundMixer {
+        float volumeLimit[(size_t)SoundID::Count]{};  // max volume (requested by user)
+    };
+
     struct Sounds {
         void Load(void);
         void Unload(void);
@@ -22,6 +28,7 @@ namespace Catalog {
         bool Playing(SoundID id);
         const unsigned char *Sounds::MissingOggData(size_t &fileSize);
 
+        SoundMixer mixer{};
     private:
         Sound byId[(size_t)SoundID::Count];
 
