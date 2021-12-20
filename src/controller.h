@@ -49,7 +49,7 @@ struct InputSample {
     bool     run        {};
     bool     attack     {};
     uint32_t selectSlot {};  // PlayerInventorySlot
-    bool     skipFx     {};  // oonce the input has been processed once, don't trigger FX (particles, sounds, etc.)
+    bool     skipFx     {};  // once the input has been processed once, don't trigger FX (particles, sounds, etc.)
 
     void FromController(uint32_t playerId, uint32_t tick, PlayerControllerState &controllerState)
     {
@@ -66,5 +66,18 @@ struct InputSample {
         attack     = controllerState.attack;
         selectSlot = controllerState.selectSlot;
         skipFx     = false;
+    }
+
+    bool Equals(InputSample &other) {
+        return (
+            ownerId    == other.ownerId    ||
+            walkNorth  == other.walkNorth  ||
+            walkEast   == other.walkEast   ||
+            walkSouth  == other.walkSouth  ||
+            walkWest   == other.walkWest   ||
+            run        == other.run        ||
+            attack     == other.attack     ||
+            selectSlot == other.selectSlot
+        );
     }
 };

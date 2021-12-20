@@ -104,19 +104,27 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
         } case NetMessage::Type::Input: {
             NetMessage_Input &input = data.input;
 
-            assert(input.sampleCount <= CL_INPUT_SAMPLES_MAX);
-            stream.Process(input.sampleCount, 32, 0, UINT32_MAX);
+            stream.Process(input.sampleCount, 5, 0, CL_INPUT_SAMPLES_MAX);
             for (size_t i = 0; i < input.sampleCount; i++) {
                 InputSample &sample = input.samples[i];
-                stream.Process(sample.seq, 32, 0, UINT32_MAX);
-                stream.Process(sample.ownerId, 32, 0, UINT32_MAX);
-                stream.ProcessBool(sample.walkNorth);
-                stream.ProcessBool(sample.walkEast);
-                stream.ProcessBool(sample.walkSouth);
-                stream.ProcessBool(sample.walkWest);
-                stream.ProcessBool(sample.run);
-                stream.ProcessBool(sample.attack);
-                stream.Process(sample.selectSlot, 4, (uint32_t)PlayerInventorySlot::None, (uint32_t)PlayerInventorySlot::Slot_6);
+                bool same = i && sample.Equals(input.samples[i - 1]) && sample.seq == input.samples[i - 1].seq + 1;
+                stream.ProcessBool(same);
+                if (same) {
+                    if (mode == BitStream::Mode::Reader) {
+                        sample = input.samples[i - 1];
+                        sample.seq = input.samples[i - 1].seq + 1;
+                    }
+                } else {
+                    stream.Process(sample.seq, 32, 0, UINT32_MAX);
+                    stream.Process(sample.ownerId, 32, 0, UINT32_MAX);
+                    stream.ProcessBool(sample.walkNorth);
+                    stream.ProcessBool(sample.walkEast);
+                    stream.ProcessBool(sample.walkSouth);
+                    stream.ProcessBool(sample.walkWest);
+                    stream.ProcessBool(sample.run);
+                    stream.ProcessBool(sample.attack);
+                    stream.Process(sample.selectSlot, 4, (uint32_t)PlayerInventorySlot::None, (uint32_t)PlayerInventorySlot::Slot_6);
+                }
             }
             stream.Align();
 
