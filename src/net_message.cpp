@@ -115,6 +115,9 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                         sample.seq = input.samples[i - 1].seq + 1;
                     }
                 } else {
+                    if (i && mode == BitStream::Mode::Writer) {
+                        printf("Diff sample!\n");
+                    }
                     stream.Process(sample.seq, 32, 0, UINT32_MAX);
                     stream.Process(sample.ownerId, 32, 0, UINT32_MAX);
                     stream.ProcessBool(sample.walkNorth);

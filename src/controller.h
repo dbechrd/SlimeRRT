@@ -70,13 +70,13 @@ struct InputSample {
 
     bool Equals(InputSample &other) {
         return (
-            ownerId    == other.ownerId    ||
-            walkNorth  == other.walkNorth  ||
-            walkEast   == other.walkEast   ||
-            walkSouth  == other.walkSouth  ||
-            walkWest   == other.walkWest   ||
-            run        == other.run        ||
-            attack     == other.attack     ||
+            ownerId    == other.ownerId    &&
+            walkNorth  == other.walkNorth  &&
+            walkEast   == other.walkEast   &&
+            walkSouth  == other.walkSouth  &&
+            walkWest   == other.walkWest   &&
+            run        == other.run        &&
+            attack     == other.attack     &&
             selectSlot == other.selectSlot
         );
     }
