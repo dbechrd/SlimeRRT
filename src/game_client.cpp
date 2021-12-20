@@ -1,3 +1,6 @@
+#include "catalog/sounds.h"
+#include "catalog/spritesheets.h"
+#include "catalog/tracks.h"
 #include "draw_command.h"
 #include "game_client.h"
 #include "healthbar.h"
@@ -6,9 +9,7 @@
 #include "net_client.h"
 #include "particles.h"
 #include "rtree.h"
-#include "catalog/sounds.h"
-#include "catalog/spritesheets.h"
-#include "catalog/tracks.h"
+#include "spycam.h"
 #include "structures/structure.h"
 #include "ui/ui.h"
 #include "dlb_types.h"
@@ -69,19 +70,8 @@ ErrorType GameClient::Run(void)
     const int monitorWidth = GetMonitorWidth(0);
     const int monitorHeight = GetMonitorHeight(0);
 
-    Vector2 cameraGoal = { screenWidth / 2.0f, screenHeight / 2.0f };
-    bool cameraReset = false;
-    bool cameraFree = false;
-    const float cameraSpeedDefault = 5.0f;
-    float cameraSpeed = cameraSpeedDefault;
-    Camera2D camera{};
-    //camera.target = (Vector2){
-    //    (float)tilemap.width / 2.0f * tilemap.tileset->tileWidth,
-    //    (float)tilemap.height / 2.0f * tilemap.tileset->tileHeight
-    //};
-    camera.offset = cameraGoal;
-    camera.rotation = 0.0f;
-    camera.zoom = 1.0f;
+    Spycam spycam{};
+    spycam.Init({ screenWidth / 2.0f, screenHeight / 2.0f });
 
     InitAudioDevice();
     if (!IsAudioDeviceReady()) {
@@ -97,7 +87,7 @@ ErrorType GameClient::Run(void)
     Catalog::g_tracks.Load();
     tileset_init();
 
-    Catalog::g_mixer.masterVolume = 0.5f;
+    Catalog::g_mixer.musicVolume = 0.5f;
 
     Image checkerboardImage = GenImageChecked(monitorWidth, monitorHeight, 32, 32, LIGHTGRAY, GRAY);
     Texture checkboardTexture = LoadTextureFromImage(checkerboardImage);
@@ -180,7 +170,7 @@ ErrorType GameClient::Run(void)
         if (IsWindowResized()) {
             screenWidth = GetScreenWidth();
             screenHeight = GetScreenHeight();
-            cameraReset = 1;
+            spycam.Reset();
         }
 
         const bool imguiUsingMouse = io.WantCaptureMouse;
@@ -188,85 +178,8 @@ ErrorType GameClient::Run(void)
 
         const bool processMouse = !imguiUsingMouse;
         const bool processKeyboard = !imguiUsingKeyboard && !chatActive;
-        PlayerControllerState input = PlayerControllerState::Query(processMouse, processKeyboard, cameraFree);
+        PlayerControllerState input = PlayerControllerState::Query(processMouse, processKeyboard, spycam.freeRoam);
         bool escape = IsKeyPressed(KEY_ESCAPE);
-        bool findMouseTile = false;
-
-        Player *playerPtr = world->FindPlayer(world->playerId);
-        assert(playerPtr);
-        Player &player = *playerPtr;
-
-         // Camera reset (zoom and rotation)
-        if (cameraReset || input.cameraReset) {
-            camera.offset = Vector2{ roundf(screenWidth / 2.0f), roundf(screenHeight / 2.0f) };
-            camera.target = Vector2{ roundf(camera.target.x), roundf(camera.target.y) };
-            camera.rotation = 0.0f;
-            camera.zoom = 1.0f;
-            cameraSpeed = cameraSpeedDefault;
-            cameraReset = 0;
-        }
-
-        if (!cameraFree) {
-            cameraGoal = player.body.GroundPosition();
-            camera.rotation = 0.0f;
-            camera.zoom = 1.0f;
-            cameraSpeed = cameraSpeedDefault;
-        } else {
-            cameraSpeed = CLAMP(cameraSpeed + input.cameraSpeedDelta, 1.0f, 50.0f);
-            if (input.cameraWest)  cameraGoal.x -= cameraSpeed / camera.zoom;
-            if (input.cameraEast)  cameraGoal.x += cameraSpeed / camera.zoom;
-            if (input.cameraNorth) cameraGoal.y -= cameraSpeed / camera.zoom;
-            if (input.cameraSouth) cameraGoal.y += cameraSpeed / camera.zoom;
-            if (input.cameraRotateCW) {
-                camera.rotation += 45.0f;
-                if (camera.rotation >= 360.0f) camera.rotation -= 360.0f;
-            } else if (input.cameraRotateCCW) {
-                camera.rotation -= 45.0f;
-                if (camera.rotation < 0.0f) camera.rotation += 360.0f;
-            }
-            // Camera zoom controls
-#if 0
-            camera.zoom += input.cameraZoomDelta * 0.1f * camera.zoom;
-#elif 0
-            if (input.cameraZoomDelta) {
-                //printf("zoom: %f, log: %f\n", camera.zoom, log10f(camera.zoom));
-                camera.zoom *= input.cameraZoomDelta > 0.0f ? 2.0f : 0.5f;
-            }
-#else
-            static bool zoomOut = false;
-            if (input.cameraZoomOut) zoomOut = !zoomOut;
-            camera.zoom = zoomOut ? 0.5f : 1.0f;
-#endif
-        }
-        camera.target = v2_add(camera.target, v2_scale(v2_sub(cameraGoal, camera.target), 1.0f));
-
-        const int negZoomMultiplier = 7; // 7x negative zoom (out)
-        const int posZoomMultiplier = 1; // 2x positive zoom (in)
-#if 1
-        const float minZoom = 1.0f / (float)(1 << (negZoomMultiplier - 1));
-        const float maxZoom = 1.0f * (float)(1 << (posZoomMultiplier - 1));
-        camera.zoom = CLAMP(camera.zoom, minZoom, maxZoom);
-#else
-        const float minZoomPow2 = (float)(1 << (negZoomMultiplier - 1));
-        const float maxZoomPow2 = (float)(1 << (posZoomMultiplier - 1));
-        const float minZoom = 1.0f / minZoomPow2;
-        const float maxZoom = 1.0f * maxZoomPow2;
-        const float roundedZoom = roundf(camera.zoom * minZoomPow2) / minZoomPow2;
-        camera.zoom = CLAMP(roundedZoom, minZoom, maxZoom);
-#endif
-        const float invZoom = 1.0f / camera.zoom;
-        const int zoomMipLevel = ZoomMipLevel(invZoom);
-
-        Rectangle cameraRect{};
-        cameraRect.x = camera.target.x - camera.offset.x * invZoom;
-        cameraRect.y = camera.target.y - camera.offset.y * invZoom;
-        cameraRect.width = camera.offset.x * 2.0f * invZoom;
-        cameraRect.height = camera.offset.y * 2.0f * invZoom;
-
-        const Vector2 mousePosScreen = GetMousePosition();
-        Vector2 mousePosWorld{};
-        mousePosWorld.x += cameraRect.x + mousePosScreen.x * invZoom;
-        mousePosWorld.y += cameraRect.y + mousePosScreen.y * invZoom;
 
         // HACK: No way to check if Raylib is currently recording.. :(
         //if (gifRecording) {
@@ -288,10 +201,18 @@ ErrorType GameClient::Run(void)
             tickAccum = 0;
             sendInputAccum = 0;
         } else if (!connectedToServer && world != lobby ) {
+            if (netClient.serverWorld) {
+                delete netClient.serverWorld;
+                netClient.serverWorld = nullptr;
+            }
             world = lobby;
             tickAccum = 0;
             sendInputAccum = 0;
         }
+
+        Player *playerPtr = world->FindPlayer(world->playerId);
+        assert(playerPtr);
+        Player &player = *playerPtr;
 
         if (connectedToServer) {
             if (netClient.worldHistory.Count()) {
@@ -332,6 +253,7 @@ ErrorType GameClient::Run(void)
                 world->Interpolate(renderAt);
             }
         } else {
+#if 1
             while (tickAccum > tickDt) {
                 InputSample inputSample{};
                 inputSample.FromController(player.id, world->tick, input);
@@ -356,6 +278,7 @@ ErrorType GameClient::Run(void)
             // Interpolate all of the other entities in the world
             double renderAt = glfwGetTime() - tickDt * 2;
             world->Interpolate(renderAt);
+#endif
         }
 
         static bool samTreasureRoom = false;
@@ -370,42 +293,38 @@ ErrorType GameClient::Run(void)
             samTreasureRoom = true;
         }
 
-        //if (!chatActive) {
-            if (input.screenshot) {
-                time_t t = time(NULL);
-                struct tm tm = *localtime(&t);
-                char screenshotName[64]{};
-                int len = snprintf(screenshotName, sizeof(screenshotName),
-                    "screenshots/%d-%02d-%02d_%02d-%02d-%02d_screenshot.png",
-                    tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
-                assert(len < sizeof(screenshotName));
-                TakeScreenshot(screenshotName);
-            }
+        if (input.screenshot) {
+            time_t t = time(NULL);
+            struct tm tm = *localtime(&t);
+            char screenshotName[64]{};
+            int len = snprintf(screenshotName, sizeof(screenshotName),
+                "screenshots/%d-%02d-%02d_%02d-%02d-%02d_screenshot.png",
+                tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+            assert(len < sizeof(screenshotName));
+            TakeScreenshot(screenshotName);
+        }
 
-            if (input.dbgImgui) {
-                show_demo_window = !show_demo_window;
-            }
+        if (input.dbgImgui) {
+            show_demo_window = !show_demo_window;
+        }
 
-            if (IsKeyPressed(KEY_F10)) {
-                ToggleFullscreen();
-            }
+        if (IsKeyPressed(KEY_F10)) {
+            ToggleFullscreen();
+        }
 
-            if (input.dbgToggleVsync) {
-                IsWindowState(FLAG_VSYNC_HINT) ? ClearWindowState(FLAG_VSYNC_HINT) : SetWindowState(FLAG_VSYNC_HINT);
-            }
+        if (input.dbgToggleVsync) {
+            IsWindowState(FLAG_VSYNC_HINT) ? ClearWindowState(FLAG_VSYNC_HINT) : SetWindowState(FLAG_VSYNC_HINT);
+        }
 
-            if (input.dbgChatMessage) {
-                netClient.SendChatMessage(CSTR("User pressed the C key."));
-            }
+        if (input.dbgChatMessage) {
+            netClient.SendChatMessage(CSTR("User pressed the C key."));
+        }
 
-            if (world == lobby && input.dbgSpawnSam) {
-                lobby->SpawnSam();
-                samTreasureRoom = false;
-            }
+        if (world == lobby && input.dbgSpawnSam) {
+            lobby->SpawnSam();
+            samTreasureRoom = false;
+        }
 
-            if (input.dbgToggleFreecam) {
-                cameraFree = !cameraFree;
-            }
 #if DEMO_VIEW_RTREE
             if (input.dbgNextRtreeRect) {
                 if (next_rect_to_add < RECT_COUNT && (GetTime() - lastRectAddedAt > 0.1)) {
@@ -434,22 +353,36 @@ ErrorType GameClient::Run(void)
             }
 #endif
 
-        //----------------------------------------------------------------------------------
+        //----------------------------------------------------------------------
+        // Camera
+        //----------------------------------------------------------------------
+        if (!spycam.freeRoam) {
+            spycam.cameraGoal = player.body.GroundPosition();
+        }
+        spycam.Update(input);
+        Rectangle cameraRect = spycam.GetRect();
+
+        const Vector2 mousePosScreen = GetMousePosition();
+        Vector2 mousePosWorld{};
+        mousePosWorld.x += cameraRect.x + mousePosScreen.x * spycam.GetInvZoom();
+        mousePosWorld.y += cameraRect.y + mousePosScreen.y * spycam.GetInvZoom();
+
+        //----------------------------------------------------------------------
         // Draw
-        //----------------------------------------------------------------------------------
+        //----------------------------------------------------------------------
         BeginDrawing();
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
-        UI::Begin(font, invZoom, mousePosScreen, mousePosWorld, { (float)screenWidth, (float)screenHeight });
+        UI::Begin(&font,  mousePosScreen, mousePosWorld, { (float)screenWidth, (float)screenHeight }, &spycam);
 
         ClearBackground(ORANGE);
         DrawTexture(checkboardTexture, 0, 0, WHITE);
 
-        BeginMode2D(camera);
+        BeginMode2D(spycam.GetCamera());
 
         world->EnableCulling(cameraRect);
-        size_t tilesDrawn = world->DrawMap(zoomMipLevel);
+        size_t tilesDrawn = world->DrawMap(spycam.GetZoomMipLevel());
         if (input.dbgFindMouseTile) {
             UI::TileHoverOutline(*world->map);
         }
@@ -527,7 +460,7 @@ ErrorType GameClient::Run(void)
         if (netClient.server) {
             debugStats.ping = netClient.server->lastRoundTripTime;
         }
-        debugStats.cameraSpeed = cameraSpeed;
+        debugStats.cameraSpeed = spycam.cameraSpeed;
         debugStats.tilesDrawn = tilesDrawn;
         debugStats.effectsActive = world->particleSystem.EffectsActive();
         debugStats.particlesActive = world->particleSystem.ParticlesActive();

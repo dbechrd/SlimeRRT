@@ -53,21 +53,25 @@ namespace Catalog {
         return byId[(size_t)id];
     }
 
-    void Sounds::Play(SoundID id, float pitch)
+    void Sounds::Play(SoundID id, float pitch, bool multi)
     {
         assert((size_t)id < ARRAY_SIZE(byId));
         if (!byId[(size_t)id].frameCount) {
             return;
         }
 
-        //if (IsSoundPlaying(byId[id])) {
+        //if (!multi && IsSoundPlaying(byId[(size_t)id])) {
         //    return;
         //}
 
         float volume = mixer.volumeLimit[(size_t)id] * g_mixer.sfxVolume;
         SetSoundVolume(byId[(size_t)id], VolumeCorrection(volume));
         SetSoundPitch(byId[(size_t)id], pitch);
-        PlaySoundMulti(byId[(size_t)id]);
+        if (multi) {
+            PlaySoundMulti(byId[(size_t)id]);
+        } else {
+            PlaySound(byId[(size_t)id]);
+        }
     }
 
     bool Sounds::Playing(SoundID id)

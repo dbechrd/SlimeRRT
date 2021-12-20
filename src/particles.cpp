@@ -60,6 +60,11 @@ ParticleEffect *ParticleSystem::GenerateEffect(Catalog::ParticleEffectID type, s
     assert(duration);
     assert(duration > 0.0);
 
+    const Catalog::ParticleEffectDef &pfx = Catalog::g_particleFx.FindById(type);
+    if (!pfx.init) {
+        return 0;
+    }
+
     // Allocate effect
     ParticleEffect *effect = effectsFree;
     if (!effect) {
@@ -90,8 +95,9 @@ ParticleEffect *ParticleSystem::GenerateEffect(Catalog::ParticleEffectID type, s
         }
 
         particle->effect = effect;
-        assert(Catalog::g_particleFx.FindById(effect->id).init);
-        Catalog::g_particleFx.FindById(effect->id).init(*particle, *effect);
+
+        assert(pfx.init);
+        pfx.init(*particle, *effect);
         effect->particlesLeft++;
 
         prev = particle;

@@ -73,11 +73,3 @@ float VolumeCorrection(float volume)
     float clamped = CLAMP(mapped, 0.0f, 1.0f);
     return clamped;
 }
-
-int ZoomMipLevel(float invZoom)
-{
-    // TODO: Calculate this based on how many tiles will appear on the screen, rather than camera zoom
-    // Alternatively, we could group nearby tiles of the same type together into large quads?
-    const int zoomMipLevel = MAX(1, (int)invZoom / 8);
-    return zoomMipLevel;
-}

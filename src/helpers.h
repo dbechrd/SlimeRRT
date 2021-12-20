@@ -87,4 +87,3 @@ void DrawTextFont(Font font, const char *text, float posX, float posY, int fontS
 const char *TextFormatIP(ENetAddress &address);
 const char *TextFormatTimestamp();
 float VolumeCorrection(float volume);
-int ZoomMipLevel(float invZoom);

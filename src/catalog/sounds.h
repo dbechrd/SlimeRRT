@@ -24,7 +24,7 @@ namespace Catalog {
         void Load(void);
         void Unload(void);
         const Sound &FindById(SoundID id) const;
-        void Play(SoundID id, float pitch);
+        void Play(SoundID id, float pitch, bool multi = false);
         bool Playing(SoundID id);
         const unsigned char *Sounds::MissingOggData(size_t &fileSize);
 

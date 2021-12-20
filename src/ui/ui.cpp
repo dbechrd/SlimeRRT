@@ -1,16 +1,17 @@
 #include "error.h"
 #include "net_client.h"
-#include "imgui/imgui.h"
-#include "GLFW/glfw3.h"
+#include "../spycam.h"
 #include "../tilemap.h"
 #include "../world.h"
+#include "imgui/imgui.h"
+#include "GLFW/glfw3.h"
+#include "raylib/raylib.h"
 
-Font    UI::font;
+Font    *UI::font;
 Vector2 UI::mouseScreen;
 Vector2 UI::mouseWorld;
 Vector2 UI::screenRect;
-float   UI::zoom;
-float   UI::invZoom;
+Spycam  *UI::spycam;
 
 void UI::CenteredText(const char *text, const char *textToMeasure = 0)
 {
@@ -195,6 +196,8 @@ void UI::WorldGrid(const Tilemap &map)
 
 void UI::TileHoverOutline(const Tilemap &map)
 {
+    assert(spycam);
+
     int mouseTileX = 0;
     int mouseTileY = 0;
     Tile *mouseTile = map.TileAtWorldTry(mouseWorld.x, mouseWorld.y, &mouseTileX, &mouseTileY);
@@ -203,18 +206,20 @@ void UI::TileHoverOutline(const Tilemap &map)
     }
 
     // Draw red outline on hovered tile
-    const int zoomMipLevel = ZoomMipLevel(invZoom);
+    const int zoomMipLevel = spycam->GetZoomMipLevel();
     Rectangle mouseTileRect{
         (float)TILE_W * mouseTileX,
         (float)TILE_W * mouseTileY,
         (float)TILE_W * zoomMipLevel,
         (float)TILE_W * zoomMipLevel
     };
-    DrawRectangleLinesEx(mouseTileRect, floorf(invZoom), RED);
+    DrawRectangleLinesEx(mouseTileRect, floorf(spycam->GetInvZoom()), RED);
 }
 
 void UI::TileHoverTip(const Tilemap &map)
 {
+    assert(font);
+
     int mouseTileX = 0;
     int mouseTileY = 0;
     Tile *mouseTile = map.TileAtWorldTry(mouseWorld.x, mouseWorld.y, &mouseTileX, &mouseTileY);
@@ -239,19 +244,21 @@ void UI::TileHoverTip(const Tilemap &map)
     DrawRectangleLinesEx(tooltipRect, 1, Fade(BLACK, 0.8f));
 
     int lineOffset = 0;
-    DrawTextFont(font, TextFormat("tilePos : %d, %d", mouseTileX, mouseTileY),
-        tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, font.baseSize, WHITE);
-    lineOffset += font.baseSize;
-    DrawTextFont(font, TextFormat("tileSize: %zu, %zu", TILE_W, TILE_W),
-        tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, font.baseSize, WHITE);
-    lineOffset += font.baseSize;
-    DrawTextFont(font, TextFormat("tileType: %d", mouseTile->tileType),
-        tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, font.baseSize, WHITE);
-    lineOffset += font.baseSize;
+    DrawTextFont(*font, TextFormat("tilePos : %d, %d", mouseTileX, mouseTileY),
+        tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, font->baseSize, WHITE);
+    lineOffset += font->baseSize;
+    DrawTextFont(*font, TextFormat("tileSize: %zu, %zu", TILE_W, TILE_W),
+        tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, font->baseSize, WHITE);
+    lineOffset += font->baseSize;
+    DrawTextFont(*font, TextFormat("tileType: %d", mouseTile->tileType),
+        tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, font->baseSize, WHITE);
+    lineOffset += font->baseSize;
 }
 
 void UI::Minimap(const World &world)
 {
+    assert(font);
+
     // Render minimap
     const int minimapMargin = 6;
     const int minimapBorderWidth = 1;
@@ -283,20 +290,23 @@ void UI::Minimap(const World &world)
             const Color playerColor{ 220, 90, 20, 255 };
             DrawCircle((int)x, (int)y, 2.0f, playerColor);
             const char *pName = TextFormat("%.*s", p.nameLength, p.name);
-            int nameWidth = MeasureText(pName, font.baseSize);
-            DrawTextFont(font, pName, x - (float)(nameWidth / 2), y - font.baseSize - 4, font.baseSize, YELLOW);
+            int nameWidth = MeasureText(pName, font->baseSize);
+            DrawTextFont(*font, pName, x - (float)(nameWidth / 2), y - font->baseSize - 4, font->baseSize, YELLOW);
         }
     }
 }
 
 void UI::HUD(const Player &player, const DebugStats &debugStats)
 {
+    assert(font);
+    assert(spycam);
+
     const char *text = 0;
     float hudCursorY = 0;
 
 #define PUSH_TEXT(text, color) \
-    DrawTextFont(font, text, margin + pad, hudCursorY, font.baseSize, color); \
-    hudCursorY += font.baseSize + pad; \
+    DrawTextFont(*font, text, margin + pad, hudCursorY, font->baseSize, color); \
+    hudCursorY += font->baseSize + pad; \
 
     int linesOfText = 8;
     if (debugStats.tick) {
@@ -308,7 +318,7 @@ void UI::HUD(const Player &player, const DebugStats &debugStats)
     const float margin = 6.0f;   // left/top margin
     const float pad = 4.0f;      // left/top pad
     const float hudWidth = 240.0f;
-    const float hudHeight = linesOfText * (font.baseSize + pad) + pad;
+    const float hudHeight = linesOfText * (font->baseSize + pad) + pad;
 
     hudCursorY += margin;
 
@@ -349,11 +359,11 @@ void UI::HUD(const Player &player, const DebugStats &debugStats)
         }
         text = TextFormat("Camera speed  %.03f", debugStats.cameraSpeed);
         PUSH_TEXT(text, GRAY);
-        text = TextFormat("Zoom          %.03f", zoom);
+        text = TextFormat("Zoom          %.03f", spycam->GetZoom());
         PUSH_TEXT(text, GRAY);
-        text = TextFormat("Zoom inverse  %.03f", invZoom);
+        text = TextFormat("Zoom inverse  %.03f", spycam->GetInvZoom());
         PUSH_TEXT(text, GRAY);
-        text = TextFormat("Zoom mip      %zu", ZoomMipLevel(invZoom));
+        text = TextFormat("Zoom mip      %d", spycam->GetZoomMipLevel());
         PUSH_TEXT(text, GRAY);
         text = TextFormat("Tiles visible %zu", debugStats.tilesDrawn);
         PUSH_TEXT(text, GRAY);

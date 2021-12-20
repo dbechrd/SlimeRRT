@@ -42,7 +42,7 @@ namespace FX {
         UNUSED(alpha);
 
         if (particle.body.bounced) {
-            Catalog::g_sounds.Play(Catalog::SoundID::GemBounce, 1.0f + dlb_rand32f_variance(0.5));
+            Catalog::g_sounds.Play(Catalog::SoundID::GemBounce, 1.0f + dlb_rand32f_variance(0.1f), true);
         }
     }
 }

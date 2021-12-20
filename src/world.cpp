@@ -260,13 +260,13 @@ void World::SimPlayers(double dt)
                         player.stats.coinsCollected += coins;
 
                         Vector3 deadCenter = sprite_world_center(slime.sprite, slime.body.position, slime.sprite.scale);
-                        particleSystem.GenerateEffect(Catalog::ParticleEffectID::Gold, (size_t)coins / 16, deadCenter, 2.0);
+                        particleSystem.GenerateEffect(Catalog::ParticleEffectID::Gold, (size_t)MAX(1, coins / 16), deadCenter, 2.0);
 
                         DespawnSlime(slime.id);
                         player.stats.slimesSlain++;
                     } else {
                         Catalog::SoundID squish = dlb_rand32i_range(0, 1) ? Catalog::SoundID::Squish1 : Catalog::SoundID::Squish2;
-                        Catalog::g_sounds.Play(squish, 1.0f + dlb_rand32f_variance(0.2f));
+                        Catalog::g_sounds.Play(squish, 1.0f + dlb_rand32f_variance(0.2f), true);
                     }
                     slimesHit++;
                 }
@@ -346,7 +346,7 @@ void World::SimSlimes(double dt)
 
             if (!willCollide && slime.Move(dt, slimeMove)) {
                 Catalog::SoundID squish = dlb_rand32i_range(0, 1) ? Catalog::SoundID::Squish1 : Catalog::SoundID::Squish2;
-                Catalog::g_sounds.Play(squish, 1.0f + dlb_rand32f_variance(0.2f));
+                Catalog::g_sounds.Play(squish, 1.0f + dlb_rand32f_variance(0.2f), true);
             }
         }
 
@@ -531,6 +531,7 @@ bool World::CullTile(Vector2 tilePos, int zoomMipLevel)
 
 size_t World::DrawMap(int zoomMipLevel)
 {
+    assert(zoomMipLevel > 0);
     if (!map || !map->tiles) return 0;
 
     size_t tilesDrawn = 0;

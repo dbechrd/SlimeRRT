@@ -129,6 +129,7 @@ int main(int argc, char *argv[])
 #include "slime.cpp"
 #include "sprite.cpp"
 #include "spritesheet.cpp"
+#include "spycam.cpp"
 #include "structures/structure.cpp"
 #include "tilemap.cpp"
 #include "tileset.cpp"

@@ -15,6 +15,8 @@ ErrorType GameServer::Run()
 {
     glfwInit();
 
+    Catalog::g_items.Load();
+
     World *world = new World;
     //world->map = world->mapSystem.Generate(world->rtt_rand, 128, 128);
     world->map = world->mapSystem.Generate(world->rtt_rand, 256, 256);

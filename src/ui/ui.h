@@ -2,6 +2,7 @@
 
 struct ImGuiIO;
 struct NetClient;
+struct Spycam;
 struct Tilemap;
 struct World;
 
@@ -18,18 +19,17 @@ struct UI {
     };
 
     static void Begin(
-        Font    &font,
-        float   zoom,
+        Font    *font,
         Vector2 mouseScreen,
         Vector2 mouseWorld,
-        Vector2 screenRect
+        Vector2 screenRect,
+        Spycam  *spycam
     ) {
         UI::font        = font;
         UI::mouseScreen = mouseScreen;
         UI::mouseWorld  = mouseWorld;
         UI::screenRect  = screenRect;
-        UI::zoom        = zoom;
-        UI::invZoom     = 1.0f / zoom;
+        UI::spycam      = spycam;
     };
 
     static void LoginForm(NetClient &netClient, ImGuiIO& io, bool &escape);
@@ -41,12 +41,11 @@ struct UI {
     static void HUD(const Player &player, const DebugStats &debugStats);
 
 private:
-    static Font    font;
+    static Font    *font;
     static Vector2 mouseScreen;
     static Vector2 mouseWorld;
     static Vector2 screenRect;
-    static float   zoom;
-    static float   invZoom;
+    static Spycam  *spycam;
 
     static void CenteredText(const char *text, const char *textToMeasure);
 };

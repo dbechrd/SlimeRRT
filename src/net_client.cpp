@@ -164,11 +164,12 @@ ErrorType NetClient::SendPlayerInput(void)
     for (size_t i = 0; i < inputHistory.Count() && sampleCount < CL_INPUT_SAMPLES_MAX; i++) {
         InputSample &inputSample = inputHistory.At(i);
         if (inputSample.seq > worldSnapshot.lastInputAck) {
-            if (sampleCount == 0) { printf("\nSending input seq:"); }
+            if (sampleCount == 0) { printf("Sending input seq:"); }
             printf(" %u", inputSample.seq);
             netMsg.data.input.samples[sampleCount++] = inputSample;
         }
     }
+    putchar('\n');
     fflush(stdout);
     netMsg.data.input.sampleCount = sampleCount;
     return SendMsg(netMsg);
@@ -392,10 +393,6 @@ ErrorType NetClient::Receive(void)
 
                     enet_peer_reset(server);
                     server = nullptr;
-                    if (serverWorld) {
-                        delete serverWorld;
-                        serverWorld = nullptr;
-                    }
                     inputHistory.Clear();
                     worldHistory.Clear();
                     //serverWorld->chatHistory.PushMessage(CSTR("Sam"), CSTR("Disconnected from server."));
@@ -407,10 +404,6 @@ ErrorType NetClient::Receive(void)
 
                     enet_peer_reset(server);
                     server = nullptr;
-                    if (serverWorld) {
-                        delete serverWorld;
-                        serverWorld = nullptr;
-                    }
                     inputHistory.Clear();
                     worldHistory.Clear();
                     //serverWorld->chatHistory.PushMessage(CSTR("Sam"), CSTR("Your connection to the server timed out. :("));
