@@ -30,9 +30,9 @@ struct DrawList {
 
     static void DrawList::RegisterTypes();
 
+    bool      cullEnabled {};
+    Rectangle cullRect    {};
 private:
-    bool cullEnabled   {};
-    Rectangle cullRect {};
     std::vector<DrawCommand> sortedCommands {};
 
     static struct DrawableDef registry[(size_t)DrawableType::Count];

@@ -2,6 +2,7 @@
 #include "raylib/raylib.h"
 
 #define TILE_W 32
+#define TILE_H TILE_W
 
 enum class TileType;
 
@@ -18,5 +19,5 @@ struct Tileset {
 };
 
 void tileset_init(void);
-Rectangle tileset_tile_rect(TilesetID tilesetId, TileType tileType);
+const Rectangle &tileset_tile_rect(TilesetID tilesetId, TileType tileType);
 void tileset_draw_tile(TilesetID tilesetId, TileType tileType, Vector2 at);

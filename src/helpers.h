@@ -10,7 +10,6 @@
 //------------------------------------------------------------------------------
 #define CULL_ON_PUSH 1
 #define DEMO_VIEW_RTREE 0
-#define DEMO_VIEW_CULLING 0
 #define DEMO_AI_TRACKING 0
 #define DEMO_BODY_RECT 0
 
@@ -88,3 +87,4 @@ void DrawTextFont(Font font, const char *text, float posX, float posY, int fontS
 const char *TextFormatIP(ENetAddress &address);
 const char *TextFormatTimestamp();
 float VolumeCorrection(float volume);
+int ZoomMipLevel(float invZoom);

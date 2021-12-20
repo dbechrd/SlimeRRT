@@ -504,3 +504,76 @@ void World::Interpolate(double renderAt)
     }
     return;
 }
+
+void World::EnableCulling(Rectangle cullRect)
+{
+    drawList.EnableCulling(cullRect);
+}
+
+bool World::CullTile(Vector2 tilePos, int zoomMipLevel)
+{
+    if (!drawList.cullEnabled) {
+        return false;
+    }
+
+    const float tileWidthMip = (float)(TILE_W * zoomMipLevel);
+    const float tileHeightMip = (float)(TILE_W * zoomMipLevel);
+
+    if (tilePos.x + tileWidthMip < drawList.cullRect.x
+     || tilePos.y + tileHeightMip < drawList.cullRect.y
+     || tilePos.x >= drawList.cullRect.x + drawList.cullRect.width
+     || tilePos.y >= drawList.cullRect.y + drawList.cullRect.height) {
+        return true;
+    }
+
+    return false;
+}
+
+size_t World::DrawMap(int zoomMipLevel)
+{
+    if (!map || !map->tiles) return 0;
+
+    size_t tilesDrawn = 0;
+    for (size_t y = 0; y < map->height; y += zoomMipLevel) {
+        for (size_t x = 0; x < map->width; x += zoomMipLevel) {
+            const Tile *tile = &map->tiles[y * map->width + x];
+            const Vector2 tilePos = { (float)x * TILE_W, (float)y * TILE_W };
+            if (!CullTile(tilePos, zoomMipLevel)) {
+                // Draw all tiles as textured rects (looks best, performs worst)
+                Rectangle textureRect = tileset_tile_rect(map->tilesetId, tile->tileType);
+                tileset_draw_tile(map->tilesetId, tile->tileType, tilePos);
+                tilesDrawn++;
+            }
+        }
+    }
+    return tilesDrawn;
+}
+
+void World::DrawEntities()
+{
+    // Queue players for drawing
+    for (size_t i = 0; i < ARRAY_SIZE(players); i++) {
+        if (players[i].id) {
+            players[i].Push(drawList);
+
+        }
+    }
+
+    // Queue slimes for drawing
+    for (const Slime &slime : slimes) {
+        if (slime.combat.hitPoints) {
+            slime.Push(drawList);
+        }
+    }
+}
+
+void World::DrawParticles(void)
+{
+    // Queue particles for drawing
+    particleSystem.Push(drawList);
+}
+
+void World::DrawFlush(void)
+{
+    drawList.Flush();
+}

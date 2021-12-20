@@ -132,6 +132,6 @@ int main(int argc, char *argv[])
 #include "structures/structure.cpp"
 #include "tilemap.cpp"
 #include "tileset.cpp"
-#include "ui_login_form.cpp"
+#include "ui/ui.cpp"
 #include "world.cpp"
 #include "../test/tests.cpp"

@@ -93,9 +93,10 @@ Tile *Tilemap::TileAtWorld(float x, float y, int *tileX, int *tileY) const
 
 Tile *Tilemap::TileAtWorldTry(float x, float y, int *tileX, int *tileY) const
 {
-    if (x < 0 || y < 0 ||
+    if (x < 0 ||
+        y < 0 ||
         x >= (float)TILE_W * width ||
-        y >= (float)TILE_W * height)     {
+        y >= (float)TILE_W * height) {
         return 0;
     }
 

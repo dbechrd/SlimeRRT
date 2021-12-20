@@ -54,8 +54,17 @@ struct World {
     void GenerateSnapshot(WorldSnapshot &worldSnapshot);
     void Interpolate(double renderAt);
 
+    void EnableCulling(Rectangle cullRect);
+    size_t DrawMap(int zoomMipLevel);
+    void DrawEntities();
+    void DrawParticles(void);
+    void DrawFlush(void);
+
 private:
     void SimPlayers(double dt);
     void SimSlimes(double dt);
     bool InterpolateBody(Body3D &body, double renderAt);
+
+    DrawList drawList{};
+    bool CullTile(Vector2 tilePos, int zoomMipLevel);
 };

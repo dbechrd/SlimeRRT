@@ -29,18 +29,15 @@ static void tileset_load(TilesetID tilesetId, const char *texturePath)
     }
 }
 
-Rectangle tileset_tile_rect(TilesetID tilesetId, TileType tileType)
+const Rectangle &tileset_tile_rect(TilesetID tilesetId, TileType tileType)
 {
     Tileset &tileset = tilesets[(size_t)tilesetId];
-
-    Rectangle tileRect = tileset.textureRects[(size_t)tileType];
-    return tileRect;
+    return tileset.textureRects[(size_t)tileType];
 }
 
 void tileset_draw_tile(TilesetID tilesetId, TileType tileType, Vector2 at)
 {
     Tileset &tileset = tilesets[(size_t)tilesetId];
-
     Rectangle tileRect = tileset_tile_rect(tilesetId, tileType);
     DrawTextureRec(tileset.texture, tileRect, at, WHITE);
 }

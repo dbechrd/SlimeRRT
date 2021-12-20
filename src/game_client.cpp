@@ -10,7 +10,7 @@
 #include "catalog/spritesheets.h"
 #include "catalog/tracks.h"
 #include "structures/structure.h"
-#include "ui_login_form.h"
+#include "ui/ui.h"
 #include "dlb_types.h"
 
 #include "raylib/raylib.h"
@@ -69,20 +69,19 @@ ErrorType GameClient::Run(void)
     const int monitorWidth = GetMonitorWidth(0);
     const int monitorHeight = GetMonitorHeight(0);
 
+    Vector2 cameraGoal = { screenWidth / 2.0f, screenHeight / 2.0f };
+    bool cameraReset = false;
+    bool cameraFree = false;
+    const float cameraSpeedDefault = 5.0f;
+    float cameraSpeed = cameraSpeedDefault;
     Camera2D camera{};
     //camera.target = (Vector2){
     //    (float)tilemap.width / 2.0f * tilemap.tileset->tileWidth,
     //    (float)tilemap.height / 2.0f * tilemap.tileset->tileHeight
     //};
-    camera.offset.x = screenWidth / 2.0f;
-    camera.offset.y = screenHeight / 2.0f;
+    camera.offset = cameraGoal;
     camera.rotation = 0.0f;
     camera.zoom = 1.0f;
-
-    bool cameraReset = false;
-    bool cameraFree = false;
-    const float cameraSpeedDefault = 5.0f;
-    float cameraSpeed = cameraSpeedDefault;
 
     InitAudioDevice();
     if (!IsAudioDeviceReady()) {
@@ -100,8 +99,6 @@ ErrorType GameClient::Run(void)
 
     Catalog::g_mixer.masterVolume = 0.5f;
 
-    DrawList drawList{};
-
     Image checkerboardImage = GenImageChecked(monitorWidth, monitorHeight, 32, 32, LIGHTGRAY, GRAY);
     Texture checkboardTexture = LoadTextureFromImage(checkerboardImage);
     UnloadImage(checkerboardImage);
@@ -110,6 +107,7 @@ ErrorType GameClient::Run(void)
     lobby->tick = 1;
     lobby->map = lobby->mapSystem.GenerateLobby();
     Slime &sam = lobby->SpawnSam();
+    world = lobby;
 
     {
         Player *player = lobby->SpawnPlayer(0);
@@ -172,8 +170,12 @@ ErrorType GameClient::Run(void)
         sendInputAccum += MIN(sendInputDt, sendInputDtMax);
         frameStart = now;
 
+        //----------------------------------------------------------------------
+        // Audio
+        //----------------------------------------------------------------------
         SetMasterVolume(VolumeCorrection(Catalog::g_mixer.masterVolume));
         Catalog::g_tracks.Update((float)frameDt);
+        //----------------------------------------------------------------------
 
         if (IsWindowResized()) {
             screenWidth = GetScreenWidth();
@@ -190,50 +192,81 @@ ErrorType GameClient::Run(void)
         bool escape = IsKeyPressed(KEY_ESCAPE);
         bool findMouseTile = false;
 
-        // Start the Dear ImGui frame
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
-        ImGui::NewFrame();
+        Player *playerPtr = world->FindPlayer(world->playerId);
+        assert(playerPtr);
+        Player &player = *playerPtr;
 
-        if (show_demo_window) {
-            ImGui::ShowDemoWindow(&show_demo_window);
+         // Camera reset (zoom and rotation)
+        if (cameraReset || input.cameraReset) {
+            camera.offset = Vector2{ roundf(screenWidth / 2.0f), roundf(screenHeight / 2.0f) };
+            camera.target = Vector2{ roundf(camera.target.x), roundf(camera.target.y) };
+            camera.rotation = 0.0f;
+            camera.zoom = 1.0f;
+            cameraSpeed = cameraSpeedDefault;
+            cameraReset = 0;
         }
 
-        UILoginForm(netClient, io, escape);
-
-        ImGui::SetNextWindowSize(ImVec2(350, 0));
-        ImGui::SetNextWindowPos(ImVec2(6, 398));
-        auto rayDarkBlue = DARKGRAY;
-        ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(rayDarkBlue.r, rayDarkBlue.g, rayDarkBlue.b, rayDarkBlue.a));
-        ImGui::PushStyleColor(ImGuiCol_Border, IM_COL32_BLACK);
-        ImGui::Begin("##music_mixer", 0,
-            ImGuiWindowFlags_NoTitleBar |
-            ImGuiWindowFlags_NoMove |
-            ImGuiWindowFlags_NoResize |
-            ImGuiWindowFlags_NoCollapse
-        );
-        ImGui::PopStyleColor(2);
-        ImGui::SliderFloat("Master", &Catalog::g_mixer.masterVolume, 0.0f, 1.0f, "%.03f");
-        ImGui::SliderFloat("Music ", &Catalog::g_mixer.musicVolume,  0.0f, 1.0f, "%.03f");
-        ImGui::SliderFloat("Sfx   ", &Catalog::g_mixer.sfxVolume,    0.0f, 1.0f, "%.03f");
-        ImGui::Text("Tracks:");
-        for (size_t i = 1; i < (size_t)Catalog::TrackID::Count; i++) {
-            if (ImGui::TreeNode(Catalog::TrackIDString((Catalog::TrackID)i))) {
-                ImGui::SliderFloat("vLimit  ", &Catalog::g_tracks.mixer.volumeLimit [i], 0.0f, 1.0f, "%.03f");
-                ImGui::SliderFloat("vVolume ", &Catalog::g_tracks.mixer.volume      [i], 0.0f, 1.0f, "%.03f");
-                ImGui::SliderFloat("vSpeed  ", &Catalog::g_tracks.mixer.volumeSpeed [i], 0.0f, 2.0f, "%.03f");
-                ImGui::SliderFloat("vTarget ", &Catalog::g_tracks.mixer.volumeTarget[i], 0.0f, 1.0f, "%.03f");
-                ImGui::TreePop();
+        if (!cameraFree) {
+            cameraGoal = player.body.GroundPosition();
+            camera.rotation = 0.0f;
+            camera.zoom = 1.0f;
+            cameraSpeed = cameraSpeedDefault;
+        } else {
+            cameraSpeed = CLAMP(cameraSpeed + input.cameraSpeedDelta, 1.0f, 50.0f);
+            if (input.cameraWest)  cameraGoal.x -= cameraSpeed / camera.zoom;
+            if (input.cameraEast)  cameraGoal.x += cameraSpeed / camera.zoom;
+            if (input.cameraNorth) cameraGoal.y -= cameraSpeed / camera.zoom;
+            if (input.cameraSouth) cameraGoal.y += cameraSpeed / camera.zoom;
+            if (input.cameraRotateCW) {
+                camera.rotation += 45.0f;
+                if (camera.rotation >= 360.0f) camera.rotation -= 360.0f;
+            } else if (input.cameraRotateCCW) {
+                camera.rotation -= 45.0f;
+                if (camera.rotation < 0.0f) camera.rotation += 360.0f;
             }
-        }
-        ImGui::Text("Sfx:");
-        for (size_t i = 1; i < (size_t)Catalog::SoundID::Count; i++) {
-            if (ImGui::TreeNode(Catalog::SoundIDString((Catalog::SoundID)i))) {
-                ImGui::SliderFloat("vLimit  ", &Catalog::g_sounds.mixer.volumeLimit [i], 0.0f, 1.0f, "%.03f");
-                ImGui::TreePop();
+            // Camera zoom controls
+#if 0
+            camera.zoom += input.cameraZoomDelta * 0.1f * camera.zoom;
+#elif 0
+            if (input.cameraZoomDelta) {
+                //printf("zoom: %f, log: %f\n", camera.zoom, log10f(camera.zoom));
+                camera.zoom *= input.cameraZoomDelta > 0.0f ? 2.0f : 0.5f;
             }
+#else
+            static bool zoomOut = false;
+            if (input.cameraZoomOut) zoomOut = !zoomOut;
+            camera.zoom = zoomOut ? 0.5f : 1.0f;
+#endif
         }
-        ImGui::End();
+        camera.target = v2_add(camera.target, v2_scale(v2_sub(cameraGoal, camera.target), 1.0f));
+
+        const int negZoomMultiplier = 7; // 7x negative zoom (out)
+        const int posZoomMultiplier = 1; // 2x positive zoom (in)
+#if 1
+        const float minZoom = 1.0f / (float)(1 << (negZoomMultiplier - 1));
+        const float maxZoom = 1.0f * (float)(1 << (posZoomMultiplier - 1));
+        camera.zoom = CLAMP(camera.zoom, minZoom, maxZoom);
+#else
+        const float minZoomPow2 = (float)(1 << (negZoomMultiplier - 1));
+        const float maxZoomPow2 = (float)(1 << (posZoomMultiplier - 1));
+        const float minZoom = 1.0f / minZoomPow2;
+        const float maxZoom = 1.0f * maxZoomPow2;
+        const float roundedZoom = roundf(camera.zoom * minZoomPow2) / minZoomPow2;
+        camera.zoom = CLAMP(roundedZoom, minZoom, maxZoom);
+#endif
+        const float invZoom = 1.0f / camera.zoom;
+        const int zoomMipLevel = ZoomMipLevel(invZoom);
+
+        Rectangle cameraRect{};
+        cameraRect.x = camera.target.x - camera.offset.x * invZoom;
+        cameraRect.y = camera.target.y - camera.offset.y * invZoom;
+        cameraRect.width = camera.offset.x * 2.0f * invZoom;
+        cameraRect.height = camera.offset.y * 2.0f * invZoom;
+
+        const Vector2 mousePosScreen = GetMousePosition();
+        Vector2 mousePosWorld{};
+        mousePosWorld.x += cameraRect.x + mousePosScreen.x * invZoom;
+        mousePosWorld.y += cameraRect.y + mousePosScreen.y * invZoom;
 
         // HACK: No way to check if Raylib is currently recording.. :(
         //if (gifRecording) {
@@ -254,15 +287,11 @@ ErrorType GameClient::Run(void)
             world = netClient.serverWorld;
             tickAccum = 0;
             sendInputAccum = 0;
-        } if (!connectedToServer && world != lobby ){
+        } else if (!connectedToServer && world != lobby ) {
             world = lobby;
             tickAccum = 0;
             sendInputAccum = 0;
         }
-
-        Player *playerPtr = world->FindPlayer(world->playerId);
-        assert(playerPtr);
-        Player &player = *playerPtr;
 
         if (connectedToServer) {
             if (netClient.worldHistory.Count()) {
@@ -404,171 +433,29 @@ ErrorType GameClient::Run(void)
                 next_rect_to_add--;
             }
 #endif
-            // Camera reset (zoom and rotation)
-            if (cameraReset || input.cameraReset) {
-                camera.offset = Vector2{ roundf(screenWidth / 2.0f), roundf(screenHeight / 2.0f) };
-                camera.target = Vector2{ roundf(camera.target.x), roundf(camera.target.y) };
-                camera.rotation = 0.0f;
-                camera.zoom = 1.0f;
-                cameraSpeed = cameraSpeedDefault;
-                cameraReset = 0;
-            }
-
-            if (!cameraFree) {
-                camera.target = player.body.GroundPosition();
-                camera.rotation = 0.0f;
-                camera.zoom = 1.0f;
-                cameraSpeed = cameraSpeedDefault;
-            } else {
-                cameraSpeed = CLAMP(cameraSpeed + input.cameraSpeedDelta, 1.0f, 50.0f);
-                if (input.cameraWest)  camera.target.x -= cameraSpeed / camera.zoom;
-                if (input.cameraEast)  camera.target.x += cameraSpeed / camera.zoom;
-                if (input.cameraNorth) camera.target.y -= cameraSpeed / camera.zoom;
-                if (input.cameraSouth) camera.target.y += cameraSpeed / camera.zoom;
-                if (input.cameraRotateCW) {
-                    camera.rotation += 45.0f;
-                    if (camera.rotation >= 360.0f) camera.rotation -= 360.0f;
-                } else if (input.cameraRotateCCW) {
-                    camera.rotation -= 45.0f;
-                    if (camera.rotation < 0.0f) camera.rotation += 360.0f;
-                }
-                // Camera zoom controls
-#if 0
-                camera.zoom += input.cameraZoomDelta * 0.1f * camera.zoom;
-#elif 0
-                if (input.cameraZoomDelta) {
-                    //printf("zoom: %f, log: %f\n", camera.zoom, log10f(camera.zoom));
-                    camera.zoom *= input.cameraZoomDelta > 0.0f ? 2.0f : 0.5f;
-                }
-#else
-                static bool zoomOut = false;
-                if (input.cameraZoomOut) zoomOut = !zoomOut;
-                camera.zoom = zoomOut ? 0.5f : 1.0f;
-#endif
-            }
-        //}
-
-#if 1
-        const int negZoomMultiplier = 7; // 7x negative zoom (out)
-        const int posZoomMultiplier = 1; // 2x positive zoom (in)
-        const float minZoom = 1.0f / (float)(1 << (negZoomMultiplier - 1));
-        const float maxZoom = 1.0f * (float)(1 << (posZoomMultiplier - 1));
-        camera.zoom = CLAMP(camera.zoom, minZoom, maxZoom);
-        const float invZoom = 1.0f / camera.zoom;
-#else
-        const int negZoomMultiplier = 7; // 7x negative zoom (out)
-        const int posZoomMultiplier = 2; // 2x positive zoom (in)
-        const float minZoomPow2 = (float)(1 << (negZoomMultiplier - 1));
-        const float maxZoomPow2 = (float)(1 << (posZoomMultiplier - 1));
-        const float minZoom = 1.0f / minZoomPow2;
-        const float maxZoom = 1.0f * maxZoomPow2;
-        const float roundedZoom = roundf(camera.zoom * minZoomPow2) / minZoomPow2;
-        camera.zoom = CLAMP(roundedZoom, minZoom, maxZoom);
-        const float invZoom = 1.0f / camera.zoom;
-#endif
 
         //----------------------------------------------------------------------------------
         // Draw
         //----------------------------------------------------------------------------------
         BeginDrawing();
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+        UI::Begin(font, invZoom, mousePosScreen, mousePosWorld, { (float)screenWidth, (float)screenHeight });
 
         ClearBackground(ORANGE);
         DrawTexture(checkboardTexture, 0, 0, WHITE);
 
-        Rectangle cameraRect{};
-        cameraRect.x = camera.target.x - camera.offset.x * invZoom;
-        cameraRect.y = camera.target.y - camera.offset.y * invZoom;
-        cameraRect.width = camera.offset.x * 2.0f * invZoom;
-        cameraRect.height = camera.offset.y * 2.0f * invZoom;
-
-#if DEMO_VIEW_CULLING
-        const float cameraRectPad = 100.0f * invZoom;
-        cameraRect.x += cameraRectPad;
-        cameraRect.y += cameraRectPad;
-        cameraRect.width -= cameraRectPad * 2.0f;
-        cameraRect.height -= cameraRectPad * 2.0f;
-#endif
-
-        // TODO: Calculate this based on how many tiles will appear on the screen, rather than camera zoom
-        // Alternatively, we could group nearby tiles of the same type together into large quads?
-        const int zoomMipLevel = MAX(1, (int)invZoom / 8);
-
         BeginMode2D(camera);
-        size_t tilesDrawn = 0;
 
-        if (world->map->tiles) {
-            const float tileWidthMip = (float)(TILE_W * zoomMipLevel);
-            const float tileHeightMip = (float)(TILE_W * zoomMipLevel);
-            const size_t height = world->map->height;
-            const size_t width = world->map->width;
-            const float camLeft = cameraRect.x;
-            const float camTop = cameraRect.y;
-            const float camRight = cameraRect.x + cameraRect.width;
-            const float camBottom = cameraRect.y + cameraRect.height;
-
-            for (size_t y = 0; y < height; y += zoomMipLevel) {
-                for (size_t x = 0; x < width; x += zoomMipLevel) {
-                    const Tile *tile = &world->map->tiles[y * world->map->width + x];
-                    const Vector2 tilePos = { (float)x * TILE_W, (float)y * TILE_W };
-                    if (tilePos.x + tileWidthMip >= camLeft &&
-                        tilePos.y + tileHeightMip >= camTop &&
-                        tilePos.x < camRight &&
-                        tilePos.y < camBottom)                     {
-                        // Draw all tiles as textured rects (looks best, performs worst)
-                        Rectangle textureRect = tileset_tile_rect(world->map->tilesetId, tile->tileType);
-                        tileset_draw_tile(world->map->tilesetId, tile->tileType, tilePos);
-                        tilesDrawn++;
-                    }
-                }
-            }
-        }
-        //DrawRectangleRec(cameraRect, Fade(PINK, 0.5f));
-
-        const Vector2 mousePosScreen = GetMousePosition();
-        Vector2 mousePosWorld{};
-        mousePosWorld.x += mousePosScreen.x * invZoom + cameraRect.x;
-        mousePosWorld.y += mousePosScreen.y * invZoom + cameraRect.y;
-
-        Tile *mouseTile = 0;
-        int mouseTileX = 0;
-        int mouseTileY = 0;
+        world->EnableCulling(cameraRect);
+        size_t tilesDrawn = world->DrawMap(zoomMipLevel);
         if (input.dbgFindMouseTile) {
-            mouseTile = world->map->TileAtWorldTry(mousePosWorld.x, mousePosWorld.y, &mouseTileX, &mouseTileY);
-            if (mouseTile) {
-                // Draw red outline on hovered tile
-                Rectangle mouseTileRect{
-                    (float)mouseTileX,
-                    (float)mouseTileY,
-                    (float)TILE_W * zoomMipLevel,
-                    (float)TILE_W * zoomMipLevel
-                };
-                DrawRectangleLinesEx(mouseTileRect, floorf(invZoom), RED);
-            }
+            UI::TileHoverOutline(*world->map);
         }
-
-        {
-            drawList.EnableCulling(cameraRect);
-
-            // Queue players for drawing
-            for (size_t i = 0; i < ARRAY_SIZE(world->players); i++) {
-                if (world->players[i].id) {
-                    world->players[i].Push(drawList);
-
-                }
-            }
-
-            // Queue slimes for drawing
-            for (const Slime &slime : world->slimes) {
-                if (slime.combat.hitPoints) {
-                    slime.Push(drawList);
-                }
-            }
-
-            // Queue particles for drawing
-            world->particleSystem.Push(drawList);
-
-            drawList.Flush();
-        }
+        world->DrawEntities();
+        world->DrawParticles();
+        world->DrawFlush();
 
 #if DEMO_VIEW_RTREE
         AABB searchAABB = {
@@ -614,197 +501,38 @@ ErrorType GameClient::Run(void)
         DrawRectangleLinesEx(searchRect, 2, YELLOW);
 #endif
 
-#if DEMO_VIEW_CULLING
-        DrawRectangleLinesEx(cameraRect, 3, Fade(PINK, 0.8f));
-#endif
-
 #if DEMO_AI_TRACKING
         {
-            Vector3 charlieCenter = sprite_world_center(player.sprite, player.body.position, player.sprite.scale);
-            DrawCircle((int)charlieCenter.x, (int)charlieCenter.y, 640.0f, Fade(ORANGE, 0.5f));
+            for (size_t i = 0; i < ARRAY_SIZE(world->slimes); i++) {
+                const Slime &slime = world->slimes[i];
+                if (slime.id) {
+                    Vector3 center = sprite_world_center(slime.sprite, slime.body.position, slime.sprite.scale);
+                    DrawCircle((int)center.x, (int)center.y, METERS_TO_PIXELS(10.0f), Fade(ORANGE, 0.3f));
+                }
+            }
         }
 #endif
+        //UI::WorldGrid(*world->map);
 
         EndMode2D();
 
-        // Render mouse tile tooltip
-        if (input.dbgFindMouseTile && mouseTile) {
-            const float tooltipOffsetX = 10.0f;
-            const float tooltipOffsetY = 10.0f;
-            const float tooltipPad = 4.0f;
-
-            float tooltipX = mousePosScreen.x + tooltipOffsetX;
-            float tooltipY = mousePosScreen.y + tooltipOffsetY;
-            const float tooltipW = 220.0f + tooltipPad * 2.0f;
-            const float tooltipH = 40.0f + tooltipPad * 2.0f;
-
-            if (tooltipX + tooltipW > screenWidth) tooltipX = screenWidth - tooltipW;
-            if (tooltipY + tooltipH > screenHeight) tooltipY = screenHeight - tooltipH;
-
-            Rectangle tooltipRect{ tooltipX, tooltipY, tooltipW, tooltipH };
-            DrawRectangleRec(tooltipRect, Fade(RAYWHITE, 0.8f));
-            DrawRectangleLinesEx(tooltipRect, 1, Fade(BLACK, 0.8f));
-
-            int lineOffset = 0;
-            DrawTextFont(font, TextFormat("tilePos : %.02f, %.02f", mouseTileX, mouseTileY),
-                tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, fontHeight, BLACK);
-            lineOffset += fontHeight;
-            DrawTextFont(font, TextFormat("tileSize: %zu, %zu", TILE_W, TILE_W),
-                tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, fontHeight, BLACK);
-            lineOffset += fontHeight;
-            DrawTextFont(font, TextFormat("tileType: %d", mouseTile->tileType),
-                tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, fontHeight, BLACK);
-            lineOffset += fontHeight;
-        }
-
-        {
-            // Render minimap
-            const int minimapMargin = 6;
-            const int minimapBorderWidth = 1;
-            const int minimapX = screenWidth - minimapMargin - world->map->minimap.width - minimapBorderWidth * 2;
-            const int minimapY = minimapMargin;
-            const int minimapW = world->map->minimap.width + minimapBorderWidth * 2;
-            const int minimapH = world->map->minimap.height + minimapBorderWidth * 2;
-            const int minimapTexX = minimapX + minimapBorderWidth;
-            const int minimapTexY = minimapY + minimapBorderWidth;
-            DrawRectangleLines(minimapX, minimapY, minimapW, minimapH, BLACK);
-            DrawTexture(world->map->minimap, minimapTexX, minimapTexY, WHITE);
-
-            // Draw slimes on map
-            for (size_t i = 0; i < ARRAY_SIZE(world->slimes); i++) {
-                Slime &s = world->slimes[i];
-                if (s.id) {
-                    float x = (s.body.position.x / (world->map->width * TILE_W)) * minimapW + minimapX;
-                    float y = (s.body.position.y / (world->map->height * TILE_W)) * minimapH + minimapY;
-                    DrawCircle((int)x, (int)y, 2.0f, Color{ 0, 170, 80, 255 });
-                }
-            }
-
-            // Draw players on map
-            for (size_t i = 0; i < ARRAY_SIZE(world->players); i++) {
-                Player &p = world->players[i];
-                if (p.id) {
-                    float x = (p.body.position.x / (world->map->width  * TILE_W)) * minimapW + minimapX;
-                    float y = (p.body.position.y / (world->map->height * TILE_W)) * minimapH + minimapY;
-                    const Color playerColor{ 220, 90, 20, 255 };
-                    DrawCircle((int)x, (int)y, 2.0f, playerColor);
-                    const char *pName = TextFormat("%.*s", p.nameLength, p.name);
-                    int nameWidth = MeasureText(pName, fontHeight);
-                    DrawTextFont(font, pName, x - (float)(nameWidth / 2), y - fontHeight - 4, fontHeight, YELLOW);
-                }
-            }
-        }
-
-        const char *text = 0;
-        float hudCursorY = 0;
-
-#define PUSH_TEXT(text, color) \
-    DrawTextFont(font, text, margin + pad, hudCursorY, fontHeight, color); \
-    hudCursorY += fontHeight + pad; \
+        UI::Minimap(*world);
 
         // Render HUD
-        {
-            int linesOfText = 8;
+        UI::DebugStats debugStats{};
 #if SHOW_DEBUG_STATS
-            linesOfText += 10;
-            if (netClient.server) {
-                linesOfText++;
-            }
-#endif
-            const float margin = 6.0f;   // left/top margin
-            const float pad = 4.0f;      // left/top pad
-            const float hudWidth = 240.0f;
-            const float hudHeight = linesOfText * (fontHeight + pad) + pad;
-
-            hudCursorY += margin;
-
-            const Color darkerGray{ 40, 40, 40, 255 };
-            UNUSED(darkerGray);
-            DrawRectangle((int)margin, (int)hudCursorY, (int)hudWidth, (int)hudHeight, DARKBLUE);
-            DrawRectangleLines((int)margin, (int)hudCursorY, (int)hudWidth, (int)hudHeight, BLACK);
-
-            hudCursorY += pad;
-
-            if (gifRecording) {
-                text = TextFormat("GIF RECORDING");
-            } else {
-                text = TextFormat("%2i fps (%.02f ms)", GetFPS(), GetFrameTime() * 1000.0f);
-            }
-            PUSH_TEXT(text, WHITE);
-            text = TextFormat("Coins: %d", player.inventory.slots[(int)PlayerInventorySlot::Coins].stackCount);
-            PUSH_TEXT(text, YELLOW);
-
-            text = TextFormat("Coins collected   %u", player.stats.coinsCollected);
-            PUSH_TEXT(text, LIGHTGRAY);
-            text = TextFormat("Damage dealt      %.2f", player.stats.damageDealt);
-            PUSH_TEXT(text, LIGHTGRAY);
-            text = TextFormat("Kilometers walked %.2f", player.stats.kmWalked);
-            PUSH_TEXT(text, LIGHTGRAY);
-            text = TextFormat("Slimes slain      %u", player.stats.slimesSlain);
-            PUSH_TEXT(text, LIGHTGRAY);
-            text = TextFormat("Times fist swung  %u", player.stats.timesFistSwung);
-            PUSH_TEXT(text, LIGHTGRAY);
-            text = TextFormat("Times sword swung %u", player.stats.timesSwordSwung);
-            PUSH_TEXT(text, LIGHTGRAY);
-
-#if SHOW_DEBUG_STATS
-            text = TextFormat("Tick          %u", world->tick);
-            PUSH_TEXT(text, GRAY);
-            text = TextFormat("framAccum     %.03f", tickAccum);
-            PUSH_TEXT(text, GRAY);
-            text = TextFormat("frameDt       %.03f", frameDt);
-            PUSH_TEXT(text, GRAY);
-            if (netClient.server) {
-                text = TextFormat("lastRTT       %u", netClient.server->lastRoundTripTime);
-                PUSH_TEXT(text, GRAY);
-            }
-            text = TextFormat("Camera speed  %.03f", cameraSpeed);
-            PUSH_TEXT(text, GRAY);
-            text = TextFormat("Zoom          %.03f", camera.zoom);
-            PUSH_TEXT(text, GRAY);
-            text = TextFormat("Zoom inverse  %.03f", invZoom);
-            PUSH_TEXT(text, GRAY);
-            text = TextFormat("Zoom mip      %zu", zoomMipLevel);
-            PUSH_TEXT(text, GRAY);
-            text = TextFormat("Tiles visible %zu", tilesDrawn);
-            PUSH_TEXT(text, GRAY);
-            text = TextFormat("Particle FX   %zu", world->particleSystem.EffectsActive());
-            PUSH_TEXT(text, GRAY);
-            text = TextFormat("Particles     %zu", world->particleSystem.ParticlesActive());
-            PUSH_TEXT(text, GRAY);
-#endif
+        debugStats.tick = world->tick;
+        debugStats.tickAccum = tickAccum;
+        debugStats.frameDt = frameDt;
+        if (netClient.server) {
+            debugStats.ping = netClient.server->lastRoundTripTime;
         }
-
-#if 0
-        // TODO: Keep track of list of other clients in GameClient
-        // TODO: Keep track of who is the host in NetServer (is host==127.0.0.1 sufficient?)
-        // Render connected clients
-        if (args.server) {
-            int linesOfText = 1 + (int)gameServer.clients.size();
-
-            const float margin = 6.0f;   // left/top margin
-            const float pad = 4.0f;      // left/top pad
-            const float hudWidth = 200.0f;
-            const float hudHeight = linesOfText * (fontHeight + pad) + pad;
-
-            hudCursorY += margin;
-
-            const Color darkerGray{ 40, 40, 40, 255 };
-            UNUSED(darkerGray);
-            DrawRectangle((int)margin, (int)hudCursorY, (int)hudWidth, (int)hudHeight, DARKBLUE);
-            DrawRectangleLines((int)margin, (int)hudCursorY, (int)hudWidth, (int)hudHeight, BLACK);
-
-            hudCursorY += pad;
-
-            PUSH_TEXT("Connected clients:", WHITE);
-
-            for (auto &kv : gameServer.clients) {
-                text = TextFormatIP(kv.second.address);
-                PUSH_TEXT(text, WHITE);
-            }
-        }
+        debugStats.cameraSpeed = cameraSpeed;
+        debugStats.tilesDrawn = tilesDrawn;
+        debugStats.effectsActive = world->particleSystem.EffectsActive();
+        debugStats.particlesActive = world->particleSystem.ParticlesActive();
 #endif
-#undef PUSH_TEXT
+        UI::HUD(player, debugStats);
 
         {
             const float margin = 6.0f;   // left/bottom margin
@@ -854,7 +582,20 @@ ErrorType GameClient::Run(void)
             }
         }
 
+        // Render mouse tile tooltip
+        if (input.dbgFindMouseTile) {
+            UI::TileHoverTip(*world->map);
+        }
+
         rlDrawRenderBatchActive();
+
+        if (show_demo_window) {
+            ImGui::ShowDemoWindow(&show_demo_window);
+        }
+
+        UI::LoginForm(netClient, io, escape);
+        UI::Mixer();
+
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         EndDrawing();
