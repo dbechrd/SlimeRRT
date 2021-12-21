@@ -217,6 +217,15 @@ void NetClient::ReconcilePlayer(double tickDt)
     player->combat.hitPoints    = playerSnapshot->hitPoints;
     player->combat.hitPointsMax = playerSnapshot->hitPointsMax;
 
+#if 1
+    if (inputHistory.Count()) {
+        const InputSample &oldestInput = inputHistory.At(0);
+        if (latestSnapshot.lastInputAck + 1 < oldestInput.seq) {
+            printf("WARN: inputHistory buffer too small. Server ack'd seq #%u on tick %u, but oldest input we still have is seq #%u\n",
+                latestSnapshot.lastInputAck, latestSnapshot.tick, oldestInput.seq);
+        }
+    }
+
     // Predict player for each input not yet handled by the server
     for (size_t i = 0; i < inputHistory.Count(); i++) {
         InputSample &input = inputHistory.At(i);
@@ -227,6 +236,7 @@ void NetClient::ReconcilePlayer(double tickDt)
             player->Update(tickDt, input, *serverWorld->map);
         }
     }
+#endif
 }
 
 void NetClient::ProcessMsg(ENetPacket &packet)

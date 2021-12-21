@@ -26,20 +26,20 @@
 #define SV_DEFAULT_PORT         4040
 #define SV_USERNAME             "SERVER"
 #define SV_MAX_PLAYERS          8
-#define SV_MAX_ENTITIES         256
+#define SV_MAX_ENTITIES         1 //256
 #define SV_TICK_RATE            60
-#define SV_INPUT_HISTORY        ((1000 / SV_TICK_RATE) * SV_MAX_PLAYERS)
-#define SV_WORLD_HISTORY        (1000 / SV_TICK_RATE)
+#define SV_INPUT_HISTORY        (SV_TICK_RATE * SV_MAX_PLAYERS)
+#define SV_WORLD_HISTORY        SV_TICK_RATE
 
 #define SNAPSHOT_SEND_RATE      30 //MIN(20, SV_TICK_RATE)
 #define SNAPSHOT_MAX_PLAYERS    SV_MAX_PLAYERS
-#define SNAPSHOT_MAX_ENTITIES   64
+#define SNAPSHOT_MAX_ENTITIES   MIN(64, SV_MAX_ENTITIES)
 
 #define CL_INPUT_SAMPLE_RATE    SV_TICK_RATE  // must be equal to SV_TICK_RATE
 #define CL_INPUT_SEND_RATE      SV_TICK_RATE  // can be <= CL_INPUT_SAMPLE_RATE
-#define CL_INPUT_SAMPLES_MAX    8
-#define CL_INPUT_HISTORY        SV_TICK_RATE  //(1000 / SV_TICK_RATE)
-#define CL_WORLD_HISTORY        SV_TICK_RATE  //(1000 / SV_TICK_RATE)
+#define CL_INPUT_SAMPLES_MAX    SV_TICK_RATE  // send up to 1 second of samples per packet
+#define CL_INPUT_HISTORY        (SV_TICK_RATE * 4)  // keep 1 second of input data
+#define CL_WORLD_HISTORY        (SV_TICK_RATE / 2 + 1)  // >= 500 ms of data
 #define CL_CHAT_HISTORY         256
 
 #define PACKET_SIZE_MAX         1024
@@ -50,7 +50,7 @@
 #define STRING_ASCII_MAX        126
 #define USERNAME_LENGTH_MIN     2
 #define USERNAME_LENGTH_MAX     32
-#define PASSWORD_LENGTH_MIN     0   // TODO: Increase to 8
+#define PASSWORD_LENGTH_MIN     4   // TODO: Increase to 8
 #define PASSWORD_LENGTH_MAX     64
 #define TIMESTAMP_LENGTH        12  // hh:MM:SS AM
 #define MOTD_LENGTH_MIN         0

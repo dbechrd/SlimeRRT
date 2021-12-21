@@ -32,14 +32,18 @@ struct UI {
         UI::spycam      = spycam;
     };
 
+    // World UI
+    static void TileHoverOutline(const Tilemap &map);
+    static void WorldGrid(const Tilemap &map);
+
+    // Screen UI
+    static void Minimap(const World &world);
     static void LoginForm(NetClient &netClient, ImGuiIO& io, bool &escape);
     static void Mixer(void);
-    static void WorldGrid(const Tilemap &map);
-    static void TileHoverOutline(const Tilemap &map);
-    static void TileHoverTip(const Tilemap &map);
-    static void Minimap(const World &world);
+    static void Netstat(NetClient &netClient, double renderAt);
     static void HUD(const Player &player, const DebugStats &debugStats);
     static void Chat(World &world, NetClient &netClient, bool processKeyboard, bool &chatActive, bool &escape);
+    static void TileHoverTip(const Tilemap &map);
 
 private:
     static Font    *font;
@@ -48,5 +52,5 @@ private:
     static Vector2 screenSize;
     static Spycam  *spycam;
 
-    static void CenteredText(const char *text, const char *textToMeasure);
+    static void CenteredText(const char *text);
 };

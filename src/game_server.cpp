@@ -27,6 +27,8 @@ ErrorType GameServer::Run()
             Slime &slime = world->slimes[i];
             uint32_t slimeId = 0;
             world->SpawnSlime(0);
+            slime.body.position = world->GetWorldSpawn();
+            slime.body.position.y -= 50;
         }
     }
 
@@ -80,7 +82,7 @@ ErrorType GameServer::Run()
             for (size_t i = 0; i < SV_MAX_PLAYERS; i++) {
                 NetServerClient &client = netServer.clients[i];
                 if (client.playerId && (glfwGetTime() - client.lastSnapshotSentAt) > (1000.0 / SNAPSHOT_SEND_RATE) / 1000.0) {
-                    printf("Sending snapshot for tick %u to player %u\n", world->tick, client.playerId);
+                    printf("Sending snapshot for tick %u / input seq #%u, to player %u\n", world->tick, client.lastInputAck, client.playerId);
                     WorldSnapshot &worldSnapshot = client.worldHistory.Alloc();
                     assert(!worldSnapshot.tick);  // ringbuffer alloc fucked up and didn't zero slot
                     worldSnapshot.playerId = client.playerId;
