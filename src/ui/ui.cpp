@@ -10,7 +10,7 @@
 Font    *UI::font;
 Vector2 UI::mouseScreen;
 Vector2 UI::mouseWorld;
-Vector2 UI::screenRect;
+Vector2 UI::screenSize;
 Spycam  *UI::spycam;
 
 void UI::CenteredText(const char *text, const char *textToMeasure = 0)
@@ -236,8 +236,8 @@ void UI::TileHoverTip(const Tilemap &map)
     const float tooltipW = 220.0f + tooltipPad * 2.0f;
     const float tooltipH = 40.0f + tooltipPad * 2.0f;
 
-    if (tooltipX + tooltipW > screenRect.x) tooltipX = screenRect.x - tooltipW;
-    if (tooltipY + tooltipH > screenRect.y) tooltipY = screenRect.y - tooltipH;
+    if (tooltipX + tooltipW > screenSize.x) tooltipX = screenSize.x - tooltipW;
+    if (tooltipY + tooltipH > screenSize.y) tooltipY = screenSize.y - tooltipH;
 
     Rectangle tooltipRect{ tooltipX, tooltipY, tooltipW, tooltipH };
     DrawRectangleRec(tooltipRect, Fade(DARKGRAY, 0.8f));
@@ -262,7 +262,7 @@ void UI::Minimap(const World &world)
     // Render minimap
     const int minimapMargin = 6;
     const int minimapBorderWidth = 1;
-    const int minimapX = (int)screenRect.x - minimapMargin - world.map->minimap.width - minimapBorderWidth * 2;
+    const int minimapX = (int)screenSize.x - minimapMargin - world.map->minimap.width - minimapBorderWidth * 2;
     const int minimapY = minimapMargin;
     const int minimapW = world.map->minimap.width + minimapBorderWidth * 2;
     const int minimapH = world.map->minimap.height + minimapBorderWidth * 2;
@@ -403,4 +403,53 @@ void UI::HUD(const Player &player, const DebugStats &debugStats)
     }
 #endif
 #undef PUSH_TEXT
+}
+
+void UI::Chat(World &world, NetClient &netClient, bool processKeyboard, bool &chatActive, bool &escape)
+{
+    const float margin = 6.0f;   // left/bottom margin
+    const float pad = 4.0f;      // left/bottom pad
+    const float inputBoxHeight = font->baseSize + pad * 2.0f;
+    const float chatWidth = 800.0f;
+    const float chatBottom = screenSize.y - margin - inputBoxHeight;
+
+    // Render chat history
+    world.chatHistory.Render(*font, margin, chatBottom, chatWidth, chatActive);
+
+    // Render chat input box
+    static GuiTextBoxAdvancedState chatInputState;
+    if (chatActive) {
+        static int chatInputTextLen = 0;
+        static char chatInputText[CHATMSG_LENGTH_MAX]{};
+
+        Rectangle chatInputRect = { margin, screenSize.y - margin - inputBoxHeight, chatWidth, inputBoxHeight };
+        if (GuiTextBoxAdvanced(&chatInputState, chatInputRect, chatInputText, &chatInputTextLen, CHATMSG_LENGTH_MAX, !processKeyboard)) {
+            if (chatInputTextLen) {
+                ErrorType sendResult = netClient.SendChatMessage(chatInputText, chatInputTextLen);
+                switch (sendResult) {
+                    case ErrorType::NotConnected:
+                    {
+                        world.chatHistory.PushMessage(CSTR("Sam"), CSTR("You're not connected to a server. Nobody is listening. :("));
+                        break;
+                    }
+                }
+                chatActive = false;
+                memset(chatInputText, 0, sizeof(chatInputText));
+                chatInputTextLen = 0;
+            }
+        }
+
+        if (escape) {
+            chatActive = false;
+            memset(chatInputText, 0, sizeof(chatInputText));
+            chatInputTextLen = 0;
+            escape = false;
+        }
+    }
+
+    // HACK: Check for this *after* rendering chat to avoid pressing "t" causing it to show up in the chat box
+    if (!chatActive && processKeyboard && IsKeyDown(KEY_T)) {
+        chatActive = true;
+        GuiSetActiveTextbox(&chatInputState);
+    }
 }

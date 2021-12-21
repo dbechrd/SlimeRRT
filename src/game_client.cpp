@@ -214,6 +214,7 @@ ErrorType GameClient::Run(void)
         assert(playerPtr);
         Player &player = *playerPtr;
 
+        double renderAt = 0;
         if (connectedToServer) {
             if (netClient.worldHistory.Count()) {
                 WorldSnapshot &worldSnapshot = netClient.worldHistory.Last();
@@ -246,10 +247,11 @@ ErrorType GameClient::Run(void)
                 }
 
                 // Interpolate all of the other entities in the world
-                //double renderAt = glfwGetTime() - ((1000.0 / (SNAPSHOT_SEND_RATE * 5.0)) / 1000.0);
-                //double renderAt = glfwGetTime() - ((1.0 / SNAPSHOT_SEND_RATE) * 2.0 + (1.0 / netClient.server->lastRoundTripTime) * 2.0);
-                double renderAt = glfwGetTime() - (100.0 / 1000.0);
-                //double renderAt = worldSnapshot.recvAt;
+                //renderAt = glfwGetTime() - ((1000.0 / (SNAPSHOT_SEND_RATE * 5.0)) / 1000.0);
+                //renderAt = glfwGetTime() - ((1.0 / SNAPSHOT_SEND_RATE) * 2.0 + (1.0 / netClient.server->lastRoundTripTime) * 2.0);
+                renderAt = glfwGetTime() - (100.0 / 1000.0);
+                //renderAt = now - (100.0 / 1000.0);
+                //renderAt = worldSnapshot.recvAt;
                 world->Interpolate(renderAt);
             }
         } else {
@@ -466,59 +468,7 @@ ErrorType GameClient::Run(void)
         debugStats.particlesActive = world->particleSystem.ParticlesActive();
 #endif
         UI::HUD(player, debugStats);
-
-        {
-            const float margin = 6.0f;   // left/bottom margin
-            const float pad = 4.0f;      // left/bottom pad
-            const float inputBoxHeight = font.baseSize + pad * 2.0f;
-            const float chatWidth = 800.0f;
-            const float chatBottom = screenHeight - margin - inputBoxHeight;
-
-            // Render chat history
-            world->chatHistory.Render(font, margin, chatBottom, chatWidth, chatActive);
-
-            // Render chat input box
-            static GuiTextBoxAdvancedState chatInputState;
-            if (chatActive) {
-                static int chatInputTextLen = 0;
-                static char chatInputText[CHATMSG_LENGTH_MAX]{};
-
-                Rectangle chatInputRect = { margin, screenHeight - margin - inputBoxHeight, chatWidth, inputBoxHeight };
-                if (GuiTextBoxAdvanced(&chatInputState, chatInputRect, chatInputText, &chatInputTextLen, CHATMSG_LENGTH_MAX, io.WantCaptureKeyboard)) {
-                    if (chatInputTextLen) {
-                        ErrorType sendResult = netClient.SendChatMessage(chatInputText, chatInputTextLen);
-                        switch (sendResult) {
-                            case ErrorType::NotConnected:
-                            {
-                                world->chatHistory.PushMessage(CSTR("Sam"), CSTR("You're not connected to a server. Nobody is listening. :("));
-                                break;
-                            }
-                        }
-                        chatActive = false;
-                        memset(chatInputText, 0, sizeof(chatInputText));
-                        chatInputTextLen = 0;
-                    }
-                }
-
-                if (escape) {
-                    chatActive = false;
-                    memset(chatInputText, 0, sizeof(chatInputText));
-                    chatInputTextLen = 0;
-                    escape = false;
-                }
-            }
-
-            // HACK: Check for this *after* rendering chat to avoid pressing "t" causing it to show up in the chat box
-            if (!chatActive && !io.WantCaptureKeyboard && IsKeyDown(KEY_T)) {
-                chatActive = true;
-                GuiSetActiveTextbox(&chatInputState);
-            }
-        }
-
-        // Render mouse tile tooltip
-        if (input.dbgFindMouseTile) {
-            UI::TileHoverTip(*world->map);
-        }
+        UI::Chat(*world, netClient, !io.WantCaptureKeyboard, chatActive, escape);
 
         rlDrawRenderBatchActive();
 
@@ -531,6 +481,12 @@ ErrorType GameClient::Run(void)
 
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+        // Render mouse tile tooltip
+        if (input.dbgFindMouseTile) {
+            UI::TileHoverTip(*world->map);
+        }
+
         EndDrawing();
         //----------------------------------------------------------------------------------
 

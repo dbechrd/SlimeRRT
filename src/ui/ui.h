@@ -22,13 +22,13 @@ struct UI {
         Font    *font,
         Vector2 mouseScreen,
         Vector2 mouseWorld,
-        Vector2 screenRect,
+        Vector2 screenSize,
         Spycam  *spycam
     ) {
         UI::font        = font;
         UI::mouseScreen = mouseScreen;
         UI::mouseWorld  = mouseWorld;
-        UI::screenRect  = screenRect;
+        UI::screenSize  = screenSize;
         UI::spycam      = spycam;
     };
 
@@ -39,12 +39,13 @@ struct UI {
     static void TileHoverTip(const Tilemap &map);
     static void Minimap(const World &world);
     static void HUD(const Player &player, const DebugStats &debugStats);
+    static void Chat(World &world, NetClient &netClient, bool processKeyboard, bool &chatActive, bool &escape);
 
 private:
     static Font    *font;
     static Vector2 mouseScreen;
     static Vector2 mouseWorld;
-    static Vector2 screenRect;
+    static Vector2 screenSize;
     static Spycam  *spycam;
 
     static void CenteredText(const char *text, const char *textToMeasure);
