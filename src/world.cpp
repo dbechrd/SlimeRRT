@@ -455,7 +455,7 @@ bool World::InterpolateBody(Body3D &body, double renderAt)
 
         // TODO: Send explicitly despawn event from server
         // If we haven't seen an entity in 2 snapshots, chances are it's gone
-        if (renderAt > newest.recvAt) { // + (1.0 / SNAPSHOT_SEND_RATE) * 2) {
+        if (renderAt > newest.recvAt + (1.0 / SNAPSHOT_SEND_RATE) * 2) {
             printf("Despawning body due to inactivity\n");
             return false;
         }

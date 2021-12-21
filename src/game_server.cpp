@@ -27,8 +27,8 @@ ErrorType GameServer::Run()
             Slime &slime = world->slimes[i];
             uint32_t slimeId = 0;
             world->SpawnSlime(0);
-            slime.body.position = world->GetWorldSpawn();
-            slime.body.position.y -= 50;
+            //slime.body.position = world->GetWorldSpawn();
+            //slime.body.position.y -= 50;
         }
     }
 
@@ -40,6 +40,7 @@ ErrorType GameServer::Run()
 
     bool running = true;
     while (running) {
+        world->tick++;
         E_ASSERT(netServer.Listen(), "Failed to listen on socket");
 
         double now = glfwGetTime();
@@ -93,7 +94,6 @@ ErrorType GameServer::Run()
                 }
             }
 
-            world->tick++;
             tickAccum -= tickDt;
         }
     }

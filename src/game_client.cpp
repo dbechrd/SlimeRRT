@@ -214,7 +214,7 @@ ErrorType GameClient::Run(void)
         assert(playerPtr);
         Player &player = *playerPtr;
 
-        double renderAt[5]{};
+        double renderAt = 0;
         if (connectedToServer) {
             if (netClient.worldHistory.Count()) {
                 WorldSnapshot &worldSnapshot = netClient.worldHistory.Last();
@@ -223,22 +223,24 @@ ErrorType GameClient::Run(void)
                 if (lastTickAck < worldSnapshot.tick) {
                     lastTickAck = worldSnapshot.tick;
 
+                    world->tick = worldSnapshot.tick;
+
                     // TODO: Update world state from worldSnapshot and re-apply input with input.tick > snapshot.tick
                     netClient.ReconcilePlayer(tickDt);
                 }
                 // TODO: Update world state from worldSnapshot and re-apply input with input.tick > snapshot.tick
                 //netClient.ReconcilePlayer(tickDt);
 
-                while (tickAccum > tickDt) {
+                //while (tickAccum > tickDt) {
                     InputSample &inputSample = netClient.inputHistory.Alloc();
                     inputSample.FromController(player.id, lastTickAck, input);
 
                     assert(world->map);
-                    //player.Update(tickDt, inputSample, *world->map);
+                    player.Update(tickDt, inputSample, *world->map);
                     world->particleSystem.Update(tickDt);
 
                     tickAccum -= tickDt;
-                }
+                //}
 
                 // Send input to server at a fixed rate that matches server tick rate
                 while (sendInputAccum > sendInputDt) {
@@ -247,12 +249,15 @@ ErrorType GameClient::Run(void)
                 }
 
                 // Interpolate all of the other entities in the world
-                renderAt[0] = glfwGetTime() - ((1000.0 / (SNAPSHOT_SEND_RATE * 5.0)) / 1000.0);
-                renderAt[1] = glfwGetTime() - ((1.0 / SNAPSHOT_SEND_RATE) + (1.0 / netClient.server->lastRoundTripTime) * 1.5);
-                renderAt[2] = glfwGetTime() - (100.0 / 1000.0);
-                renderAt[3] = now - (100.0 / 1000.0);
-                renderAt[4] = worldSnapshot.recvAt;
-                world->Interpolate(renderAt[2]);
+                //printf("RTT: %u RTTv: %u LRT: %u LRTv: %u HRTv %u\n",
+                //    netClient.server->roundTripTime,
+                //    netClient.server->roundTripTimeVariance,
+                //    netClient.server->lastRoundTripTime,
+                //    netClient.server->lastRoundTripTimeVariance,
+                //    netClient.server->highestRoundTripTimeVariance
+                //);
+                renderAt = now - (1.0 / SNAPSHOT_SEND_RATE) - (1.0 / (netClient.server->lastRoundTripTime + netClient.server->lastRoundTripTimeVariance));
+                world->Interpolate(renderAt);
             }
         } else {
 #if 1
@@ -460,7 +465,7 @@ ErrorType GameClient::Run(void)
         debugStats.tickAccum = tickAccum;
         debugStats.frameDt = frameDt;
         if (netClient.server) {
-            debugStats.ping = netClient.server->lastRoundTripTime;
+            debugStats.ping = netClient.server->roundTripTime;
         }
         debugStats.cameraSpeed = spycam.cameraSpeed;
         debugStats.tilesDrawn = tilesDrawn;
@@ -478,12 +483,7 @@ ErrorType GameClient::Run(void)
 
         UI::LoginForm(netClient, io, escape);
         UI::Mixer();
-
-        for (int i = 0; i < ARRAY_SIZE(renderAt); i++) {
-            ImGui::PushID(0);
-            UI::Netstat(netClient, renderAt[i]);
-            ImGui::PopID();
-        }
+        UI::Netstat(netClient, renderAt);
 
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
