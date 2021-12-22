@@ -37,7 +37,7 @@ void ChatHistory::PushMessage(const char *username, size_t usernameLength, const
     memcpy(chat.message, message, chat.messageLength);
 }
 
-void ChatHistory::Render(Font &font, float left, float bottom, float chatWidth, bool chatActive)
+void ChatHistory::Render(const Font &font, float left, float bottom, float chatWidth, bool chatActive)
 {
     double now = glfwGetTime();
     const float fadeBeginAt = 9.0f;

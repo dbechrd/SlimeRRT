@@ -7,7 +7,6 @@
 #include "GLFW/glfw3.h"
 #include "raylib/raylib.h"
 
-Font    *UI::font;
 Vector2 UI::mouseScreen;
 Vector2 UI::mouseWorld;
 Vector2 UI::screenSize;
@@ -49,10 +48,8 @@ void UI::WorldGrid(const Tilemap &map)
     DrawLineEx({ (float)center_x, 0 }, { (float)center_x, (float)map.height * TILE_H }, 3.0f, GREEN);
 }
 
-void UI::Minimap(const World &world)
+void UI::Minimap(const Font &font, const World &world)
 {
-    assert(font);
-
     // Render minimap
     const int minimapMargin = 6;
     const int minimapBorderWidth = 1;
@@ -84,8 +81,8 @@ void UI::Minimap(const World &world)
             const Color playerColor{ 220, 90, 20, 255 };
             DrawCircle((int)x, (int)y, 2.0f, playerColor);
             const char *pName = TextFormat("%.*s", p.nameLength, p.name);
-            int nameWidth = MeasureText(pName, font->baseSize);
-            DrawTextFont(*font, pName, x - (float)(nameWidth / 2), y - font->baseSize - 4, font->baseSize, YELLOW);
+            int nameWidth = MeasureText(pName, font.baseSize);
+            DrawTextFont(font, pName, x - (float)(nameWidth / 2), y - font.baseSize - 4, font.baseSize, YELLOW);
         }
     }
 }
@@ -202,8 +199,6 @@ void UI::LoginForm(NetClient &netClient, ImGuiIO& io, bool &escape)
                 ImGui::Text("");
             }
 
-            bool closePopup = escape;
-
             ImGui::BeginDisabled(netClient.IsConnecting());
 
             ImGui::SetCursorPosX(177.0f);
@@ -228,13 +223,10 @@ void UI::LoginForm(NetClient &netClient, ImGuiIO& io, bool &escape)
             //ImGui::PushStyleColor(ImGuiCol_Button, 0xFF999999);
             bool cancel = ImGui::Button("Cancel##login_window:cancel", ImVec2(60, 0));
             //ImGui::PopStyleColor();
-            if (cancel || IsKeyPressed(io.KeyMap[ImGuiKey_Escape])) {
-                closePopup = true;
-            }
 
             ImGui::EndDisabled();
 
-            if (closePopup) {
+            if (cancel || escape) {
                 ImGui::CloseCurrentPopup();
                 memset(username, 0, sizeof(username));
                 memset(password, 0, sizeof(password));
@@ -314,17 +306,16 @@ void UI::Netstat(NetClient &netClient, double renderAt)
     ImGui::End();
 }
 
-void UI::HUD(const Player &player, const DebugStats &debugStats)
+void UI::HUD(const Font &font, const Player &player, const DebugStats &debugStats)
 {
-    assert(font);
     assert(spycam);
 
     const char *text = 0;
     float hudCursorY = 0;
 
 #define PUSH_TEXT(text, color) \
-    DrawTextFont(*font, text, margin + pad, hudCursorY, font->baseSize, color); \
-    hudCursorY += font->baseSize + pad; \
+    DrawTextFont(font, text, margin + pad, hudCursorY, font.baseSize, color); \
+    hudCursorY += font.baseSize + pad; \
 
     int linesOfText = 8;
     if (debugStats.tick) {
@@ -336,7 +327,7 @@ void UI::HUD(const Player &player, const DebugStats &debugStats)
     const float margin = 6.0f;   // left/top margin
     const float pad = 4.0f;      // left/top pad
     const float hudWidth = 240.0f;
-    const float hudHeight = linesOfText * (font->baseSize + pad) + pad;
+    const float hudHeight = linesOfText * (font.baseSize + pad) + pad;
 
     hudCursorY += margin;
 
@@ -423,16 +414,16 @@ void UI::HUD(const Player &player, const DebugStats &debugStats)
 #undef PUSH_TEXT
 }
 
-void UI::Chat(World &world, NetClient &netClient, bool processKeyboard, bool &chatActive, bool &escape)
+void UI::Chat(const Font &font, World &world, NetClient &netClient, bool processKeyboard, bool &chatActive, bool &escape)
 {
     const float margin = 6.0f;   // left/bottom margin
     const float pad = 4.0f;      // left/bottom pad
-    const float inputBoxHeight = font->baseSize + pad * 2.0f;
+    const float inputBoxHeight = font.baseSize + pad * 2.0f;
     const float chatWidth = 800.0f;
     const float chatBottom = screenSize.y - margin - inputBoxHeight;
 
     // Render chat history
-    world.chatHistory.Render(*font, margin, chatBottom, chatWidth, chatActive);
+    world.chatHistory.Render(font, margin, chatBottom, chatWidth, chatActive);
 
     // Render chat input box
     static GuiTextBoxAdvancedState chatInputState;
@@ -457,7 +448,7 @@ void UI::Chat(World &world, NetClient &netClient, bool processKeyboard, bool &ch
             }
         }
 
-        if (escape) {
+        if (processKeyboard && escape) {
             chatActive = false;
             memset(chatInputText, 0, sizeof(chatInputText));
             chatInputTextLen = 0;
@@ -466,16 +457,14 @@ void UI::Chat(World &world, NetClient &netClient, bool processKeyboard, bool &ch
     }
 
     // HACK: Check for this *after* rendering chat to avoid pressing "t" causing it to show up in the chat box
-    if (!chatActive && processKeyboard && IsKeyDown(KEY_T)) {
+    if (processKeyboard && IsKeyDown(KEY_T) && !chatActive) {
         chatActive = true;
         GuiSetActiveTextbox(&chatInputState);
     }
 }
 
-void UI::TileHoverTip(const Tilemap &map)
+void UI::TileHoverTip(const Font &font, const Tilemap &map)
 {
-    assert(font);
-
     int mouseTileX = 0;
     int mouseTileY = 0;
     Tile *mouseTile = map.TileAtWorldTry(mouseWorld.x, mouseWorld.y, &mouseTileX, &mouseTileY);
@@ -500,13 +489,71 @@ void UI::TileHoverTip(const Tilemap &map)
     DrawRectangleLinesEx(tooltipRect, 1, Fade(BLACK, 0.8f));
 
     int lineOffset = 0;
-    DrawTextFont(*font, TextFormat("tilePos : %d, %d", mouseTileX, mouseTileY),
-        tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, font->baseSize, WHITE);
-    lineOffset += font->baseSize;
-    DrawTextFont(*font, TextFormat("tileSize: %zu, %zu", TILE_W, TILE_W),
-        tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, font->baseSize, WHITE);
-    lineOffset += font->baseSize;
-    DrawTextFont(*font, TextFormat("tileType: %d", mouseTile->tileType),
-        tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, font->baseSize, WHITE);
-    lineOffset += font->baseSize;
+    DrawTextFont(font, TextFormat("tilePos : %d, %d", mouseTileX, mouseTileY),
+        tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, font.baseSize, WHITE);
+    lineOffset += font.baseSize;
+    DrawTextFont(font, TextFormat("tileSize: %zu, %zu", TILE_W, TILE_W),
+        tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, font.baseSize, WHITE);
+    lineOffset += font.baseSize;
+    DrawTextFont(font, TextFormat("tileType: %d", mouseTile->tileType),
+        tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, font.baseSize, WHITE);
+    lineOffset += font.baseSize;
+}
+
+int UI::Menu(const Font &font, bool &escape, bool &exiting, const char **items, size_t itemCount)
+{
+    int itemPressed = -1;
+
+    Vector2 menuPos{};
+    Vector2 menuSize{};
+    Vector2 menuPad{ 60.0f, 40.0f };
+    const float menuSpacingY = 20.0f;
+    const float hitboxPadY = 4.0f;
+
+    struct MenuItem {
+        const char *text;
+        Vector2 size;
+        Vector2 offset;  // offset itemX from center line and itemY from top
+    } menuItems[UI_MENU_ITEMS_MAX]{};
+    assert(itemCount < ARRAY_SIZE(menuItems));
+
+    Vector2 cursor{};
+    cursor.y = menuPad.y;
+    menuSize.y += menuPad.y;
+    for (int i = 0; i < itemCount; i++) {
+        menuItems[i].text = items[i];
+        menuItems[i].size = MeasureTextEx(font, menuItems[i].text, (float)font.baseSize, font.baseSize /10.0f);
+        menuItems[i].offset.x = -menuItems[i].size.x / 2.0f;
+        menuItems[i].offset.y = cursor.y;
+        cursor.y += menuItems[i].size.y + menuSpacingY;
+        menuSize.x = MAX(menuSize.x, menuItems[i].size.x + menuPad.x * 2);
+    }
+    cursor.y -= menuSpacingY;
+    cursor.y += menuPad.y;
+    menuSize.y = cursor.y;
+
+    menuPos.x = (screenSize.x - menuSize.x) / 2.0f;
+    menuPos.y = (screenSize.y - menuSize.y) / 2.0f;
+
+    Rectangle menuRect{ menuPos.x, menuPos.y, menuSize.x, menuSize.y };
+    DrawRectangleRec(menuRect, Fade(BLACK, 0.7f));
+    DrawRectangleLinesEx(menuRect, 2.0f, BLACK);
+    const float menuCenterX = menuPos.x + menuSize.x / 2.0f;
+    for (int i = 0; i < ARRAY_SIZE(menuItems); i++) {
+        Vector2 itemPos{};
+        itemPos.x = menuCenterX + menuItems[i].offset.x;
+        itemPos.y = menuPos.y + menuItems[i].offset.y;
+        Rectangle hitbox{ menuPos.x + menuPad.x, itemPos.y - hitboxPadY, menuSize.x - menuPad.x * 2, menuItems[i].size.y + hitboxPadY * 2 };
+        bool hovered = PointInRect(mouseScreen, hitbox);
+        bool pressed = hovered && IsMouseButtonDown(MOUSE_LEFT_BUTTON);
+        if (pressed) {
+            itemPressed = i;
+        }
+        //DrawRectangleRec(hitbox, Fade(RED, 0.3f + 0.3f * i));
+        //DrawRectangleRec({ itemPos.x, itemPos.y, menuItems[i].size.x, menuItems[i].size.y }, Fade(GREEN, 0.3f + 0.3f * i));
+        DrawTextFont(font, menuItems[i].text, itemPos.x, itemPos.y, font.baseSize, hovered ? pressed ? RED : YELLOW : WHITE);
+    }
+
+    escape = false;
+    return itemPressed;
 }

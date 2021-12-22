@@ -1,10 +1,11 @@
+#include "catalog/items.h"
 #include "catalog/sounds.h"
 #include "catalog/spritesheets.h"
 #include "catalog/tracks.h"
 #include "draw_command.h"
 #include "game_client.h"
 #include "healthbar.h"
-#include "catalog/items.h"
+#include "input_mode.h"
 #include "loot_table.h"
 #include "net_client.h"
 #include "particles.h"
@@ -55,11 +56,13 @@ ErrorType GameClient::Run(void)
     ImGui_ImplGlfw_InitForOpenGL(glfwWindow, true);
     ImGui_ImplOpenGL3_Init("#version 130");
 
-    const int fontHeight = 14;
-    Font font = LoadFontEx("C:/Windows/Fonts/consola.ttf", fontHeight, 0, 0);
-    //font = LoadFontEx("resources/UbuntuMono-Regular.ttf", fontHeight, 0, 0);
-    assert(font.texture.id);
-    GuiSetFont(font);
+    const char *fontName = "C:/Windows/Fonts/consola.ttf";
+    //const char *fontName = "resources/UbuntuMono-Regular.ttf";
+    Font fontSmall = LoadFontEx(fontName, 14, 0, 0);
+    Font fontBig = LoadFontEx(fontName, 48, 0, 0);
+    assert(fontSmall.texture.id);
+    assert(fontBig.texture.id);
+    GuiSetFont(fontSmall);
 
     HealthBar::SetFont(GetFontDefault());
 
@@ -144,7 +147,12 @@ ErrorType GameClient::Run(void)
     //SetTargetFPS(targetFPS);
     SetWindowState(FLAG_VSYNC_HINT);
     bool gifRecording = false;
-    bool chatActive = false;
+    bool chatVisible = false;
+    bool menuActive = false;
+    bool disconnectRequested = false;
+    bool quit = false;
+
+    InputMode inputMode = INPUT_MODE_PLAY;
 
     bool show_demo_window = false;
     //---------------------------------------------------------------------------------------
@@ -152,7 +160,7 @@ ErrorType GameClient::Run(void)
 #define KEY_DOWN(key)
 
     // Main game loop
-    while (!WindowShouldClose()) {
+    while (!quit && !WindowShouldClose()) {
         double now = glfwGetTime();
         double frameDt = now - frameStart;
         // Limit delta time to prevent spiraling for after long hitches (e.g. hitting a breakpoint)
@@ -173,11 +181,24 @@ ErrorType GameClient::Run(void)
             spycam.Reset();
         }
 
-        const bool imguiUsingMouse = io.WantCaptureMouse;
-        const bool imguiUsingKeyboard = io.WantCaptureKeyboard;
+        if (menuActive) {
+            inputMode = INPUT_MODE_MENU;
+        } else if (io.WantCaptureKeyboard) {
+            inputMode = INPUT_MODE_IMGUI;
+        } else if (chatVisible) {
+            inputMode = INPUT_MODE_CHAT;
+        } else {
+            inputMode = INPUT_MODE_PLAY;
+        }
 
-        const bool processMouse = !imguiUsingMouse;
-        const bool processKeyboard = !imguiUsingKeyboard && !chatActive;
+        if (inputMode == INPUT_MODE_MENU) {
+            io.ConfigFlags |= ImGuiConfigFlags_NoMouse | ImGuiConfigFlags_NavNoCaptureKeyboard;
+        } else {
+            io.ConfigFlags &= ~ImGuiConfigFlags_NoMouse & ~ImGuiConfigFlags_NavNoCaptureKeyboard;
+        }
+
+        const bool processMouse = inputMode == INPUT_MODE_PLAY && !io.WantCaptureMouse;
+        const bool processKeyboard = inputMode == INPUT_MODE_PLAY;
         PlayerControllerState input = PlayerControllerState::Query(processMouse, processKeyboard, spycam.freeRoam);
         bool escape = IsKeyPressed(KEY_ESCAPE);
 
@@ -381,7 +402,7 @@ ErrorType GameClient::Run(void)
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
-        UI::Begin(&font,  mousePosScreen, mousePosWorld, { (float)screenWidth, (float)screenHeight }, &spycam);
+        UI::Begin(mousePosScreen, mousePosWorld, { (float)screenWidth, (float)screenHeight }, &spycam);
 
         ClearBackground(ORANGE);
         DrawTexture(checkboardTexture, 0, 0, WHITE);
@@ -456,7 +477,7 @@ ErrorType GameClient::Run(void)
 
         EndMode2D();
 
-        UI::Minimap(*world);
+        UI::Minimap(fontSmall, *world);
 
         // Render HUD
         UI::DebugStats debugStats{};
@@ -472,8 +493,8 @@ ErrorType GameClient::Run(void)
         debugStats.effectsActive = world->particleSystem.EffectsActive();
         debugStats.particlesActive = world->particleSystem.ParticlesActive();
 #endif
-        UI::HUD(player, debugStats);
-        UI::Chat(*world, netClient, !io.WantCaptureKeyboard, chatActive, escape);
+        UI::HUD(fontSmall, player, debugStats);
+        UI::Chat(fontSmall, *world, netClient, inputMode == INPUT_MODE_PLAY || inputMode == INPUT_MODE_CHAT, chatVisible, escape);
 
         rlDrawRenderBatchActive();
 
@@ -490,21 +511,52 @@ ErrorType GameClient::Run(void)
 
         // Render mouse tile tooltip
         if (input.dbgFindMouseTile) {
-            UI::TileHoverTip(*world->map);
+            UI::TileHoverTip(fontSmall, *world->map);
+        }
+
+        if (escape) {
+            menuActive = !menuActive;
+        }
+
+        if (menuActive) {
+            if (connectedToServer) {
+                const char *menuItems[] = { "Resume", "Audio", "Log off" };
+                switch (UI::Menu(fontBig, escape, quit, menuItems, ARRAY_SIZE(menuItems))) {
+                    case 0: {    // Resume
+                        menuActive = false;
+                        break;
+                    } case 1: {  // Audio
+                        break;
+                    } case 2: {  // Log off
+                        disconnectRequested = true;
+                        menuActive = false;
+                        break;
+                    }
+                }
+            } else {
+                const char *menuItems[] = { "Resume", "Audio", "Quit" };
+                switch (UI::Menu(fontBig, escape, quit, menuItems, ARRAY_SIZE(menuItems))) {
+                    case 0: {    // Resume
+                        menuActive = false;
+                        break;
+                    } case 1: {  // Audio
+                        break;
+                    } case 2: {  // Quit
+                        menuActive = false;
+                        quit = true;
+                        break;
+                    }
+                }
+            }
         }
 
         EndDrawing();
         //----------------------------------------------------------------------------------
 
-        if (escape) {
-            if (connectedToServer) {
-                netClient.Disconnect();
-                world = lobby;
-                escape = false;
-            } else {
-                // If nobody else handled the escape key, time to exit!
-                break;
-            }
+        if (disconnectRequested && connectedToServer) {
+            netClient.Disconnect();
+            world = lobby;
+            disconnectRequested = false;
         }
     }
 
@@ -513,9 +565,12 @@ ErrorType GameClient::Run(void)
     // TODO: Wrap these in classes to use destructors?
     delete lobby;
     UnloadTexture(checkboardTexture);
-    UnloadFont(font);
+    UnloadFont(fontSmall);
+    UnloadFont(fontBig);
     Catalog::g_tracks.Unload();
     Catalog::g_sounds.Unload();
+
+    // TODO: Fix exception in miniaudio when calling this
     CloseAudioDevice();
 
     ImGui_ImplOpenGL3_Shutdown();

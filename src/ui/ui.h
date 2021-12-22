@@ -1,5 +1,7 @@
 #pragma once
 
+#define UI_MENU_ITEMS_MAX 64
+
 struct ImGuiIO;
 struct NetClient;
 struct Spycam;
@@ -19,13 +21,11 @@ struct UI {
     };
 
     static void Begin(
-        Font    *font,
         Vector2 mouseScreen,
         Vector2 mouseWorld,
         Vector2 screenSize,
         Spycam  *spycam
     ) {
-        UI::font        = font;
         UI::mouseScreen = mouseScreen;
         UI::mouseWorld  = mouseWorld;
         UI::screenSize  = screenSize;
@@ -37,16 +37,16 @@ struct UI {
     static void WorldGrid(const Tilemap &map);
 
     // Screen UI
-    static void Minimap(const World &world);
+    static void Minimap(const Font &font, const World &world);
     static void LoginForm(NetClient &netClient, ImGuiIO& io, bool &escape);
     static void Mixer(void);
     static void Netstat(NetClient &netClient, double renderAt);
-    static void HUD(const Player &player, const DebugStats &debugStats);
-    static void Chat(World &world, NetClient &netClient, bool processKeyboard, bool &chatActive, bool &escape);
-    static void TileHoverTip(const Tilemap &map);
+    static void HUD(const Font &font, const Player &player, const DebugStats &debugStats);
+    static void Chat(const Font &font, World &world, NetClient &netClient, bool processKeyboard, bool &chatActive, bool &escape);
+    static void TileHoverTip(const Font &font, const Tilemap &map);
+    static int Menu(const Font &font, bool &escape, bool &exiting, const char **items, size_t itemCount);
 
 private:
-    static Font    *font;
     static Vector2 mouseScreen;
     static Vector2 mouseWorld;
     static Vector2 screenSize;

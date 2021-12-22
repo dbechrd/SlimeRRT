@@ -73,3 +73,8 @@ float VolumeCorrection(float volume)
     float clamped = CLAMP(mapped, 0.0f, 1.0f);
     return clamped;
 }
+
+bool PointInRect(Vector2 &point, Rectangle &rect)
+{
+    return (point.x >= rect.x && point.y >= rect.y && point.x < rect.x + rect.width && point.y < rect.y + rect.height);
+}
