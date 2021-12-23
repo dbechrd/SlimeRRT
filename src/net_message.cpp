@@ -107,7 +107,7 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
             stream.Process(input.sampleCount, 6, 0, CL_INPUT_SAMPLES_MAX);
             for (size_t i = 0; i < input.sampleCount; i++) {
                 InputSample &sample = input.samples[i];
-                bool same = i && sample.Equals(input.samples[i - 1]) && sample.seq == input.samples[i - 1].seq + 1;
+                bool same = i && sample.Equals(input.samples[i - 1]) && (sample.seq == (input.samples[i - 1].seq + 1));
                 stream.ProcessBool(same);
                 if (same) {
                     if (mode == BitStream::Mode::Reader) {

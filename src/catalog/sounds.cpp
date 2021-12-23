@@ -41,8 +41,10 @@ namespace Catalog {
 
     void Sounds::Unload(void)
     {
+        StopSoundMulti();
         for (size_t i = 0; i < (size_t)SoundID::Count; i++) {
             if (byId[i].frameCount) {
+                StopSound(byId[i]);
                 UnloadSound(byId[i]);
             }
         }

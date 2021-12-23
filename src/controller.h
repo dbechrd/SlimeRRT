@@ -2,8 +2,11 @@
 #include "dlb_types.h"
 
 struct PlayerControllerState {
-    bool  escape     {};
-    bool  screenshot {};
+    // Global keys
+    bool escape           {};
+    bool toggleFullscreen {};
+    bool screenshot       {};
+    bool dbgToggleVsync   {};
 
     // Networked input
     bool     walkNorth  {};
@@ -26,14 +29,13 @@ struct PlayerControllerState {
     bool  cameraReset      {};
 
     // Debug
-    bool  dbgFindMouseTile {};
-    bool  dbgImgui         {};
-    bool  dbgToggleVsync   {};
-    bool  dbgChatMessage   {};
-    bool  dbgSpawnSam      {};
-    bool  dbgToggleFreecam {};
-    bool  dbgNextRtreeRect {};
-    bool  dbgKillRtreeRect {};
+    bool dbgFindMouseTile {};
+    bool dbgChatMessage   {};
+    bool dbgSpawnSam      {};
+    bool dbgToggleFreecam {};
+    bool dbgNextRtreeRect {};
+    bool dbgKillRtreeRect {};
+    bool dbgImgui         {};
 
     static PlayerControllerState Query(bool ignoreMouse, bool ignoreKeyboard, bool freeCamera);
 };

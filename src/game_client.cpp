@@ -59,15 +59,15 @@ ErrorType GameClient::Run(void)
     const char *fontName = "C:/Windows/Fonts/consola.ttf";
     //const char *fontName = "resources/UbuntuMono-Regular.ttf";
     Font fontSmall = LoadFontEx(fontName, 14, 0, 0);
-    Font fontBig = LoadFontEx(fontName, 48, 0, 0);
+    Font fontBig = LoadFontEx(fontName, 56, 0, 0);
     assert(fontSmall.texture.id);
     assert(fontBig.texture.id);
     GuiSetFont(fontSmall);
 
     HealthBar::SetFont(GetFontDefault());
 
-    int screenWidth = GetScreenWidth();
-    int screenHeight = GetScreenHeight();
+    int screenWidth = GetRenderWidth();
+    int screenHeight = GetRenderHeight();
 
     // NOTE: There could be other, bigger monitors
     const int monitorWidth = GetMonitorWidth(0);
@@ -175,9 +175,9 @@ ErrorType GameClient::Run(void)
         Catalog::g_tracks.Update((float)frameDt);
         //----------------------------------------------------------------------
 
-        if (IsWindowResized()) {
-            screenWidth = GetScreenWidth();
-            screenHeight = GetScreenHeight();
+        if (GetRenderWidth() != screenWidth || GetRenderHeight() != screenHeight) {
+            screenWidth = GetRenderWidth();
+            screenHeight = GetRenderHeight();
             spycam.Reset();
         }
 
@@ -336,8 +336,19 @@ ErrorType GameClient::Run(void)
             show_demo_window = !show_demo_window;
         }
 
-        if (IsKeyPressed(KEY_F10)) {
-            ToggleFullscreen();
+        if (input.toggleFullscreen) {
+            static int restoreWidth = GetRenderWidth();
+            static int restoreHeight = GetRenderHeight();
+            if (IsWindowFullscreen()) {
+                ToggleFullscreen();
+                SetWindowSize(restoreWidth, restoreHeight);
+            } else {
+                restoreWidth = GetRenderWidth();
+                restoreHeight = GetRenderHeight();
+                int monitor = GetCurrentMonitor();
+                SetWindowSize(GetMonitorWidth(monitor), GetMonitorHeight(monitor));
+                ToggleFullscreen();
+            }
         }
 
         if (input.dbgToggleVsync) {
@@ -482,16 +493,20 @@ ErrorType GameClient::Run(void)
         // Render HUD
         UI::DebugStats debugStats{};
 #if SHOW_DEBUG_STATS
-        debugStats.tick = world->tick;
-        debugStats.tickAccum = tickAccum;
-        debugStats.frameDt = frameDt;
-        if (netClient.server) {
-            debugStats.ping = netClient.server->roundTripTime;
-        }
-        debugStats.cameraSpeed = spycam.cameraSpeed;
-        debugStats.tilesDrawn = tilesDrawn;
-        debugStats.effectsActive = world->particleSystem.EffectsActive();
+        debugStats.tick            = world->tick;
+        debugStats.tickAccum       = tickAccum;
+        debugStats.frameDt         = frameDt;
+        debugStats.cameraSpeed     = spycam.cameraSpeed;
+        debugStats.tilesDrawn      = tilesDrawn;
+        debugStats.effectsActive   = world->particleSystem.EffectsActive();
         debugStats.particlesActive = world->particleSystem.ParticlesActive();
+        if (netClient.server) {
+            debugStats.rtt          = enet_peer_get_rtt(netClient.server);
+            debugStats.packets_sent = enet_peer_get_packets_sent(netClient.server);
+            debugStats.packets_lost = enet_peer_get_packets_lost(netClient.server);
+            debugStats.bytes_sent   = enet_peer_get_bytes_sent(netClient.server);
+            debugStats.bytes_recv   = enet_peer_get_bytes_received(netClient.server);
+        }
 #endif
         UI::HUD(fontSmall, player, debugStats);
         UI::Chat(fontSmall, *world, netClient, inputMode == INPUT_MODE_PLAY || inputMode == INPUT_MODE_CHAT, chatVisible, escape);

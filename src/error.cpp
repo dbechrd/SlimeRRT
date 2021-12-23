@@ -15,7 +15,8 @@ static void traceLogCallback(int logType, const char *text, va_list args)
     fflush(logFile);
     if (logType > LOG_WARNING) {
         fclose(logFile);
-        assert(!"Catch in debugger");
+        //assert(!"Catch in debugger");
+        UNUSED(getc(stdin));
         exit(-1);
     }
 }

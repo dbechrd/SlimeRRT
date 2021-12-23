@@ -38,7 +38,7 @@
 #define CL_INPUT_SAMPLE_RATE    SV_TICK_RATE  // must be equal to SV_TICK_RATE
 #define CL_INPUT_SEND_RATE      SV_TICK_RATE  // can be <= CL_INPUT_SAMPLE_RATE
 #define CL_INPUT_SAMPLES_MAX    SV_TICK_RATE  // send up to 1 second of samples per packet
-#define CL_INPUT_HISTORY        (SV_TICK_RATE * 4)  // keep 1 second of input data
+#define CL_INPUT_HISTORY        (SV_TICK_RATE * 4)  // keep 4 seconds of input data
 #define CL_WORLD_HISTORY        (SV_TICK_RATE / 2 + 1)  // >= 500 ms of data
 #define CL_CHAT_HISTORY         256
 

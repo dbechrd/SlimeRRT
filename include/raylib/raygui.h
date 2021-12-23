@@ -2551,8 +2551,8 @@ bool GuiTextBoxAdvanced(GuiTextBoxAdvancedState *textboxState, Rectangle bounds,
     GuiDrawRectangle(bounds, GuiGetStyle(TEXTBOX, BORDER_WIDTH),
         //Fade(GetColor(GuiGetStyle(TEXTBOX, BORDER + (state*3))), guiAlpha),
         //Fade(GetColor(GuiGetStyle(TEXTBOX, baseColorProperty)), guiAlpha)
-        Fade(BLACK, 0.8f),
-        Fade({ 50, 50, 50, 255 }, 0.6f)
+        BLACK,
+        Fade(BLACK, 0.5f)
     );
 
     if (guiActiveTextbox == textboxState) {

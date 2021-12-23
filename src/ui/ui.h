@@ -13,11 +13,16 @@ struct UI {
         uint32_t tick;
         double tickAccum;
         double frameDt;
-        uint32_t ping;
         float cameraSpeed;
         size_t tilesDrawn;
         size_t effectsActive;
         size_t particlesActive;
+
+        uint32_t rtt;
+        uint64_t packets_sent;
+        uint32_t packets_lost;
+        uint64_t bytes_sent;
+        uint64_t bytes_recv;
     };
 
     static void Begin(

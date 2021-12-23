@@ -50,19 +50,20 @@ void ChatHistory::Render(const Font &font, float left, float bottom, float chatW
 
     const float pad = 4.0f;
     const float chatHeight = (int)chatMsgCount * (font.baseSize + pad) + pad;
+    const Color chatBgColor = Fade(BLACK, 0.5f);
+    const float chatBgAlpha = chatBgColor.a / 255.0f;
 
     // NOTE: The chat history renders from the bottom up (most recent message first)
     float cursorY = bottom - pad - font.baseSize;
     const char *chatText = 0;
     Color chatColor = WHITE;
-    Color chatBgColor = Fade({ 50, 50, 50, 255 }, 0.6f);
     bool bottomLine = true;
 
     if (chatActive) {
         //DrawRectangleRec(rect, Fade(DARKGRAY, 0.8f));
         //DrawRectangleLinesEx(rect, 1, Fade(BLACK, 0.8f));
         DrawRectangle((int)left, (int)(bottom - chatHeight), (int)chatWidth, (int)chatHeight, chatBgColor);
-        DrawRectangleLines((int)left, (int)(bottom - chatHeight), (int)chatWidth, (int)chatHeight, Fade(BLACK, 0.8f));
+        DrawRectangleLines((int)left, (int)(bottom - chatHeight), (int)chatWidth, (int)chatHeight, Fade(BLACK, 0.5f));
     }
 
     for (int i = (int)chatMsgCount - 1; i >= 0; i--) {
@@ -107,10 +108,10 @@ void ChatHistory::Render(const Font &font, float left, float bottom, float chatW
         }
         if (!chatActive) {
             if (bottomLine) {
-                DrawRectangle((int)left, (int)(bottom - pad), (int)chatWidth, (int)pad, Fade(chatBgColor, 0.6f * fadeAlpha));
+                DrawRectangle((int)left, (int)(bottom - pad), (int)chatWidth, (int)pad, Fade(chatBgColor, chatBgAlpha * fadeAlpha));
                 bottomLine = false;
             }
-            DrawRectangleRec({ left, cursorY - pad, chatWidth, font.baseSize + pad }, Fade(chatBgColor, 0.6f * fadeAlpha));
+            DrawRectangleRec({ left, cursorY - pad, chatWidth, font.baseSize + pad }, Fade(chatBgColor, chatBgAlpha * fadeAlpha));
         }
         DrawTextFont(font, chatText, left + pad, cursorY, font.baseSize, Fade(chatColor, fadeAlpha));
         cursorY -= font.baseSize + pad;

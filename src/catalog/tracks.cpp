@@ -38,6 +38,7 @@ namespace Catalog {
     {
         for (size_t i = 0; i < (size_t)TrackID::Count; i++) {
             if (byId[i].frameCount) {
+                StopMusicStream(byId[i]);
                 UnloadMusicStream(byId[i]);
             }
         }

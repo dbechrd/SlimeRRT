@@ -28,7 +28,7 @@ ErrorType NetServer::OpenSocket(unsigned short socketPort)
 
     server = enet_host_create(&address, SV_MAX_PLAYERS, 1, 0, 0);
     if (!server || !server->socket) {
-        E_ASSERT(ErrorType::HostCreateFailed, "Failed to create host.");
+        E_ASSERT(ErrorType::HostCreateFailed, "Failed to create host. Check if port %hu is already in use.", address.port);
     }
     printf("Listening on port %hu...\n", address.port);
     return ErrorType::Success;

@@ -9,8 +9,10 @@ PlayerControllerState PlayerControllerState::Query(bool processMouse, bool proce
 
     // Global events
     if (processKeyboard) {
-        input.escape = IsKeyPressed(KEY_ESCAPE);
-        input.dbgImgui = IsKeyPressed(KEY_GRAVE);
+        input.escape           = IsKeyPressed(KEY_ESCAPE);
+        input.toggleFullscreen = IsKeyPressed(KEY_F11);
+        input.screenshot       = IsKeyPressed(KEY_PRINT_SCREEN);
+        input.dbgToggleVsync   = IsKeyPressed(KEY_V);
     }
 
     // Freecam events
@@ -47,14 +49,13 @@ PlayerControllerState PlayerControllerState::Query(bool processMouse, bool proce
             if (IsKeyPressed(KEY_THREE)) { input.selectSlot = (uint32_t)PlayerInventorySlot::Slot_3; }
             if (IsKeyPressed(KEY_TWO)  ) { input.selectSlot = (uint32_t)PlayerInventorySlot::Slot_2; }
             if (IsKeyPressed(KEY_ONE)  ) { input.selectSlot = (uint32_t)PlayerInventorySlot::Slot_1; }
-            input.screenshot       = IsKeyPressed(KEY_F11);
             input.dbgFindMouseTile = IsKeyDown(KEY_LEFT_ALT);
-            input.dbgToggleVsync   = IsKeyPressed(KEY_V);
             input.dbgChatMessage   = IsKeyPressed(KEY_C);
             input.dbgSpawnSam      = IsKeyPressed(KEY_KP_ENTER);
             input.dbgToggleFreecam = IsKeyPressed(KEY_F);
             input.dbgNextRtreeRect = IsKeyDown(KEY_N) && !IsKeyDown(KEY_K);
             input.dbgKillRtreeRect = IsKeyDown(KEY_K) && !IsKeyDown(KEY_N);
+            input.dbgImgui         = IsKeyPressed(KEY_GRAVE);
         }
     }
     return input;
