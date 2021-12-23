@@ -39,7 +39,7 @@ ErrorType GameClient::Run(void)
     //InitWindow(600, 400, title);
     SetWindowState(FLAG_WINDOW_RESIZABLE);
     SetExitKey(0);  // Disable default Escape exit key, we'll handle escape ourselves
-    Vector2 screenSize{ (float)GetScreenWidth(), (float)GetScreenHeight() };
+    Vector2 screenSize{ (float)GetRenderWidth(), (float)GetRenderHeight() };
 
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
@@ -376,8 +376,8 @@ ErrorType GameClient::Run(void)
 
         if (IsWindowResized() || input.toggleFullscreen) {
             if (IsWindowResized()) {
-                screenSize.x = (float)GetScreenWidth() - GetScreenWidth() % 2;
-                screenSize.y = (float)GetScreenHeight() - GetScreenHeight() % 2;
+                screenSize.x = (float)GetRenderWidth() - GetRenderWidth() % 2;
+                screenSize.y = (float)GetRenderHeight() - GetRenderHeight() % 2;
                 SetWindowSize((int)screenSize.x, (int)screenSize.y);
             }
             if (input.toggleFullscreen) {
@@ -398,7 +398,7 @@ ErrorType GameClient::Run(void)
             // Weird line artifact appears, even with AlignPixel shader, if resolution has an odd number :(
             assert((int)screenSize.x % 2 == 0);
             assert((int)screenSize.y % 2 == 0);
-            printf("w: %f h: %f\n", screenSize.x, screenSize.y);
+            //printf("w: %f h: %f\n", screenSize.x, screenSize.y);
             SetShaderValue(pixelFixer, pixelFixerScreenSizeUniformLoc, &screenSize, SHADER_UNIFORM_VEC2);
             spycam.Reset();
         }
