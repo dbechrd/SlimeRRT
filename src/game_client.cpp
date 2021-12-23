@@ -38,6 +38,7 @@ ErrorType GameClient::Run(void)
     //InitWindow(600, 400, title);
     SetWindowState(FLAG_WINDOW_RESIZABLE);
     SetExitKey(0);  // Disable default Escape exit key, we'll handle escape ourselves
+    Vector2 screenSize{ (float)GetRenderWidth(), (float)GetRenderHeight() };
 
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
@@ -63,18 +64,53 @@ ErrorType GameClient::Run(void)
     assert(fontSmall.texture.id);
     assert(fontBig.texture.id);
     GuiSetFont(fontSmall);
-
     HealthBar::SetFont(GetFontDefault());
 
-    int screenWidth = GetRenderWidth();
-    int screenHeight = GetRenderHeight();
+    Shader pixelFixer = LoadShaderFromMemory(
+        "#version 330                       \n"
+        "in vec3 vertexPosition;            \n"
+        "in vec2 vertexTexCoord;            \n"
+        "in vec4 vertexColor;               \n"
+        "out vec2 fragTexCoord;             \n"
+        "out vec4 fragColor;                \n"
+        "uniform mat4 mvp;                  \n"
+        "uniform vec2 screenSize;           \n"
+        "                                   \n"
+        "vec4 AlignToPixel(vec4 pos)        \n"
+        "{                                  \n"
+        "    vec2 halfScreen = vec2(screenSize.x, screenSize.y).xy * 0.5;        \n"
+        "    pos.xy = round((pos.xy / pos.w) * halfScreen) / halfScreen * pos.w; \n"
+        "    return pos;                    \n"
+        "}                                  \n"
+        "                                   \n"
+        "void main()                        \n"
+        "{                                  \n"
+        "    fragTexCoord = vertexTexCoord; \n"
+        "    fragColor = vertexColor;       \n"
+        "    gl_Position = AlignToPixel(mvp*vec4(vertexPosition, 1.0)); \n"
+        "}                                  \n"
+        ,
+        "#version 330                       \n"
+        "in vec2 fragTexCoord;              \n"
+        "in vec4 fragColor;                 \n"
+        "out vec4 finalColor;               \n"
+        "uniform sampler2D texture0;        \n"
+        "uniform vec4 colDiffuse;           \n"
+        "void main()                        \n"
+        "{                                  \n"
+        "    vec4 texelColor = texture(texture0, fragTexCoord); \n"
+        "    finalColor = texelColor*colDiffuse*fragColor;      \n"
+        "}                                  \n"
+    );
+    const int pixelFixerScreenSizeUniformLoc = GetShaderLocation(pixelFixer, "screenSize");
+    SetShaderValue(pixelFixer, pixelFixerScreenSizeUniformLoc, &screenSize, SHADER_UNIFORM_VEC2);
 
     // NOTE: There could be other, bigger monitors
     const int monitorWidth = GetMonitorWidth(0);
     const int monitorHeight = GetMonitorHeight(0);
 
     Spycam spycam{};
-    spycam.Init({ screenWidth / 2.0f, screenHeight / 2.0f });
+    spycam.Init({ screenSize.x * 0.5f, screenSize.y * 0.5f });
 
     InitAudioDevice();
     if (!IsAudioDeviceReady()) {
@@ -107,6 +143,13 @@ ErrorType GameClient::Run(void)
         assert(player);
         lobby->playerId = player->id;
         player->combat.hitPoints = MAX(0, player->combat.hitPointsMax - 25);
+        //player->body.position.x = 1373.49854f;
+
+        // 1600 x 900
+        //player->body.position.x = 1373.498f;
+
+        // 1610 x 910
+        //player->body.position.x = 1457.83557f;
     }
 
 #if DEMO_VIEW_RTREE
@@ -175,9 +218,12 @@ ErrorType GameClient::Run(void)
         Catalog::g_tracks.Update((float)frameDt);
         //----------------------------------------------------------------------
 
-        if (GetRenderWidth() != screenWidth || GetRenderHeight() != screenHeight) {
-            screenWidth = GetRenderWidth();
-            screenHeight = GetRenderHeight();
+        const float renderWidth = (float)GetRenderWidth();
+        const float renderHeight = (float)GetRenderHeight();
+        if (renderWidth != screenSize.x || renderHeight != screenSize.y) {
+            screenSize.x = renderWidth;
+            screenSize.y = renderHeight;
+            SetShaderValue(pixelFixer, pixelFixerScreenSizeUniformLoc, &screenSize, SHADER_UNIFORM_VEC2);
             spycam.Reset();
         }
 
@@ -413,7 +459,7 @@ ErrorType GameClient::Run(void)
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
-        UI::Begin(mousePosScreen, mousePosWorld, { (float)screenWidth, (float)screenHeight }, &spycam);
+        UI::Begin(mousePosScreen, mousePosWorld, screenSize, &spycam);
 
         ClearBackground(ORANGE);
         DrawTexture(checkboardTexture, 0, 0, WHITE);
@@ -421,7 +467,11 @@ ErrorType GameClient::Run(void)
         BeginMode2D(spycam.GetCamera());
 
         world->EnableCulling(cameraRect);
+
+        BeginShaderMode(pixelFixer);
         size_t tilesDrawn = world->DrawMap(spycam.GetZoomMipLevel());
+        EndShaderMode();
+
         if (input.dbgFindMouseTile) {
             UI::TileHoverOutline(*world->map);
         }
@@ -579,6 +629,7 @@ ErrorType GameClient::Run(void)
 
     // TODO: Wrap these in classes to use destructors?
     delete lobby;
+    UnloadShader(pixelFixer);
     UnloadTexture(checkboardTexture);
     UnloadFont(fontSmall);
     UnloadFont(fontBig);
