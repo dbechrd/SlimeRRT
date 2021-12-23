@@ -34,11 +34,12 @@ ErrorType GameClient::Run(void)
     if (args.server) {
         title = "[Open to LAN] Attack the slimes!";
     }
+    // {x=1161.00000 y=656.000000 }
     InitWindow(1600, 900, title);
     //InitWindow(600, 400, title);
     SetWindowState(FLAG_WINDOW_RESIZABLE);
     SetExitKey(0);  // Disable default Escape exit key, we'll handle escape ourselves
-    Vector2 screenSize{ (float)GetRenderWidth(), (float)GetRenderHeight() };
+    Vector2 screenSize{ (float)GetScreenWidth(), (float)GetScreenHeight() };
 
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
@@ -78,7 +79,7 @@ ErrorType GameClient::Run(void)
         "                                   \n"
         "vec4 AlignToPixel(vec4 pos)        \n"
         "{                                  \n"
-        "    vec2 halfScreen = vec2(screenSize.x, screenSize.y).xy * 0.5;        \n"
+        "    vec2 halfScreen = vec2(screenSize.x, screenSize.y).xy * 0.5; \n"
         "    pos.xy = round((pos.xy / pos.w) * halfScreen) / halfScreen * pos.w; \n"
         "    return pos;                    \n"
         "}                                  \n"
@@ -217,15 +218,6 @@ ErrorType GameClient::Run(void)
         SetMasterVolume(VolumeCorrection(Catalog::g_mixer.masterVolume));
         Catalog::g_tracks.Update((float)frameDt);
         //----------------------------------------------------------------------
-
-        const float renderWidth = (float)GetRenderWidth();
-        const float renderHeight = (float)GetRenderHeight();
-        if (renderWidth != screenSize.x || renderHeight != screenSize.y) {
-            screenSize.x = renderWidth;
-            screenSize.y = renderHeight;
-            SetShaderValue(pixelFixer, pixelFixerScreenSizeUniformLoc, &screenSize, SHADER_UNIFORM_VEC2);
-            spycam.Reset();
-        }
 
         if (menuActive) {
             inputMode = INPUT_MODE_MENU;
@@ -382,19 +374,33 @@ ErrorType GameClient::Run(void)
             show_demo_window = !show_demo_window;
         }
 
-        if (input.toggleFullscreen) {
-            static int restoreWidth = GetRenderWidth();
-            static int restoreHeight = GetRenderHeight();
-            if (IsWindowFullscreen()) {
-                ToggleFullscreen();
-                SetWindowSize(restoreWidth, restoreHeight);
-            } else {
-                restoreWidth = GetRenderWidth();
-                restoreHeight = GetRenderHeight();
-                int monitor = GetCurrentMonitor();
-                SetWindowSize(GetMonitorWidth(monitor), GetMonitorHeight(monitor));
-                ToggleFullscreen();
+        if (IsWindowResized() || input.toggleFullscreen) {
+            if (IsWindowResized()) {
+                screenSize.x = (float)GetScreenWidth() - GetScreenWidth() % 2;
+                screenSize.y = (float)GetScreenHeight() - GetScreenHeight() % 2;
+                SetWindowSize((int)screenSize.x, (int)screenSize.y);
             }
+            if (input.toggleFullscreen) {
+                static Vector2 restoreSize = screenSize;
+                if (IsWindowFullscreen()) {
+                    ToggleFullscreen();
+                    SetWindowSize((int)restoreSize.x, (int)restoreSize.y);
+                    screenSize = restoreSize;
+                } else {
+                    restoreSize = screenSize;
+                    int monitor = GetCurrentMonitor();
+                    screenSize.x = (float)GetMonitorWidth(monitor);
+                    screenSize.y = (float)GetMonitorHeight(monitor);
+                    SetWindowSize((int)screenSize.x, (int)screenSize.y);
+                    ToggleFullscreen();
+                }
+            }
+            // Weird line artifact appears, even with AlignPixel shader, if resolution has an odd number :(
+            assert((int)screenSize.x % 2 == 0);
+            assert((int)screenSize.y % 2 == 0);
+            printf("w: %f h: %f\n", screenSize.x, screenSize.y);
+            SetShaderValue(pixelFixer, pixelFixerScreenSizeUniformLoc, &screenSize, SHADER_UNIFORM_VEC2);
+            spycam.Reset();
         }
 
         if (input.dbgToggleVsync) {

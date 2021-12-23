@@ -40,13 +40,8 @@ void Spycam::Reset(void)
 {
     cameraSpeed = CAMERA_SPEED_DEFAULT;
     SetZoom(1.0f);
-    camera.offset = Vector2{ roundf(GetRenderWidth() / 2.0f), roundf(GetRenderHeight() / 2.0f) };
-    camera.target = Vector2{ roundf(camera.target.x), roundf(camera.target.y) };
-    printf("render: %d %d\n", GetRenderWidth(), GetRenderHeight());
-    printf("camera.offset: %f %f\n", camera.offset.x, camera.offset.y);
-    printf("camera.target: %f %f\n", camera.target.x, camera.target.y);
-    //camera.offset = Vector2{ GetRenderWidth() / 2.0f, GetRenderHeight() / 2.0f };
-    //camera.target = Vector2{ camera.target.x, camera.target.y };
+    camera.offset = Vector2{ GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f };
+    camera.target = Vector2{ camera.target.x, camera.target.y };
     camera.rotation = 0.0f;
 }
 
