@@ -221,6 +221,9 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                     stream.ProcessFloat(slime.position.x);
                     stream.ProcessFloat(slime.position.y);
                     stream.ProcessFloat(slime.position.z);
+                    uint32_t facing = (uint32_t)slime.direction;
+                    stream.Process(facing, 3, (uint32_t)Direction::North, (uint32_t)Direction::NorthWest);
+                    slime.direction = (Direction)facing;
                     stream.ProcessFloat(slime.hitPoints);
                     stream.ProcessFloat(slime.hitPointsMax);
                     stream.ProcessFloat(slime.scale);

@@ -21,7 +21,8 @@ void HealthBar::Draw(int fontSize, const Sprite &sprite, const Body3D &body, con
 
     const float hpPercent = hitPoints / maxHitPoints;
     //const char *hpText = TextFormat("HP: %.02f / %.02f", hitPoints, hitPointsMax);
-    const char *hpText = TextFormat("HP: %.f / %.f", hitPoints, maxHitPoints);
+    //const char *hpText = TextFormat("HP: %.f / %.f", hitPoints, maxHitPoints);
+    const char *hpText = TextFormat("HP: %.f / %.f %d", hitPoints, maxHitPoints, (int)sprite.direction);
     const char *nameText = name ? TextFormat(name) : nullptr;
 
     Rectangle hpRect{};

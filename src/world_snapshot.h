@@ -14,11 +14,12 @@ struct PlayerSnapshot {
 };
 
 struct SlimeSnapshot {
-    uint32_t id           {};
-    Vector3  position     {};
-    float    hitPoints    {};
-    float    hitPointsMax {};
-    float    scale        {};
+    uint32_t  id           {};
+    Vector3   position     {};
+    Direction direction    {};
+    float     hitPoints    {};
+    float     hitPointsMax {};
+    float     scale        {};
 };
 
 struct WorldSnapshot {

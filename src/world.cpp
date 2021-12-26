@@ -3,6 +3,7 @@
 #include "catalog/sounds.h"
 #include "catalog/spritesheets.h"
 #include "controller.h"
+#include "direction.h"
 #include "helpers.h"
 #include "item_stack.h"
 #include "maths.h"
@@ -411,6 +412,7 @@ void World::GenerateSnapshot(WorldSnapshot &worldSnapshot)
         if (v3_length_sq(v3_sub(player->body.position, slimes[i].body.position)) < SQUARED(1300.0f)) {
             worldSnapshot.slimes[worldSnapshot.slimeCount].id           = slimes[i].id                 ;
             worldSnapshot.slimes[worldSnapshot.slimeCount].position     = slimes[i].body.position      ;
+            worldSnapshot.slimes[worldSnapshot.slimeCount].direction    = slimes[i].sprite.direction   ;
             worldSnapshot.slimes[worldSnapshot.slimeCount].hitPoints    = slimes[i].combat.hitPoints   ;
             worldSnapshot.slimes[worldSnapshot.slimeCount].hitPointsMax = slimes[i].combat.hitPointsMax;
             worldSnapshot.slimes[worldSnapshot.slimeCount].scale        = slimes[i].sprite.scale       ;
@@ -419,7 +421,7 @@ void World::GenerateSnapshot(WorldSnapshot &worldSnapshot)
     }
 }
 
-bool World::InterpolateBody(Body3D &body, double renderAt)
+bool World::InterpolateBody(Body3D &body, double renderAt, Direction &direction)
 {
     auto positionHistory = body.positionHistory;
     const size_t historyLen = positionHistory.Count();
@@ -444,6 +446,7 @@ bool World::InterpolateBody(Body3D &body, double renderAt)
         printf("renderAt %f before oldest snapshot %f\n", renderAt, oldest.recvAt);
 
         body.position = oldest.v;
+        direction = oldest.direction;
     // renderAt is after all snapshots, show entity at newest snapshot
     } else if (right == historyLen) {
         // TODO: Extrapolate beyond latest snapshot if/when this happens? Should be mostly avoidable..
@@ -462,7 +465,8 @@ bool World::InterpolateBody(Body3D &body, double renderAt)
         }
 
         body.position = newest.v;
-    // renderAt is between two snapshots
+        direction = newest.direction;
+        // renderAt is between two snapshots
     } else {
         assert(right > 0);
         assert(right < historyLen);
@@ -478,6 +482,7 @@ bool World::InterpolateBody(Body3D &body, double renderAt)
         // Linear interpolation: body.x = x0 + (x1 - x0) * alpha;
         double alpha = (renderAt - a.recvAt) / (b.recvAt - a.recvAt);
         body.position = v3_add(a.v, v3_scale(v3_sub(b.v, a.v), (float)alpha));
+        direction = b.direction;
     }
 
     return true;
@@ -490,7 +495,10 @@ void World::Interpolate(double renderAt)
         if (!player.id || player.id == playerId) {
             continue;
         }
-        if (!InterpolateBody(player.body, renderAt)) {
+        Direction direction{};
+        if (InterpolateBody(player.body, renderAt, direction)) {
+            player.sprite.direction = direction;
+        } else {
             DespawnPlayer(player.id);
         }
     }
@@ -499,7 +507,10 @@ void World::Interpolate(double renderAt)
         if (!slime.id) {
             continue;
         }
-        if (!InterpolateBody(slime.body, renderAt)) {
+        Direction direction{};
+        if (InterpolateBody(slime.body, renderAt, direction)) {
+            slime.sprite.direction = direction;
+        } else {
             DespawnSlime(slime.id);
         }
     }

@@ -2,6 +2,7 @@
 #include "chat.h"
 #include "controller.h"
 #include "catalog/items.h"
+#include "direction.h"
 #include "particles.h"
 #include "player.h"
 #include "slime.h"
@@ -63,7 +64,7 @@ struct World {
 private:
     void SimPlayers(double dt);
     void SimSlimes(double dt);
-    bool InterpolateBody(Body3D &body, double renderAt);
+    bool InterpolateBody(Body3D &body, double renderAt, Direction &direction);
 
     DrawList drawList{};
     bool CullTile(Vector2 tilePos, int zoomMipLevel);

@@ -290,9 +290,10 @@ void NetClient::ProcessMsg(ENetPacket &packet)
 
                 player->nameLength = playerSnapshot.nameLength;
                 memcpy(player->name, playerSnapshot.name, USERNAME_LENGTH_MAX);
-                auto &pos = player->body.positionHistory.Alloc();
+                Vector3Snapshot &pos = player->body.positionHistory.Alloc();
                 pos.recvAt = worldSnapshot.recvAt;
                 pos.v = playerSnapshot.position;
+                pos.direction = playerSnapshot.direction;
                 player->combat.hitPoints = playerSnapshot.hitPoints;
                 player->combat.hitPointsMax = playerSnapshot.hitPointsMax;
             }
@@ -303,9 +304,10 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                     continue;
                 }
 
-                auto &pos = slime->body.positionHistory.Alloc();
+                Vector3Snapshot &pos = slime->body.positionHistory.Alloc();
                 pos.recvAt = worldSnapshot.recvAt;
                 pos.v = slimeSnapshot.position;
+                pos.direction = slimeSnapshot.direction;
                 slime->combat.hitPoints = slimeSnapshot.hitPoints;
                 slime->combat.hitPointsMax = slimeSnapshot.hitPointsMax;
                 // TODO: Keep scale buffer and interpolate? Could be cool heh.

@@ -11,6 +11,7 @@ const SpriteAnim &sprite_anim(const Sprite &sprite)
 
     const Spritesheet *sheet = sprite.spriteDef->spritesheet;
     const int animationIdx = sprite.spriteDef->animations[(int)sprite.direction];
+    assert(animationIdx >= 0 && animationIdx < sheet->animations.size());
     const SpriteAnim &anim = sheet->animations[animationIdx];
     return anim;
 }

@@ -340,20 +340,20 @@ ErrorType GameClient::Run(void)
                 world->Simulate(tickDt);
                 world->particleSystem.Update(tickDt);
 
-                WorldSnapshot &worldSnapshot = netClient.worldHistory.Alloc();
-                assert(!worldSnapshot.tick);  // ringbuffer alloc fucked up and didn't zero slot
-                worldSnapshot.playerId = player.id;
-                //worldSnapshot.lastInputAck = world->tick;
-                worldSnapshot.tick = world->tick;
-                world->GenerateSnapshot(worldSnapshot);
+                //WorldSnapshot &worldSnapshot = netClient.worldHistory.Alloc();
+                //assert(!worldSnapshot.tick);  // ringbuffer alloc fucked up and didn't zero slot
+                //worldSnapshot.playerId = player.id;
+                ////worldSnapshot.lastInputAck = world->tick;
+                //worldSnapshot.tick = world->tick;
+                //world->GenerateSnapshot(worldSnapshot);
 
                 world->tick++;
                 tickAccum -= tickDt;
             }
 
-            // Interpolate all of the other entities in the world
-            double renderAt = glfwGetTime() - tickDt * 2;
-            world->Interpolate(renderAt);
+            //// Interpolate all of the other entities in the world
+            //double renderAt = glfwGetTime() - tickDt * 2;
+            //world->Interpolate(renderAt);
 #endif
         }
 

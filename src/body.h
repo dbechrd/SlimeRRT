@@ -1,11 +1,13 @@
 #pragma once
+#include "direction.h"
 #include "helpers.h"
 #include "ring_buffer.h"
 #include "raylib/raylib.h"
 
 struct Vector3Snapshot {
-    double recvAt {};
-    Vector3 v     {};
+    double    recvAt    {};
+    Vector3   v         {};
+    Direction direction {};
 };
 
 struct Body3D {
