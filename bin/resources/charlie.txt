@@ -1,79 +1,83 @@
+# spritesheet <frame_count> <animation_count> <sprite_count> <texture_path>
 spritesheet 26 26 5 resources/charlie.png
 
+# frame <name> <x> <y> <width> <height>
 # row 1 (empty hand)
 frame player_melee_idle        0 0 54 94
 frame player_melee_north      54 0 54 94
-frame player_melee_east      108 0 54 94
-frame player_melee_south     162 0 54 94
-frame player_melee_west      216 0 54 94
-frame player_melee_northeast 270 0 54 94
-frame player_melee_southeast 324 0 54 94
-frame player_melee_southwest 378 0 54 94
+frame player_melee_northeast 108 0 54 94
+frame player_melee_east      162 0 54 94
+frame player_melee_southeast 216 0 54 94
+frame player_melee_south     270 0 54 94
+frame player_melee_southwest 324 0 54 94
+frame player_melee_west      378 0 54 94
 frame player_melee_northwest 432 0 54 94
 
 # row 2 (sword hold)
 frame player_sword_idle        0 94 54 94
 frame player_sword_north      54 94 54 94
-frame player_sword_east      108 94 54 94
-frame player_sword_south     162 94 54 94
-frame player_sword_west      216 94 54 94
-frame player_sword_northeast 270 94 54 94
-frame player_sword_southeast 324 94 54 94
-frame player_sword_southwest 378 94 54 94
+frame player_sword_northeast 108 94 54 94
+frame player_sword_east      162 94 54 94
+frame player_sword_southeast 216 94 54 94
+frame player_sword_south     270 94 54 94
+frame player_sword_southwest 324 94 54 94
+frame player_sword_west      378 94 54 94
 frame player_sword_northwest 432 94 54 94
 
 # row 3 (sword attack)
 #frame player_sword_attack_idle        0 188 54 94
 frame player_sword_attack_north      54 188 54 94
-frame player_sword_attack_east      108 188 54 94
-frame player_sword_attack_south     162 188 54 94
-frame player_sword_attack_west      216 188 54 94
-frame player_sword_attack_northeast 270 188 54 94
-frame player_sword_attack_southeast 324 188 54 94
-frame player_sword_attack_southwest 378 188 54 94
+frame player_sword_attack_northeast 108 188 54 94
+frame player_sword_attack_east      162 188 54 94
+frame player_sword_attack_southeast 216 188 54 94
+frame player_sword_attack_south     270 188 54 94
+frame player_sword_attack_southwest 324 188 54 94
+frame player_sword_attack_west      378 188 54 94
 frame player_sword_attack_northwest 432 188 54 94
 
+# animation <name> <frame0> [frame1] ... [frame15]
 # row 1 (empty hand)
 animation player_melee_idle      0
 animation player_melee_north     1
-animation player_melee_east      2
-animation player_melee_south     3
-animation player_melee_west      4
-animation player_melee_northeast 5
-animation player_melee_southeast 6
-animation player_melee_southwest 7
+animation player_melee_northeast 2
+animation player_melee_east      3
+animation player_melee_southeast 4
+animation player_melee_south     5
+animation player_melee_southwest 6
+animation player_melee_west      7
 animation player_melee_northwest 8
 
 # row 2 (sword hold)
-animation player_sword_idle      9
+animation player_sword_idle       9
 animation player_sword_north     10
-animation player_sword_east      11
-animation player_sword_south     12
-animation player_sword_west      13
-animation player_sword_northeast 14
-animation player_sword_southeast 15
-animation player_sword_southwest 16
+animation player_sword_northeast 11
+animation player_sword_east      12
+animation player_sword_southeast 13
+animation player_sword_south     14
+animation player_sword_southwest 15
+animation player_sword_west      16
 animation player_sword_northwest 17
 
 # row 3 (sword attack)
 #animation player_sword_attack_idle      18
 animation player_sword_attack_north     18
-animation player_sword_attack_east      19
-animation player_sword_attack_south     20
-animation player_sword_attack_west      21
-animation player_sword_attack_northeast 22
-animation player_sword_attack_southeast 23
-animation player_sword_attack_southwest 24
+animation player_sword_attack_northeast 19
+animation player_sword_attack_east      20
+animation player_sword_attack_southeast 21
+animation player_sword_attack_south     22
+animation player_sword_attack_southwest 23
+animation player_sword_attack_west      24
 animation player_sword_attack_northwest 25
 
+# sprite <name> <anim_n> <anim_ne> <anim_e> <anim_se> <anim_s> <anim_sw> <anim_w> <anim_nw>
 sprite player_melee
     1  # player_melee_north
-    2  # player_melee_east
-    3  # player_melee_south
-    4  # player_melee_west
-    5  # player_melee_northeast
-    6  # player_melee_southeast
-    7  # player_melee_southwest
+    2  # player_melee_northeast
+    3  # player_melee_east
+    4  # player_melee_southeast
+    5  # player_melee_south
+    6  # player_melee_southwest
+    7  # player_melee_west
     8  # player_melee_northwest
 
 sprite player_melee_idle
@@ -88,12 +92,12 @@ sprite player_melee_idle
 
 sprite player_sword
     10  # player_sword_north
-    11  # player_sword_east
-    12  # player_sword_south
-    13  # player_sword_west
-    14  # player_sword_northeast
-    15  # player_sword_southeast
-    16  # player_sword_southwest
+    11  # player_sword_northeast
+    12  # player_sword_east
+    13  # player_sword_southeast
+    14  # player_sword_south
+    15  # player_sword_southwest
+    16  # player_sword_west
     17  # player_sword_northwest
 
 sprite player_sword_idle
@@ -108,10 +112,10 @@ sprite player_sword_idle
 
 sprite player_sword_attack
     18   # player_sword_attack_north
-    19   # player_sword_attack_east
-    20   # player_sword_attack_south
-    21   # player_sword_attack_west
-    22   # player_sword_attack_northeast
-    23   # player_sword_attack_southeast
-    24   # player_sword_attack_southwest
+    19   # player_sword_attack_northeast
+    20   # player_sword_attack_east
+    21   # player_sword_attack_southeast
+    22   # player_sword_attack_south
+    23   # player_sword_attack_southwest
+    24   # player_sword_attack_west
     25   # player_sword_attack_northwest

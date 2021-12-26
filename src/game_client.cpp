@@ -127,7 +127,9 @@ ErrorType GameClient::Run(void)
     Catalog::g_tracks.Load();
     tileset_init();
 
+    Catalog::g_mixer.masterVolume = 0.0f;
     Catalog::g_mixer.musicVolume = 0.5f;
+    Catalog::g_sounds.mixer.volumeLimit[(size_t)Catalog::SoundID::GemBounce] = 0.8f;
 
     Image checkerboardImage = GenImageChecked(monitorWidth, monitorHeight, 32, 32, LIGHTGRAY, GRAY);
     Texture checkboardTexture = LoadTextureFromImage(checkerboardImage);
@@ -135,7 +137,7 @@ ErrorType GameClient::Run(void)
 
     World *lobby = new World;
     lobby->tick = 1;
-    lobby->map = lobby->mapSystem.GenerateLobby();
+    lobby->map = lobby->mapSystem.Generate(lobby->rtt_rand, 64, 64);
     Slime &sam = lobby->SpawnSam();
     world = lobby;
 
@@ -217,8 +219,10 @@ ErrorType GameClient::Run(void)
         //----------------------------------------------------------------------
         SetMasterVolume(VolumeCorrection(Catalog::g_mixer.masterVolume));
         Catalog::g_tracks.Update((float)frameDt);
-        //----------------------------------------------------------------------
 
+        //----------------------------------------------------------------------
+        // Input
+        //----------------------------------------------------------------------
         if (menuActive) {
             inputMode = INPUT_MODE_MENU;
         } else if (io.WantCaptureKeyboard) {
@@ -245,6 +249,9 @@ ErrorType GameClient::Run(void)
         //    tickDt = 1.0 / 10.0;
         //}
 
+        //----------------------------------------------------------------------
+        // Networking
+        //----------------------------------------------------------------------
         E_ASSERT(netClient.Receive(), "Failed to receive packets");
 
         bool connectedToServer =
@@ -269,6 +276,9 @@ ErrorType GameClient::Run(void)
             sendInputAccum = 0;
         }
 
+        //----------------------------------------------------------------------
+        // Update
+        //----------------------------------------------------------------------
         Player *playerPtr = world->FindPlayer(world->playerId);
         assert(playerPtr);
         Player &player = *playerPtr;
@@ -354,11 +364,14 @@ ErrorType GameClient::Run(void)
             Structure::Spawn(*world->map, chestX - 3, chestY - 4);
             Vector3 chestPos{ (chestX * TILE_W) + TILE_W * 0.5f, float(chestY * TILE_W), 0.0f };
             world->particleSystem.GenerateEffect(Catalog::ParticleEffectID::GoldenChest, 1, chestPos, 4.0f);
-            world->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Gem, 16, chestPos, 4.0f);
+            world->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Gem, 8, chestPos, 3.0f);
             Catalog::g_sounds.Play(Catalog::SoundID::Gold, 1.0f + dlb_rand32f_variance(0.4f));
             samTreasureRoom = true;
         }
 
+        //----------------------------------------------------------------------
+        // Input handling
+        //----------------------------------------------------------------------
         if (input.screenshot) {
             time_t t = time(NULL);
             struct tm tm = *localtime(&t);
@@ -459,7 +472,7 @@ ErrorType GameClient::Run(void)
         mousePosWorld.y += cameraRect.y + mousePosScreen.y * spycam.GetInvZoom();
 
         //----------------------------------------------------------------------
-        // Draw
+        // Render world
         //----------------------------------------------------------------------
         BeginDrawing();
         ImGui_ImplOpenGL3_NewFrame();
@@ -544,6 +557,9 @@ ErrorType GameClient::Run(void)
 
         EndMode2D();
 
+        //----------------------------------------------------------------------
+        // Render screen (HUD, UI, etc.)
+        //----------------------------------------------------------------------
         UI::Minimap(fontSmall, *world);
 
         // Render HUD
@@ -556,14 +572,14 @@ ErrorType GameClient::Run(void)
         debugStats.tilesDrawn      = tilesDrawn;
         debugStats.effectsActive   = world->particleSystem.EffectsActive();
         debugStats.particlesActive = world->particleSystem.ParticlesActive();
+#endif
         if (netClient.server) {
-            debugStats.rtt          = enet_peer_get_rtt(netClient.server);
+            debugStats.rtt = enet_peer_get_rtt(netClient.server);
             debugStats.packets_sent = enet_peer_get_packets_sent(netClient.server);
             debugStats.packets_lost = enet_peer_get_packets_lost(netClient.server);
-            debugStats.bytes_sent   = enet_peer_get_bytes_sent(netClient.server);
-            debugStats.bytes_recv   = enet_peer_get_bytes_received(netClient.server);
+            debugStats.bytes_sent = enet_peer_get_bytes_sent(netClient.server);
+            debugStats.bytes_recv = enet_peer_get_bytes_received(netClient.server);
         }
-#endif
         UI::HUD(fontSmall, player, debugStats);
         UI::Chat(fontSmall, *world, netClient, inputMode == INPUT_MODE_PLAY || inputMode == INPUT_MODE_CHAT, chatVisible, escape);
 
@@ -585,6 +601,9 @@ ErrorType GameClient::Run(void)
             UI::TileHoverTip(fontSmall, *world->map);
         }
 
+        //----------------------------------------------------------------------
+        // Menu
+        //----------------------------------------------------------------------
         if (escape) {
             menuActive = !menuActive;
         }
@@ -631,6 +650,9 @@ ErrorType GameClient::Run(void)
         }
     }
 
+    //----------------------------------------------------------------------
+    // Cleanup
+    //----------------------------------------------------------------------
     netClient.CloseSocket();
 
     // TODO: Wrap these in classes to use destructors?

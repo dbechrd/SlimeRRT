@@ -16,7 +16,7 @@ animation item_saphire      2
 animation item_diamond      3
 animation item_golden_chest 4
 
-# sprite <name> <anim_n> <anim_e> <anim_s> <anim_w> <anim_ne> <anim_se> <anim_sw> <anim_nw>
+# sprite <name> <anim_n> <anim_ne> <anim_e> <anim_se> <anim_s> <anim_sw> <anim_w> <anim_nw>
 sprite item_ruby         0 - - - - - - -
 sprite item_emerald      1 - - - - - - -
 sprite item_saphire      2 - - - - - - -

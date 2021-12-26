@@ -376,45 +376,45 @@ void UI::HUD(const Font &font, const Player &player, const DebugStats &debugStat
         PUSH_TEXT(text, GRAY);
         text = TextFormat("Particles     %zu", debugStats.particlesActive);
         PUSH_TEXT(text, GRAY);
+    }
 
-        static uint64_t bytesSentStart = 0;
-        static uint64_t bytesRecvStart = 0;
-        static double bandwidthTimerStartedAt = 0;
-        static float kbpsOut = 0.0f;
-        static float kbpsIn = 0.0f;
+    static uint64_t bytesSentStart = 0;
+    static uint64_t bytesRecvStart = 0;
+    static double bandwidthTimerStartedAt = 0;
+    static float kbpsOut = 0.0f;
+    static float kbpsIn = 0.0f;
 
-        if (debugStats.rtt) {
-            if (!bandwidthTimerStartedAt) {
-                bandwidthTimerStartedAt = GetTime();
-            }
-            if (GetTime() - bandwidthTimerStartedAt >= 1.0) {
-                kbpsOut = (float)(debugStats.bytes_sent - bytesSentStart) / 1024.0f;
-                kbpsIn  = (float)(debugStats.bytes_recv - bytesRecvStart) / 1024.0f;
-                bandwidthTimerStartedAt = GetTime();
-                bytesSentStart = debugStats.bytes_sent;
-                bytesRecvStart = debugStats.bytes_recv;
-            }
-            text = TextFormat("rtt           %u", debugStats.rtt);
-            PUSH_TEXT(text, GRAY);
-            text = TextFormat("Packets sent  %llu", debugStats.packets_sent);
-            PUSH_TEXT(text, GRAY);
-            text = TextFormat("Packets lost  %u", debugStats.packets_lost);
-            PUSH_TEXT(text, GRAY);
-            //text = TextFormat("Bytes sent    %llu", debugStats.bytes_sent);
-            //PUSH_TEXT(text, GRAY);
-            //text = TextFormat("Bytes recv    %llu", debugStats.bytes_recv);
-            //PUSH_TEXT(text, GRAY);
-            text = TextFormat("Up         %8.03f kbps", kbpsOut);
-            PUSH_TEXT(text, GRAY);
-            text = TextFormat("Down       %8.03f kbps", kbpsIn);
-            PUSH_TEXT(text, GRAY);
-        } else {
-            bytesSentStart = 0;
-            bytesRecvStart = 0;
-            bandwidthTimerStartedAt = 0;
-            kbpsOut = 0.0f;
-            kbpsIn = 0.0f;
+    if (debugStats.rtt) {
+        if (!bandwidthTimerStartedAt) {
+            bandwidthTimerStartedAt = GetTime();
         }
+        if (GetTime() - bandwidthTimerStartedAt >= 1.0) {
+            kbpsOut = (float)(debugStats.bytes_sent - bytesSentStart) / 1024.0f;
+            kbpsIn = (float)(debugStats.bytes_recv - bytesRecvStart) / 1024.0f;
+            bandwidthTimerStartedAt = GetTime();
+            bytesSentStart = debugStats.bytes_sent;
+            bytesRecvStart = debugStats.bytes_recv;
+        }
+        text = TextFormat("Ping          %u", debugStats.rtt);
+        PUSH_TEXT(text, GRAY);
+        text = TextFormat("Packets sent  %llu", debugStats.packets_sent);
+        PUSH_TEXT(text, GRAY);
+        text = TextFormat("Packets lost  %u", debugStats.packets_lost);
+        PUSH_TEXT(text, GRAY);
+        //text = TextFormat("Bytes sent    %llu", debugStats.bytes_sent);
+        //PUSH_TEXT(text, GRAY);
+        //text = TextFormat("Bytes recv    %llu", debugStats.bytes_recv);
+        //PUSH_TEXT(text, GRAY);
+        text = TextFormat("Up         %8.03f kbps", kbpsOut);
+        PUSH_TEXT(text, GRAY);
+        text = TextFormat("Down       %8.03f kbps", kbpsIn);
+        PUSH_TEXT(text, GRAY);
+    } else {
+        bytesSentStart = 0;
+        bytesRecvStart = 0;
+        bandwidthTimerStartedAt = 0;
+        kbpsOut = 0.0f;
+        kbpsIn = 0.0f;
     }
 
 #if 0

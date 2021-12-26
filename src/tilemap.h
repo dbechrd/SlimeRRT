@@ -11,6 +11,8 @@ enum class TileType {
     Forest,
     Wood,
     Concrete,
+    Grass2,
+    Grass3,
     Count
 };
 

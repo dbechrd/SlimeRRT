@@ -83,7 +83,9 @@ ErrorType GameServer::Run()
             for (size_t i = 0; i < SV_MAX_PLAYERS; i++) {
                 NetServerClient &client = netServer.clients[i];
                 if (client.playerId && (glfwGetTime() - client.lastSnapshotSentAt) > (1000.0 / SNAPSHOT_SEND_RATE) / 1000.0) {
+#if SV_DEBUG_INPUT
                     printf("Sending snapshot for tick %u / input seq #%u, to player %u\n", world->tick, client.lastInputAck, client.playerId);
+#endif
                     WorldSnapshot &worldSnapshot = client.worldHistory.Alloc();
                     assert(!worldSnapshot.tick);  // ringbuffer alloc fucked up and didn't zero slot
                     worldSnapshot.playerId = client.playerId;

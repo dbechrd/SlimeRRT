@@ -12,6 +12,7 @@
 #define DEMO_VIEW_RTREE 0
 #define DEMO_AI_TRACKING 0
 #define DEMO_BODY_RECT 0
+#define SV_DEBUG_INPUT 0
 
 #if _DEBUG
     #define SHOW_DEBUG_STATS 1

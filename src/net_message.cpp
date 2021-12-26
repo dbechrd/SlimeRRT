@@ -167,28 +167,30 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                 stream.Process(player.id, 32, 0, UINT32_MAX);
 
                 Player *existingPlayer = world.FindPlayer(player.id);
-                if (player.id && !existingPlayer) {
-                    assert(mode == BitStream::Mode::Reader);
-                    world.SpawnPlayer(player.id);
-                } else if (!player.id && existingPlayer) {
-                    assert(mode == BitStream::Mode::Reader);
-                    world.DespawnPlayer(player.id);
-                    continue; // Don't serialize other fields for inactive players
-                }
-
                 if (player.id) {
+                    if (!existingPlayer) {
+                        assert(mode == BitStream::Mode::Reader);
+                        world.SpawnPlayer(player.id);
+                    }
+                    // TODO: Don't sync name unless it has changed
                     stream.Process((uint32_t)player.nameLength, 6, USERNAME_LENGTH_MIN, USERNAME_LENGTH_MAX);
                     stream.Align();
                     for (size_t i = 0; i < player.nameLength; i++) {
                         stream.ProcessChar(player.name[i]);
                     }
 
-                    // TODO: range validation on floats
+                    // TODO: range validation on floats (why? malicious server?)
                     stream.ProcessFloat(player.position.x);
                     stream.ProcessFloat(player.position.y);
                     stream.ProcessFloat(player.position.z);
                     stream.ProcessFloat(player.hitPoints);
                     stream.ProcessFloat(player.hitPointsMax);
+                    uint32_t facing = (uint32_t)player.direction;
+                    stream.Process(facing, 3, (uint32_t)Direction::North, (uint32_t)Direction::NorthWest);
+                    player.direction = (Direction)facing;
+                } else if (!player.id && existingPlayer) {
+                    assert(mode == BitStream::Mode::Reader);
+                    world.DespawnPlayer(player.id);
                 }
             }
 

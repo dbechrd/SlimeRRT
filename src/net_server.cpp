@@ -291,7 +291,9 @@ void NetServer::ProcessMsg(NetServerClient &client, ENetPacket &packet)
                     if (sample.seq && IsValidInput(client, sample)) {
                         InputSample &histSample = inputHistory.Alloc();
                         histSample = sample;
+#if SV_DEBUG_INPUT
                         printf("Received input #%u\n", histSample.seq);
+#endif
                     }
                 }
             } else {

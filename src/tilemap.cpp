@@ -39,6 +39,8 @@ void Tilemap::GenerateMinimap(void)
     tileColors[(int)TileType::Forest] = DARKGREEN;
     tileColors[(int)TileType::Wood] = BROWN;
     tileColors[(int)TileType::Concrete] = GRAY;
+    tileColors[(int)TileType::Grass2] = GREEN;
+    tileColors[(int)TileType::Grass3] = GREEN;
 
     Color *minimapPixel = (Color *)minimapImg.data;
     for (size_t y = 0; y < height; y += 1) {
@@ -242,7 +244,7 @@ void MapSystem::BuildRRT(Tilemap &map, dlb_rand32_t &rng, Vector2 qinit, size_t 
     assert(map.rrt.vertices);
 
     const int tileMin = 0;
-    const int tileMax = (int)TileType::Count - 2;
+    const int tileMax = (int)TileType::Count - 1;
 
     RRTVertex *vertex = map.rrt.vertices;
     vertex->tileType = (TileType)dlb_rand32i_range_r(&rng, tileMin, tileMax);

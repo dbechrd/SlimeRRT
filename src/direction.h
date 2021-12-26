@@ -1,13 +1,13 @@
 #pragma once
 
 enum class Direction {
-    North     = 0,  // 000
-    East      = 1,  // 001
-    South     = 2,  // 010
-    West      = 3,  // 011
-    NorthEast = 4,  // 100
-    SouthEast = 5,  // 101
-    SouthWest = 6,  // 110
-    NorthWest = 7,  // 111
+    North     = 0,
+    NorthEast = 1,
+    East      = 2,
+    SouthEast = 3,
+    South     = 4,
+    SouthWest = 5,
+    West      = 6,
+    NorthWest = 7,
     Count
 };

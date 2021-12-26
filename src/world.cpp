@@ -401,6 +401,7 @@ void World::GenerateSnapshot(WorldSnapshot &worldSnapshot)
         worldSnapshot.players[worldSnapshot.playerCount].id           = players[i].id                 ;
         worldSnapshot.players[worldSnapshot.playerCount].nameLength   = players[i].nameLength         ;
         worldSnapshot.players[worldSnapshot.playerCount].position     = players[i].body.position      ;
+        worldSnapshot.players[worldSnapshot.playerCount].direction    = players[i].sprite.direction   ;
         worldSnapshot.players[worldSnapshot.playerCount].hitPoints    = players[i].combat.hitPoints   ;
         worldSnapshot.players[worldSnapshot.playerCount].hitPointsMax = players[i].combat.hitPointsMax;
         worldSnapshot.playerCount++;

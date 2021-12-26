@@ -14,13 +14,5 @@ frame coin_spin_7 140 0 20 18
 # animation <name> <frame0> [frame1] ... [frame15]
 animation coin_spin 0 1 2 3 4 5 6 7
 
-# sprite <name> <anim_n> <anim_e> <anim_s> <anim_w> <anim_ne> <anim_se> <anim_sw> <anim_nw>
-sprite coin
-    0  # coin_spin
-    0  # coin_spin
-    0  # coin_spin
-    0  # coin_spin
-    0  # coin_spin
-    0  # coin_spin
-    0  # coin_spin
-    0  # coin_spin
+# sprite <name> <anim_n> <anim_ne> <anim_e> <anim_se> <anim_s> <anim_sw> <anim_w> <anim_nw>
+sprite coin 0 0 0 0 0 0 0 0  # coin_spin

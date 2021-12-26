@@ -4,12 +4,13 @@
 #include "dlb_types.h"
 
 struct PlayerSnapshot {
-    uint32_t id           {};
-    uint32_t nameLength   {};
-    char     name         [USERNAME_LENGTH_MAX]{};
-    Vector3  position     {};
-    float    hitPoints    {};
-    float    hitPointsMax {};
+    uint32_t  id           {};
+    uint32_t  nameLength   {};
+    char      name         [USERNAME_LENGTH_MAX]{};
+    Vector3   position     {};
+    Direction direction    {};
+    float     hitPoints    {};
+    float     hitPointsMax {};
 };
 
 struct SlimeSnapshot {
