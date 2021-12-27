@@ -177,7 +177,7 @@ void Player::Update(double dt, InputSample &input, const Tilemap &map)
     moveBuffer = v2_add(moveBuffer, moveOffset);
 
     if (!input.skipFx && input.attack && Attack()) {
-        Catalog::g_sounds.Play(Catalog::SoundID::Whoosh, 1.0f + dlb_rand32f_variance(0.1f));
+        Catalog::g_sounds.Play(Catalog::SoundID::Whoosh, 1.0f + dlb_rand32f_variance(0.2f));
     }
 
     if (!v2_is_zero(moveBuffer)) {

@@ -192,8 +192,12 @@ void World::DespawnSlime(uint32_t slimeId)
 {
     Slime *slime = FindSlime(slimeId);
     if (slime) {
-        const Vector3 slimeBC = sprite_world_center(slime->sprite, slime->body.position, slime->sprite.scale);
-        particleSystem.GenerateEffect(Catalog::ParticleEffectID::Goo, 20, slimeBC, 2.0);
+        if (!slime->combat.hitPoints) {
+            const Vector3 slimeBC = sprite_world_center(slime->sprite, slime->body.position, slime->sprite.scale);
+            particleSystem.GenerateEffect(Catalog::ParticleEffectID::Gold, 8, slimeBC, 2.0);
+            particleSystem.GenerateEffect(Catalog::ParticleEffectID::Goo, 20, slimeBC, 2.0);
+            Catalog::g_sounds.Play(Catalog::SoundID::Squish2, 0.5f + dlb_rand32f_variance(0.1f), true);
+        }
         printf("Despawn slime %u\n", slimeId);
         memset(slime, 0, sizeof(*slime));
     }
@@ -251,8 +255,6 @@ void World::SimPlayers(double dt)
                         slime.combat.hitPointsMax
                     );
                     if (!slime.combat.hitPoints) {
-                        //sound_catalog_play(SoundID::Squeak, 0.75f + dlb_rand32f_variance(0.2f));
-
                         uint32_t coins = lootSystem.RollCoins(slime.combat.lootTableId, (int)slime.sprite.scale);
                         assert(coins);
 
@@ -260,23 +262,14 @@ void World::SimPlayers(double dt)
                         player.inventory.slots[(int)PlayerInventorySlot::Coins].stackCount += coins;
                         player.stats.coinsCollected += coins;
 
-                        Vector3 deadCenter = sprite_world_center(slime.sprite, slime.body.position, slime.sprite.scale);
-                        particleSystem.GenerateEffect(Catalog::ParticleEffectID::Gold, (size_t)MAX(1, coins / 16), deadCenter, 2.0);
-
                         DespawnSlime(slime.id);
                         player.stats.slimesSlain++;
                     } else {
-                        Catalog::SoundID squish = dlb_rand32i_range(0, 1) ? Catalog::SoundID::Squish1 : Catalog::SoundID::Squish2;
-                        Catalog::g_sounds.Play(squish, 1.0f + dlb_rand32f_variance(0.2f), true);
+                        Catalog::g_sounds.Play(Catalog::SoundID::Slime_Stab1, 1.0f + dlb_rand32f_variance(0.4f), true);
                     }
                     slimesHit++;
                 }
             }
-
-            if (slimesHit) {
-                Catalog::g_sounds.Play(Catalog::SoundID::Slime_Stab1, 1.0f + dlb_rand32f_variance(0.1f));
-            }
-            Catalog::g_sounds.Play(Catalog::SoundID::Whoosh, 1.0f + dlb_rand32f_variance(0.1f));
         }
     }
 }
@@ -346,7 +339,8 @@ void World::SimSlimes(double dt)
             }
 
             if (!willCollide && slime.Move(dt, slimeMove)) {
-                Catalog::SoundID squish = dlb_rand32i_range(0, 1) ? Catalog::SoundID::Squish1 : Catalog::SoundID::Squish2;
+                //Catalog::SoundID squish = dlb_rand32i_range(0, 1) ? Catalog::SoundID::Squish1 : Catalog::SoundID::Squish2;
+                Catalog::SoundID squish = Catalog::SoundID::Squish1;
                 Catalog::g_sounds.Play(squish, 1.0f + dlb_rand32f_variance(0.2f), true);
             }
         }
@@ -508,7 +502,7 @@ void World::Interpolate(double renderAt)
             continue;
         }
         Direction direction{};
-        if (InterpolateBody(slime.body, renderAt, direction)) {
+        if (slime.combat.hitPoints && InterpolateBody(slime.body, renderAt, direction)) {
             slime.sprite.direction = direction;
         } else {
             DespawnSlime(slime.id);

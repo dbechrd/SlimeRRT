@@ -114,8 +114,8 @@ ErrorType GameClient::Run(void)
     Catalog::g_tracks.Load();
     tileset_init();
 
-    Catalog::g_mixer.masterVolume = 0.0f;
-    Catalog::g_mixer.musicVolume = 0.5f;
+    Catalog::g_mixer.masterVolume = 1.0f;
+    Catalog::g_mixer.musicVolume = 0.0f;
     Catalog::g_sounds.mixer.volumeLimit[(size_t)Catalog::SoundID::GemBounce] = 0.8f;
 
     Image checkerboardImage = GenImageChecked(monitorWidth, monitorHeight, 32, 32, LIGHTGRAY, GRAY);
