@@ -1,6 +1,8 @@
 #include "helpers.h"
 #include "raylib/raylib.h"
 
+extern Shader g_sdfShader{};
+
 static Color ShadowColor(const Color color)
 {
     Color shadow_color = color;
@@ -30,8 +32,12 @@ void DrawTextFont(Font font, const char *text, float posX, float posY, int fontS
         if (fontSize < defaultFontSize) fontSize = defaultFontSize;
         int spacing = fontSize/defaultFontSize;
 
+        // Assume SDF font if grayscale
+        const bool sdfFont = font.glyphs->image.format == PIXELFORMAT_UNCOMPRESSED_GRAYSCALE;
+        if (sdfFont) BeginShaderMode(g_sdfShader);
         DrawTextEx(font, text, shadowPosition, (float)fontSize, (float)spacing, ShadowColor(color));
         DrawTextEx(font, text, position, (float)fontSize, (float)spacing, color);
+        if (sdfFont) EndShaderMode();
     }
 }
 

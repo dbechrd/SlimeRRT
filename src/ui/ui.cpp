@@ -354,8 +354,6 @@ void UI::HUD(const Font &font, const Player &player, const DebugStats &debugStat
     PUSH_TEXT(text, LIGHTGRAY);
     text = TextFormat("Times sword swung %u", player.stats.timesSwordSwung);
     PUSH_TEXT(text, LIGHTGRAY);
-    text = TextFormat("Land NFTs owned   %u", player.stats.landNFTsOwned);
-    PUSH_TEXT(text, GREEN);
 
     if (debugStats.tick) {
         text = TextFormat("Tick          %u", debugStats.tick);
@@ -582,7 +580,8 @@ int UI::Menu(const Font &font, bool &escape, bool &exiting, const char **items, 
     const float menuCenterX = menuPos.x + menuSize.x / 2.0f;
     for (int i = 0; i < ARRAY_SIZE(menuItems); i++) {
         Vector2 itemPos{};
-        itemPos.x = menuCenterX + menuItems[i].offset.x;
+        //itemPos.x = menuCenterX + menuItems[i].offset.x;
+        itemPos.x = menuPos.x + menuPad.x;
         itemPos.y = menuPos.y + menuItems[i].offset.y;
         Rectangle hitbox{ menuPos.x + menuPad.x, itemPos.y - hitboxPadY, menuSize.x - menuPad.x * 2, menuItems[i].size.y + hitboxPadY * 2 };
         bool hovered = PointInRect(mouseScreen, hitbox);
@@ -592,7 +591,8 @@ int UI::Menu(const Font &font, bool &escape, bool &exiting, const char **items, 
         }
         int size = font.baseSize;
         if (pressed || hovered) {
-            size += 4;
+            //size += 2;
+            itemPos.x += 10;
         }
         //DrawRectangleRec(hitbox, Fade(RED, 0.3f + 0.3f * i));
         //DrawRectangleRec({ itemPos.x, itemPos.y, menuItems[i].size.x, menuItems[i].size.y }, Fade(GREEN, 0.3f + 0.3f * i));

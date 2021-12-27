@@ -67,44 +67,31 @@ ErrorType GameClient::Run(void)
     GuiSetFont(fontSmall);
     HealthBar::SetFont(GetFontDefault());
 
-    Shader pixelFixer = LoadShaderFromMemory(
-        "#version 330                       \n"
-        "in vec3 vertexPosition;            \n"
-        "in vec2 vertexTexCoord;            \n"
-        "in vec4 vertexColor;               \n"
-        "out vec2 fragTexCoord;             \n"
-        "out vec4 fragColor;                \n"
-        "uniform mat4 mvp;                  \n"
-        "uniform vec2 screenSize;           \n"
-        "                                   \n"
-        "vec4 AlignToPixel(vec4 pos)        \n"
-        "{                                  \n"
-        "    vec2 halfScreen = vec2(screenSize.x, screenSize.y).xy * 0.5; \n"
-        "    pos.xy = round((pos.xy / pos.w) * halfScreen) / halfScreen * pos.w; \n"
-        "    return pos;                    \n"
-        "}                                  \n"
-        "                                   \n"
-        "void main()                        \n"
-        "{                                  \n"
-        "    fragTexCoord = vertexTexCoord; \n"
-        "    fragColor = vertexColor;       \n"
-        "    gl_Position = AlignToPixel(mvp*vec4(vertexPosition, 1.0)); \n"
-        "}                                  \n"
-        ,
-        "#version 330                       \n"
-        "in vec2 fragTexCoord;              \n"
-        "in vec4 fragColor;                 \n"
-        "out vec4 finalColor;               \n"
-        "uniform sampler2D texture0;        \n"
-        "uniform vec4 colDiffuse;           \n"
-        "void main()                        \n"
-        "{                                  \n"
-        "    vec4 texelColor = texture(texture0, fragTexCoord); \n"
-        "    finalColor = texelColor*colDiffuse*fragColor;      \n"
-        "}                                  \n"
-    );
+    Shader pixelFixer = LoadShader("resources/pixelfixer.vs", "resources/pixelfixer.fs");
     const int pixelFixerScreenSizeUniformLoc = GetShaderLocation(pixelFixer, "screenSize");
     SetShaderValue(pixelFixer, pixelFixerScreenSizeUniformLoc, &screenSize, SHADER_UNIFORM_VEC2);
+
+    // SDF font generation from TTF font
+    Font fontSdf{};
+    {
+        fontSdf.baseSize = 54;
+        fontSdf.glyphCount = 95;
+        // Parameters > font size: 16, no glyphs array provided (0), glyphs count: 0 (defaults to 95)
+        // Loading file to memory
+        unsigned int fileSize = 0;
+        unsigned char *fileData = LoadFileData("C:/Windows/Fonts/consola.ttf", &fileSize);
+        fontSdf.glyphs = LoadFontData(fileData, fileSize, fontSdf.baseSize, 0, 0, FONT_SDF);
+        // Parameters > glyphs count: 95, font size: 16, glyphs padding in image: 0 px, pack method: 1 (Skyline algorythm)
+        Image atlas = GenImageFontAtlas(fontSdf.glyphs, &fontSdf.recs, 95, fontSdf.baseSize, 0, 1);
+        fontSdf.texture = LoadTextureFromImage(atlas);
+        UnloadImage(atlas);
+
+        UnloadFileData(fileData);      // Free memory from loaded file
+
+        // Load SDF required shader (we use default vertex shader)
+        g_sdfShader = LoadShader(0, "resources/sdf.fs");
+        SetTextureFilter(fontSdf.texture, TEXTURE_FILTER_BILINEAR);    // Required for SDF font
+    }
 
     // NOTE: There could be other, bigger monitors
     const int monitorWidth = GetMonitorWidth(0);
@@ -628,16 +615,12 @@ ErrorType GameClient::Run(void)
                     }
                 }
             } else {
-                const char *menuItems[] = { "Resume", "SUPPORT KENNETH NAO!!!", "Quit" };
-                switch (UI::Menu(fontBig, escape, quit, menuItems, ARRAY_SIZE(menuItems))) {
+                const char *menuItems[] = { "Resume", "Audio", "Quit" };
+                switch (UI::Menu(fontSdf, escape, quit, menuItems, ARRAY_SIZE(menuItems))) {
                     case 0: {    // Resume
                         menuActive = false;
                         break;
                     } case 1: {  // Audio
-                        world->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Gold, (size_t)1000, player.body.position, 5.0);
-                        player.stats.landNFTsOwned++;
-                        menuActive = false;
-                        system("start https://cultsandconspiracies.com/");
                         break;
                     } case 2: {  // Quit
                         menuActive = false;
@@ -665,6 +648,8 @@ ErrorType GameClient::Run(void)
 
     // TODO: Wrap these in classes to use destructors?
     delete lobby;
+    UnloadShader(g_sdfShader);
+    UnloadFont(fontSdf);
     UnloadShader(pixelFixer);
     UnloadTexture(checkboardTexture);
     UnloadFont(fontSmall);
