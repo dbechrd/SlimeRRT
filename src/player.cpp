@@ -101,7 +101,7 @@ bool Player::Move(Vector2 offset)
         return false;
 
     // Don't allow player to move if they're not touching the ground (currently no jump/fall, so just assert)
-    assert(body.position.z == 0.0f);
+    //assert(body.position.z == 0.0f);
 
     body.position.x += offset.x;
     body.position.y += offset.y;

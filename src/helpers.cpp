@@ -12,13 +12,19 @@ static Color ShadowColor(const Color color)
 
 void DrawTextFont(Font font, const char *text, float posX, float posY, int fontSize, Color color)
 {
+    int shadowOffset = 1;
+    if (fontSize >= 54) {
+        shadowOffset = 3;
+    } else if (fontSize >= 36) {
+        shadowOffset = 2;
+    }
     // Check if default font has been loaded
     if (font.texture.id != 0)
     {
         Vector2 position = { posX, posY };
         Vector2 shadowPosition = position;
-        shadowPosition.x++;
-        shadowPosition.y++;
+        shadowPosition.x += shadowOffset;
+        shadowPosition.y += shadowOffset;
 
         int defaultFontSize = 10;   // Default Font chars height in pixel
         if (fontSize < defaultFontSize) fontSize = defaultFontSize;

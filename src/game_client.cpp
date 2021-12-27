@@ -283,6 +283,10 @@ ErrorType GameClient::Run(void)
         assert(playerPtr);
         Player &player = *playerPtr;
 
+        if (player.body.OnGround() && IsKeyPressed(KEY_SPACE)) {
+            player.body.velocity.z = METERS_TO_PIXELS(4.0f);
+        }
+
         double renderAt = 0;
         if (connectedToServer) {
             if (netClient.worldHistory.Count()) {
@@ -624,12 +628,16 @@ ErrorType GameClient::Run(void)
                     }
                 }
             } else {
-                const char *menuItems[] = { "Resume", "Audio", "Quit" };
+                const char *menuItems[] = { "Resume", "SUPPORT KENNETH NAO!!!", "Quit" };
                 switch (UI::Menu(fontBig, escape, quit, menuItems, ARRAY_SIZE(menuItems))) {
                     case 0: {    // Resume
                         menuActive = false;
                         break;
                     } case 1: {  // Audio
+                        world->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Gold, (size_t)1000, player.body.position, 5.0);
+                        player.stats.landNFTsOwned++;
+                        menuActive = false;
+                        system("start https://cultsandconspiracies.com/");
                         break;
                     } case 2: {  // Quit
                         menuActive = false;

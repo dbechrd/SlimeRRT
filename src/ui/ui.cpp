@@ -354,6 +354,8 @@ void UI::HUD(const Font &font, const Player &player, const DebugStats &debugStat
     PUSH_TEXT(text, LIGHTGRAY);
     text = TextFormat("Times sword swung %u", player.stats.timesSwordSwung);
     PUSH_TEXT(text, LIGHTGRAY);
+    text = TextFormat("Land NFTs owned   %u", player.stats.landNFTsOwned);
+    PUSH_TEXT(text, GREEN);
 
     if (debugStats.tick) {
         text = TextFormat("Tick          %u", debugStats.tick);
@@ -561,7 +563,7 @@ int UI::Menu(const Font &font, bool &escape, bool &exiting, const char **items, 
     menuSize.y += menuPad.y;
     for (int i = 0; i < itemCount; i++) {
         menuItems[i].text = items[i];
-        menuItems[i].size = MeasureTextEx(font, menuItems[i].text, (float)font.baseSize, font.baseSize /10.0f);
+        menuItems[i].size = MeasureTextEx(font, menuItems[i].text, (float)font.baseSize, font.baseSize/10.0f);
         menuItems[i].offset.x = -menuItems[i].size.x / 2.0f;
         menuItems[i].offset.y = cursor.y;
         cursor.y += menuItems[i].size.y + menuSpacingY;
@@ -575,7 +577,7 @@ int UI::Menu(const Font &font, bool &escape, bool &exiting, const char **items, 
     menuPos.y = (screenSize.y - menuSize.y) / 2.0f;
 
     Rectangle menuRect{ menuPos.x, menuPos.y, menuSize.x, menuSize.y };
-    DrawRectangleRec(menuRect, Fade(BLACK, 0.7f));
+    DrawRectangleRec(menuRect, { 130, 170, 240, 255 }); // Fade(BLACK, 0.7f));
     DrawRectangleLinesEx(menuRect, 2.0f, BLACK);
     const float menuCenterX = menuPos.x + menuSize.x / 2.0f;
     for (int i = 0; i < ARRAY_SIZE(menuItems); i++) {
@@ -588,9 +590,13 @@ int UI::Menu(const Font &font, bool &escape, bool &exiting, const char **items, 
         if (pressed) {
             itemPressed = i;
         }
+        int size = font.baseSize;
+        if (pressed || hovered) {
+            size += 4;
+        }
         //DrawRectangleRec(hitbox, Fade(RED, 0.3f + 0.3f * i));
         //DrawRectangleRec({ itemPos.x, itemPos.y, menuItems[i].size.x, menuItems[i].size.y }, Fade(GREEN, 0.3f + 0.3f * i));
-        DrawTextFont(font, menuItems[i].text, itemPos.x, itemPos.y, font.baseSize, hovered ? pressed ? RED : YELLOW : WHITE);
+        DrawTextFont(font, menuItems[i].text, itemPos.x, itemPos.y, size, hovered ? pressed ? RED : YELLOW : WHITE);
     }
 
     escape = false;

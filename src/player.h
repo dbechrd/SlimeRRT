@@ -50,6 +50,7 @@ struct Player {
         uint32_t slimesSlain     {};
         uint32_t timesFistSwung  {};
         uint32_t timesSwordSwung {};
+        uint32_t landNFTsOwned   {};
     };
 
     uint32_t        id          {};
