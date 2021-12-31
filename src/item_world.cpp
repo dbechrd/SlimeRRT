@@ -1,0 +1,49 @@
+#include "item_world.h"
+
+float ItemWorld::Depth(void) const
+{
+    const float depth = body.position.y;
+    return depth;
+}
+
+bool ItemWorld::Cull(const Rectangle& cullRect) const
+{
+    bool cull = false;
+
+#if 0
+    if (sprite.spriteDef) {
+        cull = sprite_cull_body(sprite, body, cullRect);
+    } else {
+        const Vector2 bodyBC = body.BottomCenter();
+        cull = !CheckCollisionCircleRec(bodyBC, sprite.scale, cullRect);
+    }
+#else
+    const Vector2 bodyBC = body.BottomCenter();
+    cull = !CheckCollisionCircleRec(bodyBC, 10.0f, cullRect);
+#endif
+
+    return cull;
+}
+
+void ItemWorld::Draw(void) const
+{
+#if 0
+    if (sprite.spriteDef) {
+        sprite_draw_body(sprite, body, color);
+    } else {
+        DrawCircle(
+            (int)body.position.x,
+            (int)(body.position.y - body.position.z),
+            sprite.scale,
+            color
+        );
+    }
+#else
+    DrawCircle(
+        (int)body.position.x,
+        (int)(body.position.y - body.position.z),
+        10.0f,
+        color
+    );
+#endif
+}

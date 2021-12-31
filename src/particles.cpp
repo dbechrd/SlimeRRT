@@ -189,64 +189,51 @@ void ParticleSystem::Update(double dt)
     }
 }
 
-void ParticleSystem::Push(DrawList &drawList)
+void ParticleSystem::PushAll(DrawList &drawList)
 {
     assert(particlesActiveCount <= MAX_PARTICLES);
 
     size_t particlesPushed = 0;
     for (size_t i = 0; particlesPushed < particlesActiveCount; i++) {
-        Particle *particle = &particles[i];
-        if (!particle->effect)
+        const Particle &particle = particles[i];
+        if (!particle.effect)
             continue;  // particle is dead
 
-        Push(drawList, *particle);
+        drawList.Push(particle);
         particlesPushed++;
     }
 }
 
-void ParticleSystem::Push(DrawList &drawList, const Particle &particle)
+float Particle::Depth(void) const
 {
-    Drawable drawable{ DrawableType::Particle };
-    drawable.particle = &particle;
-    drawList.Push(drawable);
-}
-
-float particle_depth(const Drawable &drawable)
-{
-    assert(drawable.type == DrawableType::Particle);
-    const Particle &particle = *drawable.particle;
-    const float depth = particle.body.position.y;
+    const float depth = body.position.y;
     return depth;
 }
 
-bool particle_cull(const Drawable &drawable, const Rectangle &cullRect)
+bool Particle::Cull(const Rectangle &cullRect) const
 {
     bool cull = false;
 
-    assert(drawable.type == DrawableType::Particle);
-    const Particle &particle = *drawable.particle;
-    if (particle.sprite.spriteDef) {
-        cull = sprite_cull_body(particle.sprite, particle.body, cullRect);
+    if (sprite.spriteDef) {
+        cull = sprite_cull_body(sprite, body, cullRect);
     } else {
-        const Vector2 particleBC = particle.body.BottomCenter();
-        cull = !CheckCollisionCircleRec(particleBC, particle.sprite.scale, cullRect);
+        const Vector2 bodyBC = body.BottomCenter();
+        cull = !CheckCollisionCircleRec(bodyBC, sprite.scale, cullRect);
     }
 
     return cull;
 }
 
-void particle_draw(const Drawable &drawable)
+void Particle::Draw(void) const
 {
-    assert(drawable.type == DrawableType::Particle);
-    const Particle &particle = *drawable.particle;
-    if (particle.sprite.spriteDef) {
-        sprite_draw_body(particle.sprite, particle.body, particle.color);
+    if (sprite.spriteDef) {
+        sprite_draw_body(sprite, body, color);
     } else {
         DrawCircle(
-            (int)particle.body.position.x,
-            (int)(particle.body.position.y - particle.body.position.z),
-            particle.sprite.scale,
-            particle.color
+            (int)body.position.x,
+            (int)(body.position.y - body.position.z),
+            sprite.scale,
+            color
         );
     }
 }

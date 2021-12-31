@@ -112,6 +112,8 @@ int main(int argc, char *argv[])
 #include "game_server.cpp"
 #include "healthbar.cpp"
 #include "helpers.cpp"
+#include "item_system.cpp"
+#include "item_world.cpp"
 #include "loot_table.cpp"
 #include "maths.cpp"
 #include "net_client.cpp"

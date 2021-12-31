@@ -108,7 +108,8 @@ void World::DespawnPlayer(uint32_t playerId)
     Player *player = FindPlayer(playerId);
     if (player) {
         printf("Despawn player %u\n", playerId);
-        memset(player, 0, sizeof(*player));
+        //memset(player, 0, sizeof(*player));
+        *player = {};
     }
 }
 
@@ -199,7 +200,8 @@ void World::DespawnSlime(uint32_t slimeId)
             Catalog::g_sounds.Play(Catalog::SoundID::Squish2, 0.5f + dlb_rand32f_variance(0.1f), true);
         }
         printf("Despawn slime %u\n", slimeId);
-        memset(slime, 0, sizeof(*slime));
+        //memset(slime, 0, sizeof(*slime));
+        *slime = {};
     }
 }
 
@@ -556,20 +558,23 @@ size_t World::DrawMap(int zoomMipLevel)
     return tilesDrawn;
 }
 
-void World::DrawEntities()
+void World::DrawItems(void)
 {
-    // Queue players for drawing
-    for (size_t i = 0; i < ARRAY_SIZE(players); i++) {
-        if (players[i].id) {
-            players[i].Push(drawList);
+    itemSystem.PushAll(drawList);
+}
+
+void World::DrawEntities(void)
+{
+    for (const Player &player : players) {
+        if (player.id) {
+            drawList.Push(player);
 
         }
     }
 
-    // Queue slimes for drawing
     for (const Slime &slime : slimes) {
         if (slime.combat.hitPoints) {
-            slime.Push(drawList);
+            drawList.Push(slime);
         }
     }
 }
@@ -577,7 +582,7 @@ void World::DrawEntities()
 void World::DrawParticles(void)
 {
     // Queue particles for drawing
-    particleSystem.Push(drawList);
+    particleSystem.PushAll(drawList);
 }
 
 void World::DrawFlush(void)

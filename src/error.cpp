@@ -13,11 +13,11 @@ static void traceLogCallback(int logType, const char *text, va_list args)
     vfprintf(stdout, text, args);
     fputs("\n", stdout);
     fflush(logFile);
-    if (logType > LOG_WARNING) {
+    if (logType == LOG_FATAL) {
         fclose(logFile);
-        //assert(!"Catch in debugger");
-        UNUSED(getc(stdin));
-        exit(-1);
+        assert(!"Catch in debugger");
+        //UNUSED(getc(stdin));
+        //exit(-1);
     }
 }
 

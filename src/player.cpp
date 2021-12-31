@@ -177,7 +177,7 @@ void Player::Update(double dt, InputSample &input, const Tilemap &map)
     moveBuffer = v2_add(moveBuffer, moveOffset);
 
     if (!input.skipFx && input.attack && Attack()) {
-        Catalog::g_sounds.Play(Catalog::SoundID::Whoosh, 1.0f + dlb_rand32f_variance(0.2f));
+        Catalog::g_sounds.Play(Catalog::SoundID::Whoosh, 1.0f + dlb_rand32f_variance(0.1f));
     }
 
     if (!v2_is_zero(moveBuffer)) {
@@ -308,39 +308,26 @@ void Player::Update(double dt, InputSample &input, const Tilemap &map)
     input.skipFx = true;
 }
 
-void Player::Push(DrawList &drawList) const
+float Player::Depth(void) const
 {
-    Drawable drawable{ DrawableType::Player };
-    drawable.player = this;
-    drawList.Push(drawable);
+    return body.position.y;
 }
 
-float Player_Depth(const Drawable &drawable)
+bool Player::Cull(const Rectangle &cullRect) const
 {
-    assert(drawable.type == DrawableType::Player);
-    const Player &player = *drawable.player;
-    return player.body.position.y;
-}
-
-bool Player_Cull(const Drawable &drawable, const Rectangle &cullRect)
-{
-    assert(drawable.type == DrawableType::Player);
-    const Player &player = *drawable.player;
-    bool cull = sprite_cull_body(player.sprite, player.body, cullRect);
+    bool cull = sprite_cull_body(sprite, body, cullRect);
     return cull;
 }
 
-void Player_Draw(const Drawable &drawable)
+void Player::Draw(void) const
 {
-    assert(drawable.type == DrawableType::Player);
-    const Player &player = *drawable.player;
     // Player shadow
     // TODO: Shadow size based on height from ground
     // https://yal.cc/top-down-bouncing-loot-effects/
     //const float shadowScale = 1.0f + slime->transform.position.z / 20.0f;
-    const Vector2 playerGroundPos = player.body.GroundPosition();
+    const Vector2 playerGroundPos = body.GroundPosition();
     Shadow::Draw((int)playerGroundPos.x, (int)playerGroundPos.y, 16.0f, -6.0f);
 
-    sprite_draw_body(player.sprite, player.body, WHITE);
-    HealthBar::Draw(10, player.sprite, player.body, player.name, player.combat.hitPoints, player.combat.hitPointsMax);
+    sprite_draw_body(sprite, body, WHITE);
+    HealthBar::Draw(10, sprite, body, name, combat.hitPoints, combat.hitPointsMax);
 }

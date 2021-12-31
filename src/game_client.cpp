@@ -105,7 +105,6 @@ ErrorType GameClient::Run(void)
         printf("ERROR: Failed to initialized audio device\n");
     }
 
-    DrawList::RegisterTypes();
     Catalog::g_items.Load();
     Catalog::g_mixer.Load();
     Catalog::g_particleFx.Load();
@@ -297,6 +296,7 @@ ErrorType GameClient::Run(void)
 
                     assert(world->map);
                     player.Update(tickDt, inputSample, *world->map);
+                    world->itemSystem.Update(tickDt);
                     world->particleSystem.Update(tickDt);
 
                     tickAccum -= tickDt;
@@ -329,6 +329,7 @@ ErrorType GameClient::Run(void)
                 player.Update(tickDt, inputSample, *world->map);
 
                 world->Simulate(tickDt);
+                world->itemSystem.Update(tickDt);
                 world->particleSystem.Update(tickDt);
 
                 //WorldSnapshot &worldSnapshot = netClient.worldHistory.Alloc();
@@ -357,6 +358,19 @@ ErrorType GameClient::Run(void)
             world->particleSystem.GenerateEffect(Catalog::ParticleEffectID::GoldenChest, 1, chestPos, 4.0f);
             world->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Gem, 8, chestPos, 3.0f);
             Catalog::g_sounds.Play(Catalog::SoundID::Gold, 1.0f + dlb_rand32f_variance(0.4f));
+
+            chestPos.x += dlb_rand32f_variance(METERS_TO_PIXELS(0.5f));
+            chestPos.y += dlb_rand32f_variance(METERS_TO_PIXELS(0.5f));
+            world->itemSystem.SpawnItem(chestPos, Catalog::ItemID::Weapon_Sword);
+
+            chestPos.x += dlb_rand32f_variance(METERS_TO_PIXELS(0.5f));
+            chestPos.y += dlb_rand32f_variance(METERS_TO_PIXELS(0.5f));
+            world->itemSystem.SpawnItem(chestPos, Catalog::ItemID::Weapon_Sword);
+
+            chestPos.x += dlb_rand32f_variance(METERS_TO_PIXELS(0.5f));
+            chestPos.y += dlb_rand32f_variance(METERS_TO_PIXELS(0.5f));
+            world->itemSystem.SpawnItem(chestPos, Catalog::ItemID::Weapon_Sword);
+
             samTreasureRoom = true;
         }
 
@@ -485,6 +499,7 @@ ErrorType GameClient::Run(void)
         if (input.dbgFindMouseTile) {
             UI::TileHoverOutline(*world->map);
         }
+        world->DrawItems();
         world->DrawEntities();
         world->DrawParticles();
         world->DrawFlush();

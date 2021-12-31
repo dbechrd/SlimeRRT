@@ -9,7 +9,7 @@
 //    SlimeAction_Attack = 1,
 //};
 
-struct Slime {
+struct Slime : public Drawable {
     enum class Action {
         None   = 0,
         Jump   = 1,
@@ -32,12 +32,11 @@ struct Slime {
     bool Combine(Slime &other);
     bool Attack(double dt);
     void Update(double dt);
-    void Push(DrawList &drawList) const;
+
+    float Depth(void) const;
+    bool  Cull(const Rectangle& cullRect) const;
+    void  Draw(void) const;
 
 private:
     void UpdateDirection(Vector2 offset);
 };
-
-float Slime_Depth (const Drawable &drawable);
-bool  Slime_Cull  (const Drawable &drawable, const Rectangle &cullRect);
-void  Slime_Draw  (const Drawable &drawable);

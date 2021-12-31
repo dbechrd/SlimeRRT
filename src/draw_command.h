@@ -6,20 +6,18 @@ enum class DrawableType {
     Particle,
     Player,
     Slime,
+    ItemWorld,
     Count,
 };
 
 struct Drawable {
-    DrawableType type;
-    union {
-        const struct Particle *particle;
-        const struct Player *player;
-        const struct Slime *slime;
-    };
+    virtual float Depth() const = 0;
+    virtual bool Cull(const Rectangle& cullRect) const = 0;
+    virtual void Draw() const = 0;
 };
 
 struct DrawCommand {
-    Drawable drawable;
+    const Drawable *drawable {};
 };
 
 struct DrawList {
@@ -28,18 +26,9 @@ struct DrawList {
     void Push(const Drawable &drawable);
     void Flush();
 
-    static void DrawList::RegisterTypes();
-
     bool      cullEnabled {};
     Rectangle cullRect    {};
 private:
     std::vector<DrawCommand> sortedCommands {};
-
-    static struct DrawableDef registry[(size_t)DrawableType::Count];
-    static void DrawList::RegisterType(DrawableType type, const DrawableDef &def);
-
-    static float Drawable_Depth(const Drawable &drawable);
-    static bool Drawable_Cull(const Drawable &drawable, const Rectangle &cullRect);
-    static void Drawable_Draw(const Drawable &drawable);
 };
 

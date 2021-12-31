@@ -26,7 +26,7 @@ struct PlayerInventory {
     ItemStack slots[(int)PlayerInventorySlot::Count]{};
 };
 
-struct Player {
+struct Player : Drawable {
     enum class MoveState {
         Idle      = 0,
         Walking   = 1,
@@ -66,19 +66,16 @@ struct Player {
 
     void Init(const SpriteDef *spriteDef);
     void SetName(const char *name, uint32_t nameLength);
-
     Vector3 GetAttachPoint(AttachPoint attachPoint) const;
     const ItemStack& GetSelectedItem() const;
+    void Update (double dt, InputSample &input, const Tilemap &map);
 
-    void Update       (double dt, InputSample &input, const Tilemap &map);
-    void Push         (DrawList &drawList) const;
+    float Depth(void) const;
+    bool  Cull(const Rectangle& cullRect) const;
+    void  Draw(void) const;
 
 private:
     void UpdateDirection (Vector2 offset);
     bool Move            (Vector2 offset);
     bool Attack          (void);
 };
-
-float Player_Depth(const Drawable &drawable);
-bool  Player_Cull (const Drawable &drawable, const Rectangle &cullRect);
-void  Player_Draw (const Drawable &drawable);

@@ -59,11 +59,8 @@ struct MapSystem {
     MapSystem(void);
     ~MapSystem(void);
 
-    size_t MapsActive(void);
-
-    Tilemap *GenerateLobby     (void);
-    Tilemap *GenerateFromTiles (Tile *&tiles, size_t tilesLength);
-    Tilemap *Generate          (dlb_rand32_t &rng, uint32_t width, uint32_t height);
+    Tilemap *GenerateLobby (void);
+    Tilemap *Generate      (dlb_rand32_t &rng, uint32_t width, uint32_t height);
 
 private:
     Tilemap *Alloc           (void);

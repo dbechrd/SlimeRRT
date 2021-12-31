@@ -3,12 +3,11 @@
 #include "draw_command.h"
 #include "catalog/particle_fx.h"
 #include "sprite.h"
-#include "spritesheet.h"
 #include "raylib/raylib.h"
 
 struct ParticleEffect;
 
-struct Particle {
+struct Particle : Drawable {
     ParticleEffect *effect  {};  // parent effect, 0 = dead
     Particle       *next    {};  // when alive, next particle in effect. when dead, intrusive free list.
     Body3D          body    {};  // physics body
@@ -16,11 +15,11 @@ struct Particle {
     Color           color   {};  // particle color (tint if particle also has sprite)
     double          spawnAt {};  // time to spawn (relative to effect->startedAt)
     double          dieAt   {};  // time to die   (relative to effect->startedAt)
-};
 
-float particle_depth (const Drawable &drawable);
-bool  particle_cull  (const Drawable &drawable, const Rectangle &cullRect);
-void  particle_draw  (const Drawable &drawable);
+    float Depth(void) const;
+    bool  Cull(const Rectangle& cullRect) const;
+    void  Draw(void) const;
+};
 
 //-----------------------------------------------------------------------------
 
@@ -62,12 +61,11 @@ struct ParticleSystem {
     size_t EffectsActive   (void);
 
     ParticleEffect *GenerateEffect(Catalog::ParticleEffectID id, size_t particleCount, Vector3 origin, double duration);
-    void Update (double dt);
-    void Push   (DrawList &drawList);
+    void Update  (double dt);
+    void PushAll (DrawList &drawList);
 
 private:
     Particle *Alloc (void);
-    void      Push  (DrawList &drawList, const Particle &particle);
 
     ParticleEffect  effects[MAX_EFFECTS] {};
     ParticleEffect *effectsFree          {};
@@ -77,4 +75,3 @@ private:
     Particle *particlesFree            {};
     size_t    particlesActiveCount     {};
 };
-

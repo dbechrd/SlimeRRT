@@ -3,6 +3,7 @@
 #include "controller.h"
 #include "catalog/items.h"
 #include "direction.h"
+#include "item_system.h"
 #include "particles.h"
 #include "player.h"
 #include "slime.h"
@@ -12,22 +13,24 @@
 #include <vector>
 
 struct World {
-    uint64_t              rtt_seed           {};
-    dlb_rand32_t          rtt_rand           {};
-    uint32_t              tick               {};
-    double                clockStart         {};
-    double                clock              {};
-    double                dtUpdate           {};
-    Tilemap               *map               {};
+    uint64_t              rtt_seed       {};
+    dlb_rand32_t          rtt_rand       {};
+    uint32_t              tick           {};
+    double                clockStart     {};
+    double                clock          {};
+    double                dtUpdate       {};
+    Tilemap               *map           {};
     // TODO: PlayerSystem
-    uint32_t              playerId           {};
-    Player                players            [SV_MAX_PLAYERS]{};
+    uint32_t              playerId       {};
+    Player                players        [SV_MAX_PLAYERS]{};
     // TODO: SlimeSystem or EnemySystem
-    Slime                 slimes             [SV_MAX_ENTITIES]{};
-    ParticleSystem        particleSystem     {};
-    MapSystem             mapSystem          {};
-    LootSystem            lootSystem         {};
-    ChatHistory           chatHistory        {};
+    Slime                 slimes         [SV_MAX_ENTITIES]{};
+
+    ChatHistory           chatHistory    {};
+    ItemSystem            itemSystem     {};
+    LootSystem            lootSystem     {};
+    MapSystem             mapSystem      {};
+    ParticleSystem        particleSystem {};
 
     World                       (void);
     ~World                      (void);
@@ -57,7 +60,8 @@ struct World {
 
     void EnableCulling(Rectangle cullRect);
     size_t DrawMap(int zoomMipLevel);
-    void DrawEntities();
+    void DrawItems(void);
+    void DrawEntities(void);
     void DrawParticles(void);
     void DrawFlush(void);
 
