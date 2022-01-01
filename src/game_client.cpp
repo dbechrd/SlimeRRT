@@ -361,13 +361,13 @@ ErrorType GameClient::Run(void)
             // - Terraria: Immediately items with physics that gravitate toward player
             // - Minecraft: Immediately items with physics, lots of friction on ground, gravity scoop
             // - What about DeathSpank?
-            world->particleSystem.GenerateEffect(Catalog::ParticleEffectID::GoldenChest, 1, chestPos, 4.0f);
-            world->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Gem, 8, chestPos, 3.0f);
-            Catalog::g_sounds.Play(Catalog::SoundID::Gold, 1.0f + dlb_rand32f_variance(0.4f));
+            //world->particleSystem.GenerateEffect(Catalog::ParticleEffectID::GoldenChest, 1, chestPos, 4.0f);
+            //world->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Gem, 8, chestPos, 3.0f);
+            //Catalog::g_sounds.Play(Catalog::SoundID::Gold, 1.0f + dlb_rand32f_variance(0.4f));
 
             chestPos.x += dlb_rand32f_variance(METERS_TO_PIXELS(0.5f));
             chestPos.y += dlb_rand32f_variance(METERS_TO_PIXELS(0.5f));
-            world->itemSystem.SpawnItem(chestPos, Catalog::ItemID::Weapon_Sword);
+            world->itemSystem.SpawnItem(chestPos, Catalog::ItemID::Currency_Coin);
 
             chestPos.x += dlb_rand32f_variance(METERS_TO_PIXELS(0.5f));
             chestPos.y += dlb_rand32f_variance(METERS_TO_PIXELS(0.5f));

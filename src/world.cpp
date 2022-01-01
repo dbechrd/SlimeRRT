@@ -108,7 +108,6 @@ void World::DespawnPlayer(uint32_t playerId)
     Player *player = FindPlayer(playerId);
     if (player) {
         printf("Despawn player %u\n", playerId);
-        //memset(player, 0, sizeof(*player));
         *player = {};
     }
 }
@@ -195,12 +194,10 @@ void World::DespawnSlime(uint32_t slimeId)
     if (slime) {
         if (!slime->combat.hitPoints) {
             const Vector3 slimeBC = sprite_world_center(slime->sprite, slime->body.position, slime->sprite.scale);
-            particleSystem.GenerateEffect(Catalog::ParticleEffectID::Gold, 8, slimeBC, 2.0);
             particleSystem.GenerateEffect(Catalog::ParticleEffectID::Goo, 20, slimeBC, 2.0);
             Catalog::g_sounds.Play(Catalog::SoundID::Squish2, 0.5f + dlb_rand32f_variance(0.1f), true);
         }
         printf("Despawn slime %u\n", slimeId);
-        //memset(slime, 0, sizeof(*slime));
         *slime = {};
     }
 }
@@ -261,9 +258,12 @@ void World::SimPlayers(double dt)
                         uint32_t coins = lootSystem.RollCoins(slime.combat.lootTableId, (int)slime.sprite.scale);
                         assert(coins);
 
-                        // TODO(design): Convert coins to higher currency if stack fills up?
-                        player.inventory.slots[(int)PlayerInventorySlot::Coins].stackCount += coins;
-                        player.stats.coinsCollected += coins;
+                        for (uint32_t i = 0; i < coins; i++) {
+                            Vector3 itemPos = slime.body.position;
+                            itemPos.x += dlb_rand32f_variance(METERS_TO_PIXELS(0.5f));
+                            itemPos.y += dlb_rand32f_variance(METERS_TO_PIXELS(0.5f));
+                            itemSystem.SpawnItem(itemPos, Catalog::ItemID::Currency_Coin);
+                        }
 
                         DespawnSlime(slime.id);
                         player.stats.slimesSlain++;
@@ -391,8 +391,17 @@ void World::SimItems(double dt)
         Vector3 itemToPlayer = v3_sub(playerGut, item.body.position);
         const float itemToPlayerDistSq = v3_length_sq(itemToPlayer);
         if (itemToPlayerDistSq < SQUARED(playerItemPickupDist)) {
-            Catalog::g_sounds.Play(Catalog::SoundID::Gold, 1.0f + dlb_rand32f_variance(0.2f), true);
             item.pickedUp = true;
+
+            switch (item.stack.id) {
+                case Catalog::ItemID::Currency_Coin: {
+                    // TODO(design): Convert coins to higher currency if stack fills up?
+                    closestPlayer->inventory.slots[(int)PlayerInventorySlot::Coins].stackCount += 1;
+                    closestPlayer->stats.coinsCollected += 1;
+                    Catalog::g_sounds.Play(Catalog::SoundID::Gold, 1.0f + dlb_rand32f_variance(0.2f), true);
+                    break;
+                }
+            }
         } else {
             Vector3 itemToPlayerDir = v3_normalize(itemToPlayer);
             float speed = MAX(0, 1.0f / (PIXELS_TO_METERS(sqrtf(itemToPlayerDistSq)) + 0.1f));

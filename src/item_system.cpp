@@ -13,10 +13,15 @@ void ItemSystem::SpawnItem(Vector3 pos, Catalog::ItemID id)
     item.stack.stackCount = 1;
     item.body.position = pos;
     item.body.friction = 0.1f;
-    static uint8_t itemIdx = 0;
-    itemIdx = (itemIdx + 1) % 10;
-    uint8_t grayWeight = (uint8_t)(255 / 10 * itemIdx);
-    item.color = { grayWeight, grayWeight, grayWeight, 255 };
+
+    static const SpriteDef *coinSpriteDef{};
+    if (!coinSpriteDef) {
+        const Spritesheet &coinSpritesheet = Catalog::g_spritesheets.FindById(Catalog::SpritesheetID::Coin);
+        coinSpriteDef = coinSpritesheet.FindSprite("coin");
+        //assert(coinSpriteDef);
+    }
+    item.sprite.spriteDef = coinSpriteDef;
+    item.sprite.scale = 1.0f;
     item.spawnedAt = GetTime();
 }
 
@@ -63,6 +68,7 @@ void ItemSystem::Update(double dt)
             items[itemsCount] = {};
         } else {
             item.body.Update(dt);
+            sprite_update(item.sprite, dt);
             // TODO: do we need animated sprites for world items?
             //sprite_update(item.sprite, dt);
             i++;

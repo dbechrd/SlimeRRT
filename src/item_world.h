@@ -8,7 +8,7 @@
 struct ItemWorld : Drawable {
     ItemStack stack     {};
     Body3D    body      {};
-    Color     color     {}; // TODO: sprite
+    Sprite    sprite    {};
     double    spawnedAt {};
     bool      pickedUp  {};
     ItemWorld *next     {};
