@@ -42,7 +42,7 @@ void ItemWorld::Draw(void) const
     DrawCircle(
         (int)body.position.x,
         (int)(body.position.y - body.position.z),
-        10.0f,
+        ITEM_WORLD_RADIUS * (color.r / 255.0f) * 5.0f,
         color
     );
 #endif

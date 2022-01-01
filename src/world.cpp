@@ -218,6 +218,7 @@ void World::Simulate(double dt)
 {
     SimPlayers(dt);
     SimSlimes(dt);
+    SimItems(dt);
 }
 
 void World::SimPlayers(double dt)
@@ -284,16 +285,6 @@ void World::SimSlimes(double dt)
     const float slimeAttackTrack = METERS_TO_PIXELS(10.0f);
     const float slimeRadius = METERS_TO_PIXELS(0.5f);
 
-    //static double lastSquish = 0;
-    //double timeSinceLastSquish = now - lastSquish;
-
-    Player *randomAlivePlayer = 0;
-    for (size_t i = 0; i < SV_MAX_PLAYERS; i++) {
-        if (players[i].id && players[i].combat.hitPoints > 0) {
-            randomAlivePlayer = &players[i];
-        }
-    }
-
     for (size_t slimeIdx = 0; slimeIdx < SV_MAX_ENTITIES; slimeIdx++) {
         Slime &slime = slimes[slimeIdx];
         if (!slime.id) {
@@ -313,7 +304,7 @@ void World::SimSlimes(double dt)
             const float slimeToPlayerDist = sqrtf(slimeToPlayerDistSq);
             const float moveDist = MIN(slimeToPlayerDist, slimeMoveSpeed * slime.sprite.scale);
             // 5% -1.0, 95% +1.0f
-            const float moveRandMult = dlb_rand32i_range(1, 100) > 5 ? 1.0f : -1.0f;
+            const float moveRandMult = 1.0f; //dlb_rand32i_range(1, 100) > 5 ? 1.0f : -1.0f;
             const Vector2 slimeMoveDir = v2_scale(slimeToPlayer, 1.0f / slimeToPlayerDist);
             const Vector2 slimeMove = v2_scale(slimeMoveDir, moveDist * moveRandMult);
             const Vector2 slimePos = slime.body.GroundPosition();
@@ -374,6 +365,42 @@ void World::SimSlimes(double dt)
 
         slime.Update(dt);
     }
+}
+
+
+void World::SimItems(double dt)
+{
+    // TODO: Move these to somewhere
+    const float playerItemPickupReach = METERS_TO_PIXELS(1.5f);
+    const float playerItemPickupDist = METERS_TO_PIXELS(0.1f);
+
+    const size_t itemCount = itemSystem.ItemsActive();
+    ItemWorld *items = itemSystem.Items();
+
+    for (size_t itemIdx = 0; itemIdx < itemCount; itemIdx++) {
+        ItemWorld &item = items[itemIdx];
+        assert(item.stack.id != Catalog::ItemID::Empty);
+
+        // TODO: Actually find closest alive player via RTree
+        Player *closestPlayer = FindClosestPlayer(item.body.GroundPosition(), playerItemPickupReach);
+        if (!closestPlayer || !closestPlayer->id) {
+            continue;
+        }
+
+        Vector3 playerGut = closestPlayer->GetAttachPoint(Player::AttachPoint::Gut);
+        Vector3 itemToPlayer = v3_sub(playerGut, item.body.position);
+        const float itemToPlayerDistSq = v3_length_sq(itemToPlayer);
+        if (itemToPlayerDistSq < SQUARED(playerItemPickupDist)) {
+            Catalog::g_sounds.Play(Catalog::SoundID::Gold, 1.0f + dlb_rand32f_variance(0.2f), true);
+            item.pickedUp = true;
+        } else {
+            Vector3 itemToPlayerDir = v3_normalize(itemToPlayer);
+            float speed = MAX(0, 1.0f / (PIXELS_TO_METERS(sqrtf(itemToPlayerDistSq)) + 0.1f));
+            item.body.velocity = v3_scale(itemToPlayerDir, METERS_TO_PIXELS(speed));
+        }
+    }
+
+    itemSystem.Update(dt);
 }
 
 void World::GenerateSnapshot(WorldSnapshot &worldSnapshot)

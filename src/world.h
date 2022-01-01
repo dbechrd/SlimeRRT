@@ -68,6 +68,7 @@ struct World {
 private:
     void SimPlayers(double dt);
     void SimSlimes(double dt);
+    void SimItems(double dt);
     bool InterpolateBody(Body3D &body, double renderAt, Direction &direction);
 
     DrawList drawList{};

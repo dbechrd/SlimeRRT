@@ -355,6 +355,12 @@ ErrorType GameClient::Run(void)
             uint32_t chestY = MAX(0, int(player.body.position.y / TILE_W) - 2);
             Structure::Spawn(*world->map, chestX - 3, chestY - 4);
             Vector3 chestPos{ (chestX * TILE_W) + TILE_W * 0.5f, float(chestY * TILE_W), 0.0f };
+
+            // TODO: Make chest/gems items.. or?
+            // - D2: flying item animation -> ground item
+            // - Terraria: Immediately items with physics that gravitate toward player
+            // - Minecraft: Immediately items with physics, lots of friction on ground, gravity scoop
+            // - What about DeathSpank?
             world->particleSystem.GenerateEffect(Catalog::ParticleEffectID::GoldenChest, 1, chestPos, 4.0f);
             world->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Gem, 8, chestPos, 3.0f);
             Catalog::g_sounds.Play(Catalog::SoundID::Gold, 1.0f + dlb_rand32f_variance(0.4f));
