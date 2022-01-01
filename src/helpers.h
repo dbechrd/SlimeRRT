@@ -28,7 +28,7 @@
 #define SV_USERNAME             "SERVER"
 #define SV_MAX_PLAYERS          8
 #define SV_MAX_ENTITIES         256
-#define SV_MAX_WORLD_ITEMS      8 //4096
+#define SV_MAX_WORLD_ITEMS      256 //4096
 #define SV_WORLD_ITEM_LIFETIME  16 //600 // despawn items after 10 minutes
 #define SV_TICK_RATE            60
 #define SV_INPUT_HISTORY        (SV_TICK_RATE * SV_MAX_PLAYERS)

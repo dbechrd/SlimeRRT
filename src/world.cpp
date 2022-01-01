@@ -387,8 +387,7 @@ void World::SimItems(double dt)
             continue;
         }
 
-        Vector3 playerGut = closestPlayer->GetAttachPoint(Player::AttachPoint::Gut);
-        Vector3 itemToPlayer = v3_sub(playerGut, item.body.position);
+        Vector3 itemToPlayer = v3_sub(closestPlayer->body.position, item.body.position);
         const float itemToPlayerDistSq = v3_length_sq(itemToPlayer);
         if (itemToPlayerDistSq < SQUARED(playerItemPickupDist)) {
             item.pickedUp = true;
@@ -403,9 +402,12 @@ void World::SimItems(double dt)
                 }
             }
         } else {
-            Vector3 itemToPlayerDir = v3_normalize(itemToPlayer);
-            float speed = MAX(0, 1.0f / (PIXELS_TO_METERS(sqrtf(itemToPlayerDistSq)) + 0.1f));
-            item.body.velocity = v3_scale(itemToPlayerDir, METERS_TO_PIXELS(speed));
+            const Vector3 itemToPlayerDir = v3_normalize(itemToPlayer);
+            const float speed = MAX(0, 1.0f / (PIXELS_TO_METERS(sqrtf(itemToPlayerDistSq)) + 0.3f));
+            const Vector3 itemVel = v3_scale(itemToPlayerDir, METERS_TO_PIXELS(speed));
+            item.body.velocity.x = itemVel.x;
+            item.body.velocity.y = itemVel.y;
+            //item.body.velocity.z = MAX(item.body.velocity.z, itemVel.z);
         }
     }
 

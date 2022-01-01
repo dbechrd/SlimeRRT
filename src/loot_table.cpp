@@ -5,7 +5,7 @@
 
 LootSystem::LootSystem(void)
 {
-    AddDropToTable(LootTableID::LT_Sam, Catalog::ItemType::Currency, 16, 128);
+    AddDropToTable(LootTableID::LT_Sam, Catalog::ItemType::Currency, 1, 4);
     AddDropToTable(LootTableID::LT_Slime, Catalog::ItemType::Currency, 1, 4);
 }
 

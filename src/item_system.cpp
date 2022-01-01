@@ -12,6 +12,11 @@ void ItemSystem::SpawnItem(Vector3 pos, Catalog::ItemID id)
     item.stack.id = id;
     item.stack.stackCount = 1;
     item.body.position = pos;
+    float randX = dlb_rand32f_variance(METERS_TO_PIXELS(3.0f));
+    float randY = dlb_rand32f_variance(METERS_TO_PIXELS(3.0f));
+    float randZ = dlb_rand32f_range(2.0f, METERS_TO_PIXELS(4.0f));
+    item.body.velocity = { randX, randY, randZ };
+    item.body.restitution = 0.8f;
     item.body.friction = 0.1f;
 
     static const SpriteDef *coinSpriteDef{};
