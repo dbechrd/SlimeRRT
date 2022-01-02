@@ -1,7 +1,7 @@
 #include "item_system.h"
 #include "raylib/raylib.h"
 
-void ItemSystem::SpawnItem(Vector3 pos, Catalog::ItemID id)
+void ItemSystem::SpawnItem(Vector3 pos, Catalog::ItemID id, uint32_t count)
 {
     ItemWorld *itemPtr = Alloc();
     if (!itemPtr) {
@@ -10,7 +10,7 @@ void ItemSystem::SpawnItem(Vector3 pos, Catalog::ItemID id)
 
     ItemWorld &item = *itemPtr;
     item.stack.id = id;
-    item.stack.stackCount = 1;
+    item.stack.count = count;
     item.body.position = pos;
     float randX = dlb_rand32f_variance(METERS_TO_PIXELS(3.0f));
     float randY = dlb_rand32f_variance(METERS_TO_PIXELS(3.0f));

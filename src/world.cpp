@@ -258,12 +258,10 @@ void World::SimPlayers(double dt)
                         uint32_t coins = lootSystem.RollCoins(slime.combat.lootTableId, (int)slime.sprite.scale);
                         assert(coins);
 
-                        for (uint32_t i = 0; i < coins; i++) {
-                            Vector3 itemPos = slime.body.position;
-                            itemPos.x += dlb_rand32f_variance(METERS_TO_PIXELS(0.5f));
-                            itemPos.y += dlb_rand32f_variance(METERS_TO_PIXELS(0.5f));
-                            itemSystem.SpawnItem(itemPos, Catalog::ItemID::Currency_Coin);
-                        }
+                        Vector3 itemPos = slime.body.position;
+                        itemPos.x += dlb_rand32f_variance(METERS_TO_PIXELS(0.5f));
+                        itemPos.y += dlb_rand32f_variance(METERS_TO_PIXELS(0.5f));
+                        itemSystem.SpawnItem(itemPos, Catalog::ItemID::Currency_Coin, coins);
 
                         DespawnSlime(slime.id);
                         player.stats.slimesSlain++;
@@ -395,15 +393,15 @@ void World::SimItems(double dt)
             switch (item.stack.id) {
                 case Catalog::ItemID::Currency_Coin: {
                     // TODO(design): Convert coins to higher currency if stack fills up?
-                    closestPlayer->inventory.slots[(int)PlayerInventorySlot::Coins].stackCount += 1;
-                    closestPlayer->stats.coinsCollected += 1;
+                    closestPlayer->inventory.slots[(int)PlayerInventorySlot::Coins].count += item.stack.count;
+                    closestPlayer->stats.coinsCollected += item.stack.count;
                     Catalog::g_sounds.Play(Catalog::SoundID::Gold, 1.0f + dlb_rand32f_variance(0.2f), true);
                     break;
                 }
             }
         } else {
             const Vector3 itemToPlayerDir = v3_normalize(itemToPlayer);
-            const float speed = MAX(0, 1.0f / (PIXELS_TO_METERS(sqrtf(itemToPlayerDistSq)) + 0.3f));
+            const float speed = MAX(0, 1.0f / PIXELS_TO_METERS(sqrtf(itemToPlayerDistSq)));
             const Vector3 itemVel = v3_scale(itemToPlayerDir, METERS_TO_PIXELS(speed));
             item.body.velocity.x = itemVel.x;
             item.body.velocity.y = itemVel.y;

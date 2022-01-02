@@ -6,7 +6,7 @@ struct ItemSystem {
     ItemSystem(void) {};
     ~ItemSystem(void) {};
 
-    void ItemSystem::SpawnItem(Vector3 pos, Catalog::ItemID id);
+    void ItemSystem::SpawnItem(Vector3 pos, Catalog::ItemID id, uint32_t stackCount);
     size_t ItemsActive(void) const;
     ItemWorld *Items(void);
     void Update(double dt);

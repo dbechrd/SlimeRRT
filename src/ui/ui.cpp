@@ -340,7 +340,7 @@ void UI::HUD(const Font &font, const Player &player, const DebugStats &debugStat
 
     text = TextFormat("%2i fps (%.02f ms)", GetFPS(), GetFrameTime() * 1000.0f);
     PUSH_TEXT(text, WHITE);
-    text = TextFormat("Coins: %d", player.inventory.slots[(int)PlayerInventorySlot::Coins].stackCount);
+    text = TextFormat("Coins: %d", player.inventory.slots[(int)PlayerInventorySlot::Coins].count);
     PUSH_TEXT(text, YELLOW);
     text = TextFormat("Coins collected   %u", player.stats.coinsCollected);
     PUSH_TEXT(text, LIGHTGRAY);

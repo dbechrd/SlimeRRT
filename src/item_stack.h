@@ -3,6 +3,6 @@
 #include <cstdint>
 
 struct ItemStack {
-    Catalog::ItemID id         {};
-    uint32_t        stackCount {};  // TODO: Check this is < itemCatalog[id].stackLimit
+    Catalog::ItemID id    {};
+    uint32_t        count {};  // TODO: Check this is < itemCatalog[id].stackLimit
 };
