@@ -28,6 +28,9 @@ World::~World(void)
 
 const Vector3 World::GetWorldSpawn(void)
 {
+    if (!map) {
+        return Vector3{};
+    }
     Vector3 worldSpawn = {
         (float)map->width / 2.0f * 32,
         (float)map->height / 2.0f * 32,
@@ -266,7 +269,7 @@ void World::SimPlayers(double dt)
                         DespawnSlime(slime.id);
                         player.stats.slimesSlain++;
                     } else {
-                        Catalog::g_sounds.Play(Catalog::SoundID::Slime_Stab1, 1.0f + dlb_rand32f_variance(0.4f), true);
+                        Catalog::g_sounds.Play(Catalog::SoundID::Slime_Stab1, 1.0f + dlb_rand32f_variance(0.4f));
                     }
                     slimesHit++;
                 }
@@ -430,9 +433,12 @@ void World::GenerateSnapshot(WorldSnapshot &worldSnapshot)
     // TODO: Find players/slimes/etc. that are actually near the player this snapshot is being generated for
     worldSnapshot.playerCount = 0;
     for (size_t i = 0; i < SV_MAX_PLAYERS && worldSnapshot.playerCount < SNAPSHOT_MAX_PLAYERS; i++) {
-        memcpy(worldSnapshot.players[i].name, players[i].name, USERNAME_LENGTH_MAX);
         worldSnapshot.players[worldSnapshot.playerCount].id           = players[i].id                 ;
         worldSnapshot.players[worldSnapshot.playerCount].nameLength   = players[i].nameLength         ;
+        memcpy(worldSnapshot.players[i].name, players[i].name, USERNAME_LENGTH_MAX);
+        if (players[i].nameLength) {
+            assert(worldSnapshot.players[i].name[0]);
+        }
         worldSnapshot.players[worldSnapshot.playerCount].position     = players[i].body.position      ;
         worldSnapshot.players[worldSnapshot.playerCount].direction    = players[i].sprite.direction   ;
         worldSnapshot.players[worldSnapshot.playerCount].hitPoints    = players[i].combat.hitPoints   ;

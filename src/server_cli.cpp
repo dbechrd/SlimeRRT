@@ -16,7 +16,7 @@ ErrorType ServerCLI::Run(const char *serverHost, unsigned short serverPort)
     std::thread serverThread;
 
     const char *title = "Attack the slimes!";
-    if (args.server) {
+    if (args.standalone) {
         title = "[Open to LAN] Attack the slimes!";
     }
 

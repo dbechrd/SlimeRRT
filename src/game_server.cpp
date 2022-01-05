@@ -7,14 +7,8 @@ using namespace std::chrono_literals;
 
 const char *GameServer::LOG_SRC = "GameServer";
 
-GameServer::GameServer(Args args) : args(args)
-{
-};
-
 ErrorType GameServer::Run()
 {
-    glfwInit();
-
     Catalog::g_items.Load();
 
     World *world = new World;
@@ -32,14 +26,13 @@ ErrorType GameServer::Run()
         }
     }
 
-    E_ASSERT(netServer.OpenSocket(SV_DEFAULT_PORT), "Failed to open socket");
+    E_ASSERT(netServer.OpenSocket(args.port), "Failed to open socket");
 
     const double tickDt = 1.0f / SV_TICK_RATE;
     double tickAccum = 0.0f;
     double frameStart = glfwGetTime();
 
-    bool running = true;
-    while (running) {
+    while (!args.exiting) {
         world->tick++;
         E_ASSERT(netServer.Listen(), "Failed to listen on socket");
 

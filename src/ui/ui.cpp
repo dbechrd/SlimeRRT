@@ -113,6 +113,9 @@ void UI::LoginForm(NetClient &netClient, ImGuiIO& io, bool &escape)
         );
         ImGui::PopStyleColor(2);
         ImGui::Text("Play with friends!");
+        if (ImGui::Button("Connect to myself", ImVec2(150, 0))) {
+            netClient.Connect(SV_SINGLEPLAYER_HOST, SV_SINGLEPLAYER_PORT, SV_SINGLEPLAYER_USER, SV_SINGLEPLAYER_PASS);
+        }
         if (ImGui::Button("Connect to DandyNet", ImVec2(150, 0))) {
             ImGui::OpenPopup("Connect to Server##login_window");
         }
@@ -128,12 +131,12 @@ void UI::LoginForm(NetClient &netClient, ImGuiIO& io, bool &escape)
             ImGui::Text("    Host:");
             ImGui::SameLine();
             ImGui::SetNextItemWidth(232);
-            ImGui::InputText("##host", host, sizeof(host), ImGuiInputTextFlags_Password | ImGuiInputTextFlags_ReadOnly);
+            ImGui::InputText("##host", host, sizeof(host)); //, ImGuiInputTextFlags_Password | ImGuiInputTextFlags_ReadOnly);
 
             ImGui::Text("    Port:");
             ImGui::SameLine();
             ImGui::SetNextItemWidth(89);
-            ImGui::InputInt("##port", &port, 1, 100, ImGuiInputTextFlags_ReadOnly);
+            ImGui::InputInt("##port", &port, 1, 100); //, ImGuiInputTextFlags_ReadOnly);
             port = CLAMP(port, 0, USHRT_MAX);
 
             ImGui::Text("Username:");

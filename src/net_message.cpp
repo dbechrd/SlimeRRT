@@ -111,7 +111,11 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                 stream.ProcessBool(same);
                 if (same) {
                     if (mode == BitStream::Mode::Reader) {
+#pragma warning(push)
+#pragma warning(disable: 6385)
+                        // conversion from 'int' to 'float'
                         sample = input.samples[i - 1];
+#pragma warning(pop)
                         sample.seq = input.samples[i - 1].seq + 1;
                     }
                 } else {
@@ -155,11 +159,33 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
             break;
         } case NetMessage::Type::WorldSnapshot: {
             WorldSnapshot &worldSnapshot = data.worldSnapshot;
-
+            
             stream.Process(worldSnapshot.tick, 32, 1, UINT32_MAX);
+            // TODO: Make this relative to tick to save bandwidth?
             stream.Process(worldSnapshot.lastInputAck, 32, 0, UINT32_MAX);
             stream.Process(worldSnapshot.playerCount, 4, 0, SNAPSHOT_MAX_PLAYERS);
+            //stream.Align();
             stream.Process(worldSnapshot.slimeCount, 9, 0, SNAPSHOT_MAX_ENTITIES);
+            //stream.Align();
+
+#if _DEBUG
+            if (!worldSnapshot.playerCount) {
+                FILE *recvLog = fopen("recv.txt", "w");
+                fprintf(recvLog, "Snapshot #%u: ", data.worldSnapshot.tick);
+                for (size_t i = 0; i < buffer.dataLength / sizeof(uint32_t); i++) {
+                    uint32_t word = ((uint32_t *)buffer.data)[i];
+                    fprintf(recvLog, "%02hhx %02hhx %02hhx %02hhx ",
+                        (uint8_t)((word >> 24) & 0xff),
+                        (uint8_t)((word >> 16) & 0xff),
+                        (uint8_t)((word >> 8) & 0xff),
+                        (uint8_t)((word >> 0) & 0xff)
+                    );
+                }
+                putc('\n', recvLog);
+                fclose(recvLog);
+                TraceLog(LOG_FATAL, "INVALID SNAPSHOT NOOOOO!!!! see recv.txt");
+            }
+#endif
 
             for (size_t i = 0; i < worldSnapshot.playerCount; i++) {
                 PlayerSnapshot &player = worldSnapshot.players[i];
@@ -238,6 +264,16 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
 
     stream.Flush();
     buffer.dataLength = stream.BytesProcessed();
+
+    if (type == NetMessage::Type::WorldSnapshot) {
+        static FILE *sendLog = fopen("send.txt", "w");
+        fprintf(sendLog, "Snapshot #%u: ", data.worldSnapshot.tick);
+        for (size_t i = 0; i < buffer.dataLength; i++) {
+            fprintf(sendLog, "%02hhx", *((uint8_t *)buffer.data + i));
+        }
+        putc('\n', sendLog);
+        //fclose(sendLog);
+    }
 }
 
 ENetBuffer NetMessage::Serialize(World &world)

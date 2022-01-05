@@ -6,12 +6,12 @@
 struct World;
 
 struct GameClient{
-    GameClient(Args args) : args(args) {};
+    GameClient(const Args &args) : args(args) {};
     ErrorType Run(void);
 
 private:
     static const char *LOG_SRC;
-    Args       args;
-    World     *world     {};
+    const Args &args;
+    World      *world    {};
     NetClient  netClient {};
 };

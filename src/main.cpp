@@ -25,40 +25,49 @@ int main(int argc, char *argv[])
         TraceLog(LOG_FATAL, "Failed to initialize network utilities (enet). Error code: %d\n", enet_code);
     }
 
+    const char *title = "Attack the slimes!";
+    if (args.standalone) {
+        title = "[SLIMY SERVER]";
+    }
+    
+    InitWindow(1600, 900, title);
+    if (args.standalone) {
+        // NOTE: I could avoid the flicker if Raylib would let me pass it as a flag into InitWindow -_-
+        SetWindowState(FLAG_WINDOW_HIDDEN);
+    }
+
     std::thread serverThread([&args] {
-        if (args.server) {
-            GameServer *gameServer = new GameServer(args);
-            gameServer->Run();
-            delete gameServer;
-        }
+        GameServer *gameServer = new GameServer(args);
+        gameServer->Run();
+        delete gameServer;
     });
 
-    if (args.server) {
-        // TODO: Make CLI not be an entire client/player. Makes no sense for the CLI to show up in the world LUL.
-        //ServerCLI serverCli{ args };
-        //serverCli.Run("localhost", SV_DEFAULT_PORT);
-        //AllocConsole();
+    // TODO: Make CLI not be an entire client/player. Makes no sense for the CLI to show up in the world LUL.
+    //ServerCLI serverCli{ args };
+    //serverCli.Run("localhost", SV_DEFAULT_PORT);
+
 #ifdef _DEBUG
+    if (args.standalone) {
         // Dock right side of right monitor
         // { l:2873 t : 1 r : 3847 b : 1048 }
         SetConsolePosition(2873, 1, 3847 - 2873, 1048 - 1);
-#endif
     } else {
-#ifdef _DEBUG
+        // Dock left side of right monitor
         // { l:1913 t : 1 r : 2887 b : 1048 }
         SetConsolePosition(1913, 1, 2887 - 1913, 1048 - 1);
-#else
-        HideConsole();
-#endif
-        GameClient *gameClient = new GameClient(args);
-        gameClient->Run();
-        delete gameClient;
     }
+#endif
+    
+    GameClient *gameClient = new GameClient(args);
+    gameClient->Run();
+    args.exiting = true;
+    delete gameClient;
 
     //--------------------------------
     // Clean up
     //--------------------------------
     serverThread.join();
+    CloseWindow();
     enet_deinitialize();
     return 0;
 }

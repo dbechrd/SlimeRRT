@@ -53,6 +53,9 @@ void BitStream::Process(uint32_t &word, uint8_t bits, uint32_t min, uint32_t max
             scratchBits -= bits;
 
             // TODO: Handle malformed incoming packets in a way that doesn't crash the server
+            if (word == 256 && max == 64) {
+                assert(word);
+            }
             assert(word >= min);
             assert(word <= max);
             break;

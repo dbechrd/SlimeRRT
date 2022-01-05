@@ -3,6 +3,11 @@
 #undef NOUSER // need WinUser.h for SetWindowPos
 #include <Windows.h>
 
+void ShowConsole(void)
+{
+    AllocConsole();
+}
+
 void HideConsole(void)
 {
     FreeConsole();

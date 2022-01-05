@@ -30,13 +30,6 @@ const char *GameClient::LOG_SRC = "GameClient";
 
 ErrorType GameClient::Run(void)
 {
-    const char *title = "Attack the slimes!";
-    if (args.server) {
-        title = "[Open to LAN] Attack the slimes!";
-    }
-    // {x=1161.00000 y=656.000000 }
-    InitWindow(1600, 900, title);
-    //InitWindow(600, 400, title);
     SetWindowState(FLAG_WINDOW_RESIZABLE);
     SetExitKey(0);  // Disable default Escape exit key, we'll handle escape ourselves
     Vector2 screenSize{ (float)GetRenderWidth(), (float)GetRenderHeight() };
@@ -57,6 +50,10 @@ ErrorType GameClient::Run(void)
     // Setup Platform/Renderer backends
     ImGui_ImplGlfw_InitForOpenGL(glfwWindow, true);
     ImGui_ImplOpenGL3_Init("#version 130");
+
+    if (netClient.Connect(args.host, args.port, args.user, args.pass) != ErrorType::Success) {
+        TraceLog(LOG_ERROR, "Failed to connect to local server");
+    }
 
     const char *fontName = "C:/Windows/Fonts/consola.ttf";
     //const char *fontName = "resources/UbuntuMono-Regular.ttf";
@@ -672,6 +669,5 @@ ErrorType GameClient::Run(void)
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
 
-    CloseWindow();
     return ErrorType::Success;
 }
