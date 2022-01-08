@@ -116,6 +116,29 @@ void BitStream::Flush()
     if (mode == Mode::Writer && scratchBits) {
         assert((wordIndex + 1) * 32 < bufferBits);
         ((uint32_t *)buffer)[wordIndex] = scratch & 0xFFFFFFFF;
+
+#if _DEBUG && 0
+        if (debugPrint) {
+            FILE *log = fopen(mode == Mode::Reader ? "recv.txt" : "send.txt", "w");
+#define BIT(x, n) (x >> (31 - (n)) & 1)
+            int bit = 0;
+            uint32_t word = *((uint32_t *)buffer + wordIndex);
+            fprintf(log,
+                "%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d ",
+                BIT(word, bit++), BIT(word, bit++), BIT(word, bit++), BIT(word, bit++),
+                BIT(word, bit++), BIT(word, bit++), BIT(word, bit++), BIT(word, bit++),
+                BIT(word, bit++), BIT(word, bit++), BIT(word, bit++), BIT(word, bit++),
+                BIT(word, bit++), BIT(word, bit++), BIT(word, bit++), BIT(word, bit++),
+                BIT(word, bit++), BIT(word, bit++), BIT(word, bit++), BIT(word, bit++),
+                BIT(word, bit++), BIT(word, bit++), BIT(word, bit++), BIT(word, bit++),
+                BIT(word, bit++), BIT(word, bit++), BIT(word, bit++), BIT(word, bit++),
+                BIT(word, bit++), BIT(word, bit++), BIT(word, bit++), BIT(word, bit++)
+            );
+            fclose(log);
+#undef BIT
+        }
+#endif
+
         wordIndex++;
         scratch >>= 32;
         scratchBits -= MIN(scratchBits, 32);

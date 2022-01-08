@@ -36,7 +36,7 @@ struct NetClient {
 
 private:
     static const char *LOG_SRC;
-    NetMessage netMsg {};
+    NetMessage tempMsg {};
 
     ErrorType   SendRaw           (const void *data, size_t size);
     ErrorType   SendMsg           (NetMessage &message);

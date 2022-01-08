@@ -71,8 +71,8 @@ struct NetMessage {
     } data {};
 
     const char *TypeString(void);
-    ENetBuffer Serialize(World &world);
-    void Deserialize(ENetBuffer buffer, World &world);
+    void Serialize(const World &world, ENetBuffer &buffer);
+    void Deserialize(World &world, const ENetBuffer &buffer);
 
 private:
     static ENetBuffer tempBuffer;

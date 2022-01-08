@@ -93,10 +93,16 @@ ErrorType NetServer::SendMsg(const NetServerClient &client, NetMessage &message)
         return ErrorType::Success;
     }
 
+    if (message.type == NetMessage::Type::Input) {
+        assert((int)message.type);
+    }
+
     message.connectionToken = client.connectionToken;
-    ENetBuffer rawPacket = message.Serialize(*serverWorld);
+    ENetBuffer rawPacket{ PACKET_SIZE_MAX, calloc(PACKET_SIZE_MAX, sizeof(uint8_t)) };
+    message.Serialize(*serverWorld, rawPacket);
     //E_INFO("[SEND][%21s][%5u b] %16s ", TextFormatIP(client.peer->address), rawPacket.dataLength, netMsg.TypeString());
     E_ASSERT(SendRaw(client, rawPacket.data, rawPacket.dataLength), "Failed to send packet");
+    free(rawPacket.data);
     return ErrorType::Success;
 }
 
@@ -239,7 +245,7 @@ void NetServer::ProcessMsg(NetServerClient &client, ENetPacket &packet)
 
     ENetBuffer packetBuffer{ packet.dataLength, packet.data };
     memset(&netMsg, 0, sizeof(netMsg));
-    netMsg.Deserialize(packetBuffer, *serverWorld);
+    netMsg.Deserialize(*serverWorld, packetBuffer);
 
     if (netMsg.type != NetMessage::Type::Identify &&
         netMsg.connectionToken != client.connectionToken)

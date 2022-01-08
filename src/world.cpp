@@ -479,9 +479,8 @@ bool World::InterpolateBody(Body3D &body, double renderAt, Direction &direction)
     // renderAt is before any snapshots, show entity at oldest snapshot
     if (right == 0) {
         Vector3Snapshot &oldest = positionHistory.At(0);
-
         assert(renderAt < oldest.recvAt);
-        printf("renderAt %f before oldest snapshot %f\n", renderAt, oldest.recvAt);
+        //printf("renderAt %f before oldest snapshot %f\n", renderAt, oldest.recvAt);
 
         body.position = oldest.v;
         direction = oldest.direction;
@@ -489,16 +488,15 @@ bool World::InterpolateBody(Body3D &body, double renderAt, Direction &direction)
     } else if (right == historyLen) {
         // TODO: Extrapolate beyond latest snapshot if/when this happens? Should be mostly avoidable..
         Vector3Snapshot &newest = positionHistory.At(historyLen - 1);
-
         assert(renderAt >= newest.recvAt);
         if (renderAt > newest.recvAt) {
-            printf("renderAt %f after newest snapshot %f\n", renderAt, newest.recvAt);
+            //printf("renderAt %f after newest snapshot %f\n", renderAt, newest.recvAt);
         }
 
         // TODO: Send explicitly despawn event from server
         // If we haven't seen an entity in 2 snapshots, chances are it's gone
         if (renderAt > newest.recvAt + (1.0 / SNAPSHOT_SEND_RATE) * 2) {
-            printf("Despawning body due to inactivity\n");
+            //printf("Despawning body due to inactivity\n");
             return false;
         }
 

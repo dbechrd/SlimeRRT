@@ -21,9 +21,10 @@ void net_message_test_snapshot()
 
     World *world = new World;
     world->SpawnPlayer(player.id);
-    ENetBuffer rawPacket = msgWritten.Serialize(*world);
+    ENetBuffer rawPacket{ PACKET_SIZE_MAX, calloc(PACKET_SIZE_MAX, sizeof(uint8_t)) };
+    msgWritten.Serialize(*world, rawPacket);
     NetMessage baseMsgRead{};
-    baseMsgRead.Deserialize(rawPacket, *world);
+    baseMsgRead.Deserialize(*world, rawPacket);
     delete world;
 
     assert(baseMsgRead.connectionToken = msgWritten.connectionToken);
@@ -43,6 +44,7 @@ void net_message_test_snapshot()
     assert(playerRead.hitPointsMax == player.hitPointsMax);
     assert(playerRead.hitPoints == player.hitPoints);
     delete &msgWritten;
+    free(rawPacket.data);
 }
 
 void net_message_test_chat()
@@ -55,9 +57,10 @@ void net_message_test_chat()
     msgWritten.data.chatMsg.messageLength = (uint32_t)strlen(msgWritten.data.chatMsg.message);
 
     World *world = new World;
-    ENetBuffer rawPacket = msgWritten.Serialize(*world);
+    ENetBuffer rawPacket{ PACKET_SIZE_MAX, calloc(PACKET_SIZE_MAX, sizeof(uint8_t)) };
+    msgWritten.Serialize(*world, rawPacket);
     NetMessage baseMsgRead{};
-    baseMsgRead.Deserialize(rawPacket, *world);
+    baseMsgRead.Deserialize(*world, rawPacket);
     delete world;
 
     assert(baseMsgRead.type == NetMessage::Type::ChatMessage);
@@ -69,6 +72,7 @@ void net_message_test_chat()
     assert(msgRead.messageLength == msgWritten.data.chatMsg.messageLength);
     assert(!strncmp(msgRead.message, msgWritten.data.chatMsg.message, msgRead.messageLength));
     delete &msgWritten;
+    free(rawPacket.data);
 }
 
 void net_message_test()

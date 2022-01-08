@@ -5,8 +5,6 @@
 #include "tilemap.h"
 #include <cassert>
 
-ENetBuffer NetMessage::tempBuffer{};
-
 const char *NetMessage::TypeString(void)
 {
     switch (type) {
@@ -14,31 +12,17 @@ const char *NetMessage::TypeString(void)
         case Type::Identify      : return "Identify";
         case Type::ChatMessage   : return "ChatMessage";
         case Type::Welcome       : return "Welcome";
+        case Type::Input         : return "Input";
         case Type::WorldChunk    : return "WorldChunk";
         case Type::WorldSnapshot : return "WorldSnapshot";
-        default                  : return "[NetMessage::Type]";
+        default                  : return "NetMessage::Type::???";
     }
 }
 
 void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
 {
-    switch (mode) {
-        case BitStream::Mode::Reader: {
-            assert(buffer.data);
-            assert(buffer.dataLength);
-            break;
-        } case BitStream::Mode::Writer: {
-            if (!tempBuffer.dataLength) {
-                tempBuffer.dataLength = PACKET_SIZE_MAX;
-                tempBuffer.data = calloc(tempBuffer.dataLength, sizeof(uint8_t));
-            } else {
-                memset(tempBuffer.data, 0, tempBuffer.dataLength);
-            }
-            buffer.data = tempBuffer.data;
-            buffer.dataLength = tempBuffer.dataLength;
-            break;
-        }
-    }
+    assert(buffer.data);
+    assert(buffer.dataLength);
 
     BitStream stream(mode, buffer.data, buffer.dataLength);
 
@@ -48,6 +32,11 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
     stream.Process(typeInt, 3, (uint32_t)NetMessage::Type::Unknown + 1, (uint32_t)NetMessage::Type::Count - 1);
     type = (Type)typeInt;
     stream.Align();
+
+    if (type == NetMessage::Type::WorldSnapshot) {
+        stream.debugPrint = true;
+        //puts("WorldSnapshot:");
+    }
 
     switch (type) {
         case NetMessage::Type::Identify: {
@@ -119,9 +108,9 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                         sample.seq = input.samples[i - 1].seq + 1;
                     }
                 } else {
-                    if (i && mode == BitStream::Mode::Writer) {
-                        printf("Diff sample!\n");
-                    }
+                    //if (i && mode == BitStream::Mode::Writer) {
+                    //    printf("Diff sample!\n");
+                    //}
                     stream.Process(sample.seq, 32, 0, UINT32_MAX);
                     stream.Process(sample.ownerId, 32, 0, UINT32_MAX);
                     stream.ProcessBool(sample.walkNorth);
@@ -167,25 +156,6 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
             //stream.Align();
             stream.Process(worldSnapshot.slimeCount, 9, 0, SNAPSHOT_MAX_ENTITIES);
             //stream.Align();
-
-#if _DEBUG
-            if (!worldSnapshot.playerCount) {
-                FILE *recvLog = fopen("recv.txt", "w");
-                fprintf(recvLog, "Snapshot #%u: ", data.worldSnapshot.tick);
-                for (size_t i = 0; i < buffer.dataLength / sizeof(uint32_t); i++) {
-                    uint32_t word = ((uint32_t *)buffer.data)[i];
-                    fprintf(recvLog, "%02hhx %02hhx %02hhx %02hhx ",
-                        (uint8_t)((word >> 24) & 0xff),
-                        (uint8_t)((word >> 16) & 0xff),
-                        (uint8_t)((word >> 8) & 0xff),
-                        (uint8_t)((word >> 0) & 0xff)
-                    );
-                }
-                putc('\n', recvLog);
-                fclose(recvLog);
-                TraceLog(LOG_FATAL, "INVALID SNAPSHOT NOOOOO!!!! see recv.txt");
-            }
-#endif
 
             for (size_t i = 0; i < worldSnapshot.playerCount; i++) {
                 PlayerSnapshot &player = worldSnapshot.players[i];
@@ -265,6 +235,7 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
     stream.Flush();
     buffer.dataLength = stream.BytesProcessed();
 
+#if _DEBUG && 0
     if (type == NetMessage::Type::WorldSnapshot) {
         static FILE *sendLog = fopen("send.txt", "w");
         fprintf(sendLog, "Snapshot #%u: ", data.worldSnapshot.tick);
@@ -274,20 +245,19 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
         putc('\n', sendLog);
         //fclose(sendLog);
     }
+#endif
 }
 
-ENetBuffer NetMessage::Serialize(World &world)
+void NetMessage::Serialize(const World &world, ENetBuffer &buffer)
 {
-    ENetBuffer buffer{};
-    Process(BitStream::Mode::Writer, buffer, world);
+    Process(BitStream::Mode::Writer, buffer, (World &)world);
     assert(buffer.data);
     assert(buffer.dataLength);
-    return buffer;
 }
 
-void NetMessage::Deserialize(ENetBuffer buffer, World &world)
+void NetMessage::Deserialize(World &world, const ENetBuffer &buffer)
 {
     assert(buffer.data);
     assert(buffer.dataLength);
-    Process(BitStream::Mode::Reader, buffer, world);
+    Process(BitStream::Mode::Reader, (ENetBuffer &)buffer, world);
 }

@@ -88,9 +88,11 @@ ErrorType NetClient::SendRaw(const void *data, size_t size)
 ErrorType NetClient::SendMsg(NetMessage &message)
 {
     message.connectionToken = connectionToken;
-    ENetBuffer rawPacket = message.Serialize(*serverWorld);
+    ENetBuffer rawPacket{ PACKET_SIZE_MAX, calloc(PACKET_SIZE_MAX, sizeof(uint8_t)) };
+    message.Serialize(*serverWorld, rawPacket);
     //E_INFO("[SEND][%21s][%5u b] %16s ", rawPacket.dataLength, netMsg.TypeString());
     E_ASSERT(SendRaw(rawPacket.data, rawPacket.dataLength), "Failed to send packet");
+    free(rawPacket.data);
     return ErrorType::Success;
 }
 
@@ -99,13 +101,13 @@ ErrorType NetClient::Auth(void)
     assert(usernameLength);
     assert(passwordLength);
 
-    memset(&netMsg, 0, sizeof(netMsg));
-    netMsg.type = NetMessage::Type::Identify;
-    netMsg.data.identify.usernameLength = (uint32_t)usernameLength;
-    memcpy(netMsg.data.identify.username, username, usernameLength);
-    netMsg.data.identify.passwordLength = (uint32_t)passwordLength;
-    memcpy(netMsg.data.identify.password, password, passwordLength);
-    ErrorType result = SendMsg(netMsg);
+    memset(&tempMsg, 0, sizeof(tempMsg));
+    tempMsg.type = NetMessage::Type::Identify;
+    tempMsg.data.identify.usernameLength = (uint32_t)usernameLength;
+    memcpy(tempMsg.data.identify.username, username, usernameLength);
+    tempMsg.data.identify.passwordLength = (uint32_t)passwordLength;
+    memcpy(tempMsg.data.identify.password, password, passwordLength);
+    ErrorType result = SendMsg(tempMsg);
 
     // Clear password from memory
     memset(password, 0, sizeof(password));
@@ -132,13 +134,13 @@ ErrorType NetClient::SendChatMessage(const char *message, size_t messageLength)
     // If we don't have a username yet (salt, client id, etc.) then we're not connected and can't send chat messages!
     // This would be weird since if we're not connected how do we see the chat box?
 
-    memset(&netMsg, 0, sizeof(netMsg));
-    netMsg.type = NetMessage::Type::ChatMessage;
-    netMsg.data.chatMsg.usernameLength = (uint32_t)usernameLength;
-    memcpy(netMsg.data.chatMsg.username, username, usernameLength);
-    netMsg.data.chatMsg.messageLength = (uint32_t)messageLengthSafe;
-    memcpy(netMsg.data.chatMsg.message, message, messageLengthSafe);
-    ErrorType result = SendMsg(netMsg);
+    memset(&tempMsg, 0, sizeof(tempMsg));
+    tempMsg.type = NetMessage::Type::ChatMessage;
+    tempMsg.data.chatMsg.usernameLength = (uint32_t)usernameLength;
+    memcpy(tempMsg.data.chatMsg.username, username, usernameLength);
+    tempMsg.data.chatMsg.messageLength = (uint32_t)messageLengthSafe;
+    memcpy(tempMsg.data.chatMsg.message, message, messageLengthSafe);
+    ErrorType result = SendMsg(tempMsg);
     return result;
 }
 
@@ -157,8 +159,8 @@ ErrorType NetClient::SendPlayerInput(void)
 
     WorldSnapshot &worldSnapshot = worldHistory.Last();
 
-    memset(&netMsg, 0, sizeof(netMsg));
-    netMsg.type = NetMessage::Type::Input;
+    memset(&tempMsg, 0, sizeof(tempMsg));
+    tempMsg.type = NetMessage::Type::Input;
 
     uint32_t sampleCount = 0;
     for (size_t i = 0; i < inputHistory.Count() && sampleCount < CL_INPUT_SAMPLES_MAX; i++) {
@@ -166,13 +168,13 @@ ErrorType NetClient::SendPlayerInput(void)
         if (inputSample.seq > worldSnapshot.lastInputAck) {
             //if (sampleCount == 0) { printf("Sending input seq:"); }
             //printf(" %u", inputSample.seq);
-            netMsg.data.input.samples[sampleCount++] = inputSample;
+            tempMsg.data.input.samples[sampleCount++] = inputSample;
         }
     }
     //putchar('\n');
     //fflush(stdout);
-    netMsg.data.input.sampleCount = sampleCount;
-    return SendMsg(netMsg);
+    tempMsg.data.input.sampleCount = sampleCount;
+    return SendMsg(tempMsg);
 }
 
 void NetClient::PredictPlayer(void)
@@ -221,7 +223,7 @@ void NetClient::ReconcilePlayer(double tickDt)
     if (inputHistory.Count()) {
         const InputSample &oldestInput = inputHistory.At(0);
         if (latestSnapshot.lastInputAck + 1 < oldestInput.seq) {
-            printf("WARN: inputHistory buffer too small. Server ack'd seq #%u on tick %u, but oldest input we still have is seq #%u\n",
+            TraceLog(LOG_WARNING, "inputHistory buffer too small. Server ack'd seq #%u on tick %u, but oldest input we still have is seq #%u\n",
                 latestSnapshot.lastInputAck, latestSnapshot.tick, oldestInput.seq);
         }
     }
@@ -242,23 +244,23 @@ void NetClient::ReconcilePlayer(double tickDt)
 void NetClient::ProcessMsg(ENetPacket &packet)
 {
     ENetBuffer packetBuffer{ packet.dataLength, packet.data };
-    memset(&netMsg, 0, sizeof(netMsg));
-    netMsg.Deserialize(packetBuffer, *serverWorld);
+    memset(&tempMsg, 0, sizeof(tempMsg));
+    tempMsg.Deserialize(*serverWorld, packetBuffer);
 
-    if (connectionToken && netMsg.connectionToken != connectionToken) {
+    if (connectionToken && tempMsg.connectionToken != connectionToken) {
         // Received a netMsg from a stale connection; discard it
-        printf("Ignoring %s packet from stale connection.\n", netMsg.TypeString());
+        printf("Ignoring %s packet from stale connection.\n", tempMsg.TypeString());
         return;
     }
 
-    switch (netMsg.type) {
+    switch (tempMsg.type) {
         case NetMessage::Type::ChatMessage: {
-            NetMessage_ChatMessage &chatMsg = netMsg.data.chatMsg;
+            NetMessage_ChatMessage &chatMsg = tempMsg.data.chatMsg;
             serverWorld->chatHistory.PushNetMessage(chatMsg);
             break;
         } case NetMessage::Type::Welcome: {
             // TODO: Auth challenge. Store salt sent from server instead.. handshake stuffs
-            NetMessage_Welcome &welcomeMsg = netMsg.data.welcome;
+            NetMessage_Welcome &welcomeMsg = tempMsg.data.welcome;
             serverWorld->chatHistory.PushMessage(CSTR("Message of the day"), welcomeMsg.motd, welcomeMsg.motdLength);
 
             // TODO: Move this logic to net_message.cpp like all the other logic?
@@ -272,7 +274,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
             //NetMessage_WorldChunk &worldChunk = netMsg.data.worldChunk;
             break;
         } case NetMessage::Type::WorldSnapshot: {
-            WorldSnapshot &netSnapshot = netMsg.data.worldSnapshot;
+            WorldSnapshot &netSnapshot = tempMsg.data.worldSnapshot;
             WorldSnapshot &worldSnapshot = worldHistory.Alloc();
             worldSnapshot = netSnapshot;
             worldSnapshot.recvAt = glfwGetTime();
@@ -317,7 +319,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
             //memcpy(&worldSnapshot, &netSnapshot, sizeof(historySnapshot));
             break;
         } default: {
-            E_WARN("Unexpected netMsg type: %s", netMsg.TypeString());
+            E_INFO("Unexpected netMsg type: %s", tempMsg.TypeString());
             break;
         }
     }
