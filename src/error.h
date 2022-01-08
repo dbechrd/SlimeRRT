@@ -16,6 +16,8 @@ enum class ErrorType {
 extern const char *g_err_msg[(int)ErrorType::Count];
 
 void error_init();
+void error_set_thread_name(const char *name);
+void error_free();
 
 //#define E_START ErrorType e__code = ErrorType::Success;
 //#define E_CLEANUP e_cleanup:
@@ -27,7 +29,7 @@ void error_init();
 do { \
     ErrorType e__code = (err_code); \
     if (e__code != ErrorType::Success) { \
-        TraceLog(LOG_FATAL, "[FATAL][%s:%d]\n[%s][%s (%d)]: " format, \
+        TraceLog(LOG_FATAL, "[%s:%d]\n[%s][%s (%d)]: " format, \
             __FILE__, __LINE__, LOG_SRC, #err_code, (int)err_code, __VA_ARGS__); \
         fflush(stdout); \
         return (err_code); \
@@ -36,11 +38,15 @@ do { \
 
 #define E_INFO(format, ...) \
 do { \
-    TraceLog(LOG_INFO, "[INFO][%s]: " format, LOG_SRC, __VA_ARGS__); fflush(stdout); \
+    TraceLog(LOG_INFO, "[%s]: " format, LOG_SRC, __VA_ARGS__); fflush(stdout); \
 } while(0);
 
 // TODO: Why the fuck doesn't LOG_WARNING work??
 #define E_WARN(format, ...) \
 do { \
-    TraceLog(LOG_INFO, "[WARN][%s]: " format, LOG_SRC, __VA_ARGS__); fflush(stdout); \
+    TraceLog(LOG_WARNING, "[%s]: " format, LOG_SRC, __VA_ARGS__); fflush(stdout); \
 } while(0);
+
+//struct Logger {
+//    void Info(const char *text, va_arg_list args);
+//};

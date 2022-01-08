@@ -223,7 +223,7 @@ void NetClient::ReconcilePlayer(double tickDt)
     if (inputHistory.Count()) {
         const InputSample &oldestInput = inputHistory.At(0);
         if (latestSnapshot.lastInputAck + 1 < oldestInput.seq) {
-            TraceLog(LOG_WARNING, "inputHistory buffer too small. Server ack'd seq #%u on tick %u, but oldest input we still have is seq #%u\n",
+            TraceLog(LOG_WARNING, "inputHistory buffer too small. Server ack'd seq #%u on tick %u, but oldest input we still have is seq #%u",
                 latestSnapshot.lastInputAck, latestSnapshot.tick, oldestInput.seq);
         }
     }

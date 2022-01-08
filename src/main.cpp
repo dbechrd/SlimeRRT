@@ -19,6 +19,7 @@ int main(int argc, char *argv[])
     // Initialization
     //--------------------------------------------------------------------------------------
     error_init();
+    error_set_thread_name("main");
 
     int enet_code = enet_initialize();
     if (enet_code < 0) {
@@ -37,6 +38,7 @@ int main(int argc, char *argv[])
     }
 
     std::thread serverThread([&args] {
+        error_set_thread_name("server");
         GameServer *gameServer = new GameServer(args);
         gameServer->Run();
         delete gameServer;
@@ -69,6 +71,7 @@ int main(int argc, char *argv[])
     serverThread.join();
     CloseWindow();
     enet_deinitialize();
+    error_free();
     return 0;
 }
 
