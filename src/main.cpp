@@ -149,4 +149,5 @@ int main(int argc, char *argv[])
 #include "tileset.cpp"
 #include "ui/ui.cpp"
 #include "world.cpp"
+#include "world_event.cpp"
 #include "../test/tests.cpp"

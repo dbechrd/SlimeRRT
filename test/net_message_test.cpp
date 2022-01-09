@@ -13,9 +13,7 @@ void net_message_test_snapshot()
     msgWritten.data.worldSnapshot.playerCount = 1;
     msgWritten.data.worldSnapshot.slimeCount = 35;
     PlayerSnapshot &player = msgWritten.data.worldSnapshot.players[0];
-    memcpy(player.name, CSTR("test username"));
     player.id = 4;
-    player.nameLength = (uint32_t)strlen(player.name);
     player.hitPointsMax = 100;
     player.hitPoints = 50;
 
@@ -39,8 +37,6 @@ void net_message_test_snapshot()
 
     PlayerSnapshot &playerRead = msgRead.players[0];
     assert(playerRead.id == player.id);
-    assert(playerRead.nameLength == player.nameLength);
-    assert(!strncmp(playerRead.name, player.name, playerRead.nameLength));
     assert(playerRead.hitPointsMax == player.hitPointsMax);
     assert(playerRead.hitPoints == player.hitPoints);
     delete &msgWritten;

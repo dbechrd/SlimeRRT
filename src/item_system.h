@@ -15,6 +15,6 @@ struct ItemSystem {
 private:
     ItemWorld *Alloc(void);
 
-    ItemWorld  items[SV_MAX_WORLD_ITEMS]{};
+    ItemWorld  items[SV_MAX_ITEMS]{};
     size_t     itemsCount{};
 };

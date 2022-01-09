@@ -125,7 +125,7 @@ Slime &World::SpawnSam(void)
     sam.combat.hitPoints = sam.combat.hitPointsMax;
     sam.combat.meleeDamage = -1.0f;
     sam.combat.lootTableId = LootTableID::LT_Sam;
-    sam.body.position = v3_add(GetWorldSpawn(), { 0, -300.0f, 0 });
+    sam.body.position = v3_add(GetWorldSpawn(), { -200.0f, 0, 0 });
     sam.sprite.scale = 2.0f;
     return sam;
 }
@@ -134,7 +134,7 @@ Slime *World::SpawnSlime(uint32_t slimeId)
 {
 #if _DEBUG
     if (slimeId) {
-        for (int i = 0; i < SV_MAX_ENTITIES; i++) {
+        for (int i = 0; i < SV_MAX_SLIMES; i++) {
             Slime &slime = slimes[i];
             if (slime.id == slimeId) {
                 assert(!"This slimeId is already in use!");
@@ -143,7 +143,7 @@ Slime *World::SpawnSlime(uint32_t slimeId)
     }
 #endif
 
-    for (int i = 0; i < SV_MAX_ENTITIES; i++) {
+    for (int i = 0; i < SV_MAX_SLIMES; i++) {
         Slime &slime = slimes[i];
         if (slime.id == 0) {
             assert(!slime.nameLength);
@@ -182,7 +182,7 @@ Slime *World::FindSlime(uint32_t slimeId)
         return 0;
     }
 
-    for (int i = 0; i < SV_MAX_ENTITIES; i++) {
+    for (int i = 0; i < SV_MAX_SLIMES; i++) {
         Slime &slime = slimes[i];
         if (slime.id == slimeId) {
             return &slime;
@@ -286,7 +286,7 @@ void World::SimSlimes(double dt)
     const float slimeAttackTrack = METERS_TO_PIXELS(10.0f);
     const float slimeRadius = METERS_TO_PIXELS(0.5f);
 
-    for (size_t slimeIdx = 0; slimeIdx < SV_MAX_ENTITIES; slimeIdx++) {
+    for (size_t slimeIdx = 0; slimeIdx < SV_MAX_SLIMES; slimeIdx++) {
         Slime &slime = slimes[slimeIdx];
         if (!slime.id) {
             continue;
@@ -312,7 +312,7 @@ void World::SimSlimes(double dt)
             const Vector2 slimePosNew = v2_add(slimePos, slimeMove);
 
             int willCollide = 0;
-            for (size_t collideIdx = slimeIdx + 1; collideIdx < SV_MAX_ENTITIES; collideIdx++) {
+            for (size_t collideIdx = slimeIdx + 1; collideIdx < SV_MAX_SLIMES; collideIdx++) {
                 Slime &otherSlime = slimes[collideIdx];
                 if (!otherSlime.id) {
                     continue;
@@ -423,7 +423,8 @@ void World::GenerateSnapshot(WorldSnapshot &worldSnapshot)
     assert(ARRAY_SIZE(worldSnapshot.players) <= ARRAY_SIZE(players));
     assert(ARRAY_SIZE(worldSnapshot.slimes)  <= ARRAY_SIZE(slimes));
     assert(ARRAY_SIZE(worldSnapshot.players) == SNAPSHOT_MAX_PLAYERS);
-    assert(ARRAY_SIZE(worldSnapshot.slimes)  == SNAPSHOT_MAX_ENTITIES);
+    assert(ARRAY_SIZE(worldSnapshot.slimes)  == SNAPSHOT_MAX_SLIMES);
+    assert(ARRAY_SIZE(worldSnapshot.items)   == SNAPSHOT_MAX_ITEMS);
 
     Player *player = FindPlayer(worldSnapshot.playerId);
     if (!player) {
@@ -434,11 +435,6 @@ void World::GenerateSnapshot(WorldSnapshot &worldSnapshot)
     worldSnapshot.playerCount = 0;
     for (size_t i = 0; i < SV_MAX_PLAYERS && worldSnapshot.playerCount < SNAPSHOT_MAX_PLAYERS; i++) {
         worldSnapshot.players[worldSnapshot.playerCount].id           = players[i].id                 ;
-        worldSnapshot.players[worldSnapshot.playerCount].nameLength   = players[i].nameLength         ;
-        memcpy(worldSnapshot.players[i].name, players[i].name, USERNAME_LENGTH_MAX);
-        if (players[i].nameLength) {
-            assert(worldSnapshot.players[i].name[0]);
-        }
         worldSnapshot.players[worldSnapshot.playerCount].position     = players[i].body.position      ;
         worldSnapshot.players[worldSnapshot.playerCount].direction    = players[i].sprite.direction   ;
         worldSnapshot.players[worldSnapshot.playerCount].hitPoints    = players[i].combat.hitPoints   ;
@@ -446,7 +442,7 @@ void World::GenerateSnapshot(WorldSnapshot &worldSnapshot)
         worldSnapshot.playerCount++;
     }
     worldSnapshot.slimeCount = 0;
-    for (size_t i = 0; i < SV_MAX_ENTITIES && worldSnapshot.slimeCount < SNAPSHOT_MAX_ENTITIES; i++) {
+    for (size_t i = 0; i < SV_MAX_SLIMES && worldSnapshot.slimeCount < SNAPSHOT_MAX_SLIMES; i++) {
         if (v3_length_sq(v3_sub(player->body.position, slimes[i].body.position)) < SQUARED(1300.0f)) {
             worldSnapshot.slimes[worldSnapshot.slimeCount].id           = slimes[i].id                 ;
             worldSnapshot.slimes[worldSnapshot.slimeCount].position     = slimes[i].body.position      ;
@@ -456,6 +452,36 @@ void World::GenerateSnapshot(WorldSnapshot &worldSnapshot)
             worldSnapshot.slimes[worldSnapshot.slimeCount].scale        = slimes[i].sprite.scale       ;
             worldSnapshot.slimeCount++;
         }
+    }
+    /*
+    PLAYER_JOIN
+    PLAYER_LEAVE
+    PLAYER_IN_GAME  (level, xp, name, etc.)
+
+    ITEM_DROPPED
+    ITEM_PICKED_UP
+    ITEM_EXISTS_ON_GROUND (up to 8 items per packet)
+
+    CHUNK_DATA: includes array of tile entities, with coords (relative to chunk), type and data
+
+    Minecraft
+    SPAWN_ENTITY (e.g. chest/player(for loot/drop).ground_position, velocity Y_UP)
+
+    Why does Minecraft have so many instances of sending e.g. "PlaySound 7" or "PlayAnimation 12"
+    instead of sending events? Or are they just the same thing as events that happen to currently
+    not do anything other than play a sound/animation?
+    */
+    worldSnapshot.itemCount = 0;
+    for (size_t i = 0; i < SV_MAX_ITEMS && worldSnapshot.slimeCount < SNAPSHOT_MAX_ITEMS; i++) {
+        //if (v3_length_sq(v3_sub(player->body.position, slimes[i].body.position)) < SQUARED(1300.0f)) {
+        //    worldSnapshot.slimes[worldSnapshot.slimeCount].id = slimes[i].id;
+        //    worldSnapshot.slimes[worldSnapshot.slimeCount].position = slimes[i].body.position;
+        //    worldSnapshot.slimes[worldSnapshot.slimeCount].direction = slimes[i].sprite.direction;
+        //    worldSnapshot.slimes[worldSnapshot.slimeCount].hitPoints = slimes[i].combat.hitPoints;
+        //    worldSnapshot.slimes[worldSnapshot.slimeCount].hitPointsMax = slimes[i].combat.hitPointsMax;
+        //    worldSnapshot.slimes[worldSnapshot.slimeCount].scale = slimes[i].sprite.scale;
+        //    worldSnapshot.slimeCount++;
+        //}
     }
 }
 
@@ -538,7 +564,7 @@ void World::Interpolate(double renderAt)
             DespawnPlayer(player.id);
         }
     }
-    for (size_t i = 0; i < SV_MAX_ENTITIES; i++) {
+    for (size_t i = 0; i < SV_MAX_SLIMES; i++) {
         Slime &slime = slimes[i];
         if (!slime.id) {
             continue;

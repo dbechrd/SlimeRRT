@@ -31,7 +31,7 @@ struct NetMessage_Welcome {
     char     motd       [MOTD_LENGTH_MAX]{};  // message of the day
     uint32_t width      {};                   // width of map in tiles
     uint32_t height     {};                   // height of map in tiles
-    uint32_t playerId   {};
+    uint32_t playerId   {};                   // client's assigned playerId
 };
 
 struct NetMessage_Input {
@@ -46,6 +46,41 @@ struct NetMessage_WorldChunk {
     // world.tiles
 };
 
+struct NetMessage_WorldEvent_PlayerJoin {
+    uint32_t playerId   {};
+    uint32_t nameLength {};
+    char     name       [USERNAME_LENGTH_MAX]{};
+};
+
+struct NetMessage_WorldEvent {
+    enum class Type : uint32_t {
+        Unknown,
+        PlayerJoin,
+        PlayerMove,
+        PlayerAttack,
+        PlayerEquip,
+        PlayerLeave,
+        EnemySpawn,
+        EnemyMove,
+        EnemyDie,
+        ItemDrop,
+        ItemPickup,
+        ItemDespawn,
+        Count
+    };
+
+    Type type = Type::Unknown;
+
+    union {
+        NetMessage_Identify    identify;
+        NetMessage_ChatMessage chatMsg;
+        NetMessage_Welcome     welcome;
+        NetMessage_WorldChunk  worldChunk;
+        WorldSnapshot          worldSnapshot;
+        NetMessage_Input       input;
+    } data{};
+};
+
 struct NetMessage {
     enum class Type : uint32_t {
         Unknown,
@@ -55,6 +90,7 @@ struct NetMessage {
         Input,
         WorldChunk,
         WorldSnapshot,
+        WorldEvent,
         Count
     };
 
@@ -65,9 +101,10 @@ struct NetMessage {
         NetMessage_Identify    identify;
         NetMessage_ChatMessage chatMsg;
         NetMessage_Welcome     welcome;
+        NetMessage_Input       input;
         NetMessage_WorldChunk  worldChunk;
         WorldSnapshot          worldSnapshot;
-        NetMessage_Input       input;
+        NetMessage_WorldEvent  worldEvent;
     } data {};
 
     const char *TypeString(void);

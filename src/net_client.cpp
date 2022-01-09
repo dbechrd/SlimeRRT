@@ -213,8 +213,6 @@ void NetClient::ReconcilePlayer(double tickDt)
 
     // TODO: Do this more smoothly
     // Roll back local player to server slimeSnapshot location
-    memcpy(player->name, playerSnapshot->name, USERNAME_LENGTH_MAX);
-    player->nameLength          = playerSnapshot->nameLength;
     player->body.position       = playerSnapshot->position;
     player->combat.hitPoints    = playerSnapshot->hitPoints;
     player->combat.hitPointsMax = playerSnapshot->hitPointsMax;
@@ -290,8 +288,6 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                     continue;
                 }
 
-                player->nameLength = playerSnapshot.nameLength;
-                memcpy(player->name, playerSnapshot.name, USERNAME_LENGTH_MAX);
                 Vector3Snapshot &pos = player->body.positionHistory.Alloc();
                 pos.recvAt = worldSnapshot.recvAt;
                 pos.v = playerSnapshot.position;

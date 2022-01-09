@@ -17,7 +17,7 @@ ErrorType GameServer::Run()
     netServer.serverWorld = world;
 
     {
-        for (size_t i = 0; i < SV_MAX_ENTITIES; i++) {
+        for (size_t i = 0; i < SV_MAX_SLIMES; i++) {
             Slime &slime = world->slimes[i];
             uint32_t slimeId = 0;
             world->SpawnSlime(0);

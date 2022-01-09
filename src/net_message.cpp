@@ -15,6 +15,7 @@ const char *NetMessage::TypeString(void)
         case Type::Input         : return "Input";
         case Type::WorldChunk    : return "WorldChunk";
         case Type::WorldSnapshot : return "WorldSnapshot";
+        case Type::WorldEvent    : return "WorldEvent";
         default                  : return "NetMessage::Type::???";
     }
 }
@@ -154,7 +155,7 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
             stream.Process(worldSnapshot.lastInputAck, 32, 0, UINT32_MAX);
             stream.Process(worldSnapshot.playerCount, 4, 0, SNAPSHOT_MAX_PLAYERS);
             //stream.Align();
-            stream.Process(worldSnapshot.slimeCount, 9, 0, SNAPSHOT_MAX_ENTITIES);
+            stream.Process(worldSnapshot.slimeCount, 9, 0, SNAPSHOT_MAX_SLIMES);
             //stream.Align();
 
             for (size_t i = 0; i < worldSnapshot.playerCount; i++) {
@@ -167,12 +168,6 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                     if (!existingPlayer) {
                         assert(mode == BitStream::Mode::Reader);
                         world.SpawnPlayer(player.id);
-                    }
-                    // TODO: Don't sync name unless it has changed
-                    stream.Process((uint32_t)player.nameLength, 6, USERNAME_LENGTH_MIN, USERNAME_LENGTH_MAX);
-                    stream.Align();
-                    for (size_t i = 0; i < player.nameLength; i++) {
-                        stream.ProcessChar(player.name[i]);
                     }
 
                     // TODO: range validation on floats (why? malicious server?)
@@ -226,6 +221,16 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                 }
             }
 
+            break;
+        } case NetMessage::Type::WorldEvent: {
+#if 0
+            // TODO: Don't sync name unless it has changed
+            stream.Process((uint32_t)player.nameLength, 6, USERNAME_LENGTH_MIN, USERNAME_LENGTH_MAX);
+            stream.Align();
+            for (size_t i = 0; i < player.nameLength; i++) {
+                stream.ProcessChar(player.name[i]);
+            }
+#endif
             break;
         } default: {
             assert(!"Unrecognized NetMessageType");

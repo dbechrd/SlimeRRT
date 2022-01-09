@@ -4,6 +4,7 @@
 #include "catalog/items.h"
 #include "direction.h"
 #include "item_system.h"
+#include "item_world.h"
 #include "particles.h"
 #include "player.h"
 #include "slime.h"
@@ -13,27 +14,28 @@
 #include <vector>
 
 struct World {
-    uint64_t              rtt_seed       {};
-    dlb_rand32_t          rtt_rand       {};
-    uint32_t              tick           {};
-    double                clockStart     {};
-    double                clock          {};
-    double                dtUpdate       {};
-    Tilemap               *map           {};
+    uint64_t       rtt_seed       {};
+    dlb_rand32_t   rtt_rand       {};
+    uint32_t       tick           {};
+    double         clockStart     {};
+    double         clock          {};
+    double         dtUpdate       {};
+    Tilemap        *map           {};
     // TODO: PlayerSystem
-    uint32_t              playerId       {};
-    Player                players        [SV_MAX_PLAYERS]{};
+    uint32_t       playerId       {};
+    Player         players        [SV_MAX_PLAYERS]{};
     // TODO: SlimeSystem or EnemySystem
-    Slime                 slimes         [SV_MAX_ENTITIES]{};
+    Slime          slimes         [SV_MAX_SLIMES]{};
+    ItemWorld      items          [SV_MAX_ITEMS]{};
 
-    ChatHistory           chatHistory    {};
-    ItemSystem            itemSystem     {};
-    LootSystem            lootSystem     {};
-    MapSystem             mapSystem      {};
-    ParticleSystem        particleSystem {};
+    ChatHistory    chatHistory    {};
+    ItemSystem     itemSystem     {};
+    LootSystem     lootSystem     {};
+    MapSystem      mapSystem      {};
+    ParticleSystem particleSystem {};
 
-    World                       (void);
-    ~World                      (void);
+    World  (void);
+    ~World (void);
     const Vector3 GetWorldSpawn (void);
 
     ////////////////////////////////////////////
@@ -49,7 +51,6 @@ struct World {
     void    DespawnSlime  (uint32_t slimeId);
 
     Player *FindClosestPlayer(Vector2 worldPos, float maxDist);
-    Player *FindClosestSlime(Vector2 worldPos, float maxDist);
     //
     // ^^^ DO NOT HOLD A POINTER TO THESE! ^^^
     ////////////////////////////////////////////

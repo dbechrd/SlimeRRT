@@ -27,14 +27,11 @@ bool ItemWorld::Cull(const Rectangle& cullRect) const
 
 void ItemWorld::Draw(void) const
 {
-    if (sprite.spriteDef) {
+    if (0 && sprite.spriteDef) {
         sprite_draw_body(sprite, body, WHITE);
     } else {
-        DrawCircle(
-            (int)body.position.x,
-            (int)(body.position.y - body.position.z),
-            sprite.scale,
-            YELLOW
-        );
+        Vector2 pos = body.BottomCenter();
+        Vector2 size { 20.0f, 20.0f };
+        DrawRectangleV(pos, size, PURPLE);
     }
 }

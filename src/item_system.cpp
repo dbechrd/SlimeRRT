@@ -1,6 +1,15 @@
 #include "item_system.h"
 #include "raylib/raylib.h"
 
+// Server spawns items into world
+// Server broadcasts ItemDrop event
+// Client creates proxy, updates physics
+// Client sends ItemPickup event
+// Server validates item is still on ground and is close enough for player to pick up
+// Server adds item to player's inventory
+// Server sends InventoryUpdate event
+// Server broadcasts ItemPickup event
+
 void ItemSystem::SpawnItem(Vector3 pos, Catalog::ItemID id, uint32_t count)
 {
     ItemWorld *itemPtr = Alloc();
@@ -32,7 +41,7 @@ void ItemSystem::SpawnItem(Vector3 pos, Catalog::ItemID id, uint32_t count)
 
 ItemWorld *ItemSystem::Alloc(void)
 {
-    if (itemsCount == SV_MAX_WORLD_ITEMS) {
+    if (itemsCount == SV_MAX_ITEMS) {
         // TODO: Delete oldest item instead of dropping new one
         TraceLog(LOG_ERROR, "Item pool is full; discarding item.");
         return 0;
@@ -54,7 +63,7 @@ ItemWorld *ItemSystem::Items(void)
 
 void ItemSystem::Update(double dt)
 {
-    assert(itemsCount <= SV_MAX_WORLD_ITEMS);
+    assert(itemsCount <= SV_MAX_ITEMS);
 
     size_t i = 0;
     while (i < itemsCount) {
@@ -83,7 +92,7 @@ void ItemSystem::Update(double dt)
 
 void ItemSystem::PushAll(DrawList& drawList)
 {
-    assert(itemsCount <= SV_MAX_WORLD_ITEMS);
+    assert(itemsCount <= SV_MAX_ITEMS);
 
     size_t itemsPushed = 0;
     for (size_t i = 0; itemsPushed < itemsCount; i++) {
