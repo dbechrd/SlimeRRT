@@ -19,7 +19,7 @@ static void traceLogCallback(int logType, const char *text, va_list args)
         case LOG_INFO   : logTypeStr = "[ INFO]"; break;
         case LOG_WARNING: logTypeStr = "[ WARN]"; break;
         case LOG_ERROR  : logTypeStr = "[ERROR]"; break;
-        case LOG_FATAL  : logTypeStr = "[FATAL]"; break;  
+        case LOG_FATAL  : logTypeStr = "[FATAL]"; break;
     }
 
     double time = 0;
@@ -52,6 +52,7 @@ void error_init()
 {
     logFileOwner = std::this_thread::get_id();
     logFile = fopen("log.txt", "w");
+    SetTraceLogLevel(LOG_DEBUG);
     SetTraceLogCallback(traceLogCallback);
 }
 

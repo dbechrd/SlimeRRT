@@ -9,6 +9,10 @@ const char *GameServer::LOG_SRC = "GameServer";
 
 ErrorType GameServer::Run()
 {
+    if (args.standalone) {
+        glfwInit();
+    }
+
     Catalog::g_items.Load();
 
     World *world = new World;
@@ -94,5 +98,8 @@ ErrorType GameServer::Run()
     }
 
     delete world;
+    if (args.standalone) {
+        glfwTerminate();
+    }
     return ErrorType::Success;
 }

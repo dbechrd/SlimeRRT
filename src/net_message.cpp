@@ -15,7 +15,8 @@ const char *NetMessage::TypeString(void)
         case Type::Input         : return "Input";
         case Type::WorldChunk    : return "WorldChunk";
         case Type::WorldSnapshot : return "WorldSnapshot";
-        case Type::WorldEvent    : return "WorldEvent";
+        case Type::GlobalEvent   : return "GlobalEvent";
+        case Type::NearbyEvent   : return "NearbyEvent";
         default                  : return "NetMessage::Type::???";
     }
 }
@@ -29,9 +30,7 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
 
     stream.Process(connectionToken, 32, 0, UINT32_MAX);
 
-    uint32_t typeInt = (uint32_t)type;
-    stream.Process(typeInt, 3, (uint32_t)NetMessage::Type::Unknown + 1, (uint32_t)NetMessage::Type::Count - 1);
-    type = (Type)typeInt;
+    stream.Process((uint32_t &)type, 3, (uint32_t)NetMessage::Type::Unknown + 1, (uint32_t)NetMessage::Type::Count - 1);
     stream.Align();
 
     if (type == NetMessage::Type::WorldSnapshot) {
@@ -89,6 +88,23 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
             stream.Process(welcome.height, 9, WORLD_HEIGHT_MIN, WORLD_HEIGHT_MAX);
             stream.Process(welcome.playerId, 4, 1, UINT32_MAX);
             stream.Align();
+
+            stream.Process(welcome.playerCount, 4, 0, SV_MAX_PLAYERS);
+
+            for (size_t i = 0; i < welcome.playerCount; i++) {
+                NetMessage_Welcome::NetMessage_Welcome_Player &player = welcome.players[i];
+
+                stream.Process(player.id, 32, 0, UINT32_MAX);
+
+                if (player.id) {
+                    // TODO: Don't sync name unless it has changed
+                    stream.Process((uint32_t)player.nameLength, 6, USERNAME_LENGTH_MIN, USERNAME_LENGTH_MAX);
+                    stream.Align();
+                    for (size_t i = 0; i < player.nameLength; i++) {
+                        stream.ProcessChar(player.name[i]);
+                    }
+                }
+            }
 
             break;
         } case NetMessage::Type::Input: {
@@ -149,7 +165,7 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
             break;
         } case NetMessage::Type::WorldSnapshot: {
             WorldSnapshot &worldSnapshot = data.worldSnapshot;
-            
+
             stream.Process(worldSnapshot.tick, 32, 1, UINT32_MAX);
             // TODO: Make this relative to tick to save bandwidth?
             stream.Process(worldSnapshot.lastInputAck, 32, 0, UINT32_MAX);
@@ -163,25 +179,14 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
 
                 stream.Process(player.id, 32, 0, UINT32_MAX);
 
-                Player *existingPlayer = world.FindPlayer(player.id);
                 if (player.id) {
-                    if (!existingPlayer) {
-                        assert(mode == BitStream::Mode::Reader);
-                        world.SpawnPlayer(player.id);
-                    }
-
                     // TODO: range validation on floats (why? malicious server?)
                     stream.ProcessFloat(player.position.x);
                     stream.ProcessFloat(player.position.y);
                     stream.ProcessFloat(player.position.z);
                     stream.ProcessFloat(player.hitPoints);
                     stream.ProcessFloat(player.hitPointsMax);
-                    uint32_t facing = (uint32_t)player.direction;
-                    stream.Process(facing, 3, (uint32_t)Direction::North, (uint32_t)Direction::NorthWest);
-                    player.direction = (Direction)facing;
-                } else if (!player.id && existingPlayer) {
-                    assert(mode == BitStream::Mode::Reader);
-                    world.DespawnPlayer(player.id);
+                    stream.Process((uint32_t &)player.direction, 3, (uint32_t)Direction::North, (uint32_t)Direction::NorthWest);
                 }
             }
 
@@ -212,9 +217,7 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                     stream.ProcessFloat(slime.position.x);
                     stream.ProcessFloat(slime.position.y);
                     stream.ProcessFloat(slime.position.z);
-                    uint32_t facing = (uint32_t)slime.direction;
-                    stream.Process(facing, 3, (uint32_t)Direction::North, (uint32_t)Direction::NorthWest);
-                    slime.direction = (Direction)facing;
+                    stream.Process((uint32_t &)slime.direction, 3, (uint32_t)Direction::North, (uint32_t)Direction::NorthWest);
                     stream.ProcessFloat(slime.hitPoints);
                     stream.ProcessFloat(slime.hitPointsMax);
                     stream.ProcessFloat(slime.scale);
@@ -222,15 +225,88 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
             }
 
             break;
-        } case NetMessage::Type::WorldEvent: {
-#if 0
-            // TODO: Don't sync name unless it has changed
-            stream.Process((uint32_t)player.nameLength, 6, USERNAME_LENGTH_MIN, USERNAME_LENGTH_MAX);
+        } case NetMessage::Type::GlobalEvent: {
+            NetMessage_GlobalEvent &globalEvent = data.globalEvent;
+
+            stream.Process((uint32_t &)globalEvent.type, 3, (uint32_t)NetMessage_GlobalEvent::Type::Unknown + 1, (uint32_t)NetMessage_GlobalEvent::Type::Count - 1);
             stream.Align();
-            for (size_t i = 0; i < player.nameLength; i++) {
-                stream.ProcessChar(player.name[i]);
+
+            switch (globalEvent.type) {
+                case NetMessage_GlobalEvent::Type::PlayerJoin: {
+                    NetMessage_GlobalEvent_PlayerJoin &playerJoin = globalEvent.data.playerJoin;
+
+                    stream.Process(playerJoin.playerId, 4, 1, UINT32_MAX);
+                    stream.Align();
+
+                    stream.Process((uint32_t)playerJoin.nameLength, 6, USERNAME_LENGTH_MIN, USERNAME_LENGTH_MAX);
+                    stream.Align();
+                    for (size_t i = 0; i < playerJoin.nameLength; i++) {
+                        stream.ProcessChar(playerJoin.name[i]);
+                    }
+
+                    TraceLog(LOG_DEBUG, "PlayerJoin %u", playerJoin.playerId);
+
+                    break;
+                } case NetMessage_GlobalEvent::Type::PlayerLeave: {
+                    NetMessage_GlobalEvent_PlayerLeave &playerLeave = globalEvent.data.playerLeave;
+
+                    stream.Process(playerLeave.playerId, 4, 1, UINT32_MAX);
+                    stream.Align();
+                    break;
+                } default: {
+                    TraceLog(LOG_FATAL, "Unexpected message");
+                }
             }
-#endif
+
+            break;
+        } case NetMessage::Type::NearbyEvent: {
+            NetMessage_NearbyEvent &nearbyEvent = data.nearbyEvent;
+
+            stream.Process((uint32_t &)nearbyEvent.type, 3, (uint32_t)NetMessage_NearbyEvent::Type::Unknown + 1, (uint32_t)NetMessage_NearbyEvent::Type::Count - 1);
+            stream.Align();
+
+            switch (nearbyEvent.type) {
+                case NetMessage_NearbyEvent::Type::PlayerSpawn: {
+                    TraceLog(LOG_FATAL, "Unexpected message");
+                    break;
+                } case NetMessage_NearbyEvent::Type::PlayerMove: {
+                    TraceLog(LOG_FATAL, "Unexpected message");
+                    break;
+                } case NetMessage_NearbyEvent::Type::PlayerAttack: {
+                    TraceLog(LOG_FATAL, "Unexpected message");
+                    break;
+                } case NetMessage_NearbyEvent::Type::PlayerEquip: {
+                    TraceLog(LOG_FATAL, "Unexpected message");
+                    break;
+                } case NetMessage_NearbyEvent::Type::PlayerDespawn: {
+                    TraceLog(LOG_FATAL, "Unexpected message");
+                    break;
+                } case NetMessage_NearbyEvent::Type::EnemySpawn: {
+                    TraceLog(LOG_FATAL, "Unexpected message");
+                    break;
+                } case NetMessage_NearbyEvent::Type::EnemyMove: {
+                    TraceLog(LOG_FATAL, "Unexpected message");
+                    break;
+                } case NetMessage_NearbyEvent::Type::EnemyAttack: {
+                    TraceLog(LOG_FATAL, "Unexpected message");
+                    break;
+                } case NetMessage_NearbyEvent::Type::EnemyDespawn: {
+                    TraceLog(LOG_FATAL, "Unexpected message");
+                    break;
+                } case NetMessage_NearbyEvent::Type::ItemSpawn: {
+                    TraceLog(LOG_FATAL, "Unexpected message");
+                    break;
+                } case NetMessage_NearbyEvent::Type::ItemMove: {
+                    TraceLog(LOG_FATAL, "Unexpected message");
+                    break;
+                } case NetMessage_NearbyEvent::Type::ItemDespawn: {
+                    TraceLog(LOG_FATAL, "Unexpected message");
+                    break;
+                } default: {
+                    TraceLog(LOG_FATAL, "Unexpected message");
+                }
+            }
+
             break;
         } default: {
             assert(!"Unrecognized NetMessageType");

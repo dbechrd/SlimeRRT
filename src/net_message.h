@@ -27,11 +27,17 @@ struct NetMessage_ChatMessage {
 };
 
 struct NetMessage_Welcome {
-    uint32_t motdLength {};
-    char     motd       [MOTD_LENGTH_MAX]{};  // message of the day
-    uint32_t width      {};                   // width of map in tiles
-    uint32_t height     {};                   // height of map in tiles
-    uint32_t playerId   {};                   // client's assigned playerId
+    uint32_t motdLength  {};
+    char     motd        [MOTD_LENGTH_MAX]{};  // message of the day
+    uint32_t width       {};                   // width of map in tiles
+    uint32_t height      {};                   // height of map in tiles
+    uint32_t playerId    {};                   // client's assigned playerId
+    uint32_t playerCount {};                   // players in game
+    struct NetMessage_Welcome_Player {
+        uint32_t  id           {};
+        uint32_t  nameLength   {};
+        char      name         [USERNAME_LENGTH_MAX]{};
+    } players[SV_MAX_PLAYERS]{};  // player info
 };
 
 struct NetMessage_Input {
@@ -46,38 +52,62 @@ struct NetMessage_WorldChunk {
     // world.tiles
 };
 
-struct NetMessage_WorldEvent_PlayerJoin {
+struct NetMessage_GlobalEvent_PlayerJoin {
     uint32_t playerId   {};
     uint32_t nameLength {};
     char     name       [USERNAME_LENGTH_MAX]{};
 };
 
-struct NetMessage_WorldEvent {
+struct NetMessage_GlobalEvent_PlayerLeave {
+    uint32_t playerId {};
+};
+
+struct NetMessage_GlobalEvent {
     enum class Type : uint32_t {
         Unknown,
-        PlayerJoin,
-        PlayerMove,
-        PlayerAttack,
-        PlayerEquip,
-        PlayerLeave,
-        EnemySpawn,
-        EnemyMove,
-        EnemyDie,
-        ItemDrop,
-        ItemPickup,
-        ItemDespawn,
+        PlayerJoin,     // R player joined game
+        PlayerLeave,    // R player left game
         Count
     };
 
     Type type = Type::Unknown;
 
     union {
-        NetMessage_Identify    identify;
-        NetMessage_ChatMessage chatMsg;
-        NetMessage_Welcome     welcome;
-        NetMessage_WorldChunk  worldChunk;
-        WorldSnapshot          worldSnapshot;
-        NetMessage_Input       input;
+        NetMessage_GlobalEvent_PlayerJoin  playerJoin;
+        NetMessage_GlobalEvent_PlayerLeave playerLeave;
+    } data{};
+};
+
+struct NetMessage_NearbyEvent_PlayerSpawn {
+    uint32_t  id           {};
+    Vector3   position     {};
+    Direction direction    {};
+    float     hitPoints    {};
+    float     hitPointsMax {};
+};
+
+struct NetMessage_NearbyEvent {
+    enum class Type : uint32_t {
+        Unknown,
+        PlayerSpawn,    // R respawn, teleport, enter vicinity
+        PlayerMove,     // U move
+        PlayerAttack,   // R attacking
+        PlayerEquip,    // R visible equipment change (e.g. weapon/armor/aura)
+        PlayerDespawn,  // R die, teleport
+        EnemySpawn,     // R spawn, enter vicinity
+        EnemyMove,      // U move
+        EnemyAttack,    // R attacking
+        EnemyDespawn,   // R die
+        ItemSpawn,      // R monster kill, chest pop, player drop, enter vicinity
+        ItemMove,       // U force acted on item
+        ItemDespawn,    // R picked up, item on ground too long
+        Count
+    };
+
+    Type type = Type::Unknown;
+
+    union {
+        NetMessage_GlobalEvent_PlayerJoin playerJoin;
     } data{};
 };
 
@@ -85,12 +115,13 @@ struct NetMessage {
     enum class Type : uint32_t {
         Unknown,
         Identify,
-        ChatMessage,
         Welcome,
+        ChatMessage,
         Input,
         WorldChunk,
         WorldSnapshot,
-        WorldEvent,
+        GlobalEvent,
+        NearbyEvent,
         Count
     };
 
@@ -104,7 +135,8 @@ struct NetMessage {
         NetMessage_Input       input;
         NetMessage_WorldChunk  worldChunk;
         WorldSnapshot          worldSnapshot;
-        NetMessage_WorldEvent  worldEvent;
+        NetMessage_GlobalEvent globalEvent;
+        NetMessage_NearbyEvent nearbyEvent;
     } data {};
 
     const char *TypeString(void);

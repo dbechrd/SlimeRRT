@@ -261,12 +261,21 @@ void NetClient::ProcessMsg(ENetPacket &packet)
             NetMessage_Welcome &welcomeMsg = tempMsg.data.welcome;
             serverWorld->chatHistory.PushMessage(CSTR("Message of the day"), welcomeMsg.motd, welcomeMsg.motdLength);
 
-            // TODO: Move this logic to net_message.cpp like all the other logic?
             serverWorld->map = serverWorld->mapSystem.Generate(serverWorld->rtt_rand, welcomeMsg.width, welcomeMsg.height);
             assert(serverWorld->map);
             // TODO: Get tileset ID from server
             serverWorld->map->tilesetId = TilesetID::TS_Overworld;
             serverWorld->playerId = welcomeMsg.playerId;
+
+            for (size_t i = 0; i < welcomeMsg.playerCount; i++) {
+                Player *player = serverWorld->SpawnPlayer(welcomeMsg.players[i].id);
+                if (!player) {
+                    TraceLog(LOG_FATAL, "Failed to spawn player");
+                }
+                assert(player);
+                player->nameLength = (uint32_t)MIN(welcomeMsg.players[i].nameLength, USERNAME_LENGTH_MAX);
+                memcpy(player->name, welcomeMsg.players[i].name, player->nameLength);
+            }
             break;
         } case NetMessage::Type::WorldChunk: {
             //NetMessage_WorldChunk &worldChunk = netMsg.data.worldChunk;
@@ -277,10 +286,8 @@ void NetClient::ProcessMsg(ENetPacket &packet)
             worldSnapshot = netSnapshot;
             worldSnapshot.recvAt = glfwGetTime();
 
-            if (!serverWorld->tick) {
-                //serverWorld->tick = worldSnapshot.tick + 2;
-            }
-
+// TODO: Get rid of this whole block in favor of Spawn/Move/Attack/etc. events
+#if 1
             for (size_t i = 0; i < worldSnapshot.playerCount; i++) {
                 PlayerSnapshot &playerSnapshot = worldSnapshot.players[i];
                 Player *player = serverWorld->FindPlayer(playerSnapshot.id);
@@ -288,6 +295,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                     continue;
                 }
 
+                // TODO: World::Interpolate() should do this stuff.. why did I change that?
                 Vector3Snapshot &pos = player->body.positionHistory.Alloc();
                 pos.recvAt = worldSnapshot.recvAt;
                 pos.v = playerSnapshot.position;
@@ -302,17 +310,46 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                     continue;
                 }
 
+                // TODO: World::Interpolate() should do this stuff.. why did I change that?
                 Vector3Snapshot &pos = slime->body.positionHistory.Alloc();
                 pos.recvAt = worldSnapshot.recvAt;
                 pos.v = slimeSnapshot.position;
                 pos.direction = slimeSnapshot.direction;
                 slime->combat.hitPoints = slimeSnapshot.hitPoints;
                 slime->combat.hitPointsMax = slimeSnapshot.hitPointsMax;
-                // TODO: Keep scale buffer and interpolate? Could be cool heh.
+                // TODO: Keep scale buffer and interpolate? Playing a proper animation would be better..
                 slime->sprite.scale = slimeSnapshot.scale;
             }
-
+#endif
             //memcpy(&worldSnapshot, &netSnapshot, sizeof(historySnapshot));
+            break;
+        } case NetMessage::Type::GlobalEvent: {
+            NetMessage_GlobalEvent &globalEvent = tempMsg.data.globalEvent;
+
+            switch (globalEvent.type) {
+                case NetMessage_GlobalEvent::Type::PlayerJoin: {
+                    NetMessage_GlobalEvent_PlayerJoin &playerJoin = globalEvent.data.playerJoin;
+                    if (playerJoin.playerId != serverWorld->playerId) {
+                        Player *player = serverWorld->SpawnPlayer(playerJoin.playerId);
+                        if (!player) {
+                            // TODO: Make world->players a RingBuffer if this happens; there must
+                            // be old/invalid player references hanging around (e.g. if there are 8
+                            // other players and 1 leaves/joins really fast??)
+                            TraceLog(LOG_FATAL, "Failed to spawn player");
+                        }
+                        assert(player);
+                        player->nameLength = playerJoin.nameLength;
+                        memcpy(player->name, playerJoin.name, player->nameLength);
+                    }
+                    break;
+                } case NetMessage_GlobalEvent::Type::PlayerLeave: {
+                    NetMessage_GlobalEvent_PlayerLeave &playerLeave = globalEvent.data.playerLeave;
+                    serverWorld->DespawnPlayer(playerLeave.playerId);
+                    break;
+                }
+            }
+#if 0
+#endif
             break;
         } default: {
             E_INFO("Unexpected netMsg type: %s", tempMsg.TypeString());
@@ -401,10 +438,7 @@ ErrorType NetClient::Receive(void)
                         event.peer->address.host,
                         event.peer->address.port);
 
-                    enet_peer_reset(server);
-                    server = nullptr;
-                    inputHistory.Clear();
-                    worldHistory.Clear();
+                    Disconnect();
                     //serverWorld->chatHistory.PushMessage(CSTR("Sam"), CSTR("Disconnected from server."));
                     break;
                 } case ENET_EVENT_TYPE_DISCONNECT_TIMEOUT: {
@@ -412,10 +446,7 @@ ErrorType NetClient::Receive(void)
                         event.peer->address.host,
                         event.peer->address.port);
 
-                    enet_peer_reset(server);
-                    server = nullptr;
-                    inputHistory.Clear();
-                    worldHistory.Clear();
+                    Disconnect();
                     //serverWorld->chatHistory.PushMessage(CSTR("Sam"), CSTR("Your connection to the server timed out. :("));
                     break;
                 } default: {
@@ -447,9 +478,7 @@ bool NetClient::IsDisconnected(void)
 void NetClient::Disconnect(void)
 {
     if (server) {
-        enet_peer_disconnect(server, 1);
-        enet_host_service(client, nullptr, 0);
-        enet_peer_reset(server);
+        enet_peer_disconnect_now(server, 1);
         server = nullptr;
     }
     if (serverWorld) {

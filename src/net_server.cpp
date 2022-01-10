@@ -27,8 +27,8 @@ ErrorType NetServer::OpenSocket(unsigned short socketPort)
     address.port = socketPort;
 
     server = enet_host_create(&address, SV_MAX_PLAYERS, 1, 0, 0);
-    if (!server || !server->socket) {
-        E_ASSERT(ErrorType::HostCreateFailed, "Failed to create host. Check if port %hu is already in use.", address.port);
+    while ((!server || !server->socket)) {
+        E_ASSERT(ErrorType::HostCreateFailed, "Failed to create host. Check if port(s) %hu already in use.", socketPort);
     }
     printf("Listening on port %hu...\n", address.port);
     return ErrorType::Success;
@@ -93,6 +93,9 @@ ErrorType NetServer::SendMsg(const NetServerClient &client, NetMessage &message)
         return ErrorType::Success;
     }
 
+    if (message.type != NetMessage::Type::WorldSnapshot) {
+        TraceLog(LOG_DEBUG, "[NetServer] Send %s", message.TypeString());
+    }
     if (message.type == NetMessage::Type::Input) {
         assert((int)message.type);
     }
@@ -122,6 +125,50 @@ ErrorType NetServer::BroadcastMsg(NetMessage &message)
     return err_code;
 }
 
+ErrorType NetServer::SendWelcomeBasket(NetServerClient &client)
+{
+    // TODO: Send current state to new client
+    // - world (seed + entities)
+    // - slime list
+
+    {
+        memset(&netMsg, 0, sizeof(netMsg));
+        netMsg.type = NetMessage::Type::Welcome;
+
+        NetMessage_Welcome &welcome = netMsg.data.welcome;
+        welcome.motdLength = (uint32_t)(sizeof("Welcome to The Lonely Island") - 1);
+        memcpy(welcome.motd, CSTR("Welcome to The Lonely Island"));
+        welcome.width = serverWorld->map->width;
+        welcome.height = serverWorld->map->height;
+        welcome.playerId = client.playerId;
+        welcome.playerCount = 0;
+        for (size_t i = 0; i < SV_MAX_PLAYERS; i++) {
+            if (!serverWorld->players[i].id)
+                continue;
+
+            welcome.players[i].id = serverWorld->players[i].id;
+            welcome.players[i].nameLength = serverWorld->players[i].nameLength;
+            memcpy(welcome.players[i].name, serverWorld->players[i].name, welcome.players[i].nameLength);
+            welcome.playerCount++;
+        }
+        E_ASSERT(SendMsg(client, netMsg), "Failed to send welcome basket");
+    }
+
+    Player *player = serverWorld->FindPlayer(client.playerId);
+    assert(player);
+    if (player) {
+        E_ASSERT(BroadcastPlayerJoin(*player), "Failed to broadcast player join notification");
+        const char *message = TextFormat("%.*s joined the game.", player->nameLength, player->name);
+        size_t messageLength = strlen(message);
+        E_ASSERT(BroadcastChatMessage(message, messageLength), "Failed to broadcast join notification");
+    }
+
+    SendWorldChunk(client);
+    //SendWorldSnapshot(client);
+
+    return ErrorType::Success;
+}
+
 ErrorType NetServer::BroadcastChatMessage(const char *msg, size_t msgLength)
 {
     assert(msg);
@@ -136,36 +183,34 @@ ErrorType NetServer::BroadcastChatMessage(const char *msg, size_t msgLength)
     return BroadcastMsg(netMsg);
 }
 
-ErrorType NetServer::SendWelcomeBasket(NetServerClient &client)
+ErrorType NetServer::BroadcastPlayerJoin(const Player &player)
 {
-    // TODO: Send current state to new client
-    // - world (seed + entities)
-    // - slime list
+    memset(&netMsg, 0, sizeof(netMsg));
+    netMsg.type = NetMessage::Type::GlobalEvent;
 
-    {
-        memset(&netMsg, 0, sizeof(netMsg));
-        netMsg.type = NetMessage::Type::Welcome;
-        netMsg.data.welcome.motdLength = (uint32_t)(sizeof("Welcome to The Lonely Island") - 1);
-        memcpy(netMsg.data.welcome.motd, CSTR("Welcome to The Lonely Island"));
-        netMsg.data.welcome.width = serverWorld->map->width;
-        netMsg.data.welcome.height = serverWorld->map->height;
-        netMsg.data.welcome.playerId = client.playerId;
-        E_ASSERT(SendMsg(client, netMsg), "Failed to send welcome basket");
-    }
+    NetMessage_GlobalEvent &globalEvent = netMsg.data.globalEvent;
+    globalEvent.type = NetMessage_GlobalEvent::Type::PlayerJoin;
 
-    // TODO: Save from identify packet into NetServerClient, then use client.username
-    Player *player = serverWorld->FindPlayer(client.playerId);
-    assert(player);
-    if (player) {
-        const char *message = TextFormat("%.*s joined the game.", player->nameLength, player->name);
-        size_t messageLength = strlen(message);
-        E_ASSERT(BroadcastChatMessage(message, messageLength), "Failed to broadcast join notification");
-    }
+    NetMessage_GlobalEvent_PlayerJoin &playerJoin = netMsg.data.globalEvent.data.playerJoin;
+    playerJoin.playerId = player.id;
+    playerJoin.nameLength = player.nameLength;
+    memcpy(playerJoin.name, player.name, player.nameLength);
+    return BroadcastMsg(netMsg);
+}
 
-    SendWorldChunk(client);
-    //SendWorldSnapshot(client);
+ErrorType NetServer::BroadcastPlayerLeave(uint32_t playerId)
+{
+    assert(playerId);
 
-    return ErrorType::Success;
+    memset(&netMsg, 0, sizeof(netMsg));
+    netMsg.type = NetMessage::Type::GlobalEvent;
+
+    NetMessage_GlobalEvent &globalEvent = netMsg.data.globalEvent;
+    globalEvent.type = NetMessage_GlobalEvent::Type::PlayerLeave;
+
+    NetMessage_GlobalEvent_PlayerLeave &playerLeave = netMsg.data.globalEvent.data.playerLeave;
+    playerLeave.playerId = playerId;
+    return BroadcastMsg(netMsg);
 }
 
 ErrorType NetServer::SendWorldChunk(NetServerClient &client)
@@ -261,10 +306,9 @@ void NetServer::ProcessMsg(NetServerClient &client, ENetPacket &packet)
         case NetMessage::Type::Identify: {
             NetMessage_Identify &identMsg = netMsg.data.identify;
 
-            static uint32_t nextId = 1;
-            Player *player = serverWorld->SpawnPlayer(nextId);
+            Player *player = serverWorld->SpawnPlayer(nextPlayerId);
             if (player) {
-                nextId = MAX(1, nextId + 1); // Prevent ID zero from being used on overflow
+                nextPlayerId = MAX(1, nextPlayerId + 1); // Prevent ID zero from being used on overflow
                 client.playerId = player->id;
                 client.connectionToken = netMsg.connectionToken;
                 assert(identMsg.usernameLength);
@@ -352,6 +396,7 @@ ErrorType NetServer::RemoveClient(ENetPeer *peer)
         // TODO: Save from identify packet into NetServerClient, then user client.username
         Player *player = serverWorld->FindPlayer(client->playerId);
         if (player) {
+            E_ASSERT(BroadcastPlayerLeave(player->id), "Failed to broadcast player leave notification");
             const char *message = TextFormat("%.*s left the game.", player->nameLength, player->name);
             size_t messageLength = strlen(message);
             E_ASSERT(BroadcastChatMessage(message, messageLength), "Failed to broadcast join notification");

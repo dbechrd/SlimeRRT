@@ -368,7 +368,6 @@ void World::SimSlimes(double dt)
     }
 }
 
-
 void World::SimItems(double dt)
 {
     // TODO: Move these to somewhere
@@ -434,6 +433,9 @@ void World::GenerateSnapshot(WorldSnapshot &worldSnapshot)
     // TODO: Find players/slimes/etc. that are actually near the player this snapshot is being generated for
     worldSnapshot.playerCount = 0;
     for (size_t i = 0; i < SV_MAX_PLAYERS && worldSnapshot.playerCount < SNAPSHOT_MAX_PLAYERS; i++) {
+        if (!players[i].id) {
+            continue;
+        }
         worldSnapshot.players[worldSnapshot.playerCount].id           = players[i].id                 ;
         worldSnapshot.players[worldSnapshot.playerCount].position     = players[i].body.position      ;
         worldSnapshot.players[worldSnapshot.playerCount].direction    = players[i].sprite.direction   ;
@@ -443,6 +445,9 @@ void World::GenerateSnapshot(WorldSnapshot &worldSnapshot)
     }
     worldSnapshot.slimeCount = 0;
     for (size_t i = 0; i < SV_MAX_SLIMES && worldSnapshot.slimeCount < SNAPSHOT_MAX_SLIMES; i++) {
+        if (!slimes[i].id) {
+            continue;
+        }
         if (v3_length_sq(v3_sub(player->body.position, slimes[i].body.position)) < SQUARED(1300.0f)) {
             worldSnapshot.slimes[worldSnapshot.slimeCount].id           = slimes[i].id                 ;
             worldSnapshot.slimes[worldSnapshot.slimeCount].position     = slimes[i].body.position      ;
@@ -561,7 +566,7 @@ void World::Interpolate(double renderAt)
         if (InterpolateBody(player.body, renderAt, direction)) {
             player.sprite.direction = direction;
         } else {
-            DespawnPlayer(player.id);
+            //DespawnPlayer(player.id);
         }
     }
     for (size_t i = 0; i < SV_MAX_SLIMES; i++) {

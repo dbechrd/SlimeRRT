@@ -40,6 +40,7 @@ struct NetServerClient {
 struct NetServer {
     ENetHost *server {};
     //std::unordered_map<ENetAddress, NetServerClient, NetAddressHash, NetAddressEqual> clients{};
+    uint32_t nextPlayerId = 1;
     NetServerClient clients[SV_MAX_PLAYERS]{};
     RingBuffer<InputSample, SV_INPUT_HISTORY> inputHistory {};
     World *serverWorld {};
@@ -60,8 +61,10 @@ private:
     ErrorType SendMsg(const NetServerClient &client, NetMessage &message);
     ErrorType BroadcastRaw(const void *data, size_t size);
     ErrorType BroadcastMsg(NetMessage &message);
-    ErrorType BroadcastChatMessage(const char *msg, size_t msgLength);
     ErrorType SendWelcomeBasket(NetServerClient &client);
+    ErrorType BroadcastChatMessage(const char *msg, size_t msgLength);
+    ErrorType BroadcastPlayerJoin(const Player &player);
+    ErrorType BroadcastPlayerLeave(uint32_t playerId);
 
     bool IsValidInput(const NetServerClient &client, const InputSample &sample);
     void ProcessMsg(NetServerClient &client, ENetPacket &packet);

@@ -323,9 +323,9 @@ void UI::HUD(const Font &font, const Player &player, const DebugStats &debugStat
     int linesOfText = 8;
     if (debugStats.tick) {
         linesOfText += 10;
-        if (debugStats.rtt) {
-            linesOfText += 5;
-        }
+    }
+    if (debugStats.rtt) {
+        linesOfText += 5;
     }
     const float margin = 6.0f;   // left/top margin
     const float pad = 4.0f;      // left/top pad

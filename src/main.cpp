@@ -30,18 +30,20 @@ int main(int argc, char *argv[])
     if (args.standalone) {
         title = "[SLIMY SERVER]";
     }
-    
-    InitWindow(1600, 900, title);
-    if (args.standalone) {
+
+    if (!args.standalone) {
+        InitWindow(1600, 900, title);
         // NOTE: I could avoid the flicker if Raylib would let me pass it as a flag into InitWindow -_-
-        SetWindowState(FLAG_WINDOW_HIDDEN);
+        //SetWindowState(FLAG_WINDOW_HIDDEN);
     }
 
     std::thread serverThread([&args] {
-        error_set_thread_name("server");
-        GameServer *gameServer = new GameServer(args);
-        gameServer->Run();
-        delete gameServer;
+        if (args.standalone) {
+            error_set_thread_name("server");
+            GameServer *gameServer = new GameServer(args);
+            gameServer->Run();
+            delete gameServer;
+        }
     });
 
     // TODO: Make CLI not be an entire client/player. Makes no sense for the CLI to show up in the world LUL.
@@ -59,11 +61,13 @@ int main(int argc, char *argv[])
         SetConsolePosition(1913, 1, 2887 - 1913, 1048 - 1);
     }
 #endif
-    
-    GameClient *gameClient = new GameClient(args);
-    gameClient->Run();
-    args.exiting = true;
-    delete gameClient;
+
+    if (!args.standalone) {
+        GameClient *gameClient = new GameClient(args);
+        gameClient->Run();
+        args.exiting = true;
+        delete gameClient;
+    }
 
     //--------------------------------
     // Clean up
