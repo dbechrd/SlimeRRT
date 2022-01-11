@@ -79,11 +79,15 @@ struct NetMessage_GlobalEvent {
 };
 
 struct NetMessage_NearbyEvent_PlayerSpawn {
-    uint32_t  id           {};
+    uint32_t  playerId     {};
     Vector3   position     {};
     Direction direction    {};
     float     hitPoints    {};
     float     hitPointsMax {};
+};
+
+struct NetMessage_NearbyEvent_PlayerDespawn {
+    uint32_t playerId {};
 };
 
 struct NetMessage_NearbyEvent {
@@ -107,7 +111,8 @@ struct NetMessage_NearbyEvent {
     Type type = Type::Unknown;
 
     union {
-        NetMessage_GlobalEvent_PlayerJoin playerJoin;
+        NetMessage_NearbyEvent_PlayerSpawn   playerSpawn;
+        NetMessage_NearbyEvent_PlayerDespawn playerDespawn;
     } data{};
 };
 
@@ -137,7 +142,7 @@ struct NetMessage {
         WorldSnapshot          worldSnapshot;
         NetMessage_GlobalEvent globalEvent;
         NetMessage_NearbyEvent nearbyEvent;
-    } data {};
+    } data{};
 
     const char *TypeString(void);
     void Serialize(const World &world, ENetBuffer &buffer);

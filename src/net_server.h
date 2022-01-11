@@ -65,6 +65,7 @@ private:
     ErrorType BroadcastChatMessage(const char *msg, size_t msgLength);
     ErrorType BroadcastPlayerJoin(const Player &player);
     ErrorType BroadcastPlayerLeave(uint32_t playerId);
+    ErrorType SendPlayerSpawn(NetServerClient &client, uint32_t playerId);
 
     bool IsValidInput(const NetServerClient &client, const InputSample &sample);
     void ProcessMsg(NetServerClient &client, ENetPacket &packet);

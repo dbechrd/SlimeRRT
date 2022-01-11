@@ -39,18 +39,14 @@ const Vector3 World::GetWorldSpawn(void)
     return worldSpawn;
 };
 
-Player *World::SpawnPlayer(uint32_t playerId)
+Player *World::AddPlayer(uint32_t playerId)
 {
-#if _DEBUG
-    if (playerId) {
-        for (int i = 0; i < SV_MAX_PLAYERS; i++) {
-            Player &player = players[i];
-            if (player.id == playerId) {
-                assert(!"This playerId is already in use!");
-            }
-        }
+    Player *existingPlayer = FindPlayer(playerId);
+    if (existingPlayer) {
+        //TraceLog(LOG_WARNING, "This playerId is already in use!");
+        //return existingPlayer;
+        return 0;
     }
-#endif
 
     for (int i = 0; i < SV_MAX_PLAYERS; i++) {
         Player &player = players[i];
@@ -61,20 +57,33 @@ Player *World::SpawnPlayer(uint32_t playerId)
             if (playerId) {
                 player.id = playerId;
             } else {
-                static uint32_t nextId = 0;
-                nextId = MAX(1, nextId + 1); // Prevent ID zero from being used on overflow
-                player.id = nextId;
+                nextPlayerId = MAX(1, nextPlayerId + 1); // Prevent ID zero from being used on overflow
+                player.id = nextPlayerId;
             }
 
-            const Spritesheet &spritesheet = Catalog::g_spritesheets.FindById(Catalog::SpritesheetID::Charlie);
-            const SpriteDef *spriteDef = spritesheet.FindSprite("player_sword");
-            player.Init(spriteDef);
             player.body.position = GetWorldSpawn();
-
+            player.Init(0);
             return &player;
         }
     }
+
+    // TODO: Make world->players a RingBuffer if this happens; there must
+    // be old/invalid player references hanging around (e.g. if there are 8
+    // other players and 1 leaves/joins really fast??)
+    TraceLog(LOG_FATAL, "Failed to add player");
     return 0;
+}
+
+void World::SpawnPlayer(uint32_t playerId)
+{
+    Player *player = FindPlayer(playerId);
+    if (!player) {
+        TraceLog(LOG_ERROR, "Cannot visually spawn a player that doesn't exist. playerId: %u", playerId);
+        return;
+    }
+
+    const Spritesheet &spritesheet = Catalog::g_spritesheets.FindById(Catalog::SpritesheetID::Charlie);
+    player->sprite.spriteDef = spritesheet.FindSprite("player_sword");
 }
 
 Player *World::FindPlayer(uint32_t playerId)
@@ -109,10 +118,23 @@ Player *World::FindClosestPlayer(Vector2 worldPos, float maxDist)
 void World::DespawnPlayer(uint32_t playerId)
 {
     Player *player = FindPlayer(playerId);
-    if (player) {
-        printf("Despawn player %u\n", playerId);
-        *player = {};
+    if (!player) {
+        TraceLog(LOG_ERROR, "Cannot visually despawn a player that doesn't exist. playerId: %u", playerId);
+        return;
     }
+
+    player->sprite.spriteDef = 0;
+}
+
+void World::RemovePlayer(uint32_t playerId)
+{
+    Player *player = FindPlayer(playerId);
+    if (!player) {
+        TraceLog(LOG_ERROR, "Cannot remove a player that doesn't exist. playerId: %u", playerId);
+        return;
+    }
+
+    *player = {};
 }
 
 Slime &World::SpawnSam(void)

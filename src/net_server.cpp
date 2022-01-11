@@ -158,6 +158,7 @@ ErrorType NetServer::SendWelcomeBasket(NetServerClient &client)
     assert(player);
     if (player) {
         E_ASSERT(BroadcastPlayerJoin(*player), "Failed to broadcast player join notification");
+        E_ASSERT(SendPlayerSpawn(client, player->id), "Failed to send player spawn notification");
         const char *message = TextFormat("%.*s joined the game.", player->nameLength, player->name);
         size_t messageLength = strlen(message);
         E_ASSERT(BroadcastChatMessage(message, messageLength), "Failed to broadcast join notification");
@@ -210,6 +211,31 @@ ErrorType NetServer::BroadcastPlayerLeave(uint32_t playerId)
 
     NetMessage_GlobalEvent_PlayerLeave &playerLeave = netMsg.data.globalEvent.data.playerLeave;
     playerLeave.playerId = playerId;
+    return BroadcastMsg(netMsg);
+}
+
+ErrorType NetServer::SendPlayerSpawn(NetServerClient &client, uint32_t playerId)
+{
+    assert(playerId);
+
+    Player *player = serverWorld->FindPlayer(playerId);
+    if (!player) {
+        TraceLog(LOG_ERROR, "Cannot find player we're trying to generate spawn notification about");
+        return ErrorType::PlayerNotFound;
+    }
+
+    memset(&netMsg, 0, sizeof(netMsg));
+    netMsg.type = NetMessage::Type::NearbyEvent;
+
+    NetMessage_NearbyEvent &nearbyEvent = netMsg.data.nearbyEvent;
+    nearbyEvent.type = NetMessage_NearbyEvent::Type::PlayerSpawn;
+
+    NetMessage_NearbyEvent_PlayerSpawn &playerSpawn = netMsg.data.nearbyEvent.data.playerSpawn;
+    playerSpawn.playerId = player->id;
+    playerSpawn.position = player->body.position;
+    playerSpawn.direction = player->sprite.direction;
+    playerSpawn.hitPoints = player->combat.hitPoints;
+    playerSpawn.hitPointsMax = player->combat.hitPointsMax;
     return BroadcastMsg(netMsg);
 }
 
@@ -306,8 +332,9 @@ void NetServer::ProcessMsg(NetServerClient &client, ENetPacket &packet)
         case NetMessage::Type::Identify: {
             NetMessage_Identify &identMsg = netMsg.data.identify;
 
-            Player *player = serverWorld->SpawnPlayer(nextPlayerId);
+            Player *player = serverWorld->AddPlayer(nextPlayerId);
             if (player) {
+                player->body.position = serverWorld->GetWorldSpawn();
                 nextPlayerId = MAX(1, nextPlayerId + 1); // Prevent ID zero from being used on overflow
                 client.playerId = player->id;
                 client.connectionToken = netMsg.connectionToken;
@@ -402,7 +429,7 @@ ErrorType NetServer::RemoveClient(ENetPeer *peer)
             E_ASSERT(BroadcastChatMessage(message, messageLength), "Failed to broadcast join notification");
         }
 
-        serverWorld->DespawnPlayer(client->playerId);
+        serverWorld->RemovePlayer(client->playerId);
         memset(client, 0, sizeof(*client));
     }
     peer->data = 0;

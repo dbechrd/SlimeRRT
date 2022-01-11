@@ -268,13 +268,11 @@ void NetClient::ProcessMsg(ENetPacket &packet)
             serverWorld->playerId = welcomeMsg.playerId;
 
             for (size_t i = 0; i < welcomeMsg.playerCount; i++) {
-                Player *player = serverWorld->SpawnPlayer(welcomeMsg.players[i].id);
-                if (!player) {
-                    TraceLog(LOG_FATAL, "Failed to spawn player");
+                Player *player = serverWorld->AddPlayer(welcomeMsg.players[i].id);
+                if (player) {
+                    player->nameLength = (uint32_t)MIN(welcomeMsg.players[i].nameLength, USERNAME_LENGTH_MAX);
+                    memcpy(player->name, welcomeMsg.players[i].name, player->nameLength);
                 }
-                assert(player);
-                player->nameLength = (uint32_t)MIN(welcomeMsg.players[i].nameLength, USERNAME_LENGTH_MAX);
-                memcpy(player->name, welcomeMsg.players[i].name, player->nameLength);
             }
             break;
         } case NetMessage::Type::WorldChunk: {
@@ -330,26 +328,46 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                 case NetMessage_GlobalEvent::Type::PlayerJoin: {
                     NetMessage_GlobalEvent_PlayerJoin &playerJoin = globalEvent.data.playerJoin;
                     if (playerJoin.playerId != serverWorld->playerId) {
-                        Player *player = serverWorld->SpawnPlayer(playerJoin.playerId);
-                        if (!player) {
-                            // TODO: Make world->players a RingBuffer if this happens; there must
-                            // be old/invalid player references hanging around (e.g. if there are 8
-                            // other players and 1 leaves/joins really fast??)
-                            TraceLog(LOG_FATAL, "Failed to spawn player");
+                        Player *player = serverWorld->AddPlayer(playerJoin.playerId);
+                        if (player) {
+                            player->nameLength = playerJoin.nameLength;
+                            memcpy(player->name, playerJoin.name, player->nameLength);
                         }
-                        assert(player);
-                        player->nameLength = playerJoin.nameLength;
-                        memcpy(player->name, playerJoin.name, player->nameLength);
                     }
                     break;
                 } case NetMessage_GlobalEvent::Type::PlayerLeave: {
                     NetMessage_GlobalEvent_PlayerLeave &playerLeave = globalEvent.data.playerLeave;
-                    serverWorld->DespawnPlayer(playerLeave.playerId);
+                    serverWorld->RemovePlayer(playerLeave.playerId);
                     break;
                 }
             }
 #if 0
 #endif
+            break;
+        } case NetMessage::Type::NearbyEvent: {
+            NetMessage_NearbyEvent &nearbyEvent = tempMsg.data.nearbyEvent;
+
+            switch (nearbyEvent.type) {
+                case NetMessage_NearbyEvent::Type::PlayerSpawn: {
+                    NetMessage_NearbyEvent_PlayerSpawn &playerSpawn = nearbyEvent.data.playerSpawn;
+
+                    Player *player = serverWorld->FindPlayer(playerSpawn.playerId);
+                    if (player) {
+                        player->body.position = playerSpawn.position;
+                        player->sprite.direction = playerSpawn.direction;
+                        player->combat.hitPoints = playerSpawn.hitPoints;
+                        player->combat.hitPointsMax = playerSpawn.hitPointsMax;
+                        serverWorld->SpawnPlayer(player->id);
+                    } else {
+                        TraceLog(LOG_ERROR, "Could not find player to spawn. playerId: %u", playerSpawn.playerId);
+                    }
+                    break;
+                } case NetMessage_NearbyEvent::Type::PlayerDespawn: {
+                    NetMessage_NearbyEvent_PlayerDespawn &playerDespawn = nearbyEvent.data.playerDespawn;
+                    serverWorld->DespawnPlayer(playerDespawn.playerId);
+                    break;
+                }
+            }
             break;
         } default: {
             E_INFO("Unexpected netMsg type: %s", tempMsg.TypeString());

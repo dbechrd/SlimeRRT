@@ -22,6 +22,7 @@ struct World {
     double         dtUpdate       {};
     Tilemap        *map           {};
     // TODO: PlayerSystem
+    uint32_t       nextPlayerId   {};
     uint32_t       playerId       {};
     Player         players        [SV_MAX_PLAYERS]{};
     // TODO: SlimeSystem or EnemySystem
@@ -41,9 +42,11 @@ struct World {
     ////////////////////////////////////////////
     // vvv DO NOT HOLD A POINTER TO THESE! vvv
     //
-    Player *SpawnPlayer   (uint32_t playerId);
+    Player *AddPlayer     (uint32_t playerId);
+    void    SpawnPlayer   (uint32_t playerId);
     Player *FindPlayer    (uint32_t playerId);
     void    DespawnPlayer (uint32_t playerId);
+    void    RemovePlayer  (uint32_t playerId);
 
     Slime  &SpawnSam      (void);
     Slime  *SpawnSlime    (uint32_t slimeId);

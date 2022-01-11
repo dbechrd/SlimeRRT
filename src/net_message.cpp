@@ -30,7 +30,7 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
 
     stream.Process(connectionToken, 32, 0, UINT32_MAX);
 
-    stream.Process((uint32_t &)type, 3, (uint32_t)NetMessage::Type::Unknown + 1, (uint32_t)NetMessage::Type::Count - 1);
+    stream.Process((uint32_t &)type, 4, (uint32_t)NetMessage::Type::Unknown + 1, (uint32_t)NetMessage::Type::Count - 1);
     stream.Align();
 
     if (type == NetMessage::Type::WorldSnapshot) {
@@ -86,7 +86,7 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
 
             stream.Process(welcome.width, 9, WORLD_WIDTH_MIN, WORLD_WIDTH_MAX);
             stream.Process(welcome.height, 9, WORLD_HEIGHT_MIN, WORLD_HEIGHT_MAX);
-            stream.Process(welcome.playerId, 4, 1, UINT32_MAX);
+            stream.Process(welcome.playerId, 32, 1, UINT32_MAX);
             stream.Align();
 
             stream.Process(welcome.playerCount, 4, 0, SV_MAX_PLAYERS);
@@ -184,9 +184,10 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                     stream.ProcessFloat(player.position.x);
                     stream.ProcessFloat(player.position.y);
                     stream.ProcessFloat(player.position.z);
+                    stream.Process((uint32_t &)player.direction, 3, (uint32_t)Direction::North, (uint32_t)Direction::NorthWest);
+                    stream.Align();
                     stream.ProcessFloat(player.hitPoints);
                     stream.ProcessFloat(player.hitPointsMax);
-                    stream.Process((uint32_t &)player.direction, 3, (uint32_t)Direction::North, (uint32_t)Direction::NorthWest);
                 }
             }
 
@@ -218,6 +219,7 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                     stream.ProcessFloat(slime.position.y);
                     stream.ProcessFloat(slime.position.z);
                     stream.Process((uint32_t &)slime.direction, 3, (uint32_t)Direction::North, (uint32_t)Direction::NorthWest);
+                    stream.Align();
                     stream.ProcessFloat(slime.hitPoints);
                     stream.ProcessFloat(slime.hitPointsMax);
                     stream.ProcessFloat(slime.scale);
@@ -235,7 +237,7 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                 case NetMessage_GlobalEvent::Type::PlayerJoin: {
                     NetMessage_GlobalEvent_PlayerJoin &playerJoin = globalEvent.data.playerJoin;
 
-                    stream.Process(playerJoin.playerId, 4, 1, UINT32_MAX);
+                    stream.Process(playerJoin.playerId, 32, 1, UINT32_MAX);
                     stream.Align();
 
                     stream.Process((uint32_t)playerJoin.nameLength, 6, USERNAME_LENGTH_MIN, USERNAME_LENGTH_MAX);
@@ -250,7 +252,7 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                 } case NetMessage_GlobalEvent::Type::PlayerLeave: {
                     NetMessage_GlobalEvent_PlayerLeave &playerLeave = globalEvent.data.playerLeave;
 
-                    stream.Process(playerLeave.playerId, 4, 1, UINT32_MAX);
+                    stream.Process(playerLeave.playerId, 32, 1, UINT32_MAX);
                     stream.Align();
                     break;
                 } default: {
@@ -267,7 +269,15 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
 
             switch (nearbyEvent.type) {
                 case NetMessage_NearbyEvent::Type::PlayerSpawn: {
-                    TraceLog(LOG_FATAL, "Unexpected message");
+                    NetMessage_NearbyEvent_PlayerSpawn &playerSpawn = nearbyEvent.data.playerSpawn;
+                    stream.Process(playerSpawn.playerId, 32, 1, UINT32_MAX);
+                    stream.ProcessFloat(playerSpawn.position.x);
+                    stream.ProcessFloat(playerSpawn.position.y);
+                    stream.ProcessFloat(playerSpawn.position.z);
+                    stream.Process((uint32_t &)playerSpawn.direction, 3, (uint32_t)Direction::North, (uint32_t)Direction::NorthWest);
+                    stream.Align();
+                    stream.ProcessFloat(playerSpawn.hitPoints);
+                    stream.ProcessFloat(playerSpawn.hitPointsMax);
                     break;
                 } case NetMessage_NearbyEvent::Type::PlayerMove: {
                     TraceLog(LOG_FATAL, "Unexpected message");

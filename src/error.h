@@ -10,6 +10,7 @@ enum class ErrorType {
     PacketCreateFailed,
     PeerConnectFailed,
     PeerSendFailed,
+    PlayerNotFound,
     Count
 };
 

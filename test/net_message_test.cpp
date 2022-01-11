@@ -13,12 +13,12 @@ void net_message_test_snapshot()
     msgWritten.data.worldSnapshot.playerCount = 1;
     msgWritten.data.worldSnapshot.slimeCount = 35;
     PlayerSnapshot &player = msgWritten.data.worldSnapshot.players[0];
-    player.id = 4;
-    player.hitPointsMax = 100;
-    player.hitPoints = 50;
+    player.id = 69;
+    player.hitPointsMax = 169;
+    player.hitPoints = 69;
 
     World *world = new World;
-    world->SpawnPlayer(player.id);
+    world->AddPlayer(player.id);
     ENetBuffer rawPacket{ PACKET_SIZE_MAX, calloc(PACKET_SIZE_MAX, sizeof(uint8_t)) };
     msgWritten.Serialize(*world, rawPacket);
     NetMessage baseMsgRead{};
@@ -27,7 +27,7 @@ void net_message_test_snapshot()
 
     assert(baseMsgRead.connectionToken = msgWritten.connectionToken);
     assert(baseMsgRead.type == msgWritten.type);
-    
+
     assert(baseMsgRead.type == NetMessage::Type::WorldSnapshot);
     WorldSnapshot &msgRead = baseMsgRead.data.worldSnapshot;
     assert(msgRead.tick == msgWritten.data.worldSnapshot.tick);
