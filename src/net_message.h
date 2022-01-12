@@ -18,10 +18,19 @@ struct NetMessage_Identify {
 };
 
 struct NetMessage_ChatMessage {
+    enum class Source {
+        Unknown,
+        System,
+        Debug,
+        Server,
+        Client,
+        Sam,
+        Count
+    };
     double   recvAt         {};
     char     timestampStr   [TIMESTAMP_LENGTH]{};  // hh:MM:SS AM
-    uint32_t usernameLength {};
-    char     username       [USERNAME_LENGTH_MAX]{};
+    Source   source         {};
+    uint32_t id             {};
     uint32_t messageLength  {};
     char     message        [CHATMSG_LENGTH_MAX]{};
 };
@@ -69,6 +78,18 @@ struct NetMessage_GlobalEvent {
         PlayerLeave,    // R player left game
         Count
     };
+    static const char *TypeString(Type type)
+    {
+        switch (type) {
+            case Type::Unknown     : return "Unknown";
+            case Type::PlayerJoin  : return "Identify";
+            case Type::PlayerLeave : return "ChatMessage";
+            default: return "NetMessage_GlobalEvent::Type::???";
+        }
+    }
+    const char *TypeString() {
+        return NetMessage_GlobalEvent::TypeString(type);
+    }
 
     Type type = Type::Unknown;
 
@@ -90,6 +111,18 @@ struct NetMessage_NearbyEvent_PlayerDespawn {
     uint32_t playerId {};
 };
 
+struct NetMessage_NearbyEvent_EnemySpawn {
+    uint32_t  enemyId      {};
+    Vector3   position     {};
+    Direction direction    {};
+    float     hitPoints    {};
+    float     hitPointsMax {};
+};
+
+struct NetMessage_NearbyEvent_EnemyDespawn {
+    uint32_t enemyId {};
+};
+
 struct NetMessage_NearbyEvent {
     enum class Type : uint32_t {
         Unknown,
@@ -107,12 +140,36 @@ struct NetMessage_NearbyEvent {
         ItemDespawn,    // R picked up, item on ground too long
         Count
     };
+    static const char *TypeString(Type type)
+    {
+        switch (type) {
+            case Type::Unknown       : return "Unknown";
+            case Type::PlayerSpawn   : return "PlayerSpawn";
+            case Type::PlayerMove    : return "PlayerMove";
+            case Type::PlayerAttack  : return "PlayerAttack";
+            case Type::PlayerEquip   : return "PlayerEquip";
+            case Type::PlayerDespawn : return "PlayerDespawn";
+            case Type::EnemySpawn    : return "EnemySpawn";
+            case Type::EnemyMove     : return "EnemyMove";
+            case Type::EnemyAttack   : return "EnemyAttack";
+            case Type::EnemyDespawn  : return "EnemyDespawn";
+            case Type::ItemSpawn     : return "ItemSpawn";
+            case Type::ItemMove      : return "ItemMove";
+            case Type::ItemDespawn   : return "ItemDespawn";
+            default: return "NetMessage_NearbyEvent::Type::???";
+        }
+    }
+    const char *TypeString()
+    {
+        return NetMessage_NearbyEvent::TypeString(type);
+    }
 
     Type type = Type::Unknown;
 
     union {
         NetMessage_NearbyEvent_PlayerSpawn   playerSpawn;
         NetMessage_NearbyEvent_PlayerDespawn playerDespawn;
+        NetMessage_NearbyEvent_EnemySpawn    enemySpawn;
     } data{};
 };
 
@@ -129,6 +186,25 @@ struct NetMessage {
         NearbyEvent,
         Count
     };
+    static const char *TypeString(Type type)
+    {
+        switch (type) {
+            case Type::Unknown       : return "Unknown";
+            case Type::Identify      : return "Identify";
+            case Type::ChatMessage   : return "ChatMessage";
+            case Type::Welcome       : return "Welcome";
+            case Type::Input         : return "Input";
+            case Type::WorldChunk    : return "WorldChunk";
+            case Type::WorldSnapshot : return "WorldSnapshot";
+            case Type::GlobalEvent   : return "GlobalEvent";
+            case Type::NearbyEvent   : return "NearbyEvent";
+            default: return "NetMessage::Type::???";
+        }
+    }
+    const char *TypeString()
+    {
+        return NetMessage::TypeString(type);
+    }
 
     uint32_t connectionToken {};
     Type type = Type::Unknown;
@@ -144,7 +220,6 @@ struct NetMessage {
         NetMessage_NearbyEvent nearbyEvent;
     } data{};
 
-    const char *TypeString(void);
     void Serialize(const World &world, ENetBuffer &buffer);
     void Deserialize(World &world, const ENetBuffer &buffer);
 

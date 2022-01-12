@@ -22,8 +22,8 @@ const SpriteFrame &sprite_frame(const Sprite &sprite)
         static SpriteFrame frame{};
         frame.x = 0;
         frame.y = 0;
-        frame.width = 1;
-        frame.height = 1;
+        frame.width = 16;
+        frame.height = 16;
         return frame;
     }
 

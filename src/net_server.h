@@ -49,6 +49,9 @@ struct NetServer {
     ErrorType OpenSocket(unsigned short socketPort);
     ErrorType SendWorldChunk(NetServerClient &client);
     ErrorType SendWorldSnapshot(NetServerClient &client, WorldSnapshot &worldSnapshot);
+    ErrorType SendPlayerSpawn(NetServerClient &client, uint32_t playerId);
+    ErrorType SendPlayerDespawn(NetServerClient &client, uint32_t playerId);
+    ErrorType SendEnemySpawn(NetServerClient &client, uint32_t enemyId);
     NetServerClient *FindClient(uint32_t playerId);
     ErrorType Listen();
     void CloseSocket();
@@ -62,10 +65,9 @@ private:
     ErrorType BroadcastRaw(const void *data, size_t size);
     ErrorType BroadcastMsg(NetMessage &message);
     ErrorType SendWelcomeBasket(NetServerClient &client);
-    ErrorType BroadcastChatMessage(const char *msg, size_t msgLength);
+    ErrorType BroadcastChatMessage(NetMessage_ChatMessage &chatMsg);
     ErrorType BroadcastPlayerJoin(const Player &player);
     ErrorType BroadcastPlayerLeave(uint32_t playerId);
-    ErrorType SendPlayerSpawn(NetServerClient &client, uint32_t playerId);
 
     bool IsValidInput(const NetServerClient &client, const InputSample &sample);
     void ProcessMsg(NetServerClient &client, ENetPacket &packet);

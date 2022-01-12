@@ -136,8 +136,8 @@ ErrorType NetClient::SendChatMessage(const char *message, size_t messageLength)
 
     memset(&tempMsg, 0, sizeof(tempMsg));
     tempMsg.type = NetMessage::Type::ChatMessage;
-    tempMsg.data.chatMsg.usernameLength = (uint32_t)usernameLength;
-    memcpy(tempMsg.data.chatMsg.username, username, usernameLength);
+    tempMsg.data.chatMsg.source = NetMessage_ChatMessage::Source::Client;
+    tempMsg.data.chatMsg.id = serverWorld->playerId;
     tempMsg.data.chatMsg.messageLength = (uint32_t)messageLengthSafe;
     memcpy(tempMsg.data.chatMsg.message, message, messageLengthSafe);
     ErrorType result = SendMsg(tempMsg);
@@ -259,7 +259,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
         } case NetMessage::Type::Welcome: {
             // TODO: Auth challenge. Store salt sent from server instead.. handshake stuffs
             NetMessage_Welcome &welcomeMsg = tempMsg.data.welcome;
-            serverWorld->chatHistory.PushMessage(CSTR("Message of the day"), welcomeMsg.motd, welcomeMsg.motdLength);
+            serverWorld->chatHistory.PushServer(welcomeMsg.motd, welcomeMsg.motdLength);
 
             serverWorld->map = serverWorld->mapSystem.Generate(serverWorld->rtt_rand, welcomeMsg.width, welcomeMsg.height);
             assert(serverWorld->map);
@@ -341,8 +341,6 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                     break;
                 }
             }
-#if 0
-#endif
             break;
         } case NetMessage::Type::NearbyEvent: {
             NetMessage_NearbyEvent &nearbyEvent = tempMsg.data.nearbyEvent;
@@ -365,6 +363,22 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                 } case NetMessage_NearbyEvent::Type::PlayerDespawn: {
                     NetMessage_NearbyEvent_PlayerDespawn &playerDespawn = nearbyEvent.data.playerDespawn;
                     serverWorld->DespawnPlayer(playerDespawn.playerId);
+                    break;
+                } case NetMessage_NearbyEvent::Type::EnemySpawn: {
+                    NetMessage_NearbyEvent_EnemySpawn &enemySpawn = nearbyEvent.data.enemySpawn;
+
+                    Slime *enemy = serverWorld->FindSlime(enemySpawn.enemyId);
+                    if (!enemy) {
+                        enemy = serverWorld->SpawnSlime(enemySpawn.enemyId);
+                    }
+                    if (enemy) {
+                        enemy->body.position = enemySpawn.position;
+                        enemy->sprite.direction = enemySpawn.direction;
+                        enemy->combat.hitPoints = enemySpawn.hitPoints;
+                        enemy->combat.hitPointsMax = enemySpawn.hitPointsMax;
+                    } else {
+                        TraceLog(LOG_ERROR, "Could not find enemy. enemyId: %u", enemySpawn.enemyId);
+                    }
                     break;
                 }
             }
@@ -437,7 +451,7 @@ ErrorType NetClient::Receive(void)
 
                     assert(!serverWorld);
                     serverWorld = new World;
-                    serverWorld->chatHistory.PushMessage(CSTR("Debug"), CSTR("Connected to server. :)"));
+                    serverWorld->chatHistory.PushDebug(CSTR("Connected to server. :)"));
                     Auth();
                     break;
                 } case ENET_EVENT_TYPE_RECEIVE: {

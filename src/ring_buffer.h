@@ -30,12 +30,12 @@ struct RingBuffer : protected std::array<T, BufferSize> {
         count = 0;
     }
 
-    size_t Count()
+    size_t Count() const
     {
         return count;
     }
 
-    bool Empty()
+    bool Empty() const
     {
         return count == 0;
     }
@@ -44,7 +44,7 @@ struct RingBuffer : protected std::array<T, BufferSize> {
     //    std::vector<T>::resize(size);
     //}
 
-    size_t Size()
+    size_t Size() const
     {
         return std::array<T, BufferSize>::size();
     }

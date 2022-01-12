@@ -5,22 +5,6 @@
 #include "tilemap.h"
 #include <cassert>
 
-const char *NetMessage::TypeString(void)
-{
-    switch (type) {
-        case Type::Unknown       : return "Unknown";
-        case Type::Identify      : return "Identify";
-        case Type::ChatMessage   : return "ChatMessage";
-        case Type::Welcome       : return "Welcome";
-        case Type::Input         : return "Input";
-        case Type::WorldChunk    : return "WorldChunk";
-        case Type::WorldSnapshot : return "WorldSnapshot";
-        case Type::GlobalEvent   : return "GlobalEvent";
-        case Type::NearbyEvent   : return "NearbyEvent";
-        default                  : return "NetMessage::Type::???";
-    }
-}
-
 void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
 {
     assert(buffer.data);
@@ -60,13 +44,13 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
         } case NetMessage::Type::ChatMessage: {
             NetMessage_ChatMessage &chatMsg = data.chatMsg;
 
-            assert(chatMsg.messageLength <= CHATMSG_LENGTH_MAX);
-            stream.Process((uint32_t)chatMsg.usernameLength, 6, USERNAME_LENGTH_MIN, USERNAME_LENGTH_MAX);
-            stream.Align();
-            for (size_t i = 0; i < chatMsg.usernameLength; i++) {
-                stream.ProcessChar(chatMsg.username[i]);
+            stream.Process((uint32_t &)chatMsg.source, 6, (uint32_t)NetMessage_ChatMessage::Source::Unknown + 1, (uint32_t)NetMessage_ChatMessage::Source::Count);
+            switch (chatMsg.source) {
+                case NetMessage_ChatMessage::Source::Client: {
+                    stream.Process(chatMsg.id, 32, 0, UINT32_MAX);
+                    break;
+                }
             }
-
             stream.Process((uint32_t)chatMsg.messageLength, 9, CHATMSG_LENGTH_MIN, CHATMSG_LENGTH_MAX);
             stream.Align();
             for (size_t i = 0; i < chatMsg.messageLength; i++) {
@@ -292,7 +276,15 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                     TraceLog(LOG_FATAL, "Unexpected message");
                     break;
                 } case NetMessage_NearbyEvent::Type::EnemySpawn: {
-                    TraceLog(LOG_FATAL, "Unexpected message");
+                    NetMessage_NearbyEvent_EnemySpawn &enemySpawn = nearbyEvent.data.enemySpawn;
+                    stream.Process(enemySpawn.enemyId, 32, 1, UINT32_MAX);
+                    stream.ProcessFloat(enemySpawn.position.x);
+                    stream.ProcessFloat(enemySpawn.position.y);
+                    stream.ProcessFloat(enemySpawn.position.z);
+                    stream.Process((uint32_t &)enemySpawn.direction, 3, (uint32_t)Direction::North, (uint32_t)Direction::NorthWest);
+                    stream.Align();
+                    stream.ProcessFloat(enemySpawn.hitPoints);
+                    stream.ProcessFloat(enemySpawn.hitPointsMax);
                     break;
                 } case NetMessage_NearbyEvent::Type::EnemyMove: {
                     TraceLog(LOG_FATAL, "Unexpected message");

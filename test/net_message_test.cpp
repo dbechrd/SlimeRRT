@@ -47,8 +47,8 @@ void net_message_test_chat()
 {
     NetMessage &msgWritten = *(new NetMessage{});
     msgWritten.type = NetMessage::Type::ChatMessage;
-    memcpy(msgWritten.data.chatMsg.username, CSTR("test username"));
-    msgWritten.data.chatMsg.usernameLength = (uint32_t)strlen(msgWritten.data.chatMsg.username);
+    msgWritten.data.chatMsg.source = NetMessage_ChatMessage::Source::Client;
+    msgWritten.data.chatMsg.id = 69;
     memcpy(msgWritten.data.chatMsg.message, CSTR("This is a test message"));
     msgWritten.data.chatMsg.messageLength = (uint32_t)strlen(msgWritten.data.chatMsg.message);
 
@@ -63,8 +63,8 @@ void net_message_test_chat()
     NetMessage_ChatMessage &msgRead = baseMsgRead.data.chatMsg;
 
     assert(baseMsgRead.type == msgWritten.type);
-    assert(msgRead.usernameLength == msgWritten.data.chatMsg.usernameLength);
-    assert(!strncmp(msgRead.username, msgWritten.data.chatMsg.username, msgRead.usernameLength));
+    assert(msgRead.source == msgWritten.data.chatMsg.source);
+    assert(msgRead.id == msgWritten.data.chatMsg.id);
     assert(msgRead.messageLength == msgWritten.data.chatMsg.messageLength);
     assert(!strncmp(msgRead.message, msgWritten.data.chatMsg.message, msgRead.messageLength));
     delete &msgWritten;

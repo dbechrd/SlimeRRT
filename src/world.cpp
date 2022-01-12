@@ -458,19 +458,21 @@ void World::GenerateSnapshot(WorldSnapshot &worldSnapshot)
         if (!players[i].id) {
             continue;
         }
-        worldSnapshot.players[worldSnapshot.playerCount].id           = players[i].id                 ;
-        worldSnapshot.players[worldSnapshot.playerCount].position     = players[i].body.position      ;
-        worldSnapshot.players[worldSnapshot.playerCount].direction    = players[i].sprite.direction   ;
-        worldSnapshot.players[worldSnapshot.playerCount].hitPoints    = players[i].combat.hitPoints   ;
-        worldSnapshot.players[worldSnapshot.playerCount].hitPointsMax = players[i].combat.hitPointsMax;
-        worldSnapshot.playerCount++;
+        if (v3_length_sq(v3_sub(player->body.position, players[i].body.position)) < SQUARED(SV_PLAYER_NEARBY_THRESHOLD)) {
+            worldSnapshot.players[worldSnapshot.playerCount].id           = players[i].id                 ;
+            worldSnapshot.players[worldSnapshot.playerCount].position     = players[i].body.position      ;
+            worldSnapshot.players[worldSnapshot.playerCount].direction    = players[i].sprite.direction   ;
+            worldSnapshot.players[worldSnapshot.playerCount].hitPoints    = players[i].combat.hitPoints   ;
+            worldSnapshot.players[worldSnapshot.playerCount].hitPointsMax = players[i].combat.hitPointsMax;
+            worldSnapshot.playerCount++;
+        }
     }
     worldSnapshot.slimeCount = 0;
     for (size_t i = 0; i < SV_MAX_SLIMES && worldSnapshot.slimeCount < SNAPSHOT_MAX_SLIMES; i++) {
         if (!slimes[i].id) {
             continue;
         }
-        if (v3_length_sq(v3_sub(player->body.position, slimes[i].body.position)) < SQUARED(1300.0f)) {
+        if (v3_length_sq(v3_sub(player->body.position, slimes[i].body.position)) < SQUARED(SV_ENEMY_NEARBY_THRESHOLD)) {
             worldSnapshot.slimes[worldSnapshot.slimeCount].id           = slimes[i].id                 ;
             worldSnapshot.slimes[worldSnapshot.slimeCount].position     = slimes[i].body.position      ;
             worldSnapshot.slimes[worldSnapshot.slimeCount].direction    = slimes[i].sprite.direction   ;

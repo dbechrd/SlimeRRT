@@ -94,7 +94,12 @@ ErrorType NetServer::SendMsg(const NetServerClient &client, NetMessage &message)
     }
 
     if (message.type != NetMessage::Type::WorldSnapshot) {
-        TraceLog(LOG_DEBUG, "[NetServer] Send %s", message.TypeString());
+        const char *subType = "";
+        switch (message.type) {
+            case NetMessage::Type::GlobalEvent: subType = message.data.globalEvent.TypeString(); break;
+            case NetMessage::Type::NearbyEvent: subType = message.data.nearbyEvent.TypeString(); break;
+        }
+        TraceLog(LOG_DEBUG, "[NetServer] Send %s %s", message.TypeString(), subType);
     }
     if (message.type == NetMessage::Type::Input) {
         assert((int)message.type);
@@ -155,13 +160,34 @@ ErrorType NetServer::SendWelcomeBasket(NetServerClient &client)
     }
 
     Player *player = serverWorld->FindPlayer(client.playerId);
-    assert(player);
-    if (player) {
-        E_ASSERT(BroadcastPlayerJoin(*player), "Failed to broadcast player join notification");
-        E_ASSERT(SendPlayerSpawn(client, player->id), "Failed to send player spawn notification");
-        const char *message = TextFormat("%.*s joined the game.", player->nameLength, player->name);
-        size_t messageLength = strlen(message);
-        E_ASSERT(BroadcastChatMessage(message, messageLength), "Failed to broadcast join notification");
+    if (!player) {
+        TraceLog(LOG_FATAL, "Failed to find player. playerId: %u", client.playerId);
+    }
+
+    E_ASSERT(BroadcastPlayerJoin(*player), "Failed to broadcast player join notification");
+
+    const char *message = TextFormat("%.*s joined the game.", player->nameLength, player->name);
+    size_t messageLength = strlen(message);
+    NetMessage_ChatMessage chatMsg{};
+    chatMsg.source = NetMessage_ChatMessage::Source::Server;
+    chatMsg.messageLength = (uint32_t)MIN(messageLength, CHATMSG_LENGTH_MAX);
+    memcpy(chatMsg.message, message, chatMsg.messageLength);
+    E_ASSERT(BroadcastChatMessage(chatMsg), "Failed to broadcast player join chat msg");
+
+    // Initial "snapshot" of the world
+    for (size_t i = 0; i < SV_MAX_PLAYERS; i++) {
+        if (serverWorld->players[i].id &&
+            v3_length_sq(v3_sub(player->body.position, serverWorld->players[i].body.position)) <= SQUARED(SV_PLAYER_NEARBY_THRESHOLD))
+        {
+            E_ASSERT(SendPlayerSpawn(client, serverWorld->players[i].id), "Failed to send player spawn notification");
+        }
+    }
+
+    for (size_t i = 0; i < SV_MAX_SLIMES; i++) {
+        if (serverWorld->slimes[i].id &&
+            v3_length_sq(v3_sub(player->body.position, serverWorld->slimes[i].body.position)) <= SQUARED(SV_ENEMY_NEARBY_THRESHOLD)) {
+            E_ASSERT(SendEnemySpawn(client, serverWorld->slimes[i].id), "Failed to send enemy spawn notification");
+        }
     }
 
     SendWorldChunk(client);
@@ -170,17 +196,14 @@ ErrorType NetServer::SendWelcomeBasket(NetServerClient &client)
     return ErrorType::Success;
 }
 
-ErrorType NetServer::BroadcastChatMessage(const char *msg, size_t msgLength)
+ErrorType NetServer::BroadcastChatMessage(NetMessage_ChatMessage &chatMsg)
 {
-    assert(msg);
-    assert(msgLength <= UINT32_MAX);
+    assert(chatMsg.message);
+    assert(chatMsg.messageLength <= UINT32_MAX);
 
     memset(&netMsg, 0, sizeof(netMsg));
     netMsg.type = NetMessage::Type::ChatMessage;
-    netMsg.data.chatMsg.usernameLength = sizeof(SV_USERNAME) - 1;
-    memcpy(netMsg.data.chatMsg.username, CSTR(SV_USERNAME));
-    netMsg.data.chatMsg.messageLength = (uint32_t)msgLength;
-    memcpy(netMsg.data.chatMsg.message, msg, msgLength);
+    netMsg.data.chatMsg = chatMsg;
     return BroadcastMsg(netMsg);
 }
 
@@ -236,6 +259,52 @@ ErrorType NetServer::SendPlayerSpawn(NetServerClient &client, uint32_t playerId)
     playerSpawn.direction = player->sprite.direction;
     playerSpawn.hitPoints = player->combat.hitPoints;
     playerSpawn.hitPointsMax = player->combat.hitPointsMax;
+    return BroadcastMsg(netMsg);
+}
+
+ErrorType NetServer::SendPlayerDespawn(NetServerClient &client, uint32_t playerId)
+{
+    assert(playerId);
+
+    Player *player = serverWorld->FindPlayer(playerId);
+    if (!player) {
+        TraceLog(LOG_ERROR, "Cannot find player we're trying to generate despawn notification about");
+        return ErrorType::PlayerNotFound;
+    }
+
+    memset(&netMsg, 0, sizeof(netMsg));
+    netMsg.type = NetMessage::Type::NearbyEvent;
+
+    NetMessage_NearbyEvent &nearbyEvent = netMsg.data.nearbyEvent;
+    nearbyEvent.type = NetMessage_NearbyEvent::Type::PlayerDespawn;
+
+    NetMessage_NearbyEvent_PlayerDespawn &playerDespawn = netMsg.data.nearbyEvent.data.playerDespawn;
+    playerDespawn.playerId = player->id;
+    return BroadcastMsg(netMsg);
+}
+
+ErrorType NetServer::SendEnemySpawn(NetServerClient &client, uint32_t enemyId)
+{
+    assert(enemyId);
+
+    Slime *slime = serverWorld->FindSlime(enemyId);
+    if (!slime) {
+        TraceLog(LOG_ERROR, "Cannot find enemy we're trying to generate spawn notification about");
+        return ErrorType::EnemyNotFound;
+    }
+
+    memset(&netMsg, 0, sizeof(netMsg));
+    netMsg.type = NetMessage::Type::NearbyEvent;
+
+    NetMessage_NearbyEvent &nearbyEvent = netMsg.data.nearbyEvent;
+    nearbyEvent.type = NetMessage_NearbyEvent::Type::EnemySpawn;
+
+    NetMessage_NearbyEvent_EnemySpawn &enemySpawn = netMsg.data.nearbyEvent.data.enemySpawn;
+    enemySpawn.enemyId = slime->id;
+    enemySpawn.position = slime->body.position;
+    enemySpawn.direction = slime->sprite.direction;
+    enemySpawn.hitPoints = slime->combat.hitPoints;
+    enemySpawn.hitPointsMax = slime->combat.hitPointsMax;
     return BroadcastMsg(netMsg);
 }
 
@@ -349,9 +418,9 @@ void NetServer::ProcessMsg(NetServerClient &client, ENetPacket &packet)
         } case NetMessage::Type::ChatMessage: {
             NetMessage_ChatMessage &chatMsg = netMsg.data.chatMsg;
 
-            // TODO(security): Validate some session token that's not known to other people to prevent impersonation
-            //assert(chatMsg.usernameLength == client.usernameLength);
-            //assert(!strncmp(chatMsg.username, client.username, client.usernameLength));
+            // TODO(security): Detect someone sending packets with wrong source/id and PUNISH THEM (.. or wutevs)
+            chatMsg.source = NetMessage_ChatMessage::Source::Client;
+            chatMsg.id = client.playerId;
 
             // Store chat netMsg in chat history
             serverWorld->chatHistory.PushNetMessage(chatMsg);
@@ -424,9 +493,14 @@ ErrorType NetServer::RemoveClient(ENetPeer *peer)
         Player *player = serverWorld->FindPlayer(client->playerId);
         if (player) {
             E_ASSERT(BroadcastPlayerLeave(player->id), "Failed to broadcast player leave notification");
+
             const char *message = TextFormat("%.*s left the game.", player->nameLength, player->name);
             size_t messageLength = strlen(message);
-            E_ASSERT(BroadcastChatMessage(message, messageLength), "Failed to broadcast join notification");
+            NetMessage_ChatMessage chatMsg{};
+            chatMsg.source = NetMessage_ChatMessage::Source::Server;
+            chatMsg.messageLength = (uint32_t)MIN(messageLength, CHATMSG_LENGTH_MAX);
+            memcpy(chatMsg.message, message, chatMsg.messageLength);
+            E_ASSERT(BroadcastChatMessage(chatMsg), "Failed to broadcast player leave chat msg");
         }
 
         serverWorld->RemovePlayer(client->playerId);

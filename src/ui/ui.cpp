@@ -461,7 +461,7 @@ void UI::Chat(const Font &font, World &world, NetClient &netClient, bool process
     const float chatBottom = screenSize.y - margin - inputBoxHeight;
 
     // Render chat history
-    world.chatHistory.Render(font, margin, chatBottom, chatWidth, chatActive);
+    world.chatHistory.Render(font, world, margin, chatBottom, chatWidth, chatActive);
 
     // Render chat input box
     static GuiTextBoxAdvancedState chatInputState;
@@ -476,7 +476,7 @@ void UI::Chat(const Font &font, World &world, NetClient &netClient, bool process
                 switch (sendResult) {
                     case ErrorType::NotConnected:
                     {
-                        world.chatHistory.PushMessage(CSTR("Sam"), CSTR("You're not connected to a server. Nobody is listening. :("));
+                        world.chatHistory.PushSam(CSTR("You're not connected to a server. Nobody is listening. :("));
                         break;
                     }
                 }

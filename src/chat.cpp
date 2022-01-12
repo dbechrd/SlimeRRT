@@ -1,6 +1,7 @@
 #include "chat.h"
 #include "error.h"
 #include "net_message.h"
+#include "world.h"
 #include "raylib/raylib.h"
 #include <cassert>
 #include <cstring>
@@ -18,11 +19,33 @@ void ChatHistory::PushNetMessage(const NetMessage_ChatMessage &netChat)
     memcpy(chat.timestampStr, timestampStr, sizeof(timestampStr));
 }
 
-void ChatHistory::PushMessage(const char *username, size_t usernameLength, const char *message, size_t messageLength)
+void ChatHistory::PushSystem(const char *message, size_t messageLength)
 {
-    assert(username);
-    assert(usernameLength);
-    assert(usernameLength <= USERNAME_LENGTH_MAX);
+    PushMessage(NetMessage_ChatMessage::Source::System, 0, message, messageLength);
+}
+
+void ChatHistory::PushDebug(const char *message, size_t messageLength)
+{
+    PushMessage(NetMessage_ChatMessage::Source::Debug, 0, message, messageLength);
+}
+
+void ChatHistory::PushServer(const char *message, size_t messageLength)
+{
+    PushMessage(NetMessage_ChatMessage::Source::Server, 0, message, messageLength);
+}
+
+void ChatHistory::PushPlayer(uint32_t playerId, const char *message, size_t messageLength)
+{
+    PushMessage(NetMessage_ChatMessage::Source::Client, playerId, message, messageLength);
+}
+
+void ChatHistory::PushSam(const char *message, size_t messageLength)
+{
+    PushMessage(NetMessage_ChatMessage::Source::Sam, 0, message, messageLength);
+}
+
+void ChatHistory::PushMessage(NetMessage_ChatMessage::Source source, uint32_t id, const char *message, size_t messageLength)
+{
     assert(message);
     assert(messageLength);
     assert(messageLength <= CHATMSG_LENGTH_MAX);
@@ -31,13 +54,13 @@ void ChatHistory::PushMessage(const char *username, size_t usernameLength, const
     chat.recvAt = glfwGetTime();
     const char *timestampStr = TextFormatTimestamp();
     memcpy(chat.timestampStr, timestampStr, sizeof(timestampStr));
-    chat.usernameLength = (uint32_t)MIN(usernameLength, USERNAME_LENGTH_MAX);
-    memcpy(chat.username, username, chat.usernameLength);
+    chat.source = source;
+    chat.id = id;
     chat.messageLength = (uint32_t)MIN(messageLength, CHATMSG_LENGTH_MAX);
     memcpy(chat.message, message, chat.messageLength);
 }
 
-void ChatHistory::Render(const Font &font, float left, float bottom, float chatWidth, bool chatActive)
+void ChatHistory::Render(const Font &font, World &world, float left, float bottom, float chatWidth, bool chatActive)
 {
     double now = glfwGetTime();
     const float fadeBeginAt = 9.0f;
@@ -55,8 +78,6 @@ void ChatHistory::Render(const Font &font, float left, float bottom, float chatW
 
     // NOTE: The chat history renders from the bottom up (most recent message first)
     float cursorY = bottom - pad - font.baseSize;
-    const char *chatText = 0;
-    Color chatColor = WHITE;
     bool bottomLine = true;
 
     if (chatActive) {
@@ -82,30 +103,24 @@ void ChatHistory::Render(const Font &font, float left, float bottom, float chatW
             fadeAlpha = 1.0f - MAX(0, timeVisible - fadeBeginAt) / (visibleFor - fadeBeginAt);
         }
 
-#define CHECK_USERNAME(value) chatMsg.usernameLength == (sizeof(value) - 1) && !strncmp(chatMsg.username, (value), chatMsg.usernameLength);
-        bool fromServer = CHECK_USERNAME("SERVER");
-        bool fromSam = CHECK_USERNAME("Sam");
-        bool fromDebug = CHECK_USERNAME("Debug");
-        bool fromMotd = CHECK_USERNAME("Message of the day");
-#undef CHECK_USERNAME
-
-        if (fromServer || fromSam || fromDebug || fromMotd) {
-            chatText = TextFormat("[%s]<%.*s>: %.*s", chatMsg.timestampStr, chatMsg.usernameLength, chatMsg.username,
-                chatMsg.messageLength, chatMsg.message);
-            if (fromServer) {
-                chatColor = RED;
-            } else if (fromSam) {
-                chatColor = GREEN;
-            } else if (fromDebug) {
-                chatColor = LIGHTGRAY;
-            } else if (fromMotd) {
-                chatColor = YELLOW;
+        const char *displayName = 0;
+        Color chatColor = WHITE;
+        switch (chatMsg.source) {
+            case NetMessage_ChatMessage::Source::System: displayName = "<System>"; chatColor = YELLOW;    break;
+            case NetMessage_ChatMessage::Source::Debug:  displayName = "<Debug>";  chatColor = LIGHTGRAY; break;
+            case NetMessage_ChatMessage::Source::Server: displayName = "<Server>"; chatColor = RED;       break;
+            case NetMessage_ChatMessage::Source::Sam:    displayName = "[System]"; chatColor = GREEN;     break;
+            case NetMessage_ChatMessage::Source::Client: {
+                Player *player = world.FindPlayer(chatMsg.id);
+                displayName = TextFormat("[%.*s]", player->nameLength, player ? player->name : "someone");
+                break;
             }
-        } else {
-            chatText = TextFormat("[%s][%.*s]: %.*s", chatMsg.timestampStr, chatMsg.usernameLength, chatMsg.username,
-                chatMsg.messageLength, chatMsg.message);
-            chatColor = WHITE;
+            default: TraceLog(LOG_FATAL, "Unhandled chat source");
         }
+
+        const char *chatText = TextFormat("[%s]%s: %.*s", chatMsg.timestampStr, displayName,
+            chatMsg.messageLength, chatMsg.message);
+
         if (!chatActive) {
             if (bottomLine) {
                 DrawRectangle((int)left, (int)(bottom - pad), (int)chatWidth, (int)pad, Fade(chatBgColor, chatBgAlpha * fadeAlpha));

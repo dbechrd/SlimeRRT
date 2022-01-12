@@ -11,6 +11,7 @@ enum class ErrorType {
     PeerConnectFailed,
     PeerSendFailed,
     PlayerNotFound,
+    EnemyNotFound,
     Count
 };
 
