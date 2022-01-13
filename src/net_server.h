@@ -1,6 +1,7 @@
 #pragma once
 #include "chat.h"
 #include "error.h"
+#include "item_world.h"
 #include "dlb_murmur3.h"
 #include <cstdint>
 #include <unordered_map>
@@ -47,11 +48,9 @@ struct NetServer {
 
     ~NetServer();
     ErrorType OpenSocket(unsigned short socketPort);
-    ErrorType SendWorldChunk(NetServerClient &client);
+    ErrorType SendWorldChunk(const NetServerClient &client);
     ErrorType SendWorldSnapshot(NetServerClient &client, WorldSnapshot &worldSnapshot);
-    ErrorType SendPlayerSpawn(NetServerClient &client, uint32_t playerId);
-    ErrorType SendPlayerDespawn(NetServerClient &client, uint32_t playerId);
-    ErrorType SendEnemySpawn(NetServerClient &client, uint32_t enemyId);
+    ErrorType SendNearbyEvents(const NetServerClient &client);
     NetServerClient *FindClient(uint32_t playerId);
     ErrorType Listen();
     void CloseSocket();
@@ -64,10 +63,13 @@ private:
     ErrorType SendMsg(const NetServerClient &client, NetMessage &message);
     ErrorType BroadcastRaw(const void *data, size_t size);
     ErrorType BroadcastMsg(NetMessage &message);
-    ErrorType SendWelcomeBasket(NetServerClient &client);
+    ErrorType SendWelcomeBasket(const NetServerClient &client);
     ErrorType BroadcastChatMessage(NetMessage_ChatMessage &chatMsg);
     ErrorType BroadcastPlayerJoin(const Player &player);
-    ErrorType BroadcastPlayerLeave(uint32_t playerId);
+    ErrorType BroadcastPlayerLeave(const Player &player);
+    ErrorType SendPlayerState(const NetServerClient &client, const Player &otherPlayer, bool nearby, bool spawned);
+    ErrorType SendEnemyState(const NetServerClient &client, const Slime &enemy, bool nearby, bool spawned);
+    ErrorType SendItemState(const NetServerClient &client, const ItemWorld &item, bool nearby, bool spawned);
 
     bool IsValidInput(const NetServerClient &client, const InputSample &sample);
     void ProcessMsg(NetServerClient &client, ENetPacket &packet);

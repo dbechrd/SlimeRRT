@@ -43,7 +43,6 @@ struct World {
     // vvv DO NOT HOLD A POINTER TO THESE! vvv
     //
     Player *AddPlayer     (uint32_t playerId);
-    void    SpawnPlayer   (uint32_t playerId);
     Player *FindPlayer    (uint32_t playerId);
     void    DespawnPlayer (uint32_t playerId);
     void    RemovePlayer  (uint32_t playerId);

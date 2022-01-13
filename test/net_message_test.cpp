@@ -11,11 +11,20 @@ void net_message_test_snapshot()
     msgWritten.data.worldSnapshot.tick = 123456789;
     msgWritten.data.worldSnapshot.lastInputAck = 1900;
     msgWritten.data.worldSnapshot.playerCount = 1;
-    msgWritten.data.worldSnapshot.slimeCount = 35;
+    msgWritten.data.worldSnapshot.enemyCount = 1;
     PlayerSnapshot &player = msgWritten.data.worldSnapshot.players[0];
     player.id = 69;
-    player.hitPointsMax = 169;
-    player.hitPoints = 69;
+    player.nearby = true;
+    player.tookDamage = true;
+    player.hitPoints = 70;
+    player.hitPointsMax = 100;
+
+    EnemySnapshot &enemy = msgWritten.data.worldSnapshot.enemies[0];
+    enemy.id = 70;
+    enemy.nearby = false;
+    enemy.tookDamage = true;
+    enemy.hitPoints = 140;
+    enemy.hitPointsMax = 150;
 
     World *world = new World;
     world->AddPlayer(player.id);
@@ -33,12 +42,18 @@ void net_message_test_snapshot()
     assert(msgRead.tick == msgWritten.data.worldSnapshot.tick);
     assert(msgRead.lastInputAck == msgWritten.data.worldSnapshot.lastInputAck);
     assert(msgRead.playerCount == msgWritten.data.worldSnapshot.playerCount);
-    assert(msgRead.slimeCount == msgWritten.data.worldSnapshot.slimeCount);
+    assert(msgRead.enemyCount == msgWritten.data.worldSnapshot.enemyCount);
 
     PlayerSnapshot &playerRead = msgRead.players[0];
     assert(playerRead.id == player.id);
     assert(playerRead.hitPointsMax == player.hitPointsMax);
     assert(playerRead.hitPoints == player.hitPoints);
+
+    EnemySnapshot &enemyRead = msgRead.enemies[0];
+    assert(enemyRead.id == enemy.id);
+    assert(enemyRead.hitPointsMax == 0.0f);
+    assert(enemyRead.hitPoints == 0.0f);
+
     delete &msgWritten;
     free(rawPacket.data);
 }

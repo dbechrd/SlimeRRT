@@ -77,7 +77,7 @@ ErrorType GameServer::Run()
 
             world->Simulate(tickDt);
 
-#if 0
+#if 1
             for (size_t i = 0; i < SV_MAX_PLAYERS; i++) {
                 NetServerClient &client = netServer.clients[i];
                 if (client.playerId && (glfwGetTime() - client.lastSnapshotSentAt) > (1000.0 / SNAPSHOT_SEND_RATE) / 1000.0) {
@@ -86,11 +86,8 @@ ErrorType GameServer::Run()
 #endif
                     WorldSnapshot &worldSnapshot = client.worldHistory.Alloc();
                     assert(!worldSnapshot.tick);  // ringbuffer alloc fucked up and didn't zero slot
-                    worldSnapshot.playerId = client.playerId;
-                    worldSnapshot.lastInputAck = client.lastInputAck;
-                    worldSnapshot.tick = world->tick;
-                    world->GenerateSnapshot(worldSnapshot);
-                    E_ASSERT(netServer.SendWorldSnapshot(client, worldSnapshot), "Failed to broadcast world snapshot");
+                    E_ASSERT(netServer.SendWorldSnapshot(client, worldSnapshot), "Failed to send world snapshot");
+                    client.lastSnapshotSentAt = glfwGetTime();
                 }
             }
 #else
@@ -99,9 +96,6 @@ ErrorType GameServer::Run()
                 if (!client.playerId) {
                     continue;
                 }
-
-                Player *player = world->FindPlayer(client.playerId);
-                assert(player);
 
                 //---------------------
                 // Send global events
@@ -112,71 +106,7 @@ ErrorType GameServer::Run()
                 //---------------------
                 // Send nearby events
                 //---------------------
-                size_t playerHistCount = player->body.positionHistory.Count();
-                if (playerHistCount < 2) {
-                    TraceLog(LOG_DEBUG, "Not enough position history to receive nearby events. playerId: %u", player->id);
-                    continue;
-                }
-
-                for (size_t i = 0; i < SV_MAX_PLAYERS; i++) {
-                    if (!world->players[i].id) {
-                        continue;
-                    }
-
-                    //world->players[i].id == player->id
-
-                    const float distSq = v3_length_sq(v3_sub(player->body.position, world->players[i].body.position));
-
-                    size_t otherPlayerHistCount = player->body.positionHistory.Count();
-                    if (otherPlayerHistCount < 2) {
-                        TraceLog(LOG_DEBUG, "Not enough position history to trigger nearby events. playerId: %u", world->players[i].id);
-                        continue;
-                    }
-
-                    const float prevDistSq = v3_length_sq(v3_sub(
-                        player->body.positionHistory.At(playerHistCount - 1).v,
-                        world->players[i].body.positionHistory.At(otherPlayerHistCount - 1).v)
-                    );
-
-                    // TODO: Make despawn threshold > spawn threshold to prevent spam on event horizon
-                    bool isNearby  = distSq     <= SQUARED(SV_PLAYER_NEARBY_THRESHOLD);
-                    bool wasNearby = prevDistSq <= SQUARED(SV_PLAYER_NEARBY_THRESHOLD);
-
-                    if (!wasNearby && isNearby) {
-                        E_ASSERT(netServer.SendPlayerSpawn(client, world->players[i].id), "Failed to send player spawn notification");
-                    } else if (wasNearby && !isNearby) {
-                        E_ASSERT(netServer.SendPlayerDespawn(client, world->players[i].id), "Failed to send player despawn notification");
-                    }
-                }
-
-                for (size_t i = 0; i < SV_MAX_SLIMES; i++) {
-                    if (!world->slimes[i].id) {
-                        continue;
-                    }
-
-                    const float distSq = v3_length_sq(v3_sub(player->body.position, world->slimes[i].body.position));
-
-                    size_t otherPlayerHistCount = player->body.positionHistory.Count();
-                    if (otherPlayerHistCount < 2) {
-                        TraceLog(LOG_DEBUG, "Not enough position history to trigger nearby events. enemyId: %u", world->slimes[i].id);
-                        continue;
-                    }
-
-                    const float prevDistSq = v3_length_sq(v3_sub(
-                        player->body.positionHistory.At(playerHistCount - 1).v,
-                        world->slimes[i].body.positionHistory.At(otherPlayerHistCount - 1).v)
-                    );
-
-                    // TODO: Make despawn threshold > spawn threshold to prevent spam on event horizon
-                    bool isNearby  = distSq     <= SQUARED(SV_ENEMY_NEARBY_THRESHOLD);
-                    bool wasNearby = prevDistSq <= SQUARED(SV_ENEMY_NEARBY_THRESHOLD);
-
-                    if (!wasNearby && isNearby) {
-                        E_ASSERT(netServer.SendPlayerSpawn(client, world->slimes[i].id), "Failed to send enemy spawn notification");
-                    } else if (wasNearby && !isNearby) {
-                        E_ASSERT(netServer.SendPlayerDespawn(client, world->slimes[i].id), "Failed to send enemy despawn notification");
-                    }
-                }
+                E_ASSERT(netServer.SendNearbyEvents(client), "Failed to send nearby events. playerId: %u", client.playerId);
             }
 #endif
 

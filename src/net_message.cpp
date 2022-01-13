@@ -109,10 +109,9 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                         sample.seq = input.samples[i - 1].seq + 1;
                     }
                 } else {
-                    //if (i && mode == BitStream::Mode::Writer) {
-                    //    printf("Diff sample!\n");
-                    //}
+                    // TODO: Don't send every seq number, it's implicit based on the first seq number and count
                     stream.Process(sample.seq, 32, 0, UINT32_MAX);
+                    // TODO: Don't send ownerId more than once.. move this up outside of the loop
                     stream.Process(sample.ownerId, 32, 0, UINT32_MAX);
                     stream.ProcessBool(sample.walkNorth);
                     stream.ProcessBool(sample.walkEast);
@@ -151,62 +150,68 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
             WorldSnapshot &worldSnapshot = data.worldSnapshot;
 
             stream.Process(worldSnapshot.tick, 32, 1, UINT32_MAX);
-            // TODO: Make this relative to tick to save bandwidth?
             stream.Process(worldSnapshot.lastInputAck, 32, 0, UINT32_MAX);
             stream.Process(worldSnapshot.playerCount, 4, 0, SNAPSHOT_MAX_PLAYERS);
-            //stream.Align();
-            stream.Process(worldSnapshot.slimeCount, 9, 0, SNAPSHOT_MAX_SLIMES);
-            //stream.Align();
+            stream.Process(worldSnapshot.enemyCount, 9, 0, SNAPSHOT_MAX_SLIMES);
+            stream.Process(worldSnapshot.itemCount, 9, 0, SNAPSHOT_MAX_ITEMS);
+            stream.Align();
 
             for (size_t i = 0; i < worldSnapshot.playerCount; i++) {
                 PlayerSnapshot &player = worldSnapshot.players[i];
-
-                stream.Process(player.id, 32, 0, UINT32_MAX);
-
-                if (player.id) {
-                    // TODO: range validation on floats (why? malicious server?)
-                    stream.ProcessFloat(player.position.x);
-                    stream.ProcessFloat(player.position.y);
-                    stream.ProcessFloat(player.position.z);
-                    stream.Process((uint32_t &)player.direction, 3, (uint32_t)Direction::North, (uint32_t)Direction::NorthWest);
+                stream.Process(player.id, 32, 1, UINT32_MAX);
+                stream.ProcessBool(player.nearby);
+                if (player.nearby) {
+                    stream.ProcessBool(player.init);
+                    stream.ProcessBool(player.spawned);
+                    stream.ProcessBool(player.attacked);
+                    stream.ProcessBool(player.moved);
+                    stream.ProcessBool(player.tookDamage);
+                    stream.ProcessBool(player.healed);
                     stream.Align();
-                    stream.ProcessFloat(player.hitPoints);
-                    stream.ProcessFloat(player.hitPointsMax);
+                    bool init = player.init || player.spawned;
+                    if (init || player.moved) {
+                        // TODO: range validation on floats (why? malicious server?)
+                        stream.ProcessFloat(player.position.x);
+                        stream.ProcessFloat(player.position.y);
+                        stream.ProcessFloat(player.position.z);
+                        stream.Process((uint32_t &)player.direction, 3, (uint32_t)Direction::North, (uint32_t)Direction::NorthWest);
+                        stream.Align();
+                    }
+                    if (init || player.tookDamage || player.healed) {
+                        stream.ProcessFloat(player.hitPoints);
+                        stream.ProcessFloat(player.hitPointsMax);
+                    }
                 }
             }
 
-            for (size_t i = 0; i < worldSnapshot.slimeCount; i++) {
-                SlimeSnapshot &slime = worldSnapshot.slimes[i];
-
-                bool alive = slime.id != 0;
-                stream.ProcessBool(alive);
-                if (!alive) {
-                    continue;
-                }
-
-                uint32_t prevId = slime.id;
-                stream.Process(slime.id, 32, 0, UINT32_MAX);
-
-                Slime *existingSlime = world.FindSlime(slime.id);
-                if (slime.id && !existingSlime) {
-                    assert(mode == BitStream::Mode::Reader);
-                    world.SpawnSlime(slime.id);
-                } else if (!slime.id && existingSlime) {
-                    assert(mode == BitStream::Mode::Reader);
-                    world.DespawnSlime(slime.id);
-                    continue; // Don't serialize other fields for inactive slimes
-                }
-
-                if (slime.id) {
-                    // TODO: range validation on floats
-                    stream.ProcessFloat(slime.position.x);
-                    stream.ProcessFloat(slime.position.y);
-                    stream.ProcessFloat(slime.position.z);
-                    stream.Process((uint32_t &)slime.direction, 3, (uint32_t)Direction::North, (uint32_t)Direction::NorthWest);
+            for (size_t i = 0; i < worldSnapshot.enemyCount; i++) {
+                EnemySnapshot &enemy = worldSnapshot.enemies[i];
+                stream.Process(enemy.id, 32, 1, UINT32_MAX);
+                stream.ProcessBool(enemy.nearby);
+                if (enemy.nearby) {
+                    stream.ProcessBool(enemy.init);
+                    stream.ProcessBool(enemy.spawned);
+                    stream.ProcessBool(enemy.attacked);
+                    stream.ProcessBool(enemy.moved);
+                    stream.ProcessBool(enemy.resized);
+                    stream.ProcessBool(enemy.tookDamage);
+                    stream.ProcessBool(enemy.healed);
                     stream.Align();
-                    stream.ProcessFloat(slime.hitPoints);
-                    stream.ProcessFloat(slime.hitPointsMax);
-                    stream.ProcessFloat(slime.scale);
+                    bool init = enemy.init || enemy.spawned;
+                    if (init || enemy.moved) {
+                        stream.ProcessFloat(enemy.position.x);
+                        stream.ProcessFloat(enemy.position.y);
+                        stream.ProcessFloat(enemy.position.z);
+                        stream.Process((uint32_t &)enemy.direction, 3, (uint32_t)Direction::North, (uint32_t)Direction::NorthWest);
+                        stream.Align();
+                    }
+                    if (init || enemy.resized) {
+                        stream.ProcessFloat(enemy.scale);
+                    }
+                    if (init || enemy.tookDamage || enemy.healed) {
+                        stream.ProcessFloat(enemy.hitPoints);
+                        stream.ProcessFloat(enemy.hitPointsMax);
+                    }
                 }
             }
 
@@ -219,7 +224,7 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
 
             switch (globalEvent.type) {
                 case NetMessage_GlobalEvent::Type::PlayerJoin: {
-                    NetMessage_GlobalEvent_PlayerJoin &playerJoin = globalEvent.data.playerJoin;
+                    NetMessage_GlobalEvent::PlayerJoin &playerJoin = globalEvent.data.playerJoin;
 
                     stream.Process(playerJoin.playerId, 32, 1, UINT32_MAX);
                     stream.Align();
@@ -234,7 +239,7 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
 
                     break;
                 } case NetMessage_GlobalEvent::Type::PlayerLeave: {
-                    NetMessage_GlobalEvent_PlayerLeave &playerLeave = globalEvent.data.playerLeave;
+                    NetMessage_GlobalEvent::PlayerLeave &playerLeave = globalEvent.data.playerLeave;
 
                     stream.Process(playerLeave.playerId, 32, 1, UINT32_MAX);
                     stream.Align();
@@ -248,61 +253,88 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
         } case NetMessage::Type::NearbyEvent: {
             NetMessage_NearbyEvent &nearbyEvent = data.nearbyEvent;
 
-            stream.Process((uint32_t &)nearbyEvent.type, 3, (uint32_t)NetMessage_NearbyEvent::Type::Unknown + 1, (uint32_t)NetMessage_NearbyEvent::Type::Count - 1);
+            stream.Process((uint32_t &)nearbyEvent.type, 4, (uint32_t)NetMessage_NearbyEvent::Type::Unknown + 1, (uint32_t)NetMessage_NearbyEvent::Type::Count - 1);
             stream.Align();
 
             switch (nearbyEvent.type) {
-                case NetMessage_NearbyEvent::Type::PlayerSpawn: {
-                    NetMessage_NearbyEvent_PlayerSpawn &playerSpawn = nearbyEvent.data.playerSpawn;
-                    stream.Process(playerSpawn.playerId, 32, 1, UINT32_MAX);
-                    stream.ProcessFloat(playerSpawn.position.x);
-                    stream.ProcessFloat(playerSpawn.position.y);
-                    stream.ProcessFloat(playerSpawn.position.z);
-                    stream.Process((uint32_t &)playerSpawn.direction, 3, (uint32_t)Direction::North, (uint32_t)Direction::NorthWest);
-                    stream.Align();
-                    stream.ProcessFloat(playerSpawn.hitPoints);
-                    stream.ProcessFloat(playerSpawn.hitPointsMax);
-                    break;
-                } case NetMessage_NearbyEvent::Type::PlayerMove: {
+                case NetMessage_NearbyEvent::Type::PlayerState: {
+#if 0
+                    NetMessage_NearbyEvent::PlayerState &state = nearbyEvent.data.playerState;
+                    stream.Process(state.id, 32, 1, UINT32_MAX);
+                    stream.ProcessBool(state.nearby);
+                    if (state.nearby) {
+                        stream.ProcessBool(state.spawned);
+                        stream.ProcessBool(state.attacked);
+                        stream.ProcessBool(state.moved);
+                        stream.ProcessBool(state.tookDamage);
+                        stream.ProcessBool(state.healed);
+                        stream.Align();
+                        if (state.moved) {
+                            stream.ProcessFloat(state.position.x);
+                            stream.ProcessFloat(state.position.y);
+                            stream.ProcessFloat(state.position.z);
+                            stream.Process((uint32_t &)state.direction, 3, (uint32_t)Direction::North, (uint32_t)Direction::NorthWest);
+                            stream.Align();
+                        }
+                        if (state.tookDamage || state.healed) {
+                            stream.ProcessFloat(state.hitPoints);
+                            stream.ProcessFloat(state.hitPointsMax);
+                        }
+                    }
+#else
                     TraceLog(LOG_FATAL, "Unexpected message");
-                    break;
-                } case NetMessage_NearbyEvent::Type::PlayerAttack: {
-                    TraceLog(LOG_FATAL, "Unexpected message");
+#endif
                     break;
                 } case NetMessage_NearbyEvent::Type::PlayerEquip: {
                     TraceLog(LOG_FATAL, "Unexpected message");
                     break;
-                } case NetMessage_NearbyEvent::Type::PlayerDespawn: {
+                } case NetMessage_NearbyEvent::Type::EnemyState: {
+#if 0
+                    NetMessage_NearbyEvent::EnemyState &state = nearbyEvent.data.enemyState;
+                    stream.Process(state.id, 32, 1, UINT32_MAX);
+                    stream.ProcessBool(state.nearby);
+                    if (state.nearby) {
+                        stream.ProcessBool(state.spawned);
+                        stream.ProcessBool(state.attacked);
+                        stream.ProcessBool(state.moved);
+                        stream.ProcessBool(state.tookDamage);
+                        stream.ProcessBool(state.healed);
+                        stream.Align();
+                        if (state.moved) {
+                            stream.ProcessFloat(state.position.x);
+                            stream.ProcessFloat(state.position.y);
+                            stream.ProcessFloat(state.position.z);
+                            stream.Process((uint32_t &)state.direction, 3, (uint32_t)Direction::North, (uint32_t)Direction::NorthWest);
+                            stream.Align();
+                        }
+                        if (state.tookDamage || state.healed) {
+                            stream.ProcessFloat(state.hitPoints);
+                            stream.ProcessFloat(state.hitPointsMax);
+                        }
+                    }
+#else
                     TraceLog(LOG_FATAL, "Unexpected message");
+#endif
                     break;
-                } case NetMessage_NearbyEvent::Type::EnemySpawn: {
-                    NetMessage_NearbyEvent_EnemySpawn &enemySpawn = nearbyEvent.data.enemySpawn;
-                    stream.Process(enemySpawn.enemyId, 32, 1, UINT32_MAX);
-                    stream.ProcessFloat(enemySpawn.position.x);
-                    stream.ProcessFloat(enemySpawn.position.y);
-                    stream.ProcessFloat(enemySpawn.position.z);
-                    stream.Process((uint32_t &)enemySpawn.direction, 3, (uint32_t)Direction::North, (uint32_t)Direction::NorthWest);
-                    stream.Align();
-                    stream.ProcessFloat(enemySpawn.hitPoints);
-                    stream.ProcessFloat(enemySpawn.hitPointsMax);
-                    break;
-                } case NetMessage_NearbyEvent::Type::EnemyMove: {
+                } case NetMessage_NearbyEvent::Type::ItemState: {
+#if 0
+                    NetMessage_NearbyEvent::ItemState &state = nearbyEvent.data.itemState;
+                    stream.Process(state.id, 32, 1, UINT32_MAX);
+                    stream.ProcessBool(state.nearby);
+                    if (state.nearby) {
+                        stream.ProcessBool(state.spawned);
+                        stream.ProcessBool(state.moved);
+                        stream.Align();
+                        if (state.moved) {
+                            stream.ProcessFloat(state.position.x);
+                            stream.ProcessFloat(state.position.y);
+                            stream.ProcessFloat(state.position.z);
+                            stream.Align();
+                        }
+                    }
+#else
                     TraceLog(LOG_FATAL, "Unexpected message");
-                    break;
-                } case NetMessage_NearbyEvent::Type::EnemyAttack: {
-                    TraceLog(LOG_FATAL, "Unexpected message");
-                    break;
-                } case NetMessage_NearbyEvent::Type::EnemyDespawn: {
-                    TraceLog(LOG_FATAL, "Unexpected message");
-                    break;
-                } case NetMessage_NearbyEvent::Type::ItemSpawn: {
-                    TraceLog(LOG_FATAL, "Unexpected message");
-                    break;
-                } case NetMessage_NearbyEvent::Type::ItemMove: {
-                    TraceLog(LOG_FATAL, "Unexpected message");
-                    break;
-                } case NetMessage_NearbyEvent::Type::ItemDespawn: {
-                    TraceLog(LOG_FATAL, "Unexpected message");
+#endif
                     break;
                 } default: {
                     TraceLog(LOG_FATAL, "Unexpected message");

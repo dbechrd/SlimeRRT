@@ -61,16 +61,6 @@ struct NetMessage_WorldChunk {
     // world.tiles
 };
 
-struct NetMessage_GlobalEvent_PlayerJoin {
-    uint32_t playerId   {};
-    uint32_t nameLength {};
-    char     name       [USERNAME_LENGTH_MAX]{};
-};
-
-struct NetMessage_GlobalEvent_PlayerLeave {
-    uint32_t playerId {};
-};
-
 struct NetMessage_GlobalEvent {
     enum class Type : uint32_t {
         Unknown,
@@ -91,85 +81,112 @@ struct NetMessage_GlobalEvent {
         return NetMessage_GlobalEvent::TypeString(type);
     }
 
+    struct PlayerJoin {
+        uint32_t playerId   {};
+        uint32_t nameLength {};
+        char     name       [USERNAME_LENGTH_MAX]{};
+    };
+
+    struct PlayerLeave {
+        uint32_t playerId {};
+    };
+
     Type type = Type::Unknown;
 
     union {
-        NetMessage_GlobalEvent_PlayerJoin  playerJoin;
-        NetMessage_GlobalEvent_PlayerLeave playerLeave;
+        PlayerJoin  playerJoin;
+        PlayerLeave playerLeave;
     } data{};
 };
 
-struct NetMessage_NearbyEvent_PlayerSpawn {
-    uint32_t  playerId     {};
-    Vector3   position     {};
-    Direction direction    {};
-    float     hitPoints    {};
-    float     hitPointsMax {};
-};
+/*
+    PLAYER_JOIN
+    PLAYER_LEAVE
+    PLAYER_IN_GAME  (level, xp, name, etc.)
 
-struct NetMessage_NearbyEvent_PlayerDespawn {
-    uint32_t playerId {};
-};
+    ITEM_DROPPED
+    ITEM_PICKED_UP
+    ITEM_EXISTS_ON_GROUND (up to 8 items per packet)
 
-struct NetMessage_NearbyEvent_EnemySpawn {
-    uint32_t  enemyId      {};
-    Vector3   position     {};
-    Direction direction    {};
-    float     hitPoints    {};
-    float     hitPointsMax {};
-};
+    CHUNK_DATA: includes array of tile entities, with coords (relative to chunk), type and data
 
-struct NetMessage_NearbyEvent_EnemyDespawn {
-    uint32_t enemyId {};
-};
+    Minecraft
+    SPAWN_ENTITY (e.g. position = chest/player(for loot/drop).ground_position, velocity = Y_UP)
+
+    Why does Minecraft have so many instances of sending e.g. "PlaySound 7" or "PlayAnimation 12"
+    instead of sending events? Or are they just the same thing as events that happen to currently
+    not do anything other than play a sound/animation?
+*/
 
 struct NetMessage_NearbyEvent {
     enum class Type : uint32_t {
         Unknown,
-        PlayerSpawn,    // R respawn, teleport, enter vicinity
-        PlayerMove,     // U move
-        PlayerAttack,   // R attacking
-        PlayerEquip,    // R visible equipment change (e.g. weapon/armor/aura)
-        PlayerDespawn,  // R die, teleport
-        EnemySpawn,     // R spawn, enter vicinity
-        EnemyMove,      // U move
-        EnemyAttack,    // R attacking
-        EnemyDespawn,   // R die
-        ItemSpawn,      // R monster kill, chest pop, player drop, enter vicinity
-        ItemMove,       // U force acted on item
-        ItemDespawn,    // R picked up, item on ground too long
+        PlayerState,
+        PlayerEquip,
+        EnemyState,
+        ItemState,
         Count
     };
-    static const char *TypeString(Type type)
-    {
+    static const char *TypeString(Type type) {
         switch (type) {
             case Type::Unknown       : return "Unknown";
-            case Type::PlayerSpawn   : return "PlayerSpawn";
-            case Type::PlayerMove    : return "PlayerMove";
-            case Type::PlayerAttack  : return "PlayerAttack";
+            case Type::PlayerState   : return "PlayerState";
             case Type::PlayerEquip   : return "PlayerEquip";
-            case Type::PlayerDespawn : return "PlayerDespawn";
-            case Type::EnemySpawn    : return "EnemySpawn";
-            case Type::EnemyMove     : return "EnemyMove";
-            case Type::EnemyAttack   : return "EnemyAttack";
-            case Type::EnemyDespawn  : return "EnemyDespawn";
-            case Type::ItemSpawn     : return "ItemSpawn";
-            case Type::ItemMove      : return "ItemMove";
-            case Type::ItemDespawn   : return "ItemDespawn";
+            case Type::EnemyState    : return "EnemyState";
+            case Type::ItemState     : return "ItemState";
             default: return "NetMessage_NearbyEvent::Type::???";
         }
     }
-    const char *TypeString()
-    {
+    const char *TypeString() {
         return NetMessage_NearbyEvent::TypeString(type);
     }
 
-    Type type = Type::Unknown;
+    struct PlayerState {
+        uint32_t  id           {};
+        bool      nearby       {};  // [rel] if false, despawn this entity
+        bool      spawned      {};  // [rel] respawn, teleport, enter vicinity
+        bool      attacked     {};  // [rel] attacked
+        bool      moved        {};  // [rel] moved       (position change)
+        bool      tookDamage   {};  // [rel] took damage (health change)
+        bool      healed       {};  // [rel] healed      (health change)
+        // if moved
+        Vector3   position     {};
+        Direction direction    {};
+        // if took damage
+        float     hitPoints    {};
+        float     hitPointsMax {};
+    };
 
+    struct EnemyState {
+        uint32_t  id           {};
+        bool      nearby       {};  // [rel] if false, despawn this entity
+        bool      spawned      {};
+        bool      attacked     {};
+        bool      moved        {};
+        bool      tookDamage   {};
+        bool      healed       {};
+        // if moved
+        Vector3   position     {};
+        Direction direction    {};
+        // if took damage
+        float     hitPoints    {};
+        float     hitPointsMax {};
+    };
+
+    struct ItemState {
+        uint32_t id      {};
+        bool     nearby  {};  // [rel] monster kill, chest pop, player drop, enter vicinity
+        bool     spawned {};
+        bool     moved   {};
+        // if moved
+        Vector3  position {};
+    };
+
+    Type type = Type::Unknown;
     union {
-        NetMessage_NearbyEvent_PlayerSpawn   playerSpawn;
-        NetMessage_NearbyEvent_PlayerDespawn playerDespawn;
-        NetMessage_NearbyEvent_EnemySpawn    enemySpawn;
+        PlayerState playerState;
+        EnemyState  enemyState;
+        ItemState   itemState;
     } data{};
 };
 

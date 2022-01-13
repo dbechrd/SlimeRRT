@@ -213,9 +213,15 @@ void NetClient::ReconcilePlayer(double tickDt)
 
     // TODO: Do this more smoothly
     // Roll back local player to server slimeSnapshot location
-    player->body.position       = playerSnapshot->position;
-    player->combat.hitPoints    = playerSnapshot->hitPoints;
-    player->combat.hitPointsMax = playerSnapshot->hitPointsMax;
+    bool init = playerSnapshot->init || playerSnapshot->spawned;
+    if (init || playerSnapshot->moved) {
+        player->body.position = playerSnapshot->position;
+        player->sprite.direction = playerSnapshot->direction;
+    }
+    if (init || playerSnapshot->tookDamage || playerSnapshot->healed) {
+        player->combat.hitPoints = playerSnapshot->hitPoints;
+        player->combat.hitPointsMax = playerSnapshot->hitPointsMax;
+    }
 
 #if 1
     if (inputHistory.Count()) {
@@ -284,8 +290,6 @@ void NetClient::ProcessMsg(ENetPacket &packet)
             worldSnapshot = netSnapshot;
             worldSnapshot.recvAt = glfwGetTime();
 
-// TODO: Get rid of this whole block in favor of Spawn/Move/Attack/etc. events
-#if 1
             for (size_t i = 0; i < worldSnapshot.playerCount; i++) {
                 PlayerSnapshot &playerSnapshot = worldSnapshot.players[i];
                 Player *player = serverWorld->FindPlayer(playerSnapshot.id);
@@ -293,40 +297,72 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                     continue;
                 }
 
-                // TODO: World::Interpolate() should do this stuff.. why did I change that?
-                Vector3Snapshot &pos = player->body.positionHistory.Alloc();
-                pos.recvAt = worldSnapshot.recvAt;
-                pos.v = playerSnapshot.position;
-                pos.direction = playerSnapshot.direction;
-                player->combat.hitPoints = playerSnapshot.hitPoints;
-                player->combat.hitPointsMax = playerSnapshot.hitPointsMax;
+                bool init = playerSnapshot.init || playerSnapshot.spawned;
+
+                // TODO: World::Interpolate() should used snapshots directly.. why did I change that?
+                if (playerSnapshot.nearby) {
+                    if (playerSnapshot.spawned) {
+                        // TODO: Play spawn animation
+                    }
+                    if (init || playerSnapshot.moved) {
+                        Vector3Snapshot &pos = player->body.positionHistory.Alloc();
+                        pos.recvAt = worldSnapshot.recvAt;
+                        pos.v = playerSnapshot.position;
+                        pos.direction = playerSnapshot.direction;
+                        player->body.lastMoved = glfwGetTime();
+                    }
+                    if (init || playerSnapshot.tookDamage || playerSnapshot.healed) {
+                        player->combat.hitPoints = playerSnapshot.hitPoints;
+                        player->combat.hitPointsMax = playerSnapshot.hitPointsMax;
+                    }
+                } else {
+                    serverWorld->DespawnPlayer(playerSnapshot.id);
+                }
             }
-            for (size_t i = 0; i < worldSnapshot.slimeCount; i++) {
-                SlimeSnapshot &slimeSnapshot = worldSnapshot.slimes[i];
-                Slime *slime = serverWorld->FindSlime(slimeSnapshot.id);
+            for (size_t i = 0; i < worldSnapshot.enemyCount; i++) {
+                EnemySnapshot &enemySnapshot = worldSnapshot.enemies[i];
+                Slime *slime = serverWorld->FindSlime(enemySnapshot.id);
+
+                bool init = enemySnapshot.init || enemySnapshot.spawned;
+                if (init && !slime) {
+                    slime = serverWorld->SpawnSlime(enemySnapshot.id);
+                }
                 if (!slime) {
+                    TraceLog(LOG_ERROR, "Failed to spawn slime.");
                     continue;
                 }
 
-                // TODO: World::Interpolate() should do this stuff.. why did I change that?
-                Vector3Snapshot &pos = slime->body.positionHistory.Alloc();
-                pos.recvAt = worldSnapshot.recvAt;
-                pos.v = slimeSnapshot.position;
-                pos.direction = slimeSnapshot.direction;
-                slime->combat.hitPoints = slimeSnapshot.hitPoints;
-                slime->combat.hitPointsMax = slimeSnapshot.hitPointsMax;
-                // TODO: Keep scale buffer and interpolate? Playing a proper animation would be better..
-                slime->sprite.scale = slimeSnapshot.scale;
+                // TODO: World::Interpolate() should used snapshots directly.. why did I change that?
+                if (enemySnapshot.nearby) {
+                    if (enemySnapshot.spawned) {
+                        // TODO: Play spawn animation
+                    }
+                    if (init || enemySnapshot.moved) {
+                        assert(enemySnapshot.position.x);
+                        Vector3Snapshot &pos = slime->body.positionHistory.Alloc();
+                        pos.recvAt = worldSnapshot.recvAt;
+                        pos.v = enemySnapshot.position;
+                        pos.direction = enemySnapshot.direction;
+                    }
+                    if (init || enemySnapshot.resized) {
+                        // TODO: Keep scale buffer and interpolate? Playing a proper animation would be better..
+                        slime->sprite.scale = enemySnapshot.scale;
+                    }
+                    if (init || enemySnapshot.tookDamage || enemySnapshot.healed) {
+                        slime->combat.hitPoints = enemySnapshot.hitPoints;
+                        slime->combat.hitPointsMax = enemySnapshot.hitPointsMax;
+                    }
+                } else {
+                    serverWorld->DespawnSlime(enemySnapshot.id);
+                }
             }
-#endif
-            //memcpy(&worldSnapshot, &netSnapshot, sizeof(historySnapshot));
             break;
         } case NetMessage::Type::GlobalEvent: {
             NetMessage_GlobalEvent &globalEvent = tempMsg.data.globalEvent;
 
             switch (globalEvent.type) {
                 case NetMessage_GlobalEvent::Type::PlayerJoin: {
-                    NetMessage_GlobalEvent_PlayerJoin &playerJoin = globalEvent.data.playerJoin;
+                    NetMessage_GlobalEvent::PlayerJoin &playerJoin = globalEvent.data.playerJoin;
                     if (playerJoin.playerId != serverWorld->playerId) {
                         Player *player = serverWorld->AddPlayer(playerJoin.playerId);
                         if (player) {
@@ -336,7 +372,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                     }
                     break;
                 } case NetMessage_GlobalEvent::Type::PlayerLeave: {
-                    NetMessage_GlobalEvent_PlayerLeave &playerLeave = globalEvent.data.playerLeave;
+                    NetMessage_GlobalEvent::PlayerLeave &playerLeave = globalEvent.data.playerLeave;
                     serverWorld->RemovePlayer(playerLeave.playerId);
                     break;
                 }
@@ -346,39 +382,71 @@ void NetClient::ProcessMsg(ENetPacket &packet)
             NetMessage_NearbyEvent &nearbyEvent = tempMsg.data.nearbyEvent;
 
             switch (nearbyEvent.type) {
-                case NetMessage_NearbyEvent::Type::PlayerSpawn: {
-                    NetMessage_NearbyEvent_PlayerSpawn &playerSpawn = nearbyEvent.data.playerSpawn;
+                case NetMessage_NearbyEvent::Type::PlayerState: {
+#if 0
+                    NetMessage_NearbyEvent::PlayerState &state = nearbyEvent.data.playerState;
 
-                    Player *player = serverWorld->FindPlayer(playerSpawn.playerId);
+                    Player *player = serverWorld->FindPlayer(state.id);
                     if (player) {
-                        player->body.position = playerSpawn.position;
-                        player->sprite.direction = playerSpawn.direction;
-                        player->combat.hitPoints = playerSpawn.hitPoints;
-                        player->combat.hitPointsMax = playerSpawn.hitPointsMax;
-                        serverWorld->SpawnPlayer(player->id);
+                        if (state.nearby) {
+                            if (state.spawned) {
+                                serverWorld->SpawnPlayer(player->id);
+                            }
+                            if (state.attacked) {
+                                player->actionState = Player::ActionState::Attacking;
+                            }
+                            if (state.moved) {
+                                player->body.position = state.position;
+                                player->sprite.direction = state.direction;
+                            }
+                            if (state.tookDamage || state.healed) {
+                                player->combat.hitPoints = state.hitPoints;
+                                player->combat.hitPointsMax = state.hitPointsMax;
+                            }
+                        } else {
+                            serverWorld->DespawnPlayer(state.id);
+                        }
                     } else {
-                        TraceLog(LOG_ERROR, "Could not find player to spawn. playerId: %u", playerSpawn.playerId);
+                        TraceLog(LOG_ERROR, "Could not find player to update state. playerId: %u", state.id);
                     }
+#else
+                    assert(!"Deprecated");
+#endif
                     break;
-                } case NetMessage_NearbyEvent::Type::PlayerDespawn: {
-                    NetMessage_NearbyEvent_PlayerDespawn &playerDespawn = nearbyEvent.data.playerDespawn;
-                    serverWorld->DespawnPlayer(playerDespawn.playerId);
-                    break;
-                } case NetMessage_NearbyEvent::Type::EnemySpawn: {
-                    NetMessage_NearbyEvent_EnemySpawn &enemySpawn = nearbyEvent.data.enemySpawn;
+                } case NetMessage_NearbyEvent::Type::EnemyState: {
+#if 0
+                    NetMessage_NearbyEvent::EnemyState &state = nearbyEvent.data.enemyState;
 
-                    Slime *enemy = serverWorld->FindSlime(enemySpawn.enemyId);
-                    if (!enemy) {
-                        enemy = serverWorld->SpawnSlime(enemySpawn.enemyId);
-                    }
-                    if (enemy) {
-                        enemy->body.position = enemySpawn.position;
-                        enemy->sprite.direction = enemySpawn.direction;
-                        enemy->combat.hitPoints = enemySpawn.hitPoints;
-                        enemy->combat.hitPointsMax = enemySpawn.hitPointsMax;
+                    if (state.nearby) {
+                        Slime *enemy = serverWorld->FindSlime(state.id);
+                        if (!enemy) {
+                            enemy = serverWorld->SpawnSlime(state.id);
+                        }
+                        if (enemy) {
+                            if (state.spawned) {
+                                // TODO: Set actionState to spawning and play animation?
+                            }
+                            if (state.attacked) {
+                                enemy->actionState = Slime::ActionState::Attacking;
+                            }
+                            if (state.moved) {
+                                enemy->body.position = state.position;
+                                enemy->sprite.direction = state.direction;
+                            }
+                            if (state.tookDamage || state.healed) {
+                                enemy->combat.hitPoints = state.hitPoints;
+                                enemy->combat.hitPointsMax = state.hitPointsMax;
+                            }
+                        } else {
+                            TraceLog(LOG_ERROR, "Could not find enemy to update state. enemyId: %u", state.id);
+                        }
                     } else {
-                        TraceLog(LOG_ERROR, "Could not find enemy. enemyId: %u", enemySpawn.enemyId);
+                        // TODO: Set actionState to despawning and play animation instead?
+                        serverWorld->DespawnSlime(state.id);
                     }
+#else
+                    assert(!"Deprecated");
+#endif
                     break;
                 }
             }

@@ -74,18 +74,19 @@ bool Slime::Move(double dt, Vector2 offset)
 {
     UNUSED(dt);  // todo: use dt
 
-    if (v2_is_zero(offset)) {
+    if (!body.OnGround()) {
         return false;
     }
 
-    if (!body.OnGround()) {
+    moveState = MoveState::Idle;
+    if (v2_is_zero(offset)) {
         return false;
     }
 
     // On ground and hasn't moved for a bit
     const double timeSinceJump = glfwGetTime() - body.lastMoved;
     if (timeSinceJump > randJumpIdle) {
-        action = Action::Jump;
+        moveState = MoveState::Jump;
         body.velocity.x += offset.x;
         body.velocity.y += offset.y;
         body.velocity.z += METERS_TO_PIXELS(3.0f);
@@ -145,7 +146,8 @@ bool Slime::Attack(double dt)
     }
 #else
     if (body.landed) {
-        action = Action::Attack;
+        actionState = ActionState::Attacking;
+        body.lastMoved = glfwGetTime();
         combat.attackStartedAt = glfwGetTime();
         combat.attackDuration = 0.0;
         return true;
@@ -156,26 +158,22 @@ bool Slime::Attack(double dt)
 
 void Slime::Update(double dt)
 {
-    body.Update(dt);
-    switch (action) {
-        case Action::Jump: {
-            if (body.OnGround()) {
-                action = Action::None;
-                body.velocity.x = 0.0f;
-                body.velocity.y = 0.0f;
-                body.velocity.z = 0.0f;
-            }
-            break;
-        } case Action::Attack: {
+    switch (actionState) {
+        case ActionState::Attacking: {
             const double timeSinceAttackStarted = glfwGetTime() - combat.attackStartedAt;
             if (timeSinceAttackStarted > combat.attackDuration) {
-                action = Action::None;
+                actionState = ActionState::None;
                 combat.attackStartedAt = 0;
                 combat.attackDuration = 0;
+                combat.attackFrame = 0;
+            } else {
+                combat.attackFrame++;
             }
             break;
         }
     }
+
+    body.Update(dt);
     sprite_update(sprite, dt);
 }
 

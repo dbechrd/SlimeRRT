@@ -93,22 +93,20 @@ ErrorType NetServer::SendMsg(const NetServerClient &client, NetMessage &message)
         return ErrorType::Success;
     }
 
+    message.connectionToken = client.connectionToken;
+    ENetBuffer rawPacket{ PACKET_SIZE_MAX, calloc(PACKET_SIZE_MAX, sizeof(uint8_t)) };
+    message.Serialize(*serverWorld, rawPacket);
+
+    //E_INFO("[SEND][%21s][%5u b] %16s ", TextFormatIP(client.peer->address), rawPacket.dataLength, netMsg.TypeString());
     if (message.type != NetMessage::Type::WorldSnapshot) {
         const char *subType = "";
         switch (message.type) {
             case NetMessage::Type::GlobalEvent: subType = message.data.globalEvent.TypeString(); break;
             case NetMessage::Type::NearbyEvent: subType = message.data.nearbyEvent.TypeString(); break;
         }
-        TraceLog(LOG_DEBUG, "[NetServer] Send %s %s", message.TypeString(), subType);
-    }
-    if (message.type == NetMessage::Type::Input) {
-        assert((int)message.type);
+        TraceLog(LOG_DEBUG, "[NetServer] Send %s %s (%zu b)", message.TypeString(), subType, rawPacket.dataLength);
     }
 
-    message.connectionToken = client.connectionToken;
-    ENetBuffer rawPacket{ PACKET_SIZE_MAX, calloc(PACKET_SIZE_MAX, sizeof(uint8_t)) };
-    message.Serialize(*serverWorld, rawPacket);
-    //E_INFO("[SEND][%21s][%5u b] %16s ", TextFormatIP(client.peer->address), rawPacket.dataLength, netMsg.TypeString());
     E_ASSERT(SendRaw(client, rawPacket.data, rawPacket.dataLength), "Failed to send packet");
     free(rawPacket.data);
     return ErrorType::Success;
@@ -130,7 +128,7 @@ ErrorType NetServer::BroadcastMsg(NetMessage &message)
     return err_code;
 }
 
-ErrorType NetServer::SendWelcomeBasket(NetServerClient &client)
+ErrorType NetServer::SendWelcomeBasket(const NetServerClient &client)
 {
     // TODO: Send current state to new client
     // - world (seed + entities)
@@ -174,22 +172,6 @@ ErrorType NetServer::SendWelcomeBasket(NetServerClient &client)
     memcpy(chatMsg.message, message, chatMsg.messageLength);
     E_ASSERT(BroadcastChatMessage(chatMsg), "Failed to broadcast player join chat msg");
 
-    // Initial "snapshot" of the world
-    for (size_t i = 0; i < SV_MAX_PLAYERS; i++) {
-        if (serverWorld->players[i].id &&
-            v3_length_sq(v3_sub(player->body.position, serverWorld->players[i].body.position)) <= SQUARED(SV_PLAYER_NEARBY_THRESHOLD))
-        {
-            E_ASSERT(SendPlayerSpawn(client, serverWorld->players[i].id), "Failed to send player spawn notification");
-        }
-    }
-
-    for (size_t i = 0; i < SV_MAX_SLIMES; i++) {
-        if (serverWorld->slimes[i].id &&
-            v3_length_sq(v3_sub(player->body.position, serverWorld->slimes[i].body.position)) <= SQUARED(SV_ENEMY_NEARBY_THRESHOLD)) {
-            E_ASSERT(SendEnemySpawn(client, serverWorld->slimes[i].id), "Failed to send enemy spawn notification");
-        }
-    }
-
     SendWorldChunk(client);
     //SendWorldSnapshot(client);
 
@@ -215,100 +197,27 @@ ErrorType NetServer::BroadcastPlayerJoin(const Player &player)
     NetMessage_GlobalEvent &globalEvent = netMsg.data.globalEvent;
     globalEvent.type = NetMessage_GlobalEvent::Type::PlayerJoin;
 
-    NetMessage_GlobalEvent_PlayerJoin &playerJoin = netMsg.data.globalEvent.data.playerJoin;
+    NetMessage_GlobalEvent::PlayerJoin &playerJoin = netMsg.data.globalEvent.data.playerJoin;
     playerJoin.playerId = player.id;
     playerJoin.nameLength = player.nameLength;
     memcpy(playerJoin.name, player.name, player.nameLength);
     return BroadcastMsg(netMsg);
 }
 
-ErrorType NetServer::BroadcastPlayerLeave(uint32_t playerId)
+ErrorType NetServer::BroadcastPlayerLeave(const Player &player)
 {
-    assert(playerId);
-
     memset(&netMsg, 0, sizeof(netMsg));
     netMsg.type = NetMessage::Type::GlobalEvent;
 
     NetMessage_GlobalEvent &globalEvent = netMsg.data.globalEvent;
     globalEvent.type = NetMessage_GlobalEvent::Type::PlayerLeave;
 
-    NetMessage_GlobalEvent_PlayerLeave &playerLeave = netMsg.data.globalEvent.data.playerLeave;
-    playerLeave.playerId = playerId;
+    NetMessage_GlobalEvent::PlayerLeave &playerLeave = netMsg.data.globalEvent.data.playerLeave;
+    playerLeave.playerId = player.id;
     return BroadcastMsg(netMsg);
 }
 
-ErrorType NetServer::SendPlayerSpawn(NetServerClient &client, uint32_t playerId)
-{
-    assert(playerId);
-
-    Player *player = serverWorld->FindPlayer(playerId);
-    if (!player) {
-        TraceLog(LOG_ERROR, "Cannot find player we're trying to generate spawn notification about");
-        return ErrorType::PlayerNotFound;
-    }
-
-    memset(&netMsg, 0, sizeof(netMsg));
-    netMsg.type = NetMessage::Type::NearbyEvent;
-
-    NetMessage_NearbyEvent &nearbyEvent = netMsg.data.nearbyEvent;
-    nearbyEvent.type = NetMessage_NearbyEvent::Type::PlayerSpawn;
-
-    NetMessage_NearbyEvent_PlayerSpawn &playerSpawn = netMsg.data.nearbyEvent.data.playerSpawn;
-    playerSpawn.playerId = player->id;
-    playerSpawn.position = player->body.position;
-    playerSpawn.direction = player->sprite.direction;
-    playerSpawn.hitPoints = player->combat.hitPoints;
-    playerSpawn.hitPointsMax = player->combat.hitPointsMax;
-    return BroadcastMsg(netMsg);
-}
-
-ErrorType NetServer::SendPlayerDespawn(NetServerClient &client, uint32_t playerId)
-{
-    assert(playerId);
-
-    Player *player = serverWorld->FindPlayer(playerId);
-    if (!player) {
-        TraceLog(LOG_ERROR, "Cannot find player we're trying to generate despawn notification about");
-        return ErrorType::PlayerNotFound;
-    }
-
-    memset(&netMsg, 0, sizeof(netMsg));
-    netMsg.type = NetMessage::Type::NearbyEvent;
-
-    NetMessage_NearbyEvent &nearbyEvent = netMsg.data.nearbyEvent;
-    nearbyEvent.type = NetMessage_NearbyEvent::Type::PlayerDespawn;
-
-    NetMessage_NearbyEvent_PlayerDespawn &playerDespawn = netMsg.data.nearbyEvent.data.playerDespawn;
-    playerDespawn.playerId = player->id;
-    return BroadcastMsg(netMsg);
-}
-
-ErrorType NetServer::SendEnemySpawn(NetServerClient &client, uint32_t enemyId)
-{
-    assert(enemyId);
-
-    Slime *slime = serverWorld->FindSlime(enemyId);
-    if (!slime) {
-        TraceLog(LOG_ERROR, "Cannot find enemy we're trying to generate spawn notification about");
-        return ErrorType::EnemyNotFound;
-    }
-
-    memset(&netMsg, 0, sizeof(netMsg));
-    netMsg.type = NetMessage::Type::NearbyEvent;
-
-    NetMessage_NearbyEvent &nearbyEvent = netMsg.data.nearbyEvent;
-    nearbyEvent.type = NetMessage_NearbyEvent::Type::EnemySpawn;
-
-    NetMessage_NearbyEvent_EnemySpawn &enemySpawn = netMsg.data.nearbyEvent.data.enemySpawn;
-    enemySpawn.enemyId = slime->id;
-    enemySpawn.position = slime->body.position;
-    enemySpawn.direction = slime->sprite.direction;
-    enemySpawn.hitPoints = slime->combat.hitPoints;
-    enemySpawn.hitPointsMax = slime->combat.hitPointsMax;
-    return BroadcastMsg(netMsg);
-}
-
-ErrorType NetServer::SendWorldChunk(NetServerClient &client)
+ErrorType NetServer::SendWorldChunk(const NetServerClient &client)
 {
     memset(&netMsg, 0, sizeof(netMsg));
     netMsg.type = NetMessage::Type::WorldChunk;
@@ -324,16 +233,264 @@ ErrorType NetServer::SendWorldChunk(NetServerClient &client)
 ErrorType NetServer::SendWorldSnapshot(NetServerClient &client, WorldSnapshot &worldSnapshot)
 {
     assert(client.playerId);
-    assert(worldSnapshot.playerId == client.playerId);
+    assert(ARRAY_SIZE(worldSnapshot.players) <= ARRAY_SIZE(serverWorld->players));
+    assert(ARRAY_SIZE(worldSnapshot.enemies) <= ARRAY_SIZE(serverWorld->slimes));
+    assert(ARRAY_SIZE(worldSnapshot.items)   <= ARRAY_SIZE(serverWorld->items));
+    assert(ARRAY_SIZE(worldSnapshot.players) == SNAPSHOT_MAX_PLAYERS);
+    assert(ARRAY_SIZE(worldSnapshot.enemies) == SNAPSHOT_MAX_SLIMES);
+    assert(ARRAY_SIZE(worldSnapshot.items)   == SNAPSHOT_MAX_ITEMS);
+
+    Player *player = serverWorld->FindPlayer(client.playerId);
+    if (!player) {
+        TraceLog(LOG_ERROR, "Failed to find player to send world snapshot to");
+        return ErrorType::PlayerNotFound;
+    }
+
+    WorldSnapshot *prevSnapshot = 0;
+    if (client.worldHistory.Count() > 1) {
+        prevSnapshot = &client.worldHistory.At(client.worldHistory.Count() - 2);
+    }
+
+    worldSnapshot.lastInputAck = client.lastInputAck;
+    worldSnapshot.tick = serverWorld->tick;
+
+    // TODO: Find players/slimes/etc. that are actually near the player this snapshot is being generated for
+    worldSnapshot.playerCount = 0;
+    for (size_t i = 0; i < SV_MAX_PLAYERS && worldSnapshot.playerCount < SNAPSHOT_MAX_PLAYERS; i++) {
+        const Player &otherPlayer = serverWorld->players[i];
+        if (!otherPlayer.id) {
+            continue;
+        }
+
+
+        // TODO: Make despawn threshold > spawn threshold to prevent spam on event horizon
+        const float distSq = v3_length_sq(v3_sub(player->body.position, otherPlayer.body.position));
+        bool nearby = distSq <= SQUARED(SV_PLAYER_NEARBY_THRESHOLD);
+        bool wasNearby = false;
+        if (prevSnapshot) {
+            assert(prevSnapshot->playerCount < SNAPSHOT_MAX_PLAYERS);
+            for (size_t j = 0; j < prevSnapshot->playerCount; j++) {
+                if (prevSnapshot->players[j].id == otherPlayer.id) {
+                    wasNearby = prevSnapshot->players[j].nearby;
+                    break;
+                }
+            }
+        }
+        if (!nearby && !wasNearby) {
+            continue;
+        }
+
+        PlayerSnapshot &state = worldSnapshot.players[worldSnapshot.playerCount];
+        state.id = otherPlayer.id;
+        state.nearby = nearby;
+        state.init = !prevSnapshot || (nearby && !wasNearby);
+        state.spawned = false;
+        state.attacked = otherPlayer.actionState == Player::ActionState::Attacking;
+        state.moved = otherPlayer.moveState != Player::MoveState::Idle;
+        // TODO: Proper animation state or hit recovery state for this? Can attacked and tookDamage both be true?
+        state.tookDamage = true;
+        // TODO: Is this also a state on player.. or? How do we know it happened?
+        state.healed = false;
+        bool init = state.init || state.spawned;
+        if (init || state.moved) {
+            state.position = otherPlayer.body.position;
+            state.direction = otherPlayer.sprite.direction;
+        }
+        if (init || state.tookDamage || state.healed) {
+            state.hitPoints = otherPlayer.combat.hitPoints;
+            state.hitPointsMax = otherPlayer.combat.hitPointsMax;
+        }
+        worldSnapshot.playerCount++;
+    }
+
+    worldSnapshot.enemyCount = 0;
+    for (size_t i = 0; i < SV_MAX_SLIMES && worldSnapshot.enemyCount < SNAPSHOT_MAX_SLIMES; i++) {
+        Slime &enemy = serverWorld->slimes[i];
+        if (!enemy.id) {
+            continue;
+        }
+
+        // TODO: Make despawn threshold > spawn threshold to prevent spam on event horizon
+        const float distSq = v3_length_sq(v3_sub(player->body.position, enemy.body.position));
+        bool nearby = distSq <= SQUARED(SV_ENEMY_NEARBY_THRESHOLD);
+        bool wasNearby = false;
+        if (prevSnapshot) {
+            assert(prevSnapshot->enemyCount < SNAPSHOT_MAX_SLIMES);
+            for (size_t j = 0; j < prevSnapshot->enemyCount; j++) {
+                if (prevSnapshot->enemies[j].id == enemy.id) {
+                    wasNearby = prevSnapshot->enemies[j].nearby;
+                    break;
+                }
+            }
+        }
+        if (!nearby && !wasNearby) {
+            continue;
+        }
+
+        if (nearby && !wasNearby) {
+            TraceLog(LOG_DEBUG, "Entered vicinity of enemy #%u", enemy.id);
+        }
+
+        if (!nearby && wasNearby) {
+            TraceLog(LOG_DEBUG, "Left vicinity of enemy #%u", enemy.id);
+        }
+
+        EnemySnapshot &state = worldSnapshot.enemies[worldSnapshot.enemyCount];
+        state.id = enemy.id;
+        state.nearby = nearby;
+        state.init = !prevSnapshot || (nearby && !wasNearby);
+        state.spawned = false;
+        state.attacked = enemy.actionState == Slime::ActionState::Attacking;
+        state.moved = enemy.moveState != Slime::MoveState::Idle;
+        // TODO: Track previous size? E.g. for slime combine
+        state.resized = true;
+        // TODO: Proper animation state or hit recovery state for this? Can attacked and tookDamage both be true?
+        state.tookDamage = true;
+        // TODO: Is this also a state on slime.. or? How do we know it happened?
+        state.healed = false;
+        bool init = state.init || state.spawned;
+        if (init || state.moved) {
+            state.position = enemy.body.position;
+            state.direction = enemy.sprite.direction;
+        }
+        if (init || state.resized) {
+            state.scale = enemy.sprite.scale;
+        }
+        if (init || state.tookDamage || state.healed) {
+            state.hitPoints = enemy.combat.hitPoints;
+            state.hitPointsMax = enemy.combat.hitPointsMax;
+        }
+        worldSnapshot.enemyCount++;
+    }
+
+    worldSnapshot.itemCount = 0;
+    for (size_t i = 0; i < SV_MAX_ITEMS && worldSnapshot.itemCount < SNAPSHOT_MAX_ITEMS; i++) {
+        // TODO: Snapshot items
+    }
 
     memset(&netMsg, 0, sizeof(netMsg));
     netMsg.type = NetMessage::Type::WorldSnapshot;
-    // TODO: Get rid of this memcpy?
-    memcpy(&netMsg.data.worldSnapshot, &worldSnapshot, sizeof(netMsg.data.worldSnapshot));
+    netMsg.data.worldSnapshot = worldSnapshot;
     E_ASSERT(SendMsg(client, netMsg), "Failed to send world snapshot");
 
-    client.lastSnapshotSentAt = glfwGetTime();
     return ErrorType::Success;
+}
+
+ErrorType NetServer::SendNearbyEvents(const NetServerClient &client)
+{
+    assert(!"Deprecated");
+
+    Player *player = serverWorld->FindPlayer(client.playerId);
+    assert(player);
+    if (!player) {
+        return ErrorType::PlayerNotFound;
+    }
+
+    for (size_t i = 0; i < SV_MAX_PLAYERS; i++) {
+        Player &otherPlayer = serverWorld->players[i];
+        if (!otherPlayer.id) {
+            continue;
+        }
+
+        const float distSq     = v3_length_sq(v3_sub(player->body.position, otherPlayer.body.position));
+        const float prevDistSq = v3_length_sq(v3_sub(player->body.prevPosition, otherPlayer.body.prevPosition));
+
+        // TODO: Make despawn threshold > spawn threshold to prevent spam on event horizon
+        bool nearby    = distSq     <= SQUARED(SV_PLAYER_NEARBY_THRESHOLD);
+        bool wasNearby = prevDistSq <= SQUARED(SV_PLAYER_NEARBY_THRESHOLD);
+        if (!nearby && !wasNearby) {
+            continue;
+        }
+
+        bool spawned = nearby && !wasNearby;
+        E_ASSERT(SendPlayerState(client, otherPlayer, nearby, spawned), "Failed to send nearby player state in welcome basket");
+    }
+
+    for (size_t i = 0; i < SV_MAX_SLIMES; i++) {
+        Slime &enemy = serverWorld->slimes[i];
+        if (!enemy.id) {
+            continue;
+        }
+
+        const float distSq     = v3_length_sq(v3_sub(player->body.position, enemy.body.position));
+        const float prevDistSq = v3_length_sq(v3_sub(player->body.prevPosition, enemy.body.prevPosition));
+
+        // TODO: Make despawn threshold > spawn threshold to prevent spam on event horizon
+        bool nearby    = distSq     <= SQUARED(SV_ENEMY_NEARBY_THRESHOLD);
+        bool wasNearby = prevDistSq <= SQUARED(SV_ENEMY_NEARBY_THRESHOLD);
+        if (!nearby && !wasNearby) {
+            continue;
+        }
+
+        bool spawned = nearby && !wasNearby;
+        E_ASSERT(SendEnemyState(client, enemy, nearby, spawned), "Failed to send nearby enemy state in welcome basket");
+    }
+
+    return ErrorType::Success;
+}
+
+ErrorType NetServer::SendPlayerState(const NetServerClient &client, const Player &otherPlayer, bool nearby, bool spawned)
+{
+    NetMessage netMsg{};
+    netMsg.type = NetMessage::Type::NearbyEvent;
+
+    NetMessage_NearbyEvent &nearbyEvent = netMsg.data.nearbyEvent;
+    nearbyEvent.type = NetMessage_NearbyEvent::Type::PlayerState;
+
+    NetMessage_NearbyEvent::PlayerState &state = netMsg.data.nearbyEvent.data.playerState;
+    state.id = otherPlayer.id;
+    state.nearby = nearby;
+    state.spawned = spawned;
+    state.attacked = otherPlayer.actionState == Player::ActionState::Attacking;
+    state.moved = otherPlayer.moveState != Player::MoveState::Idle;
+    // TODO: Proper animation state or hit recovery state for this? Can attacked and tookDamage both be true?
+    state.tookDamage = true;
+    // TODO: Is this also a state on player.. or? How do we know it happened?
+    state.healed = false;
+    if (state.moved) {
+        state.position = otherPlayer.body.position;
+        state.direction = otherPlayer.sprite.direction;
+    }
+    if (state.tookDamage || state.healed) {
+        state.hitPoints = otherPlayer.combat.hitPoints;
+        state.hitPointsMax = otherPlayer.combat.hitPointsMax;
+    }
+    return SendMsg(client, netMsg);
+}
+
+ErrorType NetServer::SendEnemyState(const NetServerClient &client, const Slime &enemy, bool nearby, bool spawned)
+{
+    NetMessage netMsg{};
+    netMsg.type = NetMessage::Type::NearbyEvent;
+
+    NetMessage_NearbyEvent &nearbyEvent = netMsg.data.nearbyEvent;
+    nearbyEvent.type = NetMessage_NearbyEvent::Type::EnemyState;
+
+    NetMessage_NearbyEvent::EnemyState &state = netMsg.data.nearbyEvent.data.enemyState;
+    state.id = enemy.id;
+    state.nearby = nearby;
+    state.spawned = spawned;
+    state.attacked = enemy.actionState == Slime::ActionState::Attacking;
+    state.moved = enemy.moveState != Slime::MoveState::Idle;
+    // TODO: Proper animation state or hit recovery state for this? Can attacked and tookDamage both be true?
+    state.tookDamage = true;
+    // TODO: Is this also a state on slime.. or? How do we know it happened?
+    state.healed = false;
+    if (state.moved) {
+        state.position = enemy.body.position;
+        state.direction = enemy.sprite.direction;
+    }
+    if (state.tookDamage || state.healed) {
+        state.hitPoints = enemy.combat.hitPoints;
+        state.hitPointsMax = enemy.combat.hitPointsMax;
+    }
+    return SendMsg(client, netMsg);
+}
+
+ErrorType NetServer::SendItemState(const NetServerClient &client, const ItemWorld &item, bool nearby, bool spawned)
+{
+    assert(!"Not yet implemented");
+    return ErrorType::PeerSendFailed;
 }
 
 NetServerClient *NetServer::FindClient(uint32_t playerId)
@@ -492,7 +649,7 @@ ErrorType NetServer::RemoveClient(ENetPeer *peer)
         // TODO: Save from identify packet into NetServerClient, then user client.username
         Player *player = serverWorld->FindPlayer(client->playerId);
         if (player) {
-            E_ASSERT(BroadcastPlayerLeave(player->id), "Failed to broadcast player leave notification");
+            E_ASSERT(BroadcastPlayerLeave(*player), "Failed to broadcast player leave notification");
 
             const char *message = TextFormat("%.*s left the game.", player->nameLength, player->name);
             size_t messageLength = strlen(message);

@@ -136,7 +136,6 @@ ErrorType GameClient::Run(void)
 
         // 1610 x 910
         //player->body.position.x = 1457.83557f;
-        lobby->SpawnPlayer(player->id);
     }
 
 #if DEMO_VIEW_RTREE

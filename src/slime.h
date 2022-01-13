@@ -10,10 +10,14 @@
 //};
 
 struct Slime : public Drawable {
-    enum class Action {
-        None   = 0,
-        Jump   = 1,
-        Attack = 2,
+    enum class MoveState {
+        Idle = 0,
+        Jump = 1
+    };
+
+    enum class ActionState {
+        None      = 0,
+        Attacking = 1,
     };
 
     uint32_t    id           {};
@@ -22,7 +26,8 @@ struct Slime : public Drawable {
     Body3D      body         {};
     Combat      combat       {};
     Sprite      sprite       {};
-    Action      action       {};
+    MoveState   moveState    {};
+    ActionState actionState  {};
     double      randJumpIdle {};
 
     void Init   (void);

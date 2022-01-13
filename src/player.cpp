@@ -242,15 +242,18 @@ void Player::Update(double dt, InputSample &input, const Tilemap &map)
         moveBuffer = {};
     }
 
-    if (actionState == ActionState::Attacking) {
-        const double timeSinceAttackStarted = glfwGetTime() - combat.attackStartedAt;
-        if (timeSinceAttackStarted > combat.attackDuration) {
-            actionState = ActionState::None;
-            combat.attackStartedAt = 0;
-            combat.attackDuration = 0;
-            combat.attackFrame = 0;
-        } else {
-            combat.attackFrame++;
+    switch (actionState) {
+        case ActionState::Attacking: {
+            const double timeSinceAttackStarted = glfwGetTime() - combat.attackStartedAt;
+            if (timeSinceAttackStarted > combat.attackDuration) {
+                actionState = ActionState::None;
+                combat.attackStartedAt = 0;
+                combat.attackDuration = 0;
+                combat.attackFrame = 0;
+            } else {
+                combat.attackFrame++;
+            }
+            break;
         }
     }
 

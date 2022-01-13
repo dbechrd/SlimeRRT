@@ -28,15 +28,14 @@ struct PlayerInventory {
 
 struct Player : Drawable {
     enum class MoveState {
-        Idle      = 0,
-        Walking   = 1,
-        Running   = 2,
+        Idle    = 0,
+        Walking = 1,
+        Running = 2,
     };
 
     enum class ActionState {
-        None        = 0,
-        AttackStart = 1,
-        Attacking   = 2,
+        None      = 0,
+        Attacking = 1,
     };
 
     enum class AttachPoint {
@@ -55,8 +54,8 @@ struct Player : Drawable {
     uint32_t        id          {};
     uint32_t        nameLength  {};
     char            name        [USERNAME_LENGTH_MAX]{};
-    ActionState     actionState {};
     MoveState       moveState   {};
+    ActionState     actionState {};
     Vector2         moveBuffer  {};
     Body3D          body        {};
     Combat          combat      {};
