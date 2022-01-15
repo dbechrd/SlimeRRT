@@ -141,7 +141,7 @@ static void sprite_draw(const Sprite &sprite, Rectangle dest, Color color)
 #endif
 }
 
-void sprite_draw_body(const Sprite &sprite, const Body3D &body, Color color)
+void sprite_draw_body(const Sprite &sprite, const Body3D &body, const Color &color)
 {
     const Rectangle bodyRect = sprite_world_rect(sprite, body.position, sprite.scale);
     sprite_draw(sprite, bodyRect, color);

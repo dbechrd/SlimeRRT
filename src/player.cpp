@@ -173,11 +173,11 @@ void Player::Update(double dt, InputSample &input, const Tilemap &map)
     }
 
     if (!v2_is_zero(moveBuffer)) {
-        const Vector2 curPos = body.GroundPosition();
-        const Tile *curTile = map.TileAtWorldTry(curPos.x, curPos.y, 0, 0);
-        const bool curWalkable = curTile && curTile->IsWalkable();
+        const Vector2 pos = body.GroundPosition();
+        const Tile *tile = map.TileAtWorldTry(pos.x, pos.y, 0, 0);
+        const bool walkable = tile && tile->IsWalkable();
 
-        Vector2 newPos = v2_add(curPos, moveBuffer);
+        Vector2 newPos = v2_add(pos, moveBuffer);
         Tile *newTile = map.TileAtWorldTry(newPos.x, newPos.y, 0, 0);
 
         // NOTE: This extra logic allows the player to slide when attempting to move diagonally against a wall
@@ -187,15 +187,15 @@ void Player::Update(double dt, InputSample &input, const Tilemap &map)
         // TODO: We should fix spawning to ensure player spawns on walkable tile (can probably just manually
         // generate something interesting in the center of the world that overwrites procgen, like Don't
         // Starve's fancy arrival portal.
-        if (curWalkable) {
+        if (walkable) {
             if (!newTile || !newTile->IsWalkable()) {
                 // XY unwalkable, try only X offset
-                newPos = curPos;
+                newPos = pos;
                 newPos.x += moveBuffer.x;
                 newTile = map.TileAtWorldTry(newPos.x, newPos.y, 0, 0);
                 if (!newTile || !newTile->IsWalkable()) {
                     // X unwalkable, try only Y offset
-                    newPos = curPos;
+                    newPos = pos;
                     newPos.y += moveBuffer.y;
                     newTile = map.TileAtWorldTry(newPos.x, newPos.y, 0, 0);
                     if (!newTile || !newTile->IsWalkable()) {

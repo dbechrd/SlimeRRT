@@ -20,4 +20,4 @@ Vector3            sprite_world_top_center (const Sprite &sprite, Vector3 positi
 Vector3            sprite_world_center     (const Sprite &sprite, Vector3 position, float scale);
 void               sprite_update           (      Sprite &sprite, double dt);
 bool               sprite_cull_body        (const Sprite &sprite, const struct Body3D &body, Rectangle cullRect);
-void               sprite_draw_body        (const Sprite &sprite, const struct Body3D &body, Color color);
+void               sprite_draw_body        (const Sprite &sprite, const struct Body3D &body, const Color &color);
