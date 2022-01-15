@@ -115,7 +115,7 @@ void BitStream::Flush()
 
 #if _DEBUG && 0
         if (debugPrint) {
-            FILE *log = fopen(mode == Mode::Reader ? "recv.txt" : "send.txt", "w");
+            FILE *log = fopen(mode == Mode::Reader ? "recv.log" : "send.log", "w");
 #define BIT(x, n) (x >> (31 - (n)) & 1)
             int bit = 0;
             uint32_t word = *((uint32_t *)buffer + wordIndex);

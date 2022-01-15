@@ -17,8 +17,7 @@ enum class ErrorType {
 
 extern const char *g_err_msg[(int)ErrorType::Count];
 
-void error_init();
-void error_set_thread_name(const char *name);
+void error_init(const char *logPath);
 void error_free();
 
 //#define E_START ErrorType e__code = ErrorType::Success;

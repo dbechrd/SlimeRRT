@@ -18,51 +18,45 @@ int main(int argc, char *argv[])
     //--------------------------------------------------------------------------------------
     // Initialization
     //--------------------------------------------------------------------------------------
-    error_init();
-    error_set_thread_name("main");
+    error_init(args.standalone ? "server.log" : "game.log");
 
     int enet_code = enet_initialize();
     if (enet_code < 0) {
         TraceLog(LOG_FATAL, "Failed to initialize network utilities (enet). Error code: %d\n", enet_code);
     }
 
-    const char *title = "Attack the slimes!";
     if (args.standalone) {
-        title = "[SLIMY SERVER]";
-    }
-
-    if (!args.standalone) {
-        InitWindow(1600, 900, title);
-        // NOTE: I could avoid the flicker if Raylib would let me pass it as a flag into InitWindow -_-
-        //SetWindowState(FLAG_WINDOW_HIDDEN);
-    }
-
-    std::thread serverThread([&args] {
-        if (args.standalone) {
-            error_set_thread_name("server");
-            GameServer *gameServer = new GameServer(args);
-            gameServer->Run();
-            delete gameServer;
-        }
-    });
-
-    // TODO: Make CLI not be an entire client/player. Makes no sense for the CLI to show up in the world LUL.
-    //ServerCLI serverCli{ args };
-    //serverCli.Run("localhost", SV_DEFAULT_PORT);
-
 #ifdef _DEBUG
-    if (args.standalone) {
         // Dock right side of right monitor
         // { l:2873 t : 1 r : 3847 b : 1048 }
         SetConsolePosition(2873, 1, 3847 - 2873, 1048 - 1);
+#endif
+
+        //const char *title = "[SLIMY SERVER]";
+        error_init("server.log");
+
+        //std::thread serverThread([&args] {
+            GameServer *gameServer = new GameServer(args);
+            gameServer->Run();
+            delete gameServer;
+        //});
+
+        // TODO: Make CLI not be an entire client/player. Makes no sense for the CLI to show up in the world LUL.
+        //ServerCLI serverCli{ args };
+        //serverCli.Run("localhost", SV_DEFAULT_PORT);
     } else {
+#ifdef _DEBUG
         // Dock left side of right monitor
         // { l:1913 t : 1 r : 2887 b : 1048 }
         SetConsolePosition(1913, 1, 2887 - 1913, 1048 - 1);
-    }
 #endif
 
-    if (!args.standalone) {
+        error_init("game.log");
+
+        InitWindow(1600, 900, "Attack the slimes!");
+        // NOTE: I could avoid the flicker if Raylib would let me pass it as a flag into InitWindow -_-
+        //SetWindowState(FLAG_WINDOW_HIDDEN);
+
         GameClient *gameClient = new GameClient(args);
         gameClient->Run();
         args.exiting = true;
@@ -72,10 +66,9 @@ int main(int argc, char *argv[])
     //--------------------------------
     // Clean up
     //--------------------------------
-    serverThread.join();
+    error_free();
     CloseWindow();
     enet_deinitialize();
-    error_free();
     return 0;
 }
 

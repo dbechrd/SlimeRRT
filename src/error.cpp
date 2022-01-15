@@ -6,9 +6,7 @@
 #include <thread>
 #include <mutex>
 
-static FILE *logFile;
-static std::thread::id logFileOwner;
-static thread_local const char *threadName = "unnamed";
+static thread_local FILE *logFile;
 
 static void traceLogCallback(int logType, const char *text, va_list args)
 {
@@ -22,46 +20,52 @@ static void traceLogCallback(int logType, const char *text, va_list args)
         case LOG_FATAL  : logTypeStr = "[FATAL]"; break;
     }
 
-    double time = 0;
-    if (IsWindowReady()) {
-        time = GetTime();
-    }
-
     static std::mutex mutex;
     std::lock_guard<std::mutex> lock(mutex);
 
-    fprintf(logFile, "[%0.3fs][%6s]%s ", time, threadName, logTypeStr);
-    vfprintf(logFile, text, args);
-    fputs("\n", logFile);
 
-    fprintf(stdout, "[%0.3fs][%6s]%s ", time, threadName, logTypeStr);
+    // Raylib CloseWindow() kills glfw then tries to log something.. which means the GLFW timer is invalid -.-
+    // If there was ever a window, and now the window is gone (i.e. glfw dead), don't request a timestamp)
+    thread_local bool windowDetected = 0;
+    double time = 0;
+    if (!windowDetected || IsWindowReady()) {
+        time = glfwGetTime();
+        windowDetected = IsWindowReady();
+    }
+
+    if (logFile) {
+        fprintf(logFile, "[%0.3fs] %s ", time, logTypeStr);
+        vfprintf(logFile, text, args);
+        fputs("\n", logFile);
+        fflush(logFile);
+    }
+
+    fprintf(stdout, "[%0.3fs] %s ", time, logTypeStr);
     vfprintf(stdout, text, args);
     fputs("\n", stdout);
-
-    fflush(logFile);
     fflush(stdout);
+
     if (logType == LOG_FATAL) {
-        fclose(logFile);
         assert(!"Catch in debugger");
+        if (logFile) fclose(logFile);
         //UNUSED(getc(stdin));
         //exit(-1);
     }
 }
 
-void error_init()
+void error_init(const char *logPath)
 {
-    logFileOwner = std::this_thread::get_id();
-    logFile = fopen("log.txt", "w");
+    if (logFile) return;
+
+    logFile = fopen(logPath, "w");
     SetTraceLogLevel(LOG_DEBUG);
     SetTraceLogCallback(traceLogCallback);
 }
 
-void error_set_thread_name(const char *name)
-{
-    threadName = name;
-}
-
 void error_free()
 {
+    if (!logFile) return;
+
     fclose(logFile);
+    logFile = 0;
 }

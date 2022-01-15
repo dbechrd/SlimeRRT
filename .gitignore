@@ -1,6 +1,5 @@
+bin/*.exe
+bin/*.log
 bin/screenshots
-bin/log.txt
-bin/send.txt
-bin/recv.txt
 secret.txt
 imgui.ini

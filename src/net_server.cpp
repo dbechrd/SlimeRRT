@@ -98,7 +98,7 @@ ErrorType NetServer::SendMsg(const NetServerClient &client, NetMessage &message)
     message.Serialize(*serverWorld, rawPacket);
 
     //E_INFO("[SEND][%21s][%5u b] %16s ", TextFormatIP(client.peer->address), rawPacket.dataLength, netMsg.TypeString());
-    if (message.type != NetMessage::Type::WorldSnapshot) {
+    if (true || message.type != NetMessage::Type::WorldSnapshot) {
         const char *subType = "";
         switch (message.type) {
             case NetMessage::Type::GlobalEvent: subType = message.data.globalEvent.TypeString(); break;
