@@ -12,7 +12,7 @@ static Color ShadowColor(const Color color)
     return shadow_color;
 }
 
-void DrawTextFont(Font font, const char *text, float posX, float posY, int fontSize, Color color)
+void DrawTextFont(Font font, const char *text, int posX, int posY, int fontSize, const Color &color)
 {
     int shadowOffset = 1;
     if (fontSize >= 54) {
@@ -23,8 +23,8 @@ void DrawTextFont(Font font, const char *text, float posX, float posY, int fontS
     // Check if default font has been loaded
     if (font.texture.id != 0)
     {
-        Vector2 position = { posX, posY };
-        Vector2 shadowPosition = position;
+        Vector2i position = { posX, posY };
+        Vector2i shadowPosition = position;
         shadowPosition.x += shadowOffset;
         shadowPosition.y += shadowOffset;
 
@@ -35,8 +35,8 @@ void DrawTextFont(Font font, const char *text, float posX, float posY, int fontS
         // Assume SDF font if grayscale
         const bool sdfFont = font.glyphs->image.format == PIXELFORMAT_UNCOMPRESSED_GRAYSCALE;
         if (sdfFont) BeginShaderMode(g_sdfShader);
-        DrawTextEx(font, text, shadowPosition, (float)fontSize, (float)spacing, ShadowColor(color));
-        DrawTextEx(font, text, position, (float)fontSize, (float)spacing, color);
+        DrawTextEx(font, text, { (float)shadowPosition.x, (float)shadowPosition.y }, (float)fontSize, (float)spacing, ShadowColor(color));
+        DrawTextEx(font, text, { (float)position.x, (float)position.y }, (float)fontSize, (float)spacing, color);
         if (sdfFont) EndShaderMode();
     }
 }
@@ -84,9 +84,4 @@ float VolumeCorrection(float volume)
     float mapped = volume < 0.296f ? 0.1f * volume : exp(5.0f * volume - 5.0f);
     float clamped = CLAMP(mapped, 0.0f, 1.0f);
     return clamped;
-}
-
-bool PointInRect(Vector2 &point, Rectangle &rect)
-{
-    return (point.x >= rect.x && point.y >= rect.y && point.x < rect.x + rect.width && point.y < rect.y + rect.height);
 }

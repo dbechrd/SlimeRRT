@@ -132,7 +132,7 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
             stream.Process(worldChunk.offsetY, 8, 0, WORLD_HEIGHT_MAX - WORLD_CHUNK_HEIGHT);
             stream.Process(worldChunk.tilesLength, 16, 0, WORLD_CHUNK_TILES_MAX);
 
-            assert(worldChunk.tilesLength < world.map->width * world.map->width);
+            assert((int)worldChunk.tilesLength < world.map->width * world.map->width);
             for (size_t i = 0; i < worldChunk.tilesLength; i++) {
                 Tile &tile = world.map->tiles[i];
                 uint32_t tileType = (uint32_t)tile.tileType;
@@ -171,15 +171,15 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                     bool init = player.init || player.spawned;
                     if (init || player.moved) {
                         // TODO: range validation on floats (why? malicious server?)
-                        stream.ProcessFloat(player.position.x);
-                        stream.ProcessFloat(player.position.y);
-                        stream.ProcessFloat(player.position.z);
+                        stream.ProcessInt(player.position.x);
+                        stream.ProcessInt(player.position.y);
+                        stream.ProcessInt(player.position.z);
                         stream.Process((uint32_t &)player.direction, 3, (uint32_t)Direction::North, (uint32_t)Direction::NorthWest);
                         stream.Align();
                     }
                     if (init || player.tookDamage || player.healed) {
-                        stream.ProcessFloat(player.hitPoints);
-                        stream.ProcessFloat(player.hitPointsMax);
+                        stream.ProcessInt(player.hitPoints);
+                        stream.ProcessInt(player.hitPointsMax);
                     }
                 }
             }
@@ -199,18 +199,18 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                     stream.Align();
                     bool init = enemy.init || enemy.spawned;
                     if (init || enemy.moved) {
-                        stream.ProcessFloat(enemy.position.x);
-                        stream.ProcessFloat(enemy.position.y);
-                        stream.ProcessFloat(enemy.position.z);
+                        stream.ProcessInt(enemy.position.x);
+                        stream.ProcessInt(enemy.position.y);
+                        stream.ProcessInt(enemy.position.z);
                         stream.Process((uint32_t &)enemy.direction, 3, (uint32_t)Direction::North, (uint32_t)Direction::NorthWest);
                         stream.Align();
                     }
                     if (init || enemy.resized) {
-                        stream.ProcessFloat(enemy.scale);
+                        stream.ProcessInt(enemy.scale);
                     }
                     if (init || enemy.tookDamage || enemy.healed) {
-                        stream.ProcessFloat(enemy.hitPoints);
-                        stream.ProcessFloat(enemy.hitPointsMax);
+                        stream.ProcessInt(enemy.hitPoints);
+                        stream.ProcessInt(enemy.hitPointsMax);
                     }
                 }
             }
@@ -270,15 +270,15 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                         stream.ProcessBool(state.healed);
                         stream.Align();
                         if (state.moved) {
-                            stream.ProcessFloat(state.position.x);
-                            stream.ProcessFloat(state.position.y);
-                            stream.ProcessFloat(state.position.z);
+                            stream.ProcessInt(state.position.x);
+                            stream.ProcessInt(state.position.y);
+                            stream.ProcessInt(state.position.z);
                             stream.Process((uint32_t &)state.direction, 3, (uint32_t)Direction::North, (uint32_t)Direction::NorthWest);
                             stream.Align();
                         }
                         if (state.tookDamage || state.healed) {
-                            stream.ProcessFloat(state.hitPoints);
-                            stream.ProcessFloat(state.hitPointsMax);
+                            stream.ProcessInt(state.hitPoints);
+                            stream.ProcessInt(state.hitPointsMax);
                         }
                     }
 #else
@@ -301,15 +301,15 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                         stream.ProcessBool(state.healed);
                         stream.Align();
                         if (state.moved) {
-                            stream.ProcessFloat(state.position.x);
-                            stream.ProcessFloat(state.position.y);
-                            stream.ProcessFloat(state.position.z);
+                            stream.ProcessInt(state.position.x);
+                            stream.ProcessInt(state.position.y);
+                            stream.ProcessInt(state.position.z);
                             stream.Process((uint32_t &)state.direction, 3, (uint32_t)Direction::North, (uint32_t)Direction::NorthWest);
                             stream.Align();
                         }
                         if (state.tookDamage || state.healed) {
-                            stream.ProcessFloat(state.hitPoints);
-                            stream.ProcessFloat(state.hitPointsMax);
+                            stream.ProcessInt(state.hitPoints);
+                            stream.ProcessInt(state.hitPointsMax);
                         }
                     }
 #else
@@ -326,9 +326,9 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                         stream.ProcessBool(state.moved);
                         stream.Align();
                         if (state.moved) {
-                            stream.ProcessFloat(state.position.x);
-                            stream.ProcessFloat(state.position.y);
-                            stream.ProcessFloat(state.position.z);
+                            stream.ProcessInt(state.position.x);
+                            stream.ProcessInt(state.position.y);
+                            stream.ProcessInt(state.position.z);
                             stream.Align();
                         }
                     }

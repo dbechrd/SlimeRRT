@@ -32,7 +32,7 @@ ErrorType GameClient::Run(void)
 {
     SetWindowState(FLAG_WINDOW_RESIZABLE);
     SetExitKey(0);  // Disable default Escape exit key, we'll handle escape ourselves
-    Vector2 screenSize{ (float)GetRenderWidth(), (float)GetRenderHeight() };
+    Vector2i screenSize{ GetRenderWidth(), GetRenderHeight() };
 
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
@@ -95,7 +95,7 @@ ErrorType GameClient::Run(void)
     const int monitorHeight = GetMonitorHeight(0);
 
     Spycam spycam{};
-    spycam.Init({ screenSize.x * 0.5f, screenSize.y * 0.5f });
+    spycam.Init({ screenSize.x / 2, screenSize.y / 2});
 
     InitAudioDevice();
     if (!IsAudioDeviceReady()) {
@@ -267,7 +267,7 @@ ErrorType GameClient::Run(void)
         Player &player = *playerPtr;
 
         if (player.body.OnGround() && IsKeyPressed(KEY_SPACE)) {
-            player.body.velocity.z = METERS_TO_PIXELS(4.0f);
+            player.body.velocity.z = METERS_TO_PIXELS(4);
         }
 
         double renderAt = 0;
@@ -384,12 +384,12 @@ ErrorType GameClient::Run(void)
 
         if (IsWindowResized() || input.toggleFullscreen) {
             if (IsWindowResized()) {
-                screenSize.x = (float)GetRenderWidth() - GetRenderWidth() % 2;
-                screenSize.y = (float)GetRenderHeight() - GetRenderHeight() % 2;
+                screenSize.x = GetRenderWidth() - GetRenderWidth() % 2;
+                screenSize.y = GetRenderHeight() - GetRenderHeight() % 2;
                 SetWindowSize((int)screenSize.x, (int)screenSize.y);
             }
             if (input.toggleFullscreen) {
-                static Vector2 restoreSize = screenSize;
+                static Vector2i restoreSize = screenSize;
                 if (IsWindowFullscreen()) {
                     ToggleFullscreen();
                     SetWindowSize((int)restoreSize.x, (int)restoreSize.y);
@@ -397,8 +397,8 @@ ErrorType GameClient::Run(void)
                 } else {
                     restoreSize = screenSize;
                     int monitor = GetCurrentMonitor();
-                    screenSize.x = (float)GetMonitorWidth(monitor);
-                    screenSize.y = (float)GetMonitorHeight(monitor);
+                    screenSize.x = GetMonitorWidth(monitor);
+                    screenSize.y = GetMonitorHeight(monitor);
                     SetWindowSize((int)screenSize.x, (int)screenSize.y);
                     ToggleFullscreen();
                 }
@@ -459,12 +459,12 @@ ErrorType GameClient::Run(void)
             spycam.cameraGoal = player.body.GroundPosition();
         }
         spycam.Update(input);
-        Rectangle cameraRect = spycam.GetRect();
+        Recti cameraRect = spycam.GetRect();
 
-        const Vector2 mousePosScreen = GetMousePosition();
-        Vector2 mousePosWorld{};
-        mousePosWorld.x += cameraRect.x + mousePosScreen.x * spycam.GetInvZoom();
-        mousePosWorld.y += cameraRect.y + mousePosScreen.y * spycam.GetInvZoom();
+        const Vector2i mousePosScreen{ GetMouseX(), GetMouseY() };
+        Vector2i mousePosWorld{};
+        mousePosWorld.x += cameraRect.x + (int)(mousePosScreen.x * spycam.GetInvZoom());
+        mousePosWorld.y += cameraRect.y + (int)(mousePosScreen.y * spycam.GetInvZoom());
 
         //----------------------------------------------------------------------
         // Render world

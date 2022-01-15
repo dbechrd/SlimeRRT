@@ -264,7 +264,7 @@ ErrorType NetServer::SendWorldSnapshot(NetServerClient &client, WorldSnapshot &w
 
 
         // TODO: Make despawn threshold > spawn threshold to prevent spam on event horizon
-        const float distSq = v3_length_sq(v3_sub(player->body.position, otherPlayer.body.position));
+        const int distSq = v3_length_sq(v3_sub(player->body.position, otherPlayer.body.position));
         bool nearby = distSq <= SQUARED(SV_PLAYER_NEARBY_THRESHOLD);
         bool wasNearby = false;
         if (prevSnapshot) {
@@ -311,7 +311,7 @@ ErrorType NetServer::SendWorldSnapshot(NetServerClient &client, WorldSnapshot &w
         }
 
         // TODO: Make despawn threshold > spawn threshold to prevent spam on event horizon
-        const float distSq = v3_length_sq(v3_sub(player->body.position, enemy.body.position));
+        const int distSq = v3_length_sq(v3_sub(player->body.position, enemy.body.position));
         bool nearby = distSq <= SQUARED(SV_ENEMY_NEARBY_THRESHOLD);
         bool wasNearby = false;
         if (prevSnapshot) {
@@ -392,8 +392,8 @@ ErrorType NetServer::SendNearbyEvents(const NetServerClient &client)
             continue;
         }
 
-        const float distSq     = v3_length_sq(v3_sub(player->body.position, otherPlayer.body.position));
-        const float prevDistSq = v3_length_sq(v3_sub(player->body.prevPosition, otherPlayer.body.prevPosition));
+        const int distSq     = v3_length_sq(v3_sub(player->body.position, otherPlayer.body.position));
+        const int prevDistSq = v3_length_sq(v3_sub(player->body.prevPosition, otherPlayer.body.prevPosition));
 
         // TODO: Make despawn threshold > spawn threshold to prevent spam on event horizon
         bool nearby    = distSq     <= SQUARED(SV_PLAYER_NEARBY_THRESHOLD);
@@ -412,8 +412,8 @@ ErrorType NetServer::SendNearbyEvents(const NetServerClient &client)
             continue;
         }
 
-        const float distSq     = v3_length_sq(v3_sub(player->body.position, enemy.body.position));
-        const float prevDistSq = v3_length_sq(v3_sub(player->body.prevPosition, enemy.body.prevPosition));
+        const int distSq     = v3_length_sq(v3_sub(player->body.position, enemy.body.position));
+        const int prevDistSq = v3_length_sq(v3_sub(player->body.prevPosition, enemy.body.prevPosition));
 
         // TODO: Make despawn threshold > spawn threshold to prevent spam on event horizon
         bool nearby    = distSq     <= SQUARED(SV_ENEMY_NEARBY_THRESHOLD);

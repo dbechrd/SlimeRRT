@@ -11,6 +11,7 @@
 Tilemap::~Tilemap()
 {
     free(tiles);
+    free(rrt.vertices);
     UnloadTexture(minimap);
 }
 
@@ -25,8 +26,8 @@ void Tilemap::GenerateMinimap(void)
 
     Image minimapImg{};
     // NOTE: This is the client-side world map. Fog of war until tile types known?
-    minimapImg.width = (int)width;
-    minimapImg.height = (int)height;
+    minimapImg.width = width;
+    minimapImg.height = height;
     minimapImg.mipmaps = 1;
     minimapImg.format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
     assert(sizeof(Color) == 4);
@@ -68,7 +69,7 @@ Tile *Tilemap::TileAt(int tileX, int tileY) const
 Tile *Tilemap::TileAtTry(int tileX, int tileY) const
 {
     Tile *tile = NULL;
-    if (tileX >= 0 && tileY >= 0 && tileX < (int)width && tileY < (int)width) {
+    if (tileX >= 0 && tileY >= 0 && tileX < width && tileY < width) {
         size_t idx = (size_t)tileY * width + tileX;
         assert(idx < (size_t)width * height);
         tile = &tiles[idx];
@@ -76,15 +77,15 @@ Tile *Tilemap::TileAtTry(int tileX, int tileY) const
     return tile;
 }
 
-Tile *Tilemap::TileAtWorld(float x, float y, int *tileX, int *tileY) const
+Tile *Tilemap::TileAtWorld(int x, int y, int *tileX, int *tileY) const
 {
     assert(x >= 0);
     assert(y >= 0);
-    assert(x < (int)TILE_W * width);
-    assert(y < (int)TILE_W * height);
+    assert(x < TILE_W * width);
+    assert(y < TILE_W * height);
 
-    int tile_x = (int)x / (int)TILE_W;
-    int tile_y = (int)y / (int)TILE_W;
+    int tile_x = x / TILE_W;
+    int tile_y = y / TILE_W;
     Tile *tile = TileAt(tile_x, tile_y);
     if (tile) {
         if (tileX) *tileX = tile_x;
@@ -93,7 +94,7 @@ Tile *Tilemap::TileAtWorld(float x, float y, int *tileX, int *tileY) const
     return tile;
 }
 
-Tile *Tilemap::TileAtWorldTry(float x, float y, int *tileX, int *tileY) const
+Tile *Tilemap::TileAtWorldTry(int x, int y, int *tileX, int *tileY) const
 {
     if (x < 0 ||
         y < 0 ||
@@ -102,8 +103,8 @@ Tile *Tilemap::TileAtWorldTry(float x, float y, int *tileX, int *tileY) const
         return 0;
     }
 
-    int tile_x = (int)x / (int)TILE_W;
-    int tile_y = (int)y / (int)TILE_W;
+    int tile_x = x / TILE_W;
+    int tile_y = y / TILE_W;
     Tile *tile = TileAtTry(tile_x, tile_y);
     if (tile) {
         if (tileX) *tileX = tile_x;
@@ -143,12 +144,12 @@ Tilemap *MapSystem::GenerateLobby(void)
     map->tiles = (Tile *)calloc((size_t)map->width * map->height, sizeof(*map->tiles));
     assert(map->tiles);
 
-    for (int y = 0; y < (int)map->height; y++) {
-        for (int x = 0; x < (int)map->width; x++) {
-            const Vector2 position = v2_init((float)x, (float)y);
+    for (int y = 0; y < map->height; y++) {
+        for (int x = 0; x < map->width; x++) {
+            const Vector2i position = v2_init(x, y);
             Tile *tile = map->TileAt(x, y);
-            const int cx = x - (int)map->width / 2;
-            const int cy = y - (int)map->height / 2;
+            const int cx = x - map->width / 2;
+            const int cy = y - map->height / 2;
             const int island_radius = 16;
             if (cx*cx + cy*cy > island_radius*island_radius) {
             //const int border_width = 26;
@@ -165,7 +166,7 @@ Tilemap *MapSystem::GenerateLobby(void)
     return map;
 }
 
-Tilemap *MapSystem::Generate(dlb_rand32_t &rng, uint32_t width, uint32_t height)
+Tilemap *MapSystem::Generate(dlb_rand32_t &rng, int width, int height)
 {
     assert(width);
     assert(height);
@@ -181,17 +182,14 @@ Tilemap *MapSystem::Generate(dlb_rand32_t &rng, uint32_t width, uint32_t height)
     assert(map->tiles);
 
     // NOTE: These parameters are chosen somewhat arbitrarily at this point
-    const Vector2 middle = v2_init(0.5f, 0.5f);
     const size_t rrtSamples = 512;
     const float maxGrowthDistance = map->width * 0.25f;
-    BuildRRT(*map, rng, middle, rrtSamples, maxGrowthDistance);
+    BuildRRT(*map, rng, rrtSamples, maxGrowthDistance);
 
-    const Vector2 tileCenterOffset = v2_init(0.5f / map->width, 0.5f / map->height);
-    for (int y = 0; y < (int)map->height; y++) {
-        for (int x = 0; x < (int)map->width; x++) {
-            const Vector2 position = v2_init((float)x / map->width, (float)y / map->height);
-            const Vector2 center = v2_add(position, tileCenterOffset);
-            const size_t nearestIdx = RRTNearestIndex(*map, center);
+    for (int y = 0; y < map->height; y++) {
+        for (int x = 0; x < map->width; x++) {
+            const Vector2i topLeft = v2_init(x, y);
+            const size_t nearestIdx = RRTNearestIndex(*map, topLeft);
 
             Tile *tile = map->TileAt(x, y);
             tile->tileType = map->rrt.vertices[nearestIdx].tileType;
@@ -199,8 +197,8 @@ Tilemap *MapSystem::Generate(dlb_rand32_t &rng, uint32_t width, uint32_t height)
     }
 
     // Pass 2: Surround water with sand for @rusteel
-    for (int y = 0; y < (int)map->height; y++) {
-        for (int x = 0; x < (int)map->width; x++) {
+    for (int y = 0; y < map->height; y++) {
+        for (int x = 0; x < map->width; x++) {
             TileType tileType = map->TileAt(x, y)->tileType;
             if (tileType == TileType::Water) {
                 static const int beachWidth = 2;
@@ -235,7 +233,7 @@ Tilemap *MapSystem::Alloc(void)
     return map;
 }
 
-void MapSystem::BuildRRT(Tilemap &map, dlb_rand32_t &rng, Vector2 qinit, size_t numVertices, float maxGrowthDist)
+void MapSystem::BuildRRT(Tilemap &map, dlb_rand32_t &rng, size_t numVertices, float maxGrowthDist)
 {
     float maxGrowthDistSq = maxGrowthDist * maxGrowthDist;
 
@@ -248,47 +246,35 @@ void MapSystem::BuildRRT(Tilemap &map, dlb_rand32_t &rng, Vector2 qinit, size_t 
 
     RRTVertex *vertex = map.rrt.vertices;
     vertex->tileType = (TileType)dlb_rand32i_range_r(&rng, tileMin, tileMax);
-    vertex->position = qinit;
+    vertex->position = { (int)(map.width / 2), (int)(map.height / 2) };
     vertex++;
 
     size_t randTiles = numVertices / 8;
 
-    Vector2 qrand = {};
+    Vector2i qrand = {};
     for (size_t tileIdx = 1; tileIdx < map.rrt.vertexCount; tileIdx++) {
-        qrand.x = (float)dlb_rand32f_range_r(&rng, 0.0f, 1.0f);
-        qrand.y = (float)dlb_rand32f_range_r(&rng, 0.0f, 1.0f);
+        qrand.x = dlb_rand32i_range_r(&rng, 0, map.width);
+        qrand.y = dlb_rand32i_range_r(&rng, 0, map.height);
 
         size_t nearestIdx = RRTNearestIndex(map, qrand);
-        Vector2 qnear = map.rrt.vertices[nearestIdx].position;
-        Vector2 qnew = v2_sub(qrand, qnear);
-#if 0
-        bool constantIncrement = false;  // always increment by "maxGrowthDist"
-        bool clampIncrement = true;     // increment at most by maxGrowthDist
-        if (constantIncrement || (clampIncrement && Vector2::LengthSq(qnear) > maxGrowthDistSq)) {
-            qnew = Vector2::Normalize(qrand - qnear) * maxGrowthDist;
-        }
-#else
-        UNUSED(maxGrowthDistSq);
-#endif
-        qnew = v2_add(qnew, qnear);
         if (tileIdx < randTiles) {
             vertex->tileType = (TileType)dlb_rand32i_range_r(&rng, tileMin, tileMax);
         } else {
             vertex->tileType = map.rrt.vertices[nearestIdx].tileType;
         }
-        vertex->position = qnew;
+        vertex->position = qrand;
         vertex++;
     }
 }
 
-size_t MapSystem::RRTNearestIndex(Tilemap &map, Vector2 p)
+size_t MapSystem::RRTNearestIndex(Tilemap &map, const Vector2i &p)
 {
     assert(map.rrt.vertexCount);
 
-    float minDistSq = FLT_MAX;
+    int minDistSq = INT_MAX;
     size_t minIdx = 0;
     for (size_t i = 0; i < map.rrt.vertexCount; i++) {
-        float distSq = v2_distance_sq(p, map.rrt.vertices[i].position);
+        int distSq = v2_distance_sq(p, map.rrt.vertices[i].position);
         if (distSq < minDistSq) {
             minDistSq = distSq;
             minIdx = i;

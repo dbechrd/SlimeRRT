@@ -1,12 +1,12 @@
 #include "item_world.h"
 
-float ItemWorld::Depth(void) const
+int ItemWorld::Depth(void) const
 {
-    const float depth = body.position.y;
+    const int depth = body.position.y;
     return depth;
 }
 
-bool ItemWorld::Cull(const Rectangle& cullRect) const
+bool ItemWorld::Cull(const Recti& cullRect) const
 {
     bool cull = false;
 
@@ -18,8 +18,8 @@ bool ItemWorld::Cull(const Rectangle& cullRect) const
         cull = !CheckCollisionCircleRec(bodyBC, sprite.scale, cullRect);
     }
 #else
-    const Vector2 bodyBC = body.BottomCenter();
-    cull = !CheckCollisionCircleRec(bodyBC, 10.0f, cullRect);
+    const Vector3i bodyBC = body.BottomCenter();
+    cull = !CheckCollisionCircleRecti({ bodyBC.x, bodyBC.y }, 10, cullRect);
 #endif
 
     return cull;
@@ -30,8 +30,7 @@ void ItemWorld::Draw(void) const
     if (0 && sprite.spriteDef) {
         sprite_draw_body(sprite, body, WHITE);
     } else {
-        Vector2 pos = body.BottomCenter();
-        Vector2 size { 20.0f, 20.0f };
-        DrawRectangleV(pos, size, PURPLE);
+        Vector3i pos = body.BottomCenter();
+        DrawRectangle(pos.x, pos.y, 20, 20, PURPLE);
     }
 }

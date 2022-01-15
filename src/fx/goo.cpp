@@ -13,10 +13,11 @@ namespace FX {
         assert(particle.dieAt > particle.spawnAt);
 
     #if 1
-        float randX = dlb_rand32f_variance(METERS_TO_PIXELS(1.0f));
-        float randY = dlb_rand32f_variance(METERS_TO_PIXELS(1.0f));
-        float randZ = dlb_rand32f_range(0.0f, METERS_TO_PIXELS(2.0f));
-        particle.body.velocity = { randX, randY, randZ };
+        Vector3i randVel {};
+        randVel.x = (int)dlb_rand32f_variance(METERS_TO_PIXELS(1.0f));
+        randVel.y = (int)dlb_rand32f_variance(METERS_TO_PIXELS(1.0f));
+        randVel.z = (int)dlb_rand32f_range(0.0f, METERS_TO_PIXELS(2.0f));
+        particle.body.velocity = randVel;
         particle.body.friction = 0.5f;
     #else
         const float direction = 1.0f;
@@ -25,13 +26,13 @@ namespace FX {
     #endif
         //particle.position = (Vector2){ 0.0f, 0.0f };
         particle.color = { 154, 219, 63, 178 };  // Slime lime
-        particle.sprite.scale = 1.0f;
+        particle.sprite.scale = 1;
     }
 
     void goo_update(Particle &particle, float alpha)
     {
-        const float radius = 5.0f;
+        const int radius = 5;
         // radius * 1.0 -> 0.2
-        particle.sprite.scale = radius * (1.0f - alpha * 0.8f);
+        particle.sprite.scale = (int)(radius * (1.0f - alpha * 0.8f));
     }
 }

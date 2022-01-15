@@ -7,9 +7,9 @@
 #include "GLFW/glfw3.h"
 #include "raylib/raylib.h"
 
-Vector2 UI::mouseScreen;
-Vector2 UI::mouseWorld;
-Vector2 UI::screenSize;
+Vector2i UI::mouseScreen;
+Vector2i UI::mouseWorld;
+Vector2i UI::screenSize;
 Spycam  *UI::spycam;
 
 void UI::TileHoverOutline(const Tilemap &map)
@@ -36,10 +36,10 @@ void UI::TileHoverOutline(const Tilemap &map)
 
 void UI::WorldGrid(const Tilemap &map)
 {
-    for (uint32_t y = 0; y <= map.height; y++) {
+    for (int y = 0; y <= map.height; y++) {
         DrawLine(0, y * TILE_H, map.width * TILE_W, y * TILE_H, BLACK);
     }
-    for (uint32_t x = 0; x <= map.width; x++) {
+    for (int x = 0; x <= map.width; x++) {
         DrawLine(x * TILE_W, 0, x * TILE_W, map.height * TILE_H, BLACK);
     }
     const int center_y = map.height / 2 * TILE_H;
@@ -66,9 +66,9 @@ void UI::Minimap(const Font &font, const World &world)
     for (size_t i = 0; i < ARRAY_SIZE(world.slimes); i++) {
         const Slime &s = world.slimes[i];
         if (s.id) {
-            float x = (s.body.position.x / (world.map->width * TILE_W)) * minimapW + minimapX;
-            float y = (s.body.position.y / (world.map->height * TILE_W)) * minimapH + minimapY;
-            DrawCircle((int)x, (int)y, 2.0f, Color{ 0, 170, 80, 255 });
+            int x = (s.body.position.x / (world.map->width * TILE_W)) * minimapW + minimapX;
+            int y = (s.body.position.y / (world.map->height * TILE_W)) * minimapH + minimapY;
+            DrawCircle(x, y, 2.0f, Color{ 0, 170, 80, 255 });
         }
     }
 
@@ -76,13 +76,13 @@ void UI::Minimap(const Font &font, const World &world)
     for (size_t i = 0; i < ARRAY_SIZE(world.players); i++) {
         const Player &p = world.players[i];
         if (p.id) {
-            float x = (p.body.position.x / (world.map->width * TILE_W)) * minimapW + minimapX;
-            float y = (p.body.position.y / (world.map->height * TILE_W)) * minimapH + minimapY;
+            const int x = (p.body.position.x / (world.map->width * TILE_W)) * minimapW + minimapX;
+            const int y = (p.body.position.y / (world.map->height * TILE_W)) * minimapH + minimapY;
             const Color playerColor{ 220, 90, 20, 255 };
-            DrawCircle((int)x, (int)y, 2.0f, playerColor);
+            DrawCircle(x, y, 2.0f, playerColor);
             const char *pName = TextFormat("%.*s", p.nameLength, p.name);
             int nameWidth = MeasureText(pName, font.baseSize);
-            DrawTextFont(font, pName, x - (float)(nameWidth / 2), y - font.baseSize - 4, font.baseSize, YELLOW);
+            DrawTextFont(font, pName, x - (nameWidth / 2), y - font.baseSize - 4, font.baseSize, YELLOW);
         }
     }
 }
@@ -314,7 +314,7 @@ void UI::HUD(const Font &font, const Player &player, const DebugStats &debugStat
     assert(spycam);
 
     const char *text = 0;
-    float hudCursorY = 0;
+    int hudCursorY = 0;
 
 #define PUSH_TEXT(text, color) \
     DrawTextFont(font, text, margin + pad, hudCursorY, font.baseSize, color); \
@@ -327,17 +327,17 @@ void UI::HUD(const Font &font, const Player &player, const DebugStats &debugStat
     if (debugStats.rtt) {
         linesOfText += 5;
     }
-    const float margin = 6.0f;   // left/top margin
-    const float pad = 4.0f;      // left/top pad
-    const float hudWidth = 240.0f;
-    const float hudHeight = linesOfText * (font.baseSize + pad) + pad;
+    const int margin = 6;   // left/top margin
+    const int pad = 4;      // left/top pad
+    const int hudWidth = 240;
+    const int hudHeight = linesOfText * (font.baseSize + pad) + pad;
 
     hudCursorY += margin;
 
     const Color darkerGray{ 40, 40, 40, 255 };
     UNUSED(darkerGray);
-    DrawRectangle((int)margin, (int)hudCursorY, (int)hudWidth, (int)hudHeight, DARKBLUE);
-    DrawRectangleLines((int)margin, (int)hudCursorY, (int)hudWidth, (int)hudHeight, BLACK);
+    DrawRectangle(margin, hudCursorY, hudWidth, hudHeight, DARKBLUE);
+    DrawRectangleLines(margin, hudCursorY, hudWidth, hudHeight, BLACK);
 
     hudCursorY += pad;
 
@@ -454,11 +454,11 @@ void UI::HUD(const Font &font, const Player &player, const DebugStats &debugStat
 
 void UI::Chat(const Font &font, World &world, NetClient &netClient, bool processKeyboard, bool &chatActive, bool &escape)
 {
-    const float margin = 6.0f;   // left/bottom margin
-    const float pad = 4.0f;      // left/bottom pad
-    const float inputBoxHeight = font.baseSize + pad * 2.0f;
-    const float chatWidth = 800.0f;
-    const float chatBottom = screenSize.y - margin - inputBoxHeight;
+    const int margin = 6;   // left/bottom margin
+    const int pad = 4;      // left/bottom pad
+    const int inputBoxHeight = font.baseSize + pad * 2;
+    const int chatWidth = 800;
+    const int chatBottom = screenSize.y - margin - inputBoxHeight;
 
     // Render chat history
     world.chatHistory.Render(font, world, margin, chatBottom, chatWidth, chatActive);
@@ -469,7 +469,7 @@ void UI::Chat(const Font &font, World &world, NetClient &netClient, bool process
         static int chatInputTextLen = 0;
         static char chatInputText[CHATMSG_LENGTH_MAX]{};
 
-        Rectangle chatInputRect = { margin, screenSize.y - margin - inputBoxHeight, chatWidth, inputBoxHeight };
+        const Rectangle chatInputRect = { (float)margin, (float)(screenSize.y - margin - inputBoxHeight), (float)chatWidth, (float)inputBoxHeight };
         if (GuiTextBoxAdvanced(&chatInputState, chatInputRect, chatInputText, &chatInputTextLen, CHATMSG_LENGTH_MAX, !processKeyboard)) {
             if (chatInputTextLen) {
                 ErrorType sendResult = netClient.SendChatMessage(chatInputText, chatInputTextLen);
@@ -510,21 +510,20 @@ void UI::TileHoverTip(const Font &font, const Tilemap &map)
         return;
     }
 
-    const float tooltipOffsetX = 10.0f;
-    const float tooltipOffsetY = 10.0f;
-    const float tooltipPad = 4.0f;
+    const int tooltipOffsetX = 10;
+    const int tooltipOffsetY = 10;
+    const int tooltipPad = 4;
 
-    float tooltipX = mouseScreen.x + tooltipOffsetX;
-    float tooltipY = mouseScreen.y + tooltipOffsetY;
-    const float tooltipW = 220.0f + tooltipPad * 2.0f;
-    const float tooltipH = 40.0f + tooltipPad * 2.0f;
+    int tooltipX = mouseScreen.x + tooltipOffsetX;
+    int tooltipY = mouseScreen.y + tooltipOffsetY;
+    const int tooltipW = 220 + tooltipPad * 2;
+    const int tooltipH = 40 + tooltipPad * 2;
 
     if (tooltipX + tooltipW > screenSize.x) tooltipX = screenSize.x - tooltipW;
     if (tooltipY + tooltipH > screenSize.y) tooltipY = screenSize.y - tooltipH;
 
-    Rectangle tooltipRect{ tooltipX, tooltipY, tooltipW, tooltipH };
-    DrawRectangleRec(tooltipRect, Fade(DARKGRAY, 0.8f));
-    DrawRectangleLinesEx(tooltipRect, 1, Fade(BLACK, 0.8f));
+    DrawRectangle(tooltipX, tooltipY, tooltipW, tooltipH, Fade(DARKGRAY, 0.8f));
+    DrawRectangleLines(tooltipX, tooltipY, tooltipW, tooltipH, Fade(BLACK, 0.8f));
 
     int lineOffset = 0;
     DrawTextFont(font, TextFormat("tilePos : %d, %d", mouseTileX, mouseTileY),
@@ -546,26 +545,27 @@ int UI::Menu(const Font &font, bool &escape, bool &exiting, const char **items, 
 
     int itemPressed = -1;
 
-    Vector2 menuPos{};
-    Vector2 menuSize{};
-    Vector2 menuPad{ 60.0f, 40.0f };
-    const float menuSpacingY = 20.0f;
-    const float hitboxPadY = 4.0f;
+    Vector2i menuPos{};
+    Vector2i menuSize{};
+    Vector2i menuPad{ 60, 40 };
+    const int menuSpacingY = 20;
+    const int hitboxPadY = 4;
 
     struct MenuItem {
         const char *text;
-        Vector2 size;
-        Vector2 offset;  // offset itemX from center line and itemY from top
+        Vector2i size;
+        Vector2i offset;  // offset itemX from center line and itemY from top
     } menuItems[UI_MENU_ITEMS_MAX]{};
     assert(itemCount < ARRAY_SIZE(menuItems));
 
-    Vector2 cursor{};
+    Vector2i cursor{};
     cursor.y = menuPad.y;
     menuSize.y += menuPad.y;
     for (int i = 0; i < itemCount; i++) {
         menuItems[i].text = items[i];
-        menuItems[i].size = MeasureTextEx(font, menuItems[i].text, (float)font.baseSize, font.baseSize/10.0f);
-        menuItems[i].offset.x = -menuItems[i].size.x / 2.0f;
+        const Vector2 measure = MeasureTextEx(font, menuItems[i].text, (float)font.baseSize, font.baseSize / 10.0f);
+        menuItems[i].size = { (int)measure.x, (int)measure.y };
+        menuItems[i].offset.x = -menuItems[i].size.x / 2;
         menuItems[i].offset.y = cursor.y;
         cursor.y += menuItems[i].size.y + menuSpacingY;
         menuSize.x = MAX(menuSize.x, menuItems[i].size.x + menuPad.x * 2);
@@ -574,19 +574,18 @@ int UI::Menu(const Font &font, bool &escape, bool &exiting, const char **items, 
     cursor.y += menuPad.y;
     menuSize.y = cursor.y;
 
-    menuPos.x = (screenSize.x - menuSize.x) / 2.0f;
-    menuPos.y = (screenSize.y - menuSize.y) / 2.0f;
+    menuPos.x = (screenSize.x - menuSize.x) / 2;
+    menuPos.y = (screenSize.y - menuSize.y) / 2;
 
-    Rectangle menuRect{ menuPos.x, menuPos.y, menuSize.x, menuSize.y };
-    DrawRectangleRec(menuRect, { 130, 170, 240, 255 }); // Fade(BLACK, 0.7f));
-    DrawRectangleLinesEx(menuRect, 2.0f, BLACK);
-    const float menuCenterX = menuPos.x + menuSize.x / 2.0f;
+    DrawRectangle(menuPos.x, menuPos.y, menuSize.x, menuSize.y, { 130, 170, 240, 255 }); // Fade(BLACK, 0.7f));
+    DrawRectangleLinesEx({ (float)menuPos.x, (float)menuPos.y, (float)menuSize.x, (float)menuSize.y }, 2.0f, BLACK);
+    const int menuCenterX = menuPos.x + menuSize.x / 2;
     for (int i = 0; i < ARRAY_SIZE(menuItems); i++) {
-        Vector2 itemPos{};
+        Vector2i itemPos{};
         //itemPos.x = menuCenterX + menuItems[i].offset.x;
         itemPos.x = menuPos.x + menuPad.x;
         itemPos.y = menuPos.y + menuItems[i].offset.y;
-        Rectangle hitbox{ menuPos.x + menuPad.x, itemPos.y - hitboxPadY, menuSize.x - menuPad.x * 2, menuItems[i].size.y + hitboxPadY * 2 };
+        Recti hitbox{ menuPos.x + menuPad.x, itemPos.y - hitboxPadY, menuSize.x - menuPad.x * 2, menuItems[i].size.y + hitboxPadY * 2 };
         bool hovered = PointInRect(mouseScreen, hitbox);
         bool pressed = hovered && IsMouseButtonDown(MOUSE_LEFT_BUTTON);
         if (pressed) {

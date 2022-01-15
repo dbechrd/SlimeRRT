@@ -14,11 +14,11 @@ void Player::Init(const SpriteDef *spriteDef)
     assert(!sprite.spriteDef);
     printf("Init player\n");
 
-    combat.hitPoints = 100.0f;
-    combat.hitPointsMax = 100.0f;
-    combat.meleeDamage = 1.0f;
+    combat.hitPoints = 100;
+    combat.hitPointsMax = 100;
+    combat.meleeDamage = 1;
 
-    sprite.scale = 1.0f;
+    sprite.scale = 1;
     sprite.spriteDef = spriteDef;
 
     // TODO: Load selected slot from save file / server
@@ -40,13 +40,13 @@ void Player::SetName(const char *playerName, uint32_t playerNameLength)
     memcpy(name, playerName, nameLength);
 }
 
-Vector3 Player::GetAttachPoint(AttachPoint attachPoint) const
+Vector3i Player::GetAttachPoint(AttachPoint attachPoint) const
 {
-    Vector3 attach = {};
+    Vector3i attach = {};
     switch (attachPoint) {
         case AttachPoint::Gut: {
-            Vector3 playerC = sprite_world_center(sprite, body.position, sprite.scale);
-            attach = v3_add(playerC, { 0.0f, 0.0f, -10.0f });
+            Vector3i playerC = sprite_world_center(sprite, body.position, sprite.scale);
+            attach = v3_add(playerC, { 0, 0, -10 });
             break;
         } default: {
             assert(!"That's not a valid attachment point identifier");
@@ -62,7 +62,7 @@ const ItemStack &Player::GetSelectedItem() const
     return selectedStack;
 }
 
-void Player::UpdateDirection(Vector2 offset)
+void Player::UpdateDirection(Vector3i offset)
 {
     // NOTE: Branching could be removed by putting the sprites in a more logical order.. doesn't matter if this
     // only applies to players since there would be so few.
@@ -95,9 +95,9 @@ void Player::UpdateDirection(Vector2 offset)
     }
 }
 
-bool Player::Move(Vector2 offset)
+bool Player::Move(Vector3i offset)
 {
-    if (v2_is_zero(offset))
+    if (v3_is_zero(offset))
         return false;
 
     // Don't allow player to move if they're not touching the ground (currently no jump/fall, so just assert)
@@ -107,8 +107,8 @@ bool Player::Move(Vector2 offset)
     body.position.y += offset.y;
     UpdateDirection(offset);
 
-    const float pixelsMoved = v2_length(offset);
-    const float metersMoved = PIXELS_TO_METERS(pixelsMoved);
+    const int pixelsMoved = v3_length(offset);
+    const int metersMoved = PIXELS_TO_METERS(pixelsMoved);
     stats.kmWalked += metersMoved / 1000.0f;
     return true;
 }
@@ -147,25 +147,25 @@ void Player::Update(double dt, InputSample &input, const Tilemap &map)
         inventory.selectedSlot = (PlayerInventorySlot)input.selectSlot;
     }
 
-    float playerSpeed = 4.0f;
-    Vector2 move{};
+    int playerSpeed = 4;
+    Vector3i move{};
 
     if (input.walkNorth || input.walkEast || input.walkSouth || input.walkWest) {
         if (input.walkNorth) {
-            move.y -= 1.0f;
+            move.y -= 1;
         }
         if (input.walkEast) {
-            move.x += 1.0f;
+            move.x += 1;
         }
         if (input.walkSouth) {
-            move.y += 1.0f;
+            move.y += 1;
         }
         if (input.walkWest) {
-            move.x -= 1.0f;
+            move.x -= 1;
         }
         if (input.run) {
             moveState = Player::MoveState::Running;
-            playerSpeed += 2.0f;
+            playerSpeed += 2;
         } else {
             moveState = Player::MoveState::Walking;
         }
@@ -173,19 +173,19 @@ void Player::Update(double dt, InputSample &input, const Tilemap &map)
         moveState = Player::MoveState::Idle;
     }
 
-    Vector2 moveOffset = v2_scale(v2_normalize(move), METERS_TO_PIXELS(playerSpeed) * (float)dt);
-    moveBuffer = v2_add(moveBuffer, moveOffset);
+    Vector3i moveOffset = v3_scale(v3_normalize(move), (int)(METERS_TO_PIXELS(playerSpeed) * dt));
+    moveBuffer = v3_add(moveBuffer, moveOffset);
 
     if (!input.skipFx && input.attack && Attack()) {
         Catalog::g_sounds.Play(Catalog::SoundID::Whoosh, 1.0f + dlb_rand32f_variance(0.1f));
     }
 
-    if (!v2_is_zero(moveBuffer)) {
-        const Vector2 curPos = body.GroundPosition();
+    if (!v3_is_zero(moveBuffer)) {
+        const Vector3i curPos = body.GroundPosition();
         const Tile *curTile = map.TileAtWorldTry(curPos.x, curPos.y, 0, 0);
         const bool curWalkable = curTile && curTile->IsWalkable();
 
-        Vector2 newPos = v2_add(curPos, moveBuffer);
+        Vector3i newPos = v3_add(curPos, moveBuffer);
         Tile *newTile = map.TileAtWorldTry(newPos.x, newPos.y, 0, 0);
 
         // NOTE: This extra logic allows the player to slide when attempting to move diagonally against a wall
@@ -208,19 +208,19 @@ void Player::Update(double dt, InputSample &input, const Tilemap &map)
                     newTile = map.TileAtWorldTry(newPos.x, newPos.y, 0, 0);
                     if (!newTile || !newTile->IsWalkable()) {
                         // XY, and both slide directions are all unwalkable
-                        moveBuffer.x = 0.0f;
-                        moveBuffer.y = 0.0f;
+                        moveBuffer.x = 0;
+                        moveBuffer.y = 0;
 
                         // TODO: Play wall bonk sound (or splash for water? heh)
                         // TODO: Maybe bounce the player against the wall? This code doesn't do that nicely..
                         //player_move(&charlie, v2_scale(v2_negate(moveBuffer), 10.0f));
                     } else {
                         // Y offset is walkable
-                        moveBuffer.x = 0.0f;
+                        moveBuffer.x = 0;
                     }
                 } else {
                     // X offset is walkable
-                    moveBuffer.y = 0.0f;
+                    moveBuffer.y = 0;
                 }
             }
         }
@@ -228,8 +228,8 @@ void Player::Update(double dt, InputSample &input, const Tilemap &map)
         if (Move(moveBuffer)) {
             static double lastFootstep = 0;
             double timeSinceLastFootstep = glfwGetTime() - lastFootstep;
-            float distanceMoved = v2_length(moveBuffer);
-            if (!input.skipFx && timeSinceLastFootstep > 1.0f / distanceMoved) {
+            int distanceMoved = v3_length(moveBuffer);
+            if (!input.skipFx && (timeSinceLastFootstep > 1.0f / distanceMoved)) {
                 Catalog::g_sounds.Play(Catalog::SoundID::Footstep, 1.0f + dlb_rand32f_variance(0.5f));
                 lastFootstep = glfwGetTime();
             }
@@ -311,12 +311,12 @@ void Player::Update(double dt, InputSample &input, const Tilemap &map)
     input.skipFx = true;
 }
 
-float Player::Depth(void) const
+int Player::Depth(void) const
 {
     return body.position.y;
 }
 
-bool Player::Cull(const Rectangle &cullRect) const
+bool Player::Cull(const Recti &cullRect) const
 {
     bool cull = sprite_cull_body(sprite, body, cullRect);
     return cull;
@@ -328,8 +328,8 @@ void Player::Draw(void) const
     // TODO: Shadow size based on height from ground
     // https://yal.cc/top-down-bouncing-loot-effects/
     //const float shadowScale = 1.0f + slime->transform.position.z / 20.0f;
-    const Vector2 playerGroundPos = body.GroundPosition();
-    Shadow::Draw((int)playerGroundPos.x, (int)playerGroundPos.y, 16.0f, -6.0f);
+    const Vector3i playerGroundPos = body.GroundPosition();
+    Shadow::Draw(playerGroundPos.x, playerGroundPos.y, 16, -6);
 
     sprite_draw_body(sprite, body, WHITE);
     HealthBar::Draw(10, sprite, body, name, combat.hitPoints, combat.hitPointsMax);

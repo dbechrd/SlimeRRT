@@ -25,6 +25,7 @@ struct BitStream {
     void Process       (uint32_t &word, uint8_t bits, uint32_t min, uint32_t max);
     void ProcessBool   (bool &flag);
     void ProcessChar   (char &chr);
+    void ProcessInt    (int &i);
     void ProcessFloat  (float &flt);
     void ProcessDouble (double &dbl);
 
@@ -42,5 +43,5 @@ private:
     size_t    wordIndex     {};  // index of next word in `buffer`
     void     *buffer        {};  // buffer we're writing to / reading from
     size_t    bufferBits    {};  // size of packet in bytes * 8
-    size_t    bitsProcessed {};  // number of bits we've read/written so far  
+    size_t    bitsProcessed {};  // number of bits we've read/written so far
 };

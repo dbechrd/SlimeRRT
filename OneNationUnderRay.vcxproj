@@ -15,6 +15,7 @@
     <ClCompile Include="src\jail_enet.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\jail_win32_console.cpp" />
+    <ClCompile Include="src\maths.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

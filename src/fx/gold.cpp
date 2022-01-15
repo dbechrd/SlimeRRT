@@ -13,10 +13,11 @@ namespace FX {
         assert(particle.dieAt > particle.spawnAt);
 
     #if 1
-        float randX = dlb_rand32f_variance(METERS_TO_PIXELS(1.0f));
-        float randY = dlb_rand32f_variance(METERS_TO_PIXELS(1.0f));
-        float randZ = dlb_rand32f_range(0.0f, METERS_TO_PIXELS(4.0f));
-        particle.body.velocity = { randX, randY, randZ };
+        Vector3i randVel {};
+        randVel.x = (int)dlb_rand32f_variance(METERS_TO_PIXELS(1.0f));
+        randVel.y = (int)dlb_rand32f_variance(METERS_TO_PIXELS(1.0f));
+        randVel.z = (int)dlb_rand32f_range(0.0f, METERS_TO_PIXELS(4.0f));
+        particle.body.velocity = randVel;
         particle.body.restitution = 0.8f;
         particle.body.friction = 0.5f;
     #else
@@ -26,7 +27,7 @@ namespace FX {
     #endif
         //particle.position = (Vector2){ 0.0f, 0.0f };
         particle.color = WHITE;
-        particle.sprite.scale = 1.0f;
+        particle.sprite.scale = 1;
 
         static const SpriteDef *coinSpriteDef{};
         if (!coinSpriteDef) {

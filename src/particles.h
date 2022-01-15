@@ -16,9 +16,9 @@ struct Particle : Drawable {
     double          spawnAt {};  // time to spawn (relative to effect->startedAt)
     double          dieAt   {};  // time to die   (relative to effect->startedAt)
 
-    float Depth(void) const;
-    bool  Cull(const Rectangle& cullRect) const;
-    void  Draw(void) const;
+    int  Depth(void) const;
+    bool Cull(const Recti& cullRect) const;
+    void Draw(void) const;
 };
 
 //-----------------------------------------------------------------------------
@@ -39,7 +39,7 @@ struct ParticleEffectEvent_Callback {
 struct ParticleEffect {
     Catalog::ParticleEffectID id   {};  // type of particle effect
     size_t           particlesLeft {};  // number of particles that are pending or alive (i.e. not dead)
-    Vector3          origin        {};  // origin of particle effect
+    Vector3i         origin        {};  // origin of particle effect
     double           duration      {};  // time to play effect for
     double           startedAt     {};  // time started
     Sprite           sprite        {};  // sprite to be used for all particles.. for now
@@ -60,7 +60,7 @@ struct ParticleSystem {
     size_t ParticlesActive (void);
     size_t EffectsActive   (void);
 
-    ParticleEffect *GenerateEffect(Catalog::ParticleEffectID id, size_t particleCount, Vector3 origin, double duration);
+    ParticleEffect *GenerateEffect(Catalog::ParticleEffectID id, size_t particleCount, Vector3i origin, double duration);
     void Update  (double dt);
     void PushAll (DrawList &drawList);
 

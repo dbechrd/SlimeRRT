@@ -37,7 +37,7 @@ struct World {
 
     World  (void);
     ~World (void);
-    const Vector3 GetWorldSpawn (void);
+    const Vector3i GetWorldSpawn (void);
 
     ////////////////////////////////////////////
     // vvv DO NOT HOLD A POINTER TO THESE! vvv
@@ -52,16 +52,15 @@ struct World {
     Slime  *FindSlime     (uint32_t slimeId);
     void    DespawnSlime  (uint32_t slimeId);
 
-    Player *FindClosestPlayer(Vector2 worldPos, float maxDist);
+    Player *FindClosestPlayer(const Vector3i &worldPos, float maxDist);
     //
     // ^^^ DO NOT HOLD A POINTER TO THESE! ^^^
     ////////////////////////////////////////////
 
     void Simulate(double dt);
-    void GenerateSnapshot(WorldSnapshot &worldSnapshot);
     void Interpolate(double renderAt);
 
-    void EnableCulling(Rectangle cullRect);
+    void EnableCulling(Recti &cullRect);
     size_t DrawMap(int zoomMipLevel);
     void DrawItems(void);
     void DrawEntities(void);

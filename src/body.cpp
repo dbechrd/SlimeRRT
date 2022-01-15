@@ -9,16 +9,16 @@
 #define VELOCITY_EPSILON 0.001f
 #define IDLE_THRESHOLD_SECONDS 6.0
 
-Vector2 Body3D::BottomCenter() const
+Vector3i Body3D::BottomCenter() const
 {
-    Vector2 result = GroundPosition();
+    Vector3i result = GroundPosition();
     result.y -= position.z;
     return result;
 }
 
-Vector2 Body3D::GroundPosition() const
+Vector3i Body3D::GroundPosition() const
 {
-    Vector2 groundPosition = { position.x, position.y };
+    Vector3i groundPosition = { position.x, position.y, 0 };
     return groundPosition;
 }
 
@@ -44,40 +44,34 @@ void Body3D::Update(double dt)
 
     // Simulate physics if body not resting
     if (!Resting()) {
-        const float gravity = METERS_TO_PIXELS(10.0f);
-        velocity.z -= gravity * (float)dt; // * drag_coef;
+        const int gravity = METERS_TO_PIXELS(10);
+        velocity.z -= (int)(gravity * dt); // * drag_coef;
 
-        position.x += velocity.x * (float)dt;
-        position.y += velocity.y * (float)dt;
-        position.z += velocity.z * (float)dt;
+        position.x += (int)(velocity.x * dt);
+        position.y += (int)(velocity.y * dt);
+        position.z += (int)(velocity.z * dt);
 
         bounced = position.z <= 0.0f;
 
         float friction_coef = 1.0f;
         if (position.z <= 0.0f) {
             // Bounce
-            velocity.z *= -restitution;
-            position.z *= -restitution;
+            velocity.z = (int)(velocity.z * -restitution);
+            position.z = (int)(position.z * -restitution);
 
             // Apply friction
             // TODO: Account for dt in friction?
             friction_coef = 1.0f - CLAMP(friction, 0.0f, 1.0f);
-            velocity.x *= friction_coef;
-            velocity.y *= friction_coef;
+            velocity.x = (int)(velocity.x * friction_coef);
+            velocity.y = (int)(velocity.y * friction_coef);
         }
-
-        // TODO: Epsilon could be defined per drawThing? Idk if that's useful enough to be worth it
-        // Clamp tiny velocities to zero
-        if (fabsf(velocity.x) < VELOCITY_EPSILON) velocity.x = 0.0f;
-        if (fabsf(velocity.y) < VELOCITY_EPSILON) velocity.y = 0.0f;
-        if (fabsf(velocity.z) < VELOCITY_EPSILON) velocity.z = 0.0f;
     }
 
     // NOTE: Position can be updated manually outside of physics sim (e.g. player Move() controller)
     if (!v3_equal(position, prevPosition)) {
         lastMoved = glfwGetTime();
     }
-    landed = (prevPosition.z > 0.0f && position.z == 0.0f);
+    landed = (prevPosition.z > 0 && position.z == 0);
     bounced = bounced && !v3_is_zero(velocity);
 
     const double timeSinceLastMove = glfwGetTime() - lastMoved;

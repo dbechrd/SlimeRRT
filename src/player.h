@@ -56,7 +56,7 @@ struct Player : Drawable {
     char            name        [USERNAME_LENGTH_MAX]{};
     MoveState       moveState   {};
     ActionState     actionState {};
-    Vector2         moveBuffer  {};
+    Vector3i        moveBuffer  {};
     Body3D          body        {};
     Combat          combat      {};
     Sprite          sprite      {};
@@ -65,16 +65,16 @@ struct Player : Drawable {
 
     void Init(const SpriteDef *spriteDef);
     void SetName(const char *name, uint32_t nameLength);
-    Vector3 GetAttachPoint(AttachPoint attachPoint) const;
+    Vector3i GetAttachPoint(AttachPoint attachPoint) const;
     const ItemStack& GetSelectedItem() const;
     void Update (double dt, InputSample &input, const Tilemap &map);
 
-    float Depth(void) const;
-    bool  Cull(const Rectangle& cullRect) const;
-    void  Draw(void) const;
+    int  Depth(void) const;
+    bool Cull(const Recti& cullRect) const;
+    void Draw(void) const;
 
 private:
-    void UpdateDirection (Vector2 offset);
-    bool Move            (Vector2 offset);
+    void UpdateDirection (Vector3i offset);
+    bool Move            (Vector3i offset);
     bool Attack          (void);
 };

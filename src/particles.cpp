@@ -52,7 +52,7 @@ Particle *ParticleSystem::Alloc(void)
     return particle;
 }
 
-ParticleEffect *ParticleSystem::GenerateEffect(Catalog::ParticleEffectID type, size_t particleCount, Vector3 origin, double duration)
+ParticleEffect *ParticleSystem::GenerateEffect(Catalog::ParticleEffectID type, size_t particleCount, Vector3i origin, double duration)
 {
     assert((size_t)type > 0);
     assert((size_t)type < (size_t)Catalog::ParticleEffectID::Count);
@@ -204,21 +204,21 @@ void ParticleSystem::PushAll(DrawList &drawList)
     }
 }
 
-float Particle::Depth(void) const
+int Particle::Depth(void) const
 {
-    const float depth = body.position.y;
+    const int depth = body.position.y;
     return depth;
 }
 
-bool Particle::Cull(const Rectangle &cullRect) const
+bool Particle::Cull(const Recti &cullRect) const
 {
     bool cull = false;
 
     if (sprite.spriteDef) {
         cull = sprite_cull_body(sprite, body, cullRect);
     } else {
-        const Vector2 bodyBC = body.BottomCenter();
-        cull = !CheckCollisionCircleRec(bodyBC, sprite.scale, cullRect);
+        const Vector3i bodyBC = body.BottomCenter();
+        cull = !CheckCollisionCircleRecti({ bodyBC.x, bodyBC.y }, sprite.scale, cullRect);
     }
 
     return cull;
@@ -230,9 +230,9 @@ void Particle::Draw(void) const
         sprite_draw_body(sprite, body, color);
     } else {
         DrawCircle(
-            (int)body.position.x,
-            (int)(body.position.y - body.position.z),
-            sprite.scale,
+            body.position.x,
+            body.position.y - body.position.z,
+            (float)sprite.scale,
             color
         );
     }

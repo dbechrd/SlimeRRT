@@ -60,7 +60,7 @@ void ChatHistory::PushMessage(NetMessage_ChatMessage::Source source, uint32_t id
     memcpy(chat.message, message, chat.messageLength);
 }
 
-void ChatHistory::Render(const Font &font, World &world, float left, float bottom, float chatWidth, bool chatActive)
+void ChatHistory::Render(const Font &font, World &world, int left, int bottom, int chatWidth, bool chatActive)
 {
     double now = glfwGetTime();
     const float fadeBeginAt = 9.0f;
@@ -71,23 +71,23 @@ void ChatHistory::Render(const Font &font, World &world, float left, float botto
         return;
     }
 
-    const float pad = 4.0f;
-    const float chatHeight = (int)chatMsgCount * (font.baseSize + pad) + pad;
+    const int pad = 4;
+    const int chatHeight = chatMsgCount * (font.baseSize + pad) + pad;
     const Color chatBgColor = Fade(BLACK, 0.5f);
     const float chatBgAlpha = chatBgColor.a / 255.0f;
 
     // NOTE: The chat history renders from the bottom up (most recent message first)
-    float cursorY = bottom - pad - font.baseSize;
+    int cursorY = bottom - pad - font.baseSize;
     bool bottomLine = true;
 
     if (chatActive) {
         //DrawRectangleRec(rect, Fade(DARKGRAY, 0.8f));
         //DrawRectangleLinesEx(rect, 1, Fade(BLACK, 0.8f));
-        DrawRectangle((int)left, (int)(bottom - chatHeight), (int)chatWidth, (int)chatHeight, chatBgColor);
-        DrawRectangleLines((int)left, (int)(bottom - chatHeight), (int)chatWidth, (int)chatHeight, Fade(BLACK, 0.5f));
+        DrawRectangle(left, (bottom - chatHeight), chatWidth, chatHeight, chatBgColor);
+        DrawRectangleLines(left, (bottom - chatHeight), chatWidth, chatHeight, Fade(BLACK, 0.5f));
     }
 
-    for (int i = (int)chatMsgCount - 1; i >= 0; i--) {
+    for (int i = chatMsgCount - 1; i >= 0; i--) {
         const NetMessage_ChatMessage &chatMsg = buffer.At(i);
         assert(chatMsg.messageLength);
 
@@ -123,10 +123,10 @@ void ChatHistory::Render(const Font &font, World &world, float left, float botto
 
         if (!chatActive) {
             if (bottomLine) {
-                DrawRectangle((int)left, (int)(bottom - pad), (int)chatWidth, (int)pad, Fade(chatBgColor, chatBgAlpha * fadeAlpha));
+                DrawRectangle(left, (bottom - pad), chatWidth, pad, Fade(chatBgColor, chatBgAlpha * fadeAlpha));
                 bottomLine = false;
             }
-            DrawRectangleRec({ left, cursorY - pad, chatWidth, font.baseSize + pad }, Fade(chatBgColor, chatBgAlpha * fadeAlpha));
+            DrawRectangle(left, cursorY - pad, chatWidth, font.baseSize + pad, Fade(chatBgColor, chatBgAlpha * fadeAlpha));
         }
         DrawTextFont(font, chatText, left + pad, cursorY, font.baseSize, Fade(chatColor, fadeAlpha));
         cursorY -= font.baseSize + pad;

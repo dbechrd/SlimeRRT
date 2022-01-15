@@ -150,11 +150,11 @@ struct NetMessage_NearbyEvent {
         bool      tookDamage   {};  // [rel] took damage (health change)
         bool      healed       {};  // [rel] healed      (health change)
         // if moved
-        Vector3   position     {};
+        Vector3i  position     {};
         Direction direction    {};
         // if took damage
-        float     hitPoints    {};
-        float     hitPointsMax {};
+        int       hitPoints    {};
+        int       hitPointsMax {};
     };
 
     struct EnemyState {
@@ -166,11 +166,11 @@ struct NetMessage_NearbyEvent {
         bool      tookDamage   {};
         bool      healed       {};
         // if moved
-        Vector3   position     {};
+        Vector3i  position     {};
         Direction direction    {};
         // if took damage
-        float     hitPoints    {};
-        float     hitPointsMax {};
+        int       hitPoints    {};
+        int       hitPointsMax {};
     };
 
     struct ItemState {
@@ -179,7 +179,7 @@ struct NetMessage_NearbyEvent {
         bool     spawned {};
         bool     moved   {};
         // if moved
-        Vector3  position {};
+        Vector3i position {};
     };
 
     Type type = Type::Unknown;

@@ -9,7 +9,7 @@
 #include <cassert>
 #include "particles.h"
 
-#define SLIME_MAX_SCALE 3.0f
+#define SLIME_MAX_SCALE 3
 
 void Slime::Init(void)
 {
@@ -19,16 +19,16 @@ void Slime::Init(void)
     body.drag = 0.95f;
     body.friction = 0.95f;
 
-    sprite.scale = 1.0f;
+    sprite.scale = 1;
     const Spritesheet &spritesheet = Catalog::g_spritesheets.FindById(Catalog::SpritesheetID::Slime);
     const SpriteDef *spriteDef = spritesheet.FindSprite("slime");
     if (spriteDef) {
         sprite.spriteDef = spriteDef;
     }
 
-    combat.hitPointsMax = 30.0f;
+    combat.hitPointsMax = 30;
     combat.hitPoints = combat.hitPointsMax;
-    combat.meleeDamage = 3.0f;
+    combat.meleeDamage = 3;
     combat.lootTableId = LootTableID::LT_Slime;
     randJumpIdle = 0.0;
 }
@@ -39,7 +39,7 @@ void Slime::SetName(const char *slimeName, uint32_t slimeNameLength)
     memcpy(name, slimeName, nameLength);
 }
 
-void Slime::UpdateDirection(Vector2 offset)
+void Slime::UpdateDirection(Vector3i &offset)
 {
     Direction prevDirection = sprite.direction;
     if (offset.x > 0.0f) {
@@ -70,7 +70,7 @@ void Slime::UpdateDirection(Vector2 offset)
     }
 }
 
-bool Slime::Move(double dt, Vector2 offset)
+bool Slime::Move(double dt, Vector3i offset)
 {
     UNUSED(dt);  // todo: use dt
 
@@ -79,7 +79,7 @@ bool Slime::Move(double dt, Vector2 offset)
     }
 
     moveState = MoveState::Idle;
-    if (v2_is_zero(offset)) {
+    if (v3_is_zero(offset)) {
         return false;
     }
 
@@ -89,7 +89,7 @@ bool Slime::Move(double dt, Vector2 offset)
         moveState = MoveState::Jump;
         body.velocity.x += offset.x;
         body.velocity.y += offset.y;
-        body.velocity.z += METERS_TO_PIXELS(3.0f);
+        body.velocity.z += METERS_TO_PIXELS(3);
         randJumpIdle = (double)dlb_rand32f_range(1.0f, 2.5f) / sprite.scale;
         UpdateDirection(offset);
         return true;
@@ -111,20 +111,20 @@ bool Slime::Combine(Slime &other)
     }
 
     // Limit max scale
-    float newScale = a->sprite.scale + 0.5f * b->sprite.scale;
+    int newScale = a->sprite.scale + (b->sprite.scale / 2);
     if (newScale > SLIME_MAX_SCALE) {
         return false;
     }
 
     // Combine slime B's attributes into slime A
     a->sprite.scale        = newScale;
-    a->combat.hitPoints    = a->combat.hitPoints    + 0.5f * b->combat.hitPoints;
-    a->combat.hitPointsMax = a->combat.hitPointsMax + 0.5f * b->combat.hitPointsMax;
+    a->combat.hitPoints    = a->combat.hitPoints    + (b->combat.hitPoints / 2);
+    a->combat.hitPointsMax = a->combat.hitPointsMax + (b->combat.hitPointsMax / 2);
     //Vector3 halfAToB = v3_scale(v3_sub(b->body.position, a->body.position), 0.5f);
     //a->body.position = v3_add(a->body.position, halfAToB);
 
     // Kill slime B
-    b->combat.hitPoints = 0.0f;
+    b->combat.hitPoints = 0;
     return true;
 }
 
@@ -177,12 +177,12 @@ void Slime::Update(double dt)
     sprite_update(sprite, dt);
 }
 
-float Slime::Depth(void) const
+int Slime::Depth(void) const
 {
     return body.position.y;
 }
 
-bool Slime::Cull(const Rectangle &cullRect) const
+bool Slime::Cull(const Recti &cullRect) const
 {
     bool cull = sprite_cull_body(sprite, body, cullRect);
     return cull;
@@ -194,8 +194,8 @@ void Slime::Draw(void) const
     // TODO: Shadow size based on height from ground
     // https://yal.cc/top-down-bouncing-loot-effects/
     //const float shadowScale = 1.0f + transform.position.z / 20.0f;
-    const Vector2 slimeBC = body.GroundPosition();
-    Shadow::Draw((int)slimeBC.x, (int)slimeBC.y, 16.0f * sprite.scale, -8.0f * sprite.scale);
+    const Vector3i slimeBC = body.GroundPosition();
+    Shadow::Draw(slimeBC.x, slimeBC.y, 16 * sprite.scale, -8 * sprite.scale);
 
     sprite_draw_body(sprite, body, Fade(WHITE, 0.7f));
     HealthBar::Draw(10, sprite, body, name, combat.hitPoints, combat.hitPointsMax);

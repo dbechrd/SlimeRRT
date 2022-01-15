@@ -13,7 +13,7 @@ namespace FX {
         assert(particle.dieAt > particle.spawnAt);
 
     #if 1
-        particle.body.position.z = METERS_TO_PIXELS(1.0f);
+        particle.body.position.z = METERS_TO_PIXELS(1);
         particle.body.restitution = 0.2f;
         particle.body.friction = 0.1f;
     #else
@@ -23,7 +23,7 @@ namespace FX {
     #endif
         //particle.position = (Vector2){ 0.0f, 0.0f };
         particle.color = WHITE;
-        particle.sprite.scale = 2.0f;
+        particle.sprite.scale = 2;
 
         const Spritesheet &itemSpritesheet = Catalog::g_spritesheets.FindById(Catalog::SpritesheetID::Items);
         particle.sprite.spriteDef = itemSpritesheet.FindSprite("item_golden_chest");

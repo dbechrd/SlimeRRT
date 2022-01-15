@@ -43,45 +43,45 @@ const SpriteFrame &sprite_frame(const Sprite &sprite)
     return frame;
 }
 
-Rectangle sprite_frame_rect(const Sprite &sprite)
+Recti sprite_frame_rect(const Sprite &sprite)
 {
     const SpriteFrame &frame = sprite_frame(sprite);
-    Rectangle rect = {};
-    rect.x = (float)frame.x;
-    rect.y = (float)frame.y;
-    rect.width = (float)frame.width;
-    rect.height = (float)frame.height;
+    Recti rect{};
+    rect.x = frame.x;
+    rect.y = frame.y;
+    rect.width  = frame.width;
+    rect.height = frame.height;
     return rect;
 }
 
-Rectangle sprite_world_rect(const Sprite &sprite, Vector3 position, float scale)
+Recti sprite_world_rect(const Sprite &sprite, const Vector3i &position, int scale)
 {
-    Rectangle frameRect = sprite_frame_rect(sprite);
-    Rectangle rect = {};
-    rect.x = position.x - frameRect.width / 2.0f * scale;
+    Recti frameRect = sprite_frame_rect(sprite);
+    Recti rect = {};
+    rect.x = position.x - frameRect.width / 2 * scale;
     rect.y = position.y - frameRect.height * scale - position.z;
     rect.width = frameRect.width * scale;
     rect.height = frameRect.height * scale;
     return rect;
 }
 
-Vector3 sprite_world_top_center(const Sprite &sprite, Vector3 position, float scale)
+Vector3i sprite_world_top_center(const Sprite &sprite, const Vector3i &position, int scale)
 {
-    Rectangle frameRect = sprite_frame_rect(sprite);
-    Vector3 center = {};
+    Recti frameRect = sprite_frame_rect(sprite);
+    Vector3i center = {};
     center.x = position.x;
     center.y = position.y;
     center.z = position.z + frameRect.height * scale;
     return center;
 }
 
-Vector3 sprite_world_center(const Sprite &sprite, Vector3 position, float scale)
+Vector3i sprite_world_center(const Sprite &sprite, const Vector3i &position, int scale)
 {
-    Rectangle frameRect = sprite_frame_rect(sprite);
-    Vector3 center = {};
+    Recti frameRect = sprite_frame_rect(sprite);
+    Vector3i center = {};
     center.x = position.x;
     center.y = position.y;
-    center.z = position.z + frameRect.height / 2.0f * scale;
+    center.z = position.z + frameRect.height / 2 * scale;
     return center;
 }
 
@@ -105,33 +105,35 @@ void sprite_update(Sprite &sprite, double dt)
     }
 }
 
-bool sprite_cull_body(const Sprite &sprite, const Body3D &body, Rectangle cullRect)
+bool sprite_cull_body(const Sprite &sprite, const Body3D &body, const Recti &cullRect)
 {
-    const Rectangle bodyRect = sprite_world_rect(sprite, body.position, sprite.scale);
-    bool cull = !CheckCollisionRecs(bodyRect, cullRect);
+    const Recti bodyRect = sprite_world_rect(sprite, body.position, sprite.scale);
+    bool cull = !CheckCollisionRecti(bodyRect, cullRect);
     return cull;
 }
 
-static void sprite_draw(const Sprite &sprite, Rectangle dest, Color color)
+static void sprite_draw(const Sprite &sprite, const Recti &dest, Color color)
 {
 #if DEMO_BODY_RECT
-    // DEBUG: Draw collision rectangle
+    // DEBUG: Draw collision Recti
     DrawRectangleRec(dest, Fade(RED, 0.2f));
 #endif
 
     if (sprite.spriteDef) {
 #if 0
         // Funny bug where texture stays still relative to screen, could be fun to abuse later
-        const Rectangle rect = drawthing_rect(drawThing);
+        const Recti rect = drawthing_rect(drawThing);
 #else
-        const Rectangle rect = sprite_frame_rect(sprite);
+        const Recti rect = sprite_frame_rect(sprite);
 #endif
         // Draw textured sprite
-        DrawTextureTiled(sprite.spriteDef->spritesheet->texture, rect, dest, { 0.0f, 0.0f }, 0.0f,
-            sprite.scale, color);
+        const Rectangle src { (float)rect.x, (float)rect.y, (float)rect.width, (float)rect.height };
+        const Rectangle dst { (float)dest.x, (float)dest.y, (float)dest.width, (float)dest.height };
+        DrawTextureTiled(sprite.spriteDef->spritesheet->texture, src, dst, { 0.0f, 0.0f }, 0.0f,
+            (float)sprite.scale, color);
     } else {
         // Draw magenta rectangle
-        DrawRectangleRec(dest, MAGENTA);
+        DrawRectangle(dest.x, dest.y, dest.width, dest.height, MAGENTA);
     }
 
 #if DEMO_BODY_RECT
@@ -141,8 +143,8 @@ static void sprite_draw(const Sprite &sprite, Rectangle dest, Color color)
 #endif
 }
 
-void sprite_draw_body(const Sprite &sprite, const Body3D &body, Color color)
+void sprite_draw_body(const Sprite &sprite, const Body3D &body, const Color &color)
 {
-    const Rectangle bodyRect = sprite_world_rect(sprite, body.position, sprite.scale);
+    const Recti bodyRect = sprite_world_rect(sprite, body.position, sprite.scale);
     sprite_draw(sprite, bodyRect, color);
 }

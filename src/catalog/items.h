@@ -19,9 +19,9 @@ namespace Catalog {
     struct Item {
         ItemID   id         {};
         ItemType type       {};
-        uint32_t stackLimit {};
-        float    value      {};
-        float    damage     {};
+        int      stackLimit {};
+        int      value      {};
+        int      damage     {};
     };
 
     struct Items {

@@ -10,7 +10,7 @@
 // Server sends InventoryUpdate event
 // Server broadcasts ItemPickup event
 
-void ItemSystem::SpawnItem(Vector3 pos, Catalog::ItemID id, uint32_t count)
+void ItemSystem::SpawnItem(Vector3i pos, Catalog::ItemID id, uint32_t count)
 {
     ItemWorld *itemPtr = Alloc();
     if (!itemPtr) {
@@ -21,9 +21,9 @@ void ItemSystem::SpawnItem(Vector3 pos, Catalog::ItemID id, uint32_t count)
     item.stack.id = id;
     item.stack.count = count;
     item.body.position = pos;
-    float randX = dlb_rand32f_variance(METERS_TO_PIXELS(3.0f));
-    float randY = dlb_rand32f_variance(METERS_TO_PIXELS(3.0f));
-    float randZ = dlb_rand32f_range(2.0f, METERS_TO_PIXELS(4.0f));
+    int randX = (int)dlb_rand32f_variance(METERS_TO_PIXELS(3.0f));
+    int randY = (int)dlb_rand32f_variance(METERS_TO_PIXELS(3.0f));
+    int randZ = (int)dlb_rand32f_range(2.0f, METERS_TO_PIXELS(4.0f));
     item.body.velocity = { randX, randY, randZ };
     item.body.restitution = 0.8f;
     item.body.friction = 0.1f;
@@ -35,7 +35,7 @@ void ItemSystem::SpawnItem(Vector3 pos, Catalog::ItemID id, uint32_t count)
         //assert(coinSpriteDef);
     }
     item.sprite.spriteDef = coinSpriteDef;
-    item.sprite.scale = 1.0f;
+    item.sprite.scale = 1;
     item.spawnedAt = GetTime();
 }
 

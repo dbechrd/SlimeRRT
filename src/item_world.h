@@ -3,7 +3,7 @@
 #include "draw_command.h"
 #include "item_stack.h"
 
-#define ITEM_WORLD_RADIUS 10.0f
+#define ITEM_WORLD_RADIUS 10
 
 struct ItemWorld : Drawable {
     ItemStack stack     {};
@@ -13,7 +13,7 @@ struct ItemWorld : Drawable {
     bool      pickedUp  {};
     ItemWorld *next     {};
 
-    float Depth(void) const;
-    bool Cull(const Rectangle& cullRect) const;
+    int Depth(void) const;
+    bool Cull(const Recti& cullRect) const;
     void Draw(void) const;
 };

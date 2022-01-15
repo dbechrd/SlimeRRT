@@ -13,12 +13,12 @@ namespace FX {
         assert(particle.dieAt > particle.spawnAt);
 
     #if 1
-        Vector2 randXY = {};
-        randXY.x = dlb_rand32f_variance(1.0f);
-        randXY.y = dlb_rand32f_variance(1.0f);
-        randXY = v2_scale(v2_normalize(randXY), METERS_TO_PIXELS(1.0f) * dlb_rand32f_range(0.0f, 1.2f));
-        float randZ = dlb_rand32f_range(0.0f, METERS_TO_PIXELS(0.3f));
-        particle.body.velocity = { randXY.x, randXY.y, randZ };
+        Vector3i randVel = {};
+        randVel.x = (int)dlb_rand32f_variance(METERS_TO_PIXELS(1));
+        randVel.y = (int)dlb_rand32f_variance(METERS_TO_PIXELS(1));
+        randVel = v3_scale(v3_normalize(randVel), (int)(METERS_TO_PIXELS(1) * dlb_rand32f_range(0.0f, 1.2f)));
+        randVel.z = (int)dlb_rand32f_range(0.0f, METERS_TO_PIXELS(0.3f));
+        particle.body.velocity = randVel;
         particle.body.friction = 0.5f;
     #else
         const float direction = 1.0f;
@@ -27,14 +27,14 @@ namespace FX {
     #endif
         //particle.position = (Vector2){ 0.0f, 0.0f };
         particle.color = RED;
-        particle.sprite.scale = 1.0f;
+        particle.sprite.scale = 1;
     }
 
     void blood_update(Particle &particle, float alpha)
     {
-        const float radius = 5.0f;
+        const int radius = 5;
         // radius * 1.0 -> 0.2
-        particle.sprite.scale = radius * (1.0f - alpha * 0.8f);
+        particle.sprite.scale = (int)(radius * (1.0f - alpha * 0.8f));
         // 1.0 -> 0.0
         const unsigned char r = (unsigned char)((1.0f - alpha * 1.0f) * 255.0f);
         // 1.0 -> 0.6

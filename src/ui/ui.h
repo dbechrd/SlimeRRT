@@ -26,9 +26,9 @@ struct UI {
     };
 
     static void Begin(
-        Vector2 mouseScreen,
-        Vector2 mouseWorld,
-        Vector2 screenSize,
+        Vector2i mouseScreen,
+        Vector2i mouseWorld,
+        Vector2i screenSize,
         Spycam  *spycam
     ) {
         UI::mouseScreen = mouseScreen;
@@ -52,10 +52,10 @@ struct UI {
     static int Menu(const Font &font, bool &escape, bool &exiting, const char **items, size_t itemCount);
 
 private:
-    static Vector2 mouseScreen;
-    static Vector2 mouseWorld;
-    static Vector2 screenSize;
-    static Spycam  *spycam;
+    static Vector2i mouseScreen;
+    static Vector2i mouseWorld;
+    static Vector2i screenSize;
+    static Spycam   *spycam;
 
     static void CenteredText(const char *text);
 };

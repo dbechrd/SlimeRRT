@@ -11,8 +11,8 @@ enum class DrawableType {
 };
 
 struct Drawable {
-    virtual float Depth() const = 0;
-    virtual bool Cull(const Rectangle& cullRect) const = 0;
+    virtual int Depth() const = 0;
+    virtual bool Cull(const Recti &cullRect) const = 0;
     virtual void Draw() const = 0;
 };
 
@@ -21,14 +21,13 @@ struct DrawCommand {
 };
 
 struct DrawList {
-    void EnableCulling(const Rectangle &rect);  // must be enabled before calling push()
+    void EnableCulling(const Recti &rect);  // must be enabled before calling push()
     void DisableCulling();
     void Push(const Drawable &drawable);
     void Flush();
 
-    bool      cullEnabled {};
-    Rectangle cullRect    {};
+    bool  cullEnabled {};
+    Recti cullRect    {};
 private:
     std::vector<DrawCommand> sortedCommands {};
 };
-

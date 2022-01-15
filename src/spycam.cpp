@@ -1,6 +1,6 @@
 #include "spycam.h"
 
-void Spycam::Init(Vector2 offset)
+void Spycam::Init(Vector3i offset)
 {
     //cameraGoal = position;
     //camera.target = (Vector2){
@@ -8,8 +8,18 @@ void Spycam::Init(Vector2 offset)
     //    (float)tilemap.height / 2.0f * tilemap.tileset->tileHeight
     //};
     camera.offset = offset;
-    camera.rotation = 0.0f;
+    camera.rotation = 0;
     SetZoom(1.0f);
+}
+
+const Camera2D Spycam::GetCamera(void) const
+{
+    Camera2D cam{};
+    cam.offset = { (float)camera.offset.x, (float)camera.offset.y };
+    cam.target = { (float)camera.target.x, (float)camera.target.y };
+    cam.rotation = (float)camera.rotation;
+    cam.zoom = camera.zoom;
+    return cam;
 }
 
 void Spycam::SetZoom(float zoom)
@@ -40,12 +50,8 @@ void Spycam::Reset(void)
 {
     cameraSpeed = CAMERA_SPEED_DEFAULT;
     SetZoom(1.0f);
-    camera.rotation = 0.0f;
-    camera.offset = Vector2{ GetRenderWidth() / 2.0f, GetRenderHeight() / 2.0f };
-    camera.target = Vector2{ camera.target.x, camera.target.y };
-    //printf("render: %d %d\n", GetRenderWidth(), GetRenderHeight());
-    //printf("camera.offset: %f %f\n", camera.offset.x, camera.offset.y);
-    //printf("camera.target: %f %f\n", camera.target.x, camera.target.y);
+    camera.rotation = 0;
+    camera.offset = { GetRenderWidth() / 2, GetRenderHeight() / 2 };
 }
 
 void Spycam::Update(const PlayerControllerState &input)
@@ -54,7 +60,7 @@ void Spycam::Update(const PlayerControllerState &input)
     if (input.dbgToggleFreecam) freeRoam = !freeRoam;
 
     if (!freeRoam) {
-        camera.rotation = 0.0f;
+        camera.rotation = 0;
         cameraSpeed = CAMERA_SPEED_DEFAULT;
         SetZoom(1.0f);
     } else {
@@ -76,22 +82,22 @@ void Spycam::Update(const PlayerControllerState &input)
 #endif
         SetZoom(zoom);
 
-        if (input.cameraWest)  cameraGoal.x -= cameraSpeed / camera.zoom;
-        if (input.cameraEast)  cameraGoal.x += cameraSpeed / camera.zoom;
-        if (input.cameraNorth) cameraGoal.y -= cameraSpeed / camera.zoom;
-        if (input.cameraSouth) cameraGoal.y += cameraSpeed / camera.zoom;
+        if (input.cameraWest)  cameraGoal.x -= (int)(cameraSpeed / camera.zoom);
+        if (input.cameraEast)  cameraGoal.x += (int)(cameraSpeed / camera.zoom);
+        if (input.cameraNorth) cameraGoal.y -= (int)(cameraSpeed / camera.zoom);
+        if (input.cameraSouth) cameraGoal.y += (int)(cameraSpeed / camera.zoom);
         if (input.cameraRotateCW) {
-            camera.rotation += 45.0f;
-            if (camera.rotation >= 360.0f) camera.rotation -= 360.0f;
+            camera.rotation += 45;
+            if (camera.rotation >= 360) camera.rotation -= 360;
         } else if (input.cameraRotateCCW) {
-            camera.rotation -= 45.0f;
-            if (camera.rotation < 0.0f) camera.rotation += 360.0f;
+            camera.rotation -= 45;
+            if (camera.rotation < 0) camera.rotation += 360;
         }
     }
-    camera.target = v2_add(camera.target, v2_scale(v2_sub(cameraGoal, camera.target), 1.0f));
+    camera.target = v3_add(camera.target, v3_sub(cameraGoal, camera.target));
 
-    cameraRect.x = camera.target.x - camera.offset.x * invZoom;
-    cameraRect.y = camera.target.y - camera.offset.y * invZoom;
-    cameraRect.width = camera.offset.x * 2.0f * invZoom;
-    cameraRect.height = camera.offset.y * 2.0f * invZoom;
+    cameraRect.x = (int)(camera.target.x - camera.offset.x * invZoom);
+    cameraRect.y = (int)(camera.target.y - camera.offset.y * invZoom);
+    cameraRect.width  = (int)(camera.offset.x * 2 * invZoom);
+    cameraRect.height = (int)(camera.offset.y * 2 * invZoom);
 }

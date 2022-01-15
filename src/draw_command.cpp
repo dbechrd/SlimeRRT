@@ -8,7 +8,7 @@
 #include <cstring>
 #include <vector>
 
-void DrawList::EnableCulling(const Rectangle &rect)
+void DrawList::EnableCulling(const Recti &rect)
 {
     cullRect = rect;
     cullEnabled = true;
@@ -36,12 +36,12 @@ void DrawList::Push(const Drawable &drawable)
 
     size_t size = sortedCommands.size();
     sortedCommands.resize(size + 1);
-    const float depthA = drawable.Depth();
+    const int depthA = drawable.Depth();
     int j;
     // NOTE: j is signed because it terminates at -1
     for (j = (int)size - 1; j >= 0; j--) {
         assert(sortedCommands[j].drawable);
-        const float depthB = sortedCommands[j].drawable->Depth();
+        const int depthB = sortedCommands[j].drawable->Depth();
         if (depthB <= depthA) {
             break;
         }
