@@ -1,7 +1,7 @@
 #pragma once
 #include "raylib/raylib.h"
 
-#define CAMERA_SPEED_DEFAULT 5
+#define CAMERA_SPEED_DEFAULT PIXELS_TO_UNITS(5)
 
 typedef struct Camera2Di {
     Vector3i offset;  // Camera offset (displacement from target)
@@ -15,7 +15,7 @@ struct Spycam {
     const Camera2D GetCamera(void) const;
     void SetZoom(float zoom);
     void Reset(void);
-    void Update(const PlayerControllerState &input);
+    void Update(const PlayerControllerState &input, double dt);
 
     float GetZoom(void) const { return invZoom; }
     float GetInvZoom(void) const { return camera.zoom; }
@@ -23,7 +23,7 @@ struct Spycam {
     const Recti &Spycam::GetRect(void) const { return cameraRect; }
 
     Vector3i cameraGoal {};
-    float    cameraSpeed = CAMERA_SPEED_DEFAULT;
+    int      cameraSpeed = CAMERA_SPEED_DEFAULT;
     bool     freeRoam {};
 
 private:

@@ -25,8 +25,8 @@ void Player::Init(const SpriteDef *spriteDef)
     inventory.selectedSlot = PlayerInventorySlot::Slot_1;
 
     // TODO: Load inventory from save file / server
-    inventory.slots[(int)PlayerInventorySlot::Slot_1] = { Catalog::ItemID::Weapon_Sword ,  1 };
-    inventory.slots[(int)PlayerInventorySlot::Coins ] = { Catalog::ItemID::Currency_Coin,  0 };
+    inventory.slots[(int)PlayerInventorySlot::Slot_1] = { Catalog::ItemID::Weapon_Sword , 1 };
+    inventory.slots[(int)PlayerInventorySlot::Coins ] = { Catalog::ItemID::Currency_Coin, 0 };
 
     // TODO: Load stats from save file / server
     //stats.coinsCollected = 33;
@@ -67,26 +67,26 @@ void Player::UpdateDirection(Vector3i offset)
     // NOTE: Branching could be removed by putting the sprites in a more logical order.. doesn't matter if this
     // only applies to players since there would be so few.
     Direction prevDirection = sprite.direction;
-    if (offset.x > 0.0f) {
-        if (offset.y > 0.0f) {
+    if (offset.x > 0) {
+        if (offset.y > 0) {
             sprite.direction = Direction::SouthEast;
-        } else if (offset.y < 0.0f) {
+        } else if (offset.y < 0) {
             sprite.direction = Direction::NorthEast;
         } else {
             sprite.direction = Direction::East;
         }
-    } else if (offset.x < 0.0f) {
-        if (offset.y > 0.0f) {
+    } else if (offset.x < 0) {
+        if (offset.y > 0) {
             sprite.direction = Direction::SouthWest;
-        } else if (offset.y < 0.0f) {
+        } else if (offset.y < 0) {
             sprite.direction = Direction::NorthWest;
         } else {
             sprite.direction = Direction::West;
         }
     } else {
-        if (offset.y > 0.0f) {
+        if (offset.y > 0) {
             sprite.direction = Direction::South;
-        } else if (offset.y < 0.0f) {
+        } else if (offset.y < 0) {
             sprite.direction = Direction::North;
         }
     }
@@ -107,8 +107,8 @@ bool Player::Move(Vector3i offset)
     body.position.y += offset.y;
     UpdateDirection(offset);
 
-    const int pixelsMoved = v3_length(offset);
-    const int metersMoved = PIXELS_TO_METERS(pixelsMoved);
+    const int unitsMoved = v3_length(offset);
+    const int metersMoved = UNITS_TO_METERS(unitsMoved);
     stats.kmWalked += metersMoved / 1000.0f;
     return true;
 }
@@ -147,46 +147,46 @@ void Player::Update(double dt, InputSample &input, const Tilemap &map)
         inventory.selectedSlot = (PlayerInventorySlot)input.selectSlot;
     }
 
-    int playerSpeed = 4;
+    int playerSpeed = METERS_TO_UNITS(4);
     Vector3i move{};
 
     if (input.walkNorth || input.walkEast || input.walkSouth || input.walkWest) {
-        if (input.walkNorth) {
-            move.y -= 1;
-        }
-        if (input.walkEast) {
-            move.x += 1;
-        }
-        if (input.walkSouth) {
-            move.y += 1;
-        }
-        if (input.walkWest) {
-            move.x -= 1;
-        }
         if (input.run) {
             moveState = Player::MoveState::Running;
-            playerSpeed += 2;
+            playerSpeed = METERS_TO_UNITS(6);
         } else {
             moveState = Player::MoveState::Walking;
         }
+        move.y -= playerSpeed * input.walkNorth;
+        move.x += playerSpeed * input.walkEast;
+        move.y += playerSpeed * input.walkSouth;
+        move.x -= playerSpeed * input.walkWest;
     } else {
         moveState = Player::MoveState::Idle;
     }
 
-    Vector3i moveOffset = v3_scale(v3_normalize(move), (int)(METERS_TO_PIXELS(playerSpeed) * dt));
-    moveBuffer = v3_add(moveBuffer, moveOffset);
+    int playerMag = playerSpeed;
+    if (move.y && move.x) {
+        playerMag = (int)sqrt((playerSpeed * playerSpeed) / 2);
+        move.x = playerMag * ((move.x > 0) - (move.x < 0));
+        move.y = playerMag * ((move.y > 0) - (move.y < 0));
+    }
+    move.x = (int)(move.x * dt);
+    move.y = (int)(move.y * dt);
+
+    moveBuffer = v3_add(moveBuffer, move);
 
     if (!input.skipFx && input.attack && Attack()) {
         Catalog::g_sounds.Play(Catalog::SoundID::Whoosh, 1.0f + dlb_rand32f_variance(0.1f));
     }
 
     if (!v3_is_zero(moveBuffer)) {
-        const Vector3i curPos = body.GroundPosition();
-        const Tile *curTile = map.TileAtWorldTry(curPos.x, curPos.y, 0, 0);
-        const bool curWalkable = curTile && curTile->IsWalkable();
+        const Vector3i pos = body.GroundPosition();
+        const Tile *tile = map.TileAtWorldUnitTry(pos.x, pos.y, 0, 0);
+        const bool walkable = tile && tile->IsWalkable();
 
-        Vector3i newPos = v3_add(curPos, moveBuffer);
-        Tile *newTile = map.TileAtWorldTry(newPos.x, newPos.y, 0, 0);
+        Vector3i newPos = v3_add(pos, moveBuffer);
+        Tile *newTile = map.TileAtWorldUnitTry(newPos.x, newPos.y, 0, 0);
 
         // NOTE: This extra logic allows the player to slide when attempting to move diagonally against a wall
         // NOTE: If current tile isn't walkable, allow player to walk off it. This may not be the best solution
@@ -195,17 +195,17 @@ void Player::Update(double dt, InputSample &input, const Tilemap &map)
         // TODO: We should fix spawning to ensure player spawns on walkable tile (can probably just manually
         // generate something interesting in the center of the world that overwrites procgen, like Don't
         // Starve's fancy arrival portal.
-        if (curWalkable) {
+        if (walkable) {
             if (!newTile || !newTile->IsWalkable()) {
                 // XY unwalkable, try only X offset
-                newPos = curPos;
+                newPos = pos;
                 newPos.x += moveBuffer.x;
-                newTile = map.TileAtWorldTry(newPos.x, newPos.y, 0, 0);
+                newTile = map.TileAtWorldUnitTry(newPos.x, newPos.y, 0, 0);
                 if (!newTile || !newTile->IsWalkable()) {
                     // X unwalkable, try only Y offset
-                    newPos = curPos;
+                    newPos = pos;
                     newPos.y += moveBuffer.y;
-                    newTile = map.TileAtWorldTry(newPos.x, newPos.y, 0, 0);
+                    newTile = map.TileAtWorldUnitTry(newPos.x, newPos.y, 0, 0);
                     if (!newTile || !newTile->IsWalkable()) {
                         // XY, and both slide directions are all unwalkable
                         moveBuffer.x = 0;
@@ -235,9 +235,9 @@ void Player::Update(double dt, InputSample &input, const Tilemap &map)
             }
         }
 
-        if (body.position.x < 0.0f) {
-            assert(!"wtf?");
-        }
+        //if (body.position.x < 0.0f) {
+        //    assert(!"wtf?");
+        //}
 
         moveBuffer = {};
     }

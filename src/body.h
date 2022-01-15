@@ -33,5 +33,5 @@ struct Body3D {
     Vector3i GroundPosition() const;
     bool OnGround() const;
     bool Resting() const;
-    void Update(double dt);
+    void Update(double dt, bool dbg = false);
 };

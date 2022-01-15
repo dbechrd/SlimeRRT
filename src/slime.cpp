@@ -89,7 +89,7 @@ bool Slime::Move(double dt, Vector3i offset)
         moveState = MoveState::Jump;
         body.velocity.x += offset.x;
         body.velocity.y += offset.y;
-        body.velocity.z += METERS_TO_PIXELS(3);
+        body.velocity.z += METERS_TO_UNITS(3);
         randJumpIdle = (double)dlb_rand32f_range(1.0f, 2.5f) / sprite.scale;
         UpdateDirection(offset);
         return true;
@@ -198,6 +198,6 @@ void Slime::Draw(void) const
     Shadow::Draw(slimeBC.x, slimeBC.y, 16 * sprite.scale, -8 * sprite.scale);
 
     sprite_draw_body(sprite, body, Fade(WHITE, 0.7f));
-    const Vector3i topCenter = sprite_world_top_center(sprite, body.position, sprite.scale);
+    Vector3i topCenter = sprite_world_top_center(sprite, body.position, sprite.scale);
     HealthBar::Draw(10, topCenter, id, name, combat.hitPoints, combat.hitPointsMax);
 }

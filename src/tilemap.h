@@ -51,6 +51,8 @@ struct Tilemap {
     Tile *TileAtTry      (int tileX, int tileY) const;  // Return tile at grid position x,y, if it exists
     Tile *TileAtWorld    (int pixelX, int pixelY, int *tileX, int *tileY) const;  // Return tile at pixel position in world space, assert on failure
     Tile *TileAtWorldTry (int pixelX, int pixelY, int *tileX, int *tileY) const;  // Return tile at pixel position in world space, if it exists
+    Tile *Tilemap::TileAtWorldUnit(int unitX, int unitY, int *tileX, int *tileY) const;  // Return tile at sub-tile unit position
+    Tile *Tilemap::TileAtWorldUnitTry(int unitX, int unitY, int *tileX, int *tileY) const;  // Return tile at sub-tile unit position
 };
 
 #define MAX_TILEMAPS 8

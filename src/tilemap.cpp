@@ -113,6 +113,18 @@ Tile *Tilemap::TileAtWorldTry(int x, int y, int *tileX, int *tileY) const
     return tile;
 }
 
+Tile *Tilemap::TileAtWorldUnit(int unitX, int unitY, int *tileX, int *tileY) const
+{
+    Tile *tile = TileAtWorld(UNITS_TO_PIXELS(unitX), UNITS_TO_PIXELS(unitY), tileX, tileY);
+    return tile;
+}
+
+Tile *Tilemap::TileAtWorldUnitTry(int unitX, int unitY, int *tileX, int *tileY) const
+{
+    Tile *tile = TileAtWorldTry(UNITS_TO_PIXELS(unitX), UNITS_TO_PIXELS(unitY), tileX, tileY);
+    return tile;
+}
+
 MapSystem::MapSystem(void)
 {
     // Initialze intrusive free lists

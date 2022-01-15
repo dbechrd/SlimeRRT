@@ -14,10 +14,10 @@ namespace FX {
 
     #if 1
         Vector3i randVel = {};
-        randVel.x = (int)dlb_rand32f_variance(METERS_TO_PIXELS(1));
-        randVel.y = (int)dlb_rand32f_variance(METERS_TO_PIXELS(1));
-        randVel = v3_scale(v3_normalize(randVel), (int)(METERS_TO_PIXELS(1) * dlb_rand32f_range(0.0f, 1.2f)));
-        randVel.z = (int)dlb_rand32f_range(0.0f, METERS_TO_PIXELS(0.3f));
+        randVel.x = dlb_rand32i_variance(METERS_TO_UNITS(1));
+        randVel.y = dlb_rand32i_variance(METERS_TO_UNITS(1));
+        randVel = v3_scale(v3_normalize(randVel), dlb_rand32i_range(0, METERS_TO_UNITS(1)));
+        randVel.z = (int)dlb_rand32i_range(0, METERS_TO_UNITS(1)/3);
         particle.body.velocity = randVel;
         particle.body.friction = 0.5f;
     #else

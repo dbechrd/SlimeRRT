@@ -9,6 +9,7 @@
 // Feature flags
 //------------------------------------------------------------------------------
 #define CULL_ON_PUSH 1
+#define PIXEL_FIXER 0
 #define DEMO_VIEW_RTREE 0
 #define DEMO_AI_TRACKING 0
 #define DEMO_BODY_RECT 0
@@ -89,16 +90,20 @@
 #define LERP(a, b, alpha) ((a) * (1.0f - (alpha)) + b * (alpha))
 #define SQUARED(x) ((x)*(x))
 
-// NOTE: This defines 1 meter = 64 pixels
-#define METERS_TO_PIXELS(meters) ((meters) * 64)
-#define PIXELS_TO_METERS(pixels) ((pixels) / 64)
+// 1 unit = 1/16 of a pixel
+#define PIXELS_TO_UNITS(pixels) ((pixels) * 16)
+#define UNITS_TO_PIXELS(units)  ((units)  / 16)
+
+// 1 meter = 64 pixels = 64 * 16 = 1024 units
+#define METERS_TO_UNITS(meters) ((meters) * PIXELS_TO_UNITS(64))
+#define UNITS_TO_METERS(units)  ((units)  / PIXELS_TO_UNITS(64))
 
 //------------------------------------------------------------------------------
 // Helper functions
 //------------------------------------------------------------------------------
 extern Shader g_sdfShader;
 
-void DrawTextFont(Font font, const char *text, int posX, int posY, int offsetX, int offsetY, int fontSize, const Color &color);
+void DrawTextFont(Font font, const char *text, float posX, float posY, int offsetX, int offsetY, int fontSize, const Color &color);
 const char *TextFormatIP(ENetAddress &address);
 const char *TextFormatTimestamp();
 float VolumeCorrection(float volume);

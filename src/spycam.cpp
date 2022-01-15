@@ -15,8 +15,8 @@ void Spycam::Init(Vector3i offset)
 const Camera2D Spycam::GetCamera(void) const
 {
     Camera2D cam{};
-    cam.offset = { (float)camera.offset.x, (float)camera.offset.y };
-    cam.target = { (float)camera.target.x, (float)camera.target.y };
+    cam.offset = { UNITS_TO_PIXELS((float)camera.offset.x), UNITS_TO_PIXELS((float)camera.offset.y) };
+    cam.target = { UNITS_TO_PIXELS((float)camera.target.x), UNITS_TO_PIXELS((float)camera.target.y) };
     cam.rotation = (float)camera.rotation;
     cam.zoom = camera.zoom;
     return cam;
@@ -51,10 +51,10 @@ void Spycam::Reset(void)
     cameraSpeed = CAMERA_SPEED_DEFAULT;
     SetZoom(1.0f);
     camera.rotation = 0;
-    camera.offset = { GetRenderWidth() / 2, GetRenderHeight() / 2 };
+    camera.offset = { PIXELS_TO_UNITS(GetRenderWidth() / 2), PIXELS_TO_UNITS(GetRenderHeight() / 2) };
 }
 
-void Spycam::Update(const PlayerControllerState &input)
+void Spycam::Update(const PlayerControllerState &input, double dt)
 {
     if (input.cameraReset) Reset();
     if (input.dbgToggleFreecam) freeRoam = !freeRoam;
@@ -64,7 +64,7 @@ void Spycam::Update(const PlayerControllerState &input)
         cameraSpeed = CAMERA_SPEED_DEFAULT;
         SetZoom(1.0f);
     } else {
-        cameraSpeed = CLAMP(cameraSpeed + input.cameraSpeedDelta, 1.0f, 50.0f);
+        cameraSpeed = CLAMP(cameraSpeed + PIXELS_TO_UNITS(input.cameraSpeedDelta), PIXELS_TO_UNITS(1), PIXELS_TO_UNITS(50));
 
         // Camera zoom controls
         float zoom = camera.zoom;
@@ -87,10 +87,10 @@ void Spycam::Update(const PlayerControllerState &input)
         if (input.cameraNorth) cameraGoal.y -= (int)(cameraSpeed / camera.zoom);
         if (input.cameraSouth) cameraGoal.y += (int)(cameraSpeed / camera.zoom);
         if (input.cameraRotateCW) {
-            camera.rotation += 45;
+            camera.rotation += (int)(90 * dt);
             if (camera.rotation >= 360) camera.rotation -= 360;
         } else if (input.cameraRotateCCW) {
-            camera.rotation -= 45;
+            camera.rotation -= (int)(90 * dt);
             if (camera.rotation < 0) camera.rotation += 360;
         }
     }

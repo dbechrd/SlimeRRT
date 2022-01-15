@@ -21,23 +21,25 @@ static void tileset_load(TilesetID tilesetId, const char *texturePath)
     assert((tileset.texture.width % TILE_W) == 0);
 
     int tilesPerRow = tileset.texture.width / TILE_W;
-    for (size_t i = 0; i < (size_t)TileType::Count; i++) {
-        tileset.textureRects[i].x = (float)(i % tilesPerRow * TILE_W);
-        tileset.textureRects[i].y = (float)(i / tilesPerRow * TILE_W);
-        tileset.textureRects[i].width = (float)TILE_W;
-        tileset.textureRects[i].height = (float)TILE_W;
+    for (int i = 0; i < (int)TileType::Count; i++) {
+        tileset.textureRects[i].x = i % tilesPerRow * TILE_W;
+        tileset.textureRects[i].y = i / tilesPerRow * TILE_W;
+        tileset.textureRects[i].width = TILE_W;
+        tileset.textureRects[i].height = TILE_W;
     }
 }
 
-const Rectangle &tileset_tile_rect(TilesetID tilesetId, TileType tileType)
+const Recti &tileset_tile_rect(TilesetID tilesetId, TileType tileType)
 {
     Tileset &tileset = tilesets[(size_t)tilesetId];
     return tileset.textureRects[(size_t)tileType];
 }
 
-void tileset_draw_tile(TilesetID tilesetId, TileType tileType, Vector2 at)
+void tileset_draw_tile(TilesetID tilesetId, TileType tileType, const Vector2i &at)
 {
-    Tileset &tileset = tilesets[(size_t)tilesetId];
-    Rectangle tileRect = tileset_tile_rect(tilesetId, tileType);
-    DrawTextureRec(tileset.texture, tileRect, at, WHITE);
+    Tileset &tileset = tilesets[(int)tilesetId];
+    const Recti &tileRect = tileset_tile_rect(tilesetId, tileType);
+    const Rectangle tileRectf{ (float)tileRect.x, (float)tileRect.y, (float)tileRect.width, (float)tileRect.height };
+    const Vector2 atf{ (float)at.x, (float)at.y };
+    DrawTextureRec(tileset.texture, tileRectf, atf, WHITE);
 }

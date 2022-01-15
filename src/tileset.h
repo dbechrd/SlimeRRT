@@ -12,12 +12,12 @@ enum class TilesetID {
 };
 
 struct Tileset {
-    Texture     texture          {};
-    Rectangle   textureRects[16] {};
-    size_t      tileCount        {};
-    size_t      tilesPerRow      {};
+    Texture texture          {};
+    Recti   textureRects[16] {};
+    size_t  tileCount        {};
+    size_t  tilesPerRow      {};
 };
 
 void tileset_init(void);
-const Rectangle &tileset_tile_rect(TilesetID tilesetId, TileType tileType);
-void tileset_draw_tile(TilesetID tilesetId, TileType tileType, Vector2 at);
+const Recti &tileset_tile_rect(TilesetID tilesetId, TileType tileType);
+void tileset_draw_tile(TilesetID tilesetId, TileType tileType, const Vector2i &at);

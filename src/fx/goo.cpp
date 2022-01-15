@@ -6,7 +6,7 @@ namespace FX {
     void goo_init(Particle &particle, ParticleEffect &effect)
     {
         // Spawn randomly during first 25% of duration
-        particle.spawnAt = effect.duration * dlb_rand32f_variance(0.25f);
+        particle.spawnAt = 0; //effect.duration * dlb_rand32f_variance(0.25f);
 
         // Die randomly during last 15% of animation
         particle.dieAt = effect.duration - (effect.duration * dlb_rand32f_variance(0.15f));
@@ -14,9 +14,9 @@ namespace FX {
 
     #if 1
         Vector3i randVel {};
-        randVel.x = (int)dlb_rand32f_variance(METERS_TO_PIXELS(1.0f));
-        randVel.y = (int)dlb_rand32f_variance(METERS_TO_PIXELS(1.0f));
-        randVel.z = (int)dlb_rand32f_range(0.0f, METERS_TO_PIXELS(2.0f));
+        randVel.x = dlb_rand32i_variance(METERS_TO_UNITS(1));
+        randVel.y = dlb_rand32i_variance(METERS_TO_UNITS(1));
+        randVel.z = dlb_rand32i_range(0, METERS_TO_UNITS(2));
         particle.body.velocity = randVel;
         particle.body.friction = 0.5f;
     #else
@@ -26,12 +26,12 @@ namespace FX {
     #endif
         //particle.position = (Vector2){ 0.0f, 0.0f };
         particle.color = { 154, 219, 63, 178 };  // Slime lime
-        particle.sprite.scale = 1;
+        particle.sprite.scale = 10;
     }
 
     void goo_update(Particle &particle, float alpha)
     {
-        const int radius = 5;
+        const int radius = 10;
         // radius * 1.0 -> 0.2
         particle.sprite.scale = (int)(radius * (1.0f - alpha * 0.8f));
     }

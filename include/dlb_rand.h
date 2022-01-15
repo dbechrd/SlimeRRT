@@ -331,6 +331,20 @@ int32_t dlb_rand32i_range(int32_t min, int32_t max)
     return randi;
 }
 
+// Return random int in range [-variance, +variance), exclusive +variance
+int dlb_rand32i_variance_r(dlb_rand32_t *rng, int variance)
+{
+    const int randi = dlb_rand32i_range_r(rng, -variance, variance);
+    return randi;
+}
+
+// Return random int in range [-variance, +variance), exclusive +variance
+int dlb_rand32i_variance(int variance)
+{
+    const int randi = dlb_rand32i_variance_r(&pcg32_global, variance);
+    return randi;
+}
+
 // Return random float in range [0, 1), exclusive max
 float dlb_rand32f_r(dlb_rand32_t *rng)
 {

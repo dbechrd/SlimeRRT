@@ -32,8 +32,8 @@ const Vector3i World::GetWorldSpawn(void)
         return {};
     }
     Vector3i worldSpawn = {
-        map->width  / 2 * 32,
-        map->height / 2 * 32,
+        PIXELS_TO_UNITS(map->width  / 2 * TILE_W),
+        PIXELS_TO_UNITS(map->height / 2 * TILE_W),
         0
     };
     return worldSpawn;
@@ -247,7 +247,7 @@ void World::SimPlayers(double dt)
         //player.Update(dt, *map);
 
         if (player.actionState == Player::ActionState::Attacking && player.combat.attackFrame == 1) {
-            const int playerAttackReach = METERS_TO_PIXELS(1);
+            const int playerAttackReach = METERS_TO_UNITS(1);
 
             const ItemStack &selectedStack = player.GetSelectedItem();
             const Catalog::Item &selectedItem = Catalog::g_items.FindById(selectedStack.id);
@@ -274,8 +274,8 @@ void World::SimPlayers(double dt)
                         assert(coins);
 
                         Vector3i itemPos = slime.body.position;
-                        itemPos.x += (int)dlb_rand32f_variance(METERS_TO_PIXELS(0.5f));
-                        itemPos.y += (int)dlb_rand32f_variance(METERS_TO_PIXELS(0.5f));
+                        itemPos.x += dlb_rand32i_variance(METERS_TO_UNITS(1)/2);
+                        itemPos.y += dlb_rand32i_variance(METERS_TO_UNITS(1)/2);
                         itemSystem.SpawnItem(itemPos, Catalog::ItemID::Currency_Coin, coins);
 
                         DespawnSlime(slime.id);
@@ -292,10 +292,10 @@ void World::SimPlayers(double dt)
 void World::SimSlimes(double dt)
 {
     // TODO: Move these to somewhere
-    const int slimeMoveSpeed   = (int)METERS_TO_PIXELS(2.0f);
-    const int slimeAttackReach = (int)METERS_TO_PIXELS(0.5f);
-    const int slimeAttackTrack = (int)METERS_TO_PIXELS(10.0f);
-    const int slimeRadius      = (int)METERS_TO_PIXELS(0.5f);
+    const int slimeMoveSpeed   = METERS_TO_UNITS(2);
+    const int slimeAttackReach = METERS_TO_UNITS(1) / 2;
+    const int slimeAttackTrack = METERS_TO_UNITS(10);
+    const int slimeRadius      = METERS_TO_UNITS(1) / 2;
 
     for (size_t slimeIdx = 0; slimeIdx < SV_MAX_SLIMES; slimeIdx++) {
         Slime &slime = slimes[slimeIdx];
@@ -382,8 +382,8 @@ void World::SimSlimes(double dt)
 void World::SimItems(double dt)
 {
     // TODO: Move these to somewhere
-    const int playerItemPickupReach = (int)METERS_TO_PIXELS(1.5f);
-    const int playerItemPickupDist = (int)METERS_TO_PIXELS(0.1f);
+    const int playerItemPickupReach = METERS_TO_UNITS(1) + METERS_TO_UNITS(1) / 2;
+    const int playerItemPickupDist = METERS_TO_UNITS(1)/8;
 
     const size_t itemCount = itemSystem.ItemsActive();
     ItemWorld *items = itemSystem.Items();
@@ -414,7 +414,7 @@ void World::SimItems(double dt)
             }
         } else {
             const Vector3i itemToPlayerDir = v3_normalize(itemToPlayer);
-            const int speed = METERS_TO_PIXELS(METERS_TO_PIXELS((int)sqrtf((float)itemToPlayerDistSq)));
+            const int speed = METERS_TO_UNITS(METERS_TO_UNITS((int)sqrtf((float)itemToPlayerDistSq)));
             const Vector3i itemVel = v3_scale(itemToPlayerDir, speed);
             item.body.velocity.x = itemVel.x;
             item.body.velocity.y = itemVel.y;
@@ -425,7 +425,7 @@ void World::SimItems(double dt)
     itemSystem.Update(dt);
 }
 
-bool World::InterpolateBody(Body3D &body, double renderAt, Direction &direction)
+bool World::InterpolateBody(Body3D &body, double renderAt, Direction direction)
 {
     auto positionHistory = body.positionHistory;
     const size_t historyLen = positionHistory.Count();
@@ -526,38 +526,39 @@ void World::EnableCulling(Recti &cullRect)
     drawList.EnableCulling(cullRect);
 }
 
-bool World::CullTile(Vector2 tilePos, int zoomMipLevel)
+bool World::CullTile(const Vector2i &tilePos, int zoomMipLevel)
 {
     if (!drawList.cullEnabled) {
         return false;
     }
 
-    const float tileWidthMip = (float)(TILE_W * zoomMipLevel);
-    const float tileHeightMip = (float)(TILE_W * zoomMipLevel);
+    const int tileX = PIXELS_TO_UNITS(tilePos.x);
+    const int tileY = PIXELS_TO_UNITS(tilePos.y);
+    const int tileWidthMip  = PIXELS_TO_UNITS(TILE_W * zoomMipLevel);
+    const int tileHeightMip = PIXELS_TO_UNITS(TILE_W * zoomMipLevel);
 
-    if (tilePos.x + tileWidthMip < drawList.cullRect.x
-     || tilePos.y + tileHeightMip < drawList.cullRect.y
-     || tilePos.x >= drawList.cullRect.x + drawList.cullRect.width
-     || tilePos.y >= drawList.cullRect.y + drawList.cullRect.height) {
+    if (tileX + tileWidthMip < drawList.cullRect.x
+     || tileY + tileHeightMip < drawList.cullRect.y
+     || tileX >= drawList.cullRect.x + drawList.cullRect.width
+     || tileY >= drawList.cullRect.y + drawList.cullRect.height) {
         return true;
     }
 
     return false;
 }
 
-size_t World::DrawMap(int zoomMipLevel)
+int World::DrawMap(int zoomMipLevel)
 {
     assert(zoomMipLevel > 0);
     if (!map || !map->tiles) return 0;
 
-    size_t tilesDrawn = 0;
-    for (size_t y = 0; y < map->height; y += zoomMipLevel) {
-        for (size_t x = 0; x < map->width; x += zoomMipLevel) {
+    int tilesDrawn = 0;
+    for (int y = 0; y < map->height; y += zoomMipLevel) {
+        for (int x = 0; x < map->width; x += zoomMipLevel) {
             const Tile *tile = &map->tiles[y * map->width + x];
-            const Vector2 tilePos = { (float)x * TILE_W, (float)y * TILE_W };
+            const Vector2i tilePos = { x * TILE_W, y * TILE_W };
             if (!CullTile(tilePos, zoomMipLevel)) {
                 // Draw all tiles as textured rects (looks best, performs worst)
-                Rectangle textureRect = tileset_tile_rect(map->tilesetId, tile->tileType);
                 tileset_draw_tile(map->tilesetId, tile->tileType, tilePos);
                 tilesDrawn++;
             }

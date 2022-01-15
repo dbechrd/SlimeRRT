@@ -21,9 +21,9 @@ void ItemSystem::SpawnItem(Vector3i pos, Catalog::ItemID id, uint32_t count)
     item.stack.id = id;
     item.stack.count = count;
     item.body.position = pos;
-    int randX = (int)dlb_rand32f_variance(METERS_TO_PIXELS(3.0f));
-    int randY = (int)dlb_rand32f_variance(METERS_TO_PIXELS(3.0f));
-    int randZ = (int)dlb_rand32f_range(2.0f, METERS_TO_PIXELS(4.0f));
+    int randX = dlb_rand32i_variance(METERS_TO_UNITS(3));
+    int randY = dlb_rand32i_variance(METERS_TO_UNITS(3));
+    int randZ = dlb_rand32i_range(2, METERS_TO_UNITS(4));
     item.body.velocity = { randX, randY, randZ };
     item.body.restitution = 0.8f;
     item.body.friction = 0.1f;

@@ -58,8 +58,8 @@ Recti sprite_world_rect(const Sprite &sprite, const Vector3i &position, int scal
 {
     Recti frameRect = sprite_frame_rect(sprite);
     Recti rect = {};
-    rect.x = position.x - frameRect.width / 2 * scale;
-    rect.y = position.y - frameRect.height * scale - position.z;
+    rect.x = position.x - PIXELS_TO_UNITS(frameRect.width) * scale / 2;
+    rect.y = position.y - PIXELS_TO_UNITS(frameRect.height) * scale - position.z;
     rect.width = frameRect.width * scale;
     rect.height = frameRect.height * scale;
     return rect;
@@ -71,7 +71,7 @@ Vector3i sprite_world_top_center(const Sprite &sprite, const Vector3i &position,
     Vector3i center = {};
     center.x = position.x;
     center.y = position.y;
-    center.z = position.z + frameRect.height * scale;
+    center.z = position.z + PIXELS_TO_UNITS(frameRect.height) * scale;
     return center;
 }
 
@@ -81,7 +81,7 @@ Vector3i sprite_world_center(const Sprite &sprite, const Vector3i &position, int
     Vector3i center = {};
     center.x = position.x;
     center.y = position.y;
-    center.z = position.z + frameRect.height / 2 * scale;
+    center.z = position.z + PIXELS_TO_UNITS(frameRect.height) * scale / 2;
     return center;
 }
 
@@ -112,7 +112,7 @@ bool sprite_cull_body(const Sprite &sprite, const Body3D &body, const Recti &cul
     return cull;
 }
 
-static void sprite_draw(const Sprite &sprite, const Recti &dest, Color color)
+static void sprite_draw(const Sprite &sprite, const Recti &pos, Color color)
 {
 #if DEMO_BODY_RECT
     // DEBUG: Draw collision Recti
@@ -120,19 +120,33 @@ static void sprite_draw(const Sprite &sprite, const Recti &dest, Color color)
 #endif
 
     if (sprite.spriteDef) {
-#if 0
-        // Funny bug where texture stays still relative to screen, could be fun to abuse later
-        const Recti rect = drawthing_rect(drawThing);
-#else
-        const Recti rect = sprite_frame_rect(sprite);
-#endif
+        Recti rect = sprite_frame_rect(sprite);
+
         // Draw textured sprite
-        const Rectangle src { (float)rect.x, (float)rect.y, (float)rect.width, (float)rect.height };
-        const Rectangle dst { (float)dest.x, (float)dest.y, (float)dest.width, (float)dest.height };
+        const Rectangle src {
+            (float)rect.x,
+            (float)rect.y,
+            (float)rect.width,
+            (float)rect.height
+        };
+        const Rectangle dst {
+            UNITS_TO_PIXELS((float)pos.x),
+            UNITS_TO_PIXELS((float)pos.y),
+            (float)pos.width,
+            (float)pos.height
+        };
+        static float prevX = 0.0f;
+        static float prevY = 0.0f;
+        //printf("sprite draw: %f %f delta: %f %f\n", dst.x, dst.y, dst.x - prevX, dst.y - prevY);
+        prevX = dst.x;
+        prevY = dst.y;
         DrawTextureTiled(sprite.spriteDef->spritesheet->texture, src, dst, { 0.0f, 0.0f }, 0.0f,
             (float)sprite.scale, color);
     } else {
         // Draw magenta rectangle
+        Recti dest = pos;
+        dest.x = UNITS_TO_PIXELS(dest.x);
+        dest.y = UNITS_TO_PIXELS(dest.y);
         DrawRectangle(dest.x, dest.y, dest.width, dest.height, MAGENTA);
     }
 

@@ -61,7 +61,7 @@ struct World {
     void Interpolate(double renderAt);
 
     void EnableCulling(Recti &cullRect);
-    size_t DrawMap(int zoomMipLevel);
+    int  DrawMap(int zoomMipLevel);
     void DrawItems(void);
     void DrawEntities(void);
     void DrawParticles(void);
@@ -71,8 +71,8 @@ private:
     void SimPlayers(double dt);
     void SimSlimes(double dt);
     void SimItems(double dt);
-    bool InterpolateBody(Body3D &body, double renderAt, Direction &direction);
+    bool InterpolateBody(Body3D &body, double renderAt, Direction direction);
 
     DrawList drawList{};
-    bool CullTile(Vector2 tilePos, int zoomMipLevel);
+    bool CullTile(const Vector2i &tilePos, int zoomMipLevel);
 };

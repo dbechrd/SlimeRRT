@@ -148,7 +148,7 @@ void ParticleSystem::Update(double dt)
             if (!particle.body.lastUpdated) {
                 particle.body.position = v3_add(particle.body.position, effect.origin);
             }
-            particle.body.Update(dt);
+            particle.body.Update(dt, true);
             sprite_update(particle.sprite, dt);
             assert(Catalog::g_particleFx.FindById(effect.id).update);
             Catalog::g_particleFx.FindById(effect.id).update(particle, alpha);

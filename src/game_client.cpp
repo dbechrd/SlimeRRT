@@ -64,9 +64,11 @@ ErrorType GameClient::Run(void)
     GuiSetFont(fontSmall);
     HealthBar::SetFont(GetFontDefault());
 
+#if PIXEL_FIXER
     Shader pixelFixer = LoadShader("resources/pixelfixer.vs", "resources/pixelfixer.fs");
     const int pixelFixerScreenSizeUniformLoc = GetShaderLocation(pixelFixer, "screenSize");
     SetShaderValue(pixelFixer, pixelFixerScreenSizeUniformLoc, &screenSize, SHADER_UNIFORM_VEC2);
+#endif
 
     // SDF font generation from TTF font
     Font fontSdf{};
@@ -95,7 +97,7 @@ ErrorType GameClient::Run(void)
     const int monitorHeight = GetMonitorHeight(0);
 
     Spycam spycam{};
-    spycam.Init({ screenSize.x / 2, screenSize.y / 2});
+    spycam.Init({ PIXELS_TO_UNITS(screenSize.x / 2), PIXELS_TO_UNITS(screenSize.y / 2) });
 
     InitAudioDevice();
     if (!IsAudioDeviceReady()) {
@@ -121,6 +123,7 @@ ErrorType GameClient::Run(void)
     World *lobby = new World;
     lobby->tick = 1;
     lobby->map = lobby->mapSystem.Generate(lobby->rtt_rand, 64, 64);
+    lobby->map->GenerateMinimap();
     Slime &sam = lobby->SpawnSam();
     world = lobby;
 
@@ -269,7 +272,7 @@ ErrorType GameClient::Run(void)
         Player &player = *playerPtr;
 
         if (player.body.OnGround() && IsKeyPressed(KEY_SPACE)) {
-            player.body.velocity.z = METERS_TO_PIXELS(4);
+            player.body.velocity.z = METERS_TO_UNITS(4);
         }
 
         double renderAt = 0;
@@ -350,8 +353,8 @@ ErrorType GameClient::Run(void)
 
         static bool samTreasureRoom = false;
         if (!samTreasureRoom && world == lobby && !sam.combat.hitPoints) {
-            uint32_t chestX = MAX(0, int(player.body.position.x / TILE_W));
-            uint32_t chestY = MAX(0, int(player.body.position.y / TILE_W) - 2);
+            int chestX = UNITS_TO_PIXELS(MAX(0, player.body.position.x / TILE_W));
+            int chestY = UNITS_TO_PIXELS(MAX(0, player.body.position.y / TILE_W) - 2);
             Structure::Spawn(*world->map, chestX - 3, chestY - 4);
             Vector3 chestPos{ (chestX * TILE_W) + TILE_W * 0.5f, float(chestY * TILE_W), 0.0f };
 
@@ -409,7 +412,9 @@ ErrorType GameClient::Run(void)
             assert((int)screenSize.x % 2 == 0);
             assert((int)screenSize.y % 2 == 0);
             //printf("w: %f h: %f\n", screenSize.x, screenSize.y);
+#if PIXEL_FIXER
             SetShaderValue(pixelFixer, pixelFixerScreenSizeUniformLoc, &screenSize, SHADER_UNIFORM_VEC2);
+#endif
             spycam.Reset();
         }
 
@@ -460,13 +465,13 @@ ErrorType GameClient::Run(void)
         if (!spycam.freeRoam) {
             spycam.cameraGoal = player.body.GroundPosition();
         }
-        spycam.Update(input);
+        spycam.Update(input, frameDt);
         Recti cameraRect = spycam.GetRect();
 
         const Vector2i mousePosScreen{ GetMouseX(), GetMouseY() };
         Vector2i mousePosWorld{};
-        mousePosWorld.x += cameraRect.x + (int)(mousePosScreen.x * spycam.GetInvZoom());
-        mousePosWorld.y += cameraRect.y + (int)(mousePosScreen.y * spycam.GetInvZoom());
+        mousePosWorld.x += UNITS_TO_PIXELS(cameraRect.x) + (int)(mousePosScreen.x * spycam.GetInvZoom());
+        mousePosWorld.y += UNITS_TO_PIXELS(cameraRect.y) + (int)(mousePosScreen.y * spycam.GetInvZoom());
 
         //----------------------------------------------------------------------
         // Render world
@@ -485,9 +490,13 @@ ErrorType GameClient::Run(void)
 
         world->EnableCulling(cameraRect);
 
-        //BeginShaderMode(pixelFixer);
-        size_t tilesDrawn = world->DrawMap(spycam.GetZoomMipLevel());
-        //EndShaderMode();
+#if PIXEL_FIXER
+        BeginShaderMode(pixelFixer);
+#endif
+        int tilesDrawn = world->DrawMap(spycam.GetZoomMipLevel());
+#if PIXEL_FIXER
+        EndShaderMode();
+#endif
 
         if (input.dbgFindMouseTile) {
             UI::TileHoverOutline(*world->map);
@@ -658,7 +667,9 @@ ErrorType GameClient::Run(void)
     delete lobby;
     UnloadShader(g_sdfShader);
     UnloadFont(fontSdf);
+#if PIXEL_FIXER
     UnloadShader(pixelFixer);
+#endif
     UnloadTexture(checkboardTexture);
     UnloadFont(fontSmall);
     //UnloadFont(fontBig);

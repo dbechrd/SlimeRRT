@@ -13,8 +13,8 @@ struct UI {
         uint32_t tick;
         double tickAccum;
         double frameDt;
-        float cameraSpeed;
-        size_t tilesDrawn;
+        int    cameraSpeed;
+        int    tilesDrawn;
         size_t effectsActive;
         size_t particlesActive;
 

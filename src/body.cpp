@@ -32,7 +32,7 @@ bool Body3D::Resting() const
     return v3_is_zero(velocity) && OnGround();
 }
 
-void Body3D::Update(double dt)
+void Body3D::Update(double dt, bool dbg)
 {
     // TODO: Account for dt in drag (How? exp()? I forgot..)
     //const float drag_coef = 1.0f - CLAMP(drawThing->drag, 0.0f, 1.0f);
@@ -42,8 +42,12 @@ void Body3D::Update(double dt)
 
     // Simulate physics if body not resting
     if (!Resting()) {
-        const int gravity = METERS_TO_PIXELS(10);
+        const int gravity = METERS_TO_UNITS(10);
         velocity.z -= (int)(gravity * dt); // * drag_coef;
+
+        if (dbg) {
+            assert(dbg);
+        }
 
         position.x += (int)(velocity.x * dt);
         position.y += (int)(velocity.y * dt);
@@ -78,4 +82,6 @@ void Body3D::Update(double dt)
     idleChanged = idle != prevIdle;
     lastUpdated = glfwGetTime();
     prevPosition = position;
+
+    //if (dbg) printf("vel: %d %d %d   pos: %d %d %d\n", velocity.x, velocity.y, velocity.z, position.x, position.y, position.z);
 }

@@ -14,9 +14,9 @@ namespace FX {
 
     #if 1
         Vector3i randVel {};
-        randVel.x = (int)dlb_rand32f_variance(METERS_TO_PIXELS(1.0f));
-        randVel.y = (int)dlb_rand32f_variance(METERS_TO_PIXELS(1.0f));
-        randVel.z = (int)dlb_rand32f_range(0.0f, METERS_TO_PIXELS(4.0f));
+        randVel.x = dlb_rand32i_variance(METERS_TO_UNITS(1));
+        randVel.y = dlb_rand32i_variance(METERS_TO_UNITS(1));
+        randVel.z = dlb_rand32i_range(0, METERS_TO_UNITS(4));
         particle.body.velocity = randVel;
         particle.body.restitution = 0.8f;
         particle.body.friction = 0.5f;
