@@ -48,7 +48,7 @@ void Spycam::Reset(void)
     //printf("camera.target: %f %f\n", camera.target.x, camera.target.y);
 }
 
-void Spycam::Update(const PlayerControllerState &input)
+void Spycam::Update(const PlayerControllerState &input, double dt)
 {
     if (input.cameraReset) Reset();
     if (input.dbgToggleFreecam) freeRoam = !freeRoam;
@@ -58,7 +58,7 @@ void Spycam::Update(const PlayerControllerState &input)
         cameraSpeed = CAMERA_SPEED_DEFAULT;
         SetZoom(1.0f);
     } else {
-        cameraSpeed = CLAMP(cameraSpeed + input.cameraSpeedDelta, 1.0f, 50.0f);
+        cameraSpeed = CLAMP(cameraSpeed + input.cameraSpeedDelta * METERS_TO_PIXELS(0.5f), METERS_TO_PIXELS(0.5f), METERS_TO_PIXELS(20.0f));
 
         // Camera zoom controls
         float zoom = camera.zoom;
@@ -76,15 +76,17 @@ void Spycam::Update(const PlayerControllerState &input)
 #endif
         SetZoom(zoom);
 
-        if (input.cameraWest)  cameraGoal.x -= cameraSpeed / camera.zoom;
-        if (input.cameraEast)  cameraGoal.x += cameraSpeed / camera.zoom;
-        if (input.cameraNorth) cameraGoal.y -= cameraSpeed / camera.zoom;
-        if (input.cameraSouth) cameraGoal.y += cameraSpeed / camera.zoom;
+        const float speed = (float)(cameraSpeed * invZoom * dt);
+        cameraGoal.y -= speed * input.cameraNorth;
+        cameraGoal.x += speed * input.cameraEast;
+        cameraGoal.y += speed * input.cameraSouth;
+        cameraGoal.x -= speed * input.cameraWest;
+
         if (input.cameraRotateCW) {
-            camera.rotation += 45.0f;
+            camera.rotation += (float)(90.0f * dt);
             if (camera.rotation >= 360.0f) camera.rotation -= 360.0f;
         } else if (input.cameraRotateCCW) {
-            camera.rotation -= 45.0f;
+            camera.rotation -= (float)(90.0f * dt);
             if (camera.rotation < 0.0f) camera.rotation += 360.0f;
         }
     }

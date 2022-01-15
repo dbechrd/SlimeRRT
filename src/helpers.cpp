@@ -12,7 +12,7 @@ static Color ShadowColor(const Color color)
     return shadow_color;
 }
 
-void DrawTextFont(Font font, const char *text, float posX, float posY, int offsetX, int offsetY, int fontSize, const Color &color)
+void DrawTextFont(Font font, const char *text, float posX, float posY, float offsetX, float offsetY, int fontSize, const Color &color)
 {
     if (!text) {
         return;
@@ -38,7 +38,7 @@ void DrawTextFont(Font font, const char *text, float posX, float posY, int offse
         // Assume SDF font if grayscale
         const bool sdfFont = font.glyphs->image.format == PIXELFORMAT_UNCOMPRESSED_GRAYSCALE;
         if (sdfFont) BeginShaderMode(g_sdfShader);
-        //DrawTextEx(font, text, { (float)shadowPosition.x - offsetX, (float)shadowPosition.y - offsetY }, (float)fontSize, (float)spacing, ShadowColor(color));
+        DrawTextEx(font, text, { (float)shadowPosition.x - offsetX, (float)shadowPosition.y - offsetY }, (float)fontSize, (float)spacing, ShadowColor(color));
         DrawTextEx(font, text, position, (float)fontSize, (float)spacing, color);
         if (sdfFont) EndShaderMode();
     }

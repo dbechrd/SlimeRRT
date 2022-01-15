@@ -198,5 +198,6 @@ void Slime::Draw(void) const
     Shadow::Draw((int)slimeBC.x, (int)slimeBC.y, 16.0f * sprite.scale, -8.0f * sprite.scale);
 
     sprite_draw_body(sprite, body, Fade(WHITE, 0.7f));
-    HealthBar::Draw(10, sprite, body, name, combat.hitPoints, combat.hitPointsMax);
+    Vector3 topCenter = sprite_world_top_center(sprite, body.position, sprite.scale);
+    HealthBar::Draw(10, { topCenter.x, topCenter.y - topCenter.z }, name, combat.hitPoints, combat.hitPointsMax);
 }

@@ -82,7 +82,7 @@ void UI::Minimap(const Font &font, const World &world)
             DrawCircle((int)x, (int)y, 2.0f, playerColor);
             const char *pName = TextFormat("%.*s", p.nameLength, p.name);
             int nameWidth = MeasureText(pName, font.baseSize);
-            DrawTextFont(font, pName, x - (float)(nameWidth / 2), y - font.baseSize - 4, font.baseSize, YELLOW);
+            DrawTextFont(font, pName, x - (float)(nameWidth / 2), y - font.baseSize - 4, 0, 0, font.baseSize, YELLOW);
         }
     }
 }
@@ -317,8 +317,8 @@ void UI::HUD(const Font &font, const Player &player, const DebugStats &debugStat
     float hudCursorY = 0;
 
 #define PUSH_TEXT(text, color) \
-    DrawTextFont(font, text, margin + pad, hudCursorY, font.baseSize, color); \
-    hudCursorY += font.baseSize + pad; \
+    DrawTextFont(font, text, margin + pad, hudCursorY, 0, 0, font.baseSize, color); \
+    hudCursorY += font.baseSize + pad;
 
     int linesOfText = 8;
     if (debugStats.tick) {
@@ -528,13 +528,13 @@ void UI::TileHoverTip(const Font &font, const Tilemap &map)
 
     int lineOffset = 0;
     DrawTextFont(font, TextFormat("tilePos : %d, %d", mouseTileX, mouseTileY),
-        tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, font.baseSize, WHITE);
+        tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, 0, 0, font.baseSize, WHITE);
     lineOffset += font.baseSize;
     DrawTextFont(font, TextFormat("tileSize: %zu, %zu", TILE_W, TILE_W),
-        tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, font.baseSize, WHITE);
+        tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, 0, 0, font.baseSize, WHITE);
     lineOffset += font.baseSize;
     DrawTextFont(font, TextFormat("tileType: %d", mouseTile->tileType),
-        tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, font.baseSize, WHITE);
+        tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, 0, 0, font.baseSize, WHITE);
     lineOffset += font.baseSize;
 }
 
@@ -581,7 +581,7 @@ int UI::Menu(const Font &font, bool &escape, bool &exiting, const char **items, 
     DrawRectangleRec(menuRect, { 130, 170, 240, 255 }); // Fade(BLACK, 0.7f));
     DrawRectangleLinesEx(menuRect, 2.0f, BLACK);
     const float menuCenterX = menuPos.x + menuSize.x / 2.0f;
-    for (int i = 0; i < ARRAY_SIZE(menuItems); i++) {
+    for (int i = 0; i < itemCount; i++) {
         Vector2 itemPos{};
         //itemPos.x = menuCenterX + menuItems[i].offset.x;
         itemPos.x = menuPos.x + menuPad.x;
@@ -596,7 +596,7 @@ int UI::Menu(const Font &font, bool &escape, bool &exiting, const char **items, 
         float offsetX = 3.0f;
         float offsetY = 3.0f;
         const float ox = 3.0f;
-        const float oy = 6.0f;
+        const float oy = 5.0f;
         offsetX += CLAMP((mouseScreen.x - (hitbox.x + hitbox.width / 2.0f)) * ox / hitbox.width, -ox, ox);
         offsetY += CLAMP((mouseScreen.y - (hitbox.y + hitbox.height / 2.0f)) * oy / hitbox.height, -oy, oy);
 
@@ -607,7 +607,7 @@ int UI::Menu(const Font &font, bool &escape, bool &exiting, const char **items, 
         }
         //DrawRectangleRec(hitbox, Fade(RED, 0.3f + 0.3f * i));
         //DrawRectangleRec({ itemPos.x, itemPos.y, menuItems[i].size.x, menuItems[i].size.y }, Fade(GREEN, 0.3f + 0.3f * i));
-        DrawTextFont(font, menuItems[i].text, itemPos.x, itemPos.y, size, hovered ? pressed ? RED : YELLOW : WHITE);
+        DrawTextFont(font, menuItems[i].text, itemPos.x, itemPos.y, offsetX, offsetY, size, hovered ? pressed ? RED : YELLOW : WHITE);
     }
 
     escape = false;

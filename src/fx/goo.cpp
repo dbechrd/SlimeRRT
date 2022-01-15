@@ -30,7 +30,7 @@ namespace FX {
 
     void goo_update(Particle &particle, float alpha)
     {
-        const float radius = 5.0f;
+        const float radius = 10.0f;
         // radius * 1.0 -> 0.2
         particle.sprite.scale = radius * (1.0f - alpha * 0.8f);
     }

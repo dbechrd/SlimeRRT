@@ -465,7 +465,7 @@ ErrorType GameClient::Run(void)
         if (!spycam.freeRoam) {
             spycam.cameraGoal = player.body.GroundPosition();
         }
-        spycam.Update(input);
+        spycam.Update(input, frameDt);
         Rectangle cameraRect = spycam.GetRect();
 
         const Vector2 mousePosScreen = GetMousePosition();
@@ -493,7 +493,7 @@ ErrorType GameClient::Run(void)
 #if PIXEL_FIXER
         BeginShaderMode(pixelFixer);
 #endif
-        int tilesDrawn = world->DrawMap(spycam.GetZoomMipLevel());
+        size_t tilesDrawn = world->DrawMap(spycam.GetZoomMipLevel());
 #if PIXEL_FIXER
         EndShaderMode();
 #endif

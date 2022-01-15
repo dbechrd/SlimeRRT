@@ -9,20 +9,18 @@ void HealthBar::SetFont(const Font font)
     HealthBar::s_font = font;
 }
 
-void HealthBar::Draw(int fontSize, const Sprite &sprite, const Body3D &body, const char *name, float hitPoints, float maxHitPoints)
+void HealthBar::Draw(int fontSize, const Vector2 &topCenter, const char *name, float hitPoints, float maxHitPoints)
 {
     assert(HealthBar::s_font.baseSize);
 
     Vector2 pad{ 4.0f, 2.0f };
-    Vector3 topCenter = sprite_world_top_center(sprite, body.position, sprite.scale);
     float x = topCenter.x;
-    float y = (topCenter.y - topCenter.z) - 10.0f;
+    float y = topCenter.y - 10.0f;
     //float y = topCenter.y - 10.0f;
 
     const float hpPercent = hitPoints / maxHitPoints;
     //const char *hpText = TextFormat("HP: %.02f / %.02f", hitPoints, hitPointsMax);
-    //const char *hpText = TextFormat("HP: %.f / %.f", hitPoints, maxHitPoints);
-    const char *hpText = TextFormat("HP: %.f / %.f %d", hitPoints, maxHitPoints, (int)sprite.direction);
+    const char *hpText = TextFormat("HP: %.f / %.f", hitPoints, maxHitPoints);
     const char *nameText = name ? TextFormat(name) : nullptr;
 
     Rectangle hpRect{};
@@ -54,7 +52,7 @@ void HealthBar::Draw(int fontSize, const Sprite &sprite, const Body3D &body, con
     // Draw hitpoint indicators
     DrawRectangleRec(bgRect, DARKGRAY);
     DrawRectangleRec(indicatorRect, RED);
-    DrawTextFont(s_font, nameText, nameRect.x, nameRect.y, fontSize, WHITE);
-    DrawTextFont(s_font, hpText, hpRect.x, hpRect.y, fontSize, WHITE);
+    DrawTextFont(s_font, nameText, nameRect.x, nameRect.y, 0, 0, fontSize, WHITE);
+    DrawTextFont(s_font, hpText, hpRect.x, hpRect.y, 0, 0, fontSize, WHITE);
     DrawRectangleLinesEx(bgRect, 1, BLACK);
 }
