@@ -391,6 +391,9 @@ static inline Vector3i v3_scale(const Vector3i v, int factor)
 
 static inline Vector3i v3_scale_inv(const Vector3i v, int factor)
 {
+    if (factor == 0) {
+        return { 0, 0, 0 };
+    }
     Vector3i result = { v.x / factor, v.y / factor, v.z / factor };
     return result;
 }

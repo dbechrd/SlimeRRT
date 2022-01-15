@@ -1,4 +1,6 @@
-﻿#include "args.h"
+﻿//#define _CRTDBG_MAP_ALLOC
+
+#include "args.h"
 #include "error.h"
 #include "game_client.h"
 #include "game_server.h"
@@ -8,6 +10,9 @@
 
 int main(int argc, char *argv[])
 {
+    //_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_CHECK_ALWAYS_DF | _CRTDBG_LEAK_CHECK_DF); //| _CRTDBG_CHECK_CRT_DF);
+    //_CrtSetBreakAlloc(3569);
+
 #if _DEBUG
     run_tests();
 #endif
@@ -85,7 +90,7 @@ int main(int argc, char *argv[])
 #undef DLB_RAND_TEST
 #undef DLB_RAND_IMPLEMENTATION
 
-#pragma warning(push)
+#pragma warning(push, 0)
 //#pragma warning(disable:4244)  // converstion from float to int possible loss of data
 //#pragma warning(disable:4303)  // Reading invalid data from guiIconsName
 //#pragma warning(disable:4309)  // Possible buffer overrun

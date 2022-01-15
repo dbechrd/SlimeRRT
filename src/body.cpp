@@ -34,8 +34,6 @@ bool Body3D::Resting() const
 
 void Body3D::Update(double dt)
 {
-    prevPosition = position;
-
     // TODO: Account for dt in drag (How? exp()? I forgot..)
     //const float drag_coef = 1.0f - CLAMP(drawThing->drag, 0.0f, 1.0f);
     //drawThing->velocity.x += drawThing->acceleration.x * dt * drag_coef;
@@ -79,4 +77,5 @@ void Body3D::Update(double dt)
     idle = timeSinceLastMove > IDLE_THRESHOLD_SECONDS;
     idleChanged = idle != prevIdle;
     lastUpdated = glfwGetTime();
+    prevPosition = position;
 }

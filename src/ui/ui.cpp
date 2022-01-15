@@ -53,7 +53,7 @@ void UI::Minimap(const Font &font, const World &world)
     // Render minimap
     const int minimapMargin = 6;
     const int minimapBorderWidth = 1;
-    const int minimapX = (int)screenSize.x - minimapMargin - world.map->minimap.width - minimapBorderWidth * 2;
+    const int minimapX = screenSize.x - minimapMargin - world.map->minimap.width - minimapBorderWidth * 2;
     const int minimapY = minimapMargin;
     const int minimapW = world.map->minimap.width + minimapBorderWidth * 2;
     const int minimapH = world.map->minimap.height + minimapBorderWidth * 2;
@@ -66,8 +66,8 @@ void UI::Minimap(const Font &font, const World &world)
     for (size_t i = 0; i < ARRAY_SIZE(world.slimes); i++) {
         const Slime &s = world.slimes[i];
         if (s.id) {
-            int x = (s.body.position.x / (world.map->width * TILE_W)) * minimapW + minimapX;
-            int y = (s.body.position.y / (world.map->height * TILE_W)) * minimapH + minimapY;
+            int x = (s.body.position.x * minimapW / (world.map->width * TILE_W)) + minimapX;
+            int y = (s.body.position.y * minimapH / (world.map->height * TILE_W)) + minimapY;
             DrawCircle(x, y, 2.0f, Color{ 0, 170, 80, 255 });
         }
     }
@@ -82,7 +82,7 @@ void UI::Minimap(const Font &font, const World &world)
             DrawCircle(x, y, 2.0f, playerColor);
             const char *pName = TextFormat("%.*s", p.nameLength, p.name);
             int nameWidth = MeasureText(pName, font.baseSize);
-            DrawTextFont(font, pName, x - (nameWidth / 2), y - font.baseSize - 4, font.baseSize, YELLOW);
+            DrawTextFont(font, pName, x - (nameWidth / 2), y - font.baseSize - 4, 0, 0, font.baseSize, YELLOW);
         }
     }
 }
@@ -317,7 +317,7 @@ void UI::HUD(const Font &font, const Player &player, const DebugStats &debugStat
     int hudCursorY = 0;
 
 #define PUSH_TEXT(text, color) \
-    DrawTextFont(font, text, margin + pad, hudCursorY, font.baseSize, color); \
+    DrawTextFont(font, text, margin + pad, hudCursorY, 0, 0, font.baseSize, color); \
     hudCursorY += font.baseSize + pad; \
 
     int linesOfText = 8;
@@ -527,13 +527,13 @@ void UI::TileHoverTip(const Font &font, const Tilemap &map)
 
     int lineOffset = 0;
     DrawTextFont(font, TextFormat("tilePos : %d, %d", mouseTileX, mouseTileY),
-        tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, font.baseSize, WHITE);
+        tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, 0, 0, font.baseSize, WHITE);
     lineOffset += font.baseSize;
     DrawTextFont(font, TextFormat("tileSize: %zu, %zu", TILE_W, TILE_W),
-        tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, font.baseSize, WHITE);
+        tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, 0, 0, font.baseSize, WHITE);
     lineOffset += font.baseSize;
     DrawTextFont(font, TextFormat("tileType: %d", mouseTile->tileType),
-        tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, font.baseSize, WHITE);
+        tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, 0, 0, font.baseSize, WHITE);
     lineOffset += font.baseSize;
 }
 
@@ -548,8 +548,8 @@ int UI::Menu(const Font &font, bool &escape, bool &exiting, const char **items, 
     Vector2i menuPos{};
     Vector2i menuSize{};
     Vector2i menuPad{ 60, 40 };
-    const int menuSpacingY = 20;
-    const int hitboxPadY = 4;
+    const int menuSpacingY = 16;
+    const int hitboxPadY = 2;
 
     struct MenuItem {
         const char *text;
@@ -577,7 +577,7 @@ int UI::Menu(const Font &font, bool &escape, bool &exiting, const char **items, 
     menuPos.x = (screenSize.x - menuSize.x) / 2;
     menuPos.y = (screenSize.y - menuSize.y) / 2;
 
-    DrawRectangle(menuPos.x, menuPos.y, menuSize.x, menuSize.y, { 130, 170, 240, 255 }); // Fade(BLACK, 0.7f));
+    DrawRectangle(menuPos.x, menuPos.y, menuSize.x, menuSize.y, { 53, 137, 109, 200 }); // Fade(BLACK, 0.7f));
     DrawRectangleLinesEx({ (float)menuPos.x, (float)menuPos.y, (float)menuSize.x, (float)menuSize.y }, 2.0f, BLACK);
     const int menuCenterX = menuPos.x + menuSize.x / 2;
     for (int i = 0; i < ARRAY_SIZE(menuItems); i++) {
@@ -592,13 +592,22 @@ int UI::Menu(const Font &font, bool &escape, bool &exiting, const char **items, 
             itemPressed = i;
         }
         int size = font.baseSize;
+        int offsetX = 3;
+        int offsetY = 3;
+        const int ox = 3;
+        const int oy = 6;
+        offsetX += CLAMP((mouseScreen.x - (hitbox.x + hitbox.width / 2)) * ox / hitbox.width, -ox, ox);
+        offsetY += CLAMP((mouseScreen.y - (hitbox.y + hitbox.height / 2)) * oy / hitbox.height, -oy, oy);
+
         if (pressed || hovered) {
-            //size += 2;
-            itemPos.x += 10;
+            itemPos.x += 6;
+            offsetX = 3;
+            offsetY = 3;
         }
+
         //DrawRectangleRec(hitbox, Fade(RED, 0.3f + 0.3f * i));
         //DrawRectangleRec({ itemPos.x, itemPos.y, menuItems[i].size.x, menuItems[i].size.y }, Fade(GREEN, 0.3f + 0.3f * i));
-        DrawTextFont(font, menuItems[i].text, itemPos.x, itemPos.y, size, hovered ? pressed ? RED : YELLOW : WHITE);
+        DrawTextFont(font, menuItems[i].text, itemPos.x, itemPos.y, offsetX, offsetY, size, hovered ? pressed ? RED : Color{ 255, 222, 61, 255 } : WHITE);
     }
 
     escape = false;

@@ -128,7 +128,7 @@ void ChatHistory::Render(const Font &font, World &world, int left, int bottom, i
             }
             DrawRectangle(left, cursorY - pad, chatWidth, font.baseSize + pad, Fade(chatBgColor, chatBgAlpha * fadeAlpha));
         }
-        DrawTextFont(font, chatText, left + pad, cursorY, font.baseSize, Fade(chatColor, fadeAlpha));
+        DrawTextFont(font, chatText, left + pad, cursorY, 0, 0, font.baseSize, Fade(chatColor, fadeAlpha));
         cursorY -= font.baseSize + pad;
     }
 }

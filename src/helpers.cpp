@@ -12,7 +12,7 @@ static Color ShadowColor(const Color color)
     return shadow_color;
 }
 
-void DrawTextFont(Font font, const char *text, int posX, int posY, int fontSize, const Color &color)
+void DrawTextFont(Font font, const char *text, int posX, int posY, int offsetX, int offsetY, int fontSize, const Color &color)
 {
     int shadowOffset = 1;
     if (fontSize >= 54) {
@@ -21,8 +21,7 @@ void DrawTextFont(Font font, const char *text, int posX, int posY, int fontSize,
         shadowOffset = 2;
     }
     // Check if default font has been loaded
-    if (font.texture.id != 0)
-    {
+    if (font.texture.id != 0) {
         Vector2i position = { posX, posY };
         Vector2i shadowPosition = position;
         shadowPosition.x += shadowOffset;
@@ -30,12 +29,12 @@ void DrawTextFont(Font font, const char *text, int posX, int posY, int fontSize,
 
         int defaultFontSize = 10;   // Default Font chars height in pixel
         if (fontSize < defaultFontSize) fontSize = defaultFontSize;
-        int spacing = fontSize/defaultFontSize;
+        int spacing = fontSize / defaultFontSize;
 
         // Assume SDF font if grayscale
         const bool sdfFont = font.glyphs->image.format == PIXELFORMAT_UNCOMPRESSED_GRAYSCALE;
         if (sdfFont) BeginShaderMode(g_sdfShader);
-        DrawTextEx(font, text, { (float)shadowPosition.x, (float)shadowPosition.y }, (float)fontSize, (float)spacing, ShadowColor(color));
+        DrawTextEx(font, text, { (float)shadowPosition.x - offsetX, (float)shadowPosition.y - offsetY }, (float)fontSize, (float)spacing, ShadowColor(color));
         DrawTextEx(font, text, { (float)position.x, (float)position.y }, (float)fontSize, (float)spacing, color);
         if (sdfFont) EndShaderMode();
     }

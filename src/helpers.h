@@ -98,7 +98,7 @@
 //------------------------------------------------------------------------------
 extern Shader g_sdfShader;
 
-void DrawTextFont(Font font, const char *text, int posX, int posY, int fontSize, const Color &color);
+void DrawTextFont(Font font, const char *text, int posX, int posY, int offsetX, int offsetY, int fontSize, const Color &color);
 const char *TextFormatIP(ENetAddress &address);
 const char *TextFormatTimestamp();
 float VolumeCorrection(float volume);

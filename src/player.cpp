@@ -332,5 +332,6 @@ void Player::Draw(void) const
     Shadow::Draw(playerGroundPos.x, playerGroundPos.y, 16, -6);
 
     sprite_draw_body(sprite, body, WHITE);
-    HealthBar::Draw(10, sprite, body, name, combat.hitPoints, combat.hitPointsMax);
+    const Vector3i topCenter = sprite_world_top_center(sprite, body.position, sprite.scale);
+    HealthBar::Draw(10, topCenter, id, name, combat.hitPoints, combat.hitPointsMax);
 }
