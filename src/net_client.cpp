@@ -268,6 +268,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
             serverWorld->chatHistory.PushServer(welcomeMsg.motd, welcomeMsg.motdLength);
 
             serverWorld->map = serverWorld->mapSystem.Generate(serverWorld->rtt_rand, welcomeMsg.width, welcomeMsg.height);
+            //serverWorld->map->GenerateMinimap();
             assert(serverWorld->map);
             // TODO: Get tileset ID from server
             serverWorld->map->tilesetId = TilesetID::TS_Overworld;

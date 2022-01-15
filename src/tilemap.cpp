@@ -11,6 +11,7 @@
 Tilemap::~Tilemap()
 {
     free(tiles);
+    free(rrt.vertices);
     UnloadTexture(minimap);
 }
 

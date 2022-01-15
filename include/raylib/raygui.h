@@ -4297,9 +4297,11 @@ char **GuiLoadIcons(const char *fileName, bool loadIconsName)
             if (loadIconsName)
             {
                 guiIconsName = (char **)RAYGUI_MALLOC(iconCount*sizeof(char *));
+                assert(guiIconsName);
                 for (int i = 0; i < iconCount; i++)
                 {
                     guiIconsName[i] = (char *)RAYGUI_MALLOC(RICON_MAX_NAME_LENGTH);
+                    assert(guiIconsName[i]);
                     fread(guiIconsName[i], RICON_MAX_NAME_LENGTH, 1, rgiFile);
                 }
             }

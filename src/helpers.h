@@ -9,6 +9,7 @@
 // Feature flags
 //------------------------------------------------------------------------------
 #define CULL_ON_PUSH 1
+#define PIXEL_FIXER 0
 #define DEMO_VIEW_RTREE 0
 #define DEMO_AI_TRACKING 0
 #define DEMO_BODY_RECT 0
@@ -38,8 +39,9 @@
 #define SV_INPUT_HISTORY        (SV_TICK_RATE * SV_MAX_PLAYERS)
 #define SV_WORLD_HISTORY        SV_TICK_RATE
 
-#define SV_PLAYER_NEARBY_THRESHOLD 1300.0f
-#define SV_ENEMY_NEARBY_THRESHOLD  1300.0f
+// NOTE: max diagonal distance at 1080p is 1100 + radius units. 1200px allows for a ~50px wide entity
+#define SV_PLAYER_NEARBY_THRESHOLD 1200
+#define SV_ENEMY_NEARBY_THRESHOLD  1200
 
 // NOTE: Due to how "enemy.moved" flag is calculated atm, this *MUST* match SV_TICK_RATE
 #define SNAPSHOT_SEND_RATE      SV_TICK_RATE  //30 //MIN(20, SV_TICK_RATE)
@@ -97,7 +99,7 @@
 //------------------------------------------------------------------------------
 extern Shader g_sdfShader;
 
-void DrawTextFont(Font font, const char *text, float posX, float posY, int fontSize, Color color);
+void DrawTextFont(Font font, const char *text, float posX, float posY, int offsetX, int offsetY, int fontSize, const Color &color);
 const char *TextFormatIP(ENetAddress &address);
 const char *TextFormatTimestamp();
 float VolumeCorrection(float volume);

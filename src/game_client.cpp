@@ -58,25 +58,27 @@ ErrorType GameClient::Run(void)
     const char *fontName = "C:/Windows/Fonts/consola.ttf";
     //const char *fontName = "resources/UbuntuMono-Regular.ttf";
     Font fontSmall = LoadFontEx(fontName, 14, 0, 0);
-    Font fontBig = LoadFontEx(fontName, 56, 0, 0);
+    //Font fontBig = LoadFontEx(fontName, 72, 0, 0);
     assert(fontSmall.texture.id);
-    assert(fontBig.texture.id);
+    //assert(fontBig.texture.id);
     GuiSetFont(fontSmall);
     HealthBar::SetFont(GetFontDefault());
 
+#if PIXEL_FIXER
     Shader pixelFixer = LoadShader("resources/pixelfixer.vs", "resources/pixelfixer.fs");
     const int pixelFixerScreenSizeUniformLoc = GetShaderLocation(pixelFixer, "screenSize");
     SetShaderValue(pixelFixer, pixelFixerScreenSizeUniformLoc, &screenSize, SHADER_UNIFORM_VEC2);
+#endif
 
     // SDF font generation from TTF font
     Font fontSdf{};
     {
-        fontSdf.baseSize = 54;
+        fontSdf.baseSize = 72;
         fontSdf.glyphCount = 95;
         // Parameters > font size: 16, no glyphs array provided (0), glyphs count: 0 (defaults to 95)
         // Loading file to memory
         unsigned int fileSize = 0;
-        unsigned char *fileData = LoadFileData("C:/Windows/Fonts/consola.ttf", &fileSize);
+        unsigned char *fileData = LoadFileData(fontName, &fileSize);
         fontSdf.glyphs = LoadFontData(fileData, fileSize, fontSdf.baseSize, 0, 0, FONT_SDF);
         // Parameters > glyphs count: 95, font size: 16, glyphs padding in image: 0 px, pack method: 1 (Skyline algorythm)
         Image atlas = GenImageFontAtlas(fontSdf.glyphs, &fontSdf.recs, 95, fontSdf.baseSize, 0, 1);
@@ -121,6 +123,7 @@ ErrorType GameClient::Run(void)
     World *lobby = new World;
     lobby->tick = 1;
     lobby->map = lobby->mapSystem.Generate(lobby->rtt_rand, 64, 64);
+    lobby->map->GenerateMinimap();
     Slime &sam = lobby->SpawnSam();
     world = lobby;
 
@@ -128,6 +131,8 @@ ErrorType GameClient::Run(void)
         Player *player = lobby->AddPlayer(0);
         assert(player);
         lobby->playerId = player->id;
+        memcpy(player->name, CSTR("dandy"));
+        player->nameLength = (uint32_t)strlen(player->name);
         player->combat.hitPoints = MAX(0, player->combat.hitPointsMax - 25);
         //player->body.position.x = 1373.49854f;
 
@@ -407,7 +412,9 @@ ErrorType GameClient::Run(void)
             assert((int)screenSize.x % 2 == 0);
             assert((int)screenSize.y % 2 == 0);
             //printf("w: %f h: %f\n", screenSize.x, screenSize.y);
+#if PIXEL_FIXER
             SetShaderValue(pixelFixer, pixelFixerScreenSizeUniformLoc, &screenSize, SHADER_UNIFORM_VEC2);
+#endif
             spycam.Reset();
         }
 
@@ -478,13 +485,18 @@ ErrorType GameClient::Run(void)
         ClearBackground(ORANGE);
         DrawTexture(checkboardTexture, 0, 0, WHITE);
 
-        BeginMode2D(spycam.GetCamera());
+        Camera2D cam = spycam.GetCamera();
+        BeginMode2D(cam);
 
         world->EnableCulling(cameraRect);
 
+#if PIXEL_FIXER
         BeginShaderMode(pixelFixer);
-        size_t tilesDrawn = world->DrawMap(spycam.GetZoomMipLevel());
+#endif
+        int tilesDrawn = world->DrawMap(spycam.GetZoomMipLevel());
+#if PIXEL_FIXER
         EndShaderMode();
+#endif
 
         if (input.dbgFindMouseTile) {
             UI::TileHoverOutline(*world->map);
@@ -607,7 +619,7 @@ ErrorType GameClient::Run(void)
         if (menuActive) {
             if (connectedToServer) {
                 const char *menuItems[] = { "Resume", "Audio", "Log off" };
-                switch (UI::Menu(fontBig, escape, quit, menuItems, ARRAY_SIZE(menuItems))) {
+                switch (UI::Menu(fontSdf, escape, quit, menuItems, ARRAY_SIZE(menuItems))) {
                     case 0: {    // Resume
                         menuActive = false;
                         break;
@@ -655,10 +667,12 @@ ErrorType GameClient::Run(void)
     delete lobby;
     UnloadShader(g_sdfShader);
     UnloadFont(fontSdf);
+#if PIXEL_FIXER
     UnloadShader(pixelFixer);
+#endif
     UnloadTexture(checkboardTexture);
     UnloadFont(fontSmall);
-    UnloadFont(fontBig);
+    //UnloadFont(fontBig);
     Catalog::g_tracks.Unload();
     Catalog::g_sounds.Unload();
 

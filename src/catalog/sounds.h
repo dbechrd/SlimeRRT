@@ -30,9 +30,9 @@ namespace Catalog {
 
         SoundMixer mixer{};
     private:
-        Sound byId[(size_t)SoundID::Count];
+        Sound missingOggSound {};
+        Sound byId            [(size_t)SoundID::Count]{};
 
         Sound MissingOggSound(void);
-        Wave Sounds::MissingOggWave(void);
     } g_sounds;
 }

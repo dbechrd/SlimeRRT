@@ -257,7 +257,6 @@ void World::SimPlayers(double dt)
                 playerDamage = player.combat.meleeDamage;
             }
 
-            size_t slimesHit = 0;
             for (Slime &slime : slimes) {
                 if (!slime.id) {
                     continue;
@@ -285,7 +284,6 @@ void World::SimPlayers(double dt)
                     } else {
                         Catalog::g_sounds.Play(Catalog::SoundID::Slime_Stab1, 1.0f + dlb_rand32f_variance(0.4f));
                     }
-                    slimesHit++;
                 }
             }
         }
@@ -428,7 +426,7 @@ void World::SimItems(double dt)
     itemSystem.Update(dt);
 }
 
-bool World::InterpolateBody(Body3D &body, double renderAt, Direction &direction)
+bool World::InterpolateBody(Body3D &body, double renderAt, Direction direction)
 {
     auto positionHistory = body.positionHistory;
     const size_t historyLen = positionHistory.Count();
@@ -558,7 +556,6 @@ size_t World::DrawMap(int zoomMipLevel)
             const Vector2 tilePos = { (float)x * TILE_W, (float)y * TILE_W };
             if (!CullTile(tilePos, zoomMipLevel)) {
                 // Draw all tiles as textured rects (looks best, performs worst)
-                Rectangle textureRect = tileset_tile_rect(map->tilesetId, tile->tileType);
                 tileset_draw_tile(map->tilesetId, tile->tileType, tilePos);
                 tilesDrawn++;
             }

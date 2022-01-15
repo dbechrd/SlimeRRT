@@ -25,6 +25,7 @@ struct BitStream {
     void Process       (uint32_t &word, uint8_t bits, uint32_t min, uint32_t max);
     void ProcessBool   (bool &flag);
     void ProcessChar   (char &chr);
+    void ProcessInt    (int &i);
     void ProcessFloat  (float &flt);
     void ProcessDouble (double &dbl);
 

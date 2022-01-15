@@ -89,25 +89,16 @@ namespace Catalog {
 
     Sound Sounds::MissingOggSound(void)
     {
-        static Sound missingOggSound{};
         if (!missingOggSound.frameCount) {
-            Wave missingOggWav = MissingOggWave();
-            missingOggSound = LoadSoundFromWave(missingOggWav);
-            assert(missingOggSound.frameCount);
-        }
-        return missingOggSound;
-    }
-
-    Wave Sounds::MissingOggWave(void)
-    {
-        static Wave missingOggWave{};
-        if (!missingOggWave.frameCount) {
             size_t missingOggSize = 0;
             const unsigned char *missingOggData = MissingOggData(missingOggSize);
-            missingOggWave = LoadWaveFromMemory(".ogg", missingOggData, (int)missingOggSize);
+            Wave missingOggWave = LoadWaveFromMemory(".ogg", missingOggData, (int)missingOggSize);
             assert(missingOggWave.frameCount);
+            missingOggSound = LoadSoundFromWave(missingOggWave);
+            assert(missingOggSound.frameCount);
+            UnloadWave(missingOggWave);
         }
-        return missingOggWave;
+        return missingOggSound;
     }
 
     // NOTE: Generated with `xxd -i <filename>`

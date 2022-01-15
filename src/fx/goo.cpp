@@ -6,7 +6,7 @@ namespace FX {
     void goo_init(Particle &particle, ParticleEffect &effect)
     {
         // Spawn randomly during first 25% of duration
-        particle.spawnAt = effect.duration * dlb_rand32f_variance(0.25f);
+        particle.spawnAt = 0; //effect.duration * dlb_rand32f_variance(0.25f);
 
         // Die randomly during last 15% of animation
         particle.dieAt = effect.duration - (effect.duration * dlb_rand32f_variance(0.15f));

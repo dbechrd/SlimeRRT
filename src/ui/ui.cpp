@@ -593,9 +593,17 @@ int UI::Menu(const Font &font, bool &escape, bool &exiting, const char **items, 
             itemPressed = i;
         }
         int size = font.baseSize;
+        float offsetX = 3.0f;
+        float offsetY = 3.0f;
+        const float ox = 3.0f;
+        const float oy = 6.0f;
+        offsetX += CLAMP((mouseScreen.x - (hitbox.x + hitbox.width / 2.0f)) * ox / hitbox.width, -ox, ox);
+        offsetY += CLAMP((mouseScreen.y - (hitbox.y + hitbox.height / 2.0f)) * oy / hitbox.height, -oy, oy);
+
         if (pressed || hovered) {
-            //size += 2;
-            itemPos.x += 10;
+            itemPos.x += 6.0f;
+            offsetX = 3.0f;
+            offsetY = 3.0f;
         }
         //DrawRectangleRec(hitbox, Fade(RED, 0.3f + 0.3f * i));
         //DrawRectangleRec({ itemPos.x, itemPos.y, menuItems[i].size.x, menuItems[i].size.y }, Fade(GREEN, 0.3f + 0.3f * i));
