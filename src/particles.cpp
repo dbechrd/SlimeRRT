@@ -95,6 +95,7 @@ ParticleEffect *ParticleSystem::GenerateEffect(Catalog::ParticleEffectID type, s
         }
 
         particle->effect = effect;
+        particle->body.Teleport(effect->origin);
 
         assert(pfx.init);
         pfx.init(*particle, *effect);
@@ -145,9 +146,6 @@ void ParticleSystem::Update(double dt)
         const float animTime = (float)(glfwGetTime() - effect.startedAt);
         const float alpha = (float)((animTime - particle.spawnAt) / (particle.dieAt - particle.spawnAt));
         if (alpha >= 0.0f && alpha < 1.0f) {
-            if (!particle.body.lastUpdated) {
-                particle.body.position = v3_add(particle.body.position, effect.origin);
-            }
             particle.body.Update(dt);
             sprite_update(particle.sprite, dt);
             assert(Catalog::g_particleFx.FindById(effect.id).update);
@@ -206,7 +204,7 @@ void ParticleSystem::PushAll(DrawList &drawList)
 
 float Particle::Depth(void) const
 {
-    const float depth = body.position.y;
+    const float depth = body.GroundPosition().y;
     return depth;
 }
 
@@ -217,7 +215,7 @@ bool Particle::Cull(const Rectangle &cullRect) const
     if (sprite.spriteDef) {
         cull = sprite_cull_body(sprite, body, cullRect);
     } else {
-        const Vector2 bodyBC = body.BottomCenter();
+        const Vector2 bodyBC = body.VisualPosition();
         cull = !CheckCollisionCircleRec(bodyBC, sprite.scale, cullRect);
     }
 
@@ -229,11 +227,6 @@ void Particle::Draw(void) const
     if (sprite.spriteDef) {
         sprite_draw_body(sprite, body, color);
     } else {
-        DrawCircle(
-            (int)body.position.x,
-            (int)(body.position.y - body.position.z),
-            sprite.scale,
-            color
-        );
+        DrawCircleV(body.VisualPosition(), sprite.scale, color);
     }
 }

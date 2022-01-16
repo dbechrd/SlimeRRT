@@ -37,7 +37,7 @@ struct World {
 
     World  (void);
     ~World (void);
-    const Vector3 GetWorldSpawn (void);
+    const Vector3 GetWorldSpawn(void);
 
     ////////////////////////////////////////////
     // vvv DO NOT HOLD A POINTER TO THESE! vvv

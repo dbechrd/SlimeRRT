@@ -54,34 +54,32 @@ Rectangle sprite_frame_rect(const Sprite &sprite)
     return rect;
 }
 
-Rectangle sprite_world_rect(const Sprite &sprite, Vector3 position, float scale)
+// pos: bottom center position
+// returns sprite rect in world space
+Rectangle sprite_world_rect(const Sprite &sprite, const Vector3 &pos)
 {
     Rectangle frameRect = sprite_frame_rect(sprite);
-    Rectangle rect = {};
-    rect.x = position.x - frameRect.width / 2.0f * scale;
-    rect.y = position.y - frameRect.height * scale - position.z;
-    rect.width = frameRect.width * scale;
-    rect.height = frameRect.height * scale;
+    Rectangle rect{};
+    rect.x = pos.x - frameRect.width / 2.0f * sprite.scale;
+    rect.y = pos.y - pos.z - frameRect.height * sprite.scale;
+    rect.width = frameRect.width * sprite.scale;
+    rect.height = frameRect.height * sprite.scale;
     return rect;
 }
 
-Vector3 sprite_world_top_center(const Sprite &sprite, Vector3 position, float scale)
+// returns offset of top center from bottom center
+Vector3 sprite_top_center(const Sprite &sprite)
 {
     Rectangle frameRect = sprite_frame_rect(sprite);
-    Vector3 center = {};
-    center.x = position.x;
-    center.y = position.y;
-    center.z = position.z + frameRect.height * scale;
-    return center;
+    Vector3 topCenter = { 0, 0, frameRect.height * sprite.scale };
+    return topCenter;
 }
 
-Vector3 sprite_world_center(const Sprite &sprite, Vector3 position, float scale)
+// returns offset of center from bottom center
+Vector3 sprite_center(const Sprite &sprite)
 {
     Rectangle frameRect = sprite_frame_rect(sprite);
-    Vector3 center = {};
-    center.x = position.x;
-    center.y = position.y;
-    center.z = position.z + frameRect.height / 2.0f * scale;
+    Vector3 center = { 0, 0, frameRect.height / 2.0f * sprite.scale };
     return center;
 }
 
@@ -107,12 +105,12 @@ void sprite_update(Sprite &sprite, double dt)
 
 bool sprite_cull_body(const Sprite &sprite, const Body3D &body, Rectangle cullRect)
 {
-    const Rectangle bodyRect = sprite_world_rect(sprite, body.position, sprite.scale);
+    const Rectangle bodyRect = sprite_world_rect(sprite, body.WorldPosition());
     bool cull = !CheckCollisionRecs(bodyRect, cullRect);
     return cull;
 }
 
-static void sprite_draw(const Sprite &sprite, Rectangle dest, Color color)
+static void sprite_draw(const Sprite &sprite, Rectangle screenRect, Color color)
 {
 #if DEMO_BODY_RECT
     // DEBUG: Draw collision rectangle
@@ -120,18 +118,13 @@ static void sprite_draw(const Sprite &sprite, Rectangle dest, Color color)
 #endif
 
     if (sprite.spriteDef) {
-#if 0
-        // Funny bug where texture stays still relative to screen, could be fun to abuse later
-        const Rectangle rect = drawthing_rect(drawThing);
-#else
-        const Rectangle rect = sprite_frame_rect(sprite);
-#endif
         // Draw textured sprite
-        DrawTextureTiled(sprite.spriteDef->spritesheet->texture, rect, dest, { 0.0f, 0.0f }, 0.0f,
+        const Rectangle sheetRect = sprite_frame_rect(sprite);
+        DrawTextureTiled(sprite.spriteDef->spritesheet->texture, sheetRect, screenRect, { 0.0f, 0.0f }, 0.0f,
             sprite.scale, color);
     } else {
         // Draw magenta rectangle
-        DrawRectangleRec(dest, MAGENTA);
+        DrawRectangleRec(screenRect, MAGENTA);
     }
 
 #if DEMO_BODY_RECT
@@ -143,6 +136,8 @@ static void sprite_draw(const Sprite &sprite, Rectangle dest, Color color)
 
 void sprite_draw_body(const Sprite &sprite, const Body3D &body, const Color &color)
 {
-    const Rectangle bodyRect = sprite_world_rect(sprite, body.position, sprite.scale);
+    const Vector3 worldPos = body.WorldPosition();
+    //DrawCircle(worldPos.x, worldPos.y - worldPos.z, 3.0f, RED);
+    const Rectangle bodyRect = sprite_world_rect(sprite, worldPos);
     sprite_draw(sprite, bodyRect, color);
 }

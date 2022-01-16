@@ -33,6 +33,9 @@ struct Slime : public Drawable {
     void Init   (void);
     void SetName(const char *name, uint32_t nameLength);
 
+    Vector3 WorldCenter(void) const;
+    Vector3 WorldTopCenter(void) const;
+
     bool Move(double dt, Vector2 offset);
     bool Combine(Slime &other);
     bool Attack(double dt);

@@ -272,7 +272,8 @@ ErrorType GameClient::Run(void)
         Player &player = *playerPtr;
 
         if (player.body.OnGround() && IsKeyPressed(KEY_SPACE)) {
-            player.body.velocity.z = METERS_TO_PIXELS(4.0f);
+            // jump
+            player.body.ApplyForce({ 0, 0, METERS_TO_PIXELS(4.0f) });
         }
 
         double renderAt = 0;
@@ -353,8 +354,9 @@ ErrorType GameClient::Run(void)
 
         static bool samTreasureRoom = false;
         if (!samTreasureRoom && world == lobby && !sam.combat.hitPoints) {
-            uint32_t chestX = MAX(0, int(player.body.position.x / TILE_W));
-            uint32_t chestY = MAX(0, int(player.body.position.y / TILE_W) - 2);
+            const Vector2 playerBC = player.body.GroundPosition();
+            uint32_t chestX = MAX(0, int(playerBC.x / TILE_W));
+            uint32_t chestY = MAX(0, int(playerBC.y / TILE_W) - 2);
             Structure::Spawn(*world->map, chestX - 3, chestY - 4);
             Vector3 chestPos{ (chestX * TILE_W) + TILE_W * 0.5f, float(chestY * TILE_W), 0.0f };
 

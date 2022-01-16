@@ -11,26 +11,35 @@ struct Vector3Snapshot {
 };
 
 struct Body3D {
-    Vector3 acceleration {};
+    RingBuffer<Vector3Snapshot, CL_WORLD_HISTORY> positionHistory {};
+
     Vector3 velocity     {};
-    Vector3 prevPosition {};
-    Vector3 position     {};
     float   rotation     {};
     float   restitution  {};  // 0 = no bounce    1 = 100% bounce
     float   drag         {};  // 0 = no drag      1 = 100% drag
     float   friction     {};  // 0 = no friction  1 = 100% friction (when touching ground, i.e. z == 0.0f)
+
+    Vector3 WorldPosition() const;
+    Vector2 GroundPosition() const;
+    Vector2 VisualPosition() const;
+    void Teleport(const Vector3 &pos);
+    void Move(const Vector2 &offset);
+    bool Bounced() const;
+    bool OnGround() const;
+    bool JustLanded() const;
+    bool Resting() const;
+    bool Idle() const;
+    double TimeSinceLastMove() const;
+    void ApplyForce(const Vector3 &force);
+    void Update(double dt);
+
+private:
+    Vector3 prevPosition {};
+    Vector3 position     {};
     double  lastUpdated  {};
     double  lastMoved    {};
     bool    landed       {};
     bool    bounced      {};
     bool    idle         {};
     bool    idleChanged  {};
-
-    RingBuffer<Vector3Snapshot, CL_WORLD_HISTORY> positionHistory {};
-
-    Vector2 BottomCenter() const;
-    Vector2 GroundPosition() const;
-    bool OnGround() const;
-    bool Resting() const;
-    void Update(double dt);
 };

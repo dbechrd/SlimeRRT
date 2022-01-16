@@ -2,7 +2,7 @@
 
 float ItemWorld::Depth(void) const
 {
-    const float depth = body.position.y;
+    const float depth = body.GroundPosition().y;
     return depth;
 }
 
@@ -18,7 +18,7 @@ bool ItemWorld::Cull(const Rectangle& cullRect) const
         cull = !CheckCollisionCircleRec(bodyBC, sprite.scale, cullRect);
     }
 #else
-    const Vector2 bodyBC = body.BottomCenter();
+    const Vector2 bodyBC = body.VisualPosition();
     cull = !CheckCollisionCircleRec(bodyBC, 10.0f, cullRect);
 #endif
 
@@ -30,7 +30,7 @@ void ItemWorld::Draw(void) const
     if (0 && sprite.spriteDef) {
         sprite_draw_body(sprite, body, WHITE);
     } else {
-        Vector2 pos = body.BottomCenter();
+        Vector2 pos = body.VisualPosition();
         Vector2 size { 20.0f, 20.0f };
         DrawRectangleV(pos, size, PURPLE);
     }

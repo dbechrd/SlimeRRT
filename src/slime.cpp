@@ -39,6 +39,18 @@ void Slime::SetName(const char *slimeName, uint32_t slimeNameLength)
     memcpy(name, slimeName, nameLength);
 }
 
+Vector3 Slime::WorldCenter(void) const
+{
+    const Vector3 worldC = v3_add(body.WorldPosition(), sprite_center(sprite));
+    return worldC;
+}
+
+Vector3 Slime::WorldTopCenter(void) const
+{
+    const Vector3 worldTopC = v3_add(body.WorldPosition(), sprite_top_center(sprite));
+    return worldTopC;
+}
+
 void Slime::UpdateDirection(Vector2 offset)
 {
     Direction prevDirection = sprite.direction;
@@ -74,6 +86,7 @@ bool Slime::Move(double dt, Vector2 offset)
 {
     UNUSED(dt);  // todo: use dt
 
+    // Slime must be on ground to move
     if (!body.OnGround()) {
         return false;
     }
@@ -83,9 +96,8 @@ bool Slime::Move(double dt, Vector2 offset)
         return false;
     }
 
-    // On ground and hasn't moved for a bit
-    const double timeSinceJump = glfwGetTime() - body.lastMoved;
-    if (timeSinceJump > randJumpIdle) {
+    // Check if hasn't moved for a bit
+    if (body.TimeSinceLastMove() > randJumpIdle) {
         moveState = MoveState::Jump;
         body.velocity.x += offset.x;
         body.velocity.y += offset.y;
@@ -145,9 +157,9 @@ bool Slime::Attack(double dt)
         return true;
     }
 #else
-    if (body.landed) {
+    if (body.JustLanded()) {
         actionState = ActionState::Attacking;
-        body.lastMoved = glfwGetTime();
+        body.Move({});  // update last move to stop idle animation
         combat.attackStartedAt = glfwGetTime();
         combat.attackDuration = 0.0;
         return true;
@@ -179,7 +191,7 @@ void Slime::Update(double dt)
 
 float Slime::Depth(void) const
 {
-    return body.position.y;
+    return body.GroundPosition().y;
 }
 
 bool Slime::Cull(const Rectangle &cullRect) const
@@ -198,6 +210,6 @@ void Slime::Draw(void) const
     Shadow::Draw((int)slimeBC.x, (int)slimeBC.y, 16.0f * sprite.scale, -8.0f * sprite.scale);
 
     sprite_draw_body(sprite, body, Fade(WHITE, 0.7f));
-    Vector3 topCenter = sprite_world_top_center(sprite, body.position, sprite.scale);
+    Vector3 topCenter = WorldTopCenter();
     HealthBar::Draw(10, { topCenter.x, topCenter.y - topCenter.z }, name, combat.hitPoints, combat.hitPointsMax);
 }

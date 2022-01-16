@@ -9,36 +9,81 @@
 #define VELOCITY_EPSILON 0.001f
 #define IDLE_THRESHOLD_SECONDS 6.0
 
-Vector2 Body3D::BottomCenter() const
+inline Vector3 Body3D::WorldPosition() const
+{
+    return position;
+}
+
+inline Vector2 Body3D::GroundPosition() const
+{
+    Vector2 groundPosition = { position.x, position.y };
+    return groundPosition;
+}
+
+inline Vector2 Body3D::VisualPosition() const
 {
     Vector2 result = GroundPosition();
     result.y -= position.z;
     return result;
 }
 
-Vector2 Body3D::GroundPosition() const
+inline void Body3D::Teleport(const Vector3 &pos)
 {
-    Vector2 groundPosition = { position.x, position.y };
-    return groundPosition;
+    prevPosition = position;
+    position.x = pos.x;
+    position.y = pos.y;
+    position.z = pos.z;
+    lastMoved = glfwGetTime();
 }
 
-bool Body3D::OnGround() const
+inline void Body3D::Move(const Vector2 &offset)
+{
+    prevPosition = position;
+    position.x += offset.x;
+    position.y += offset.y;
+    lastMoved = glfwGetTime();
+}
+
+inline bool Body3D::Bounced() const
+{
+    return bounced;
+}
+
+inline bool Body3D::OnGround() const
 {
     return position.z == 0.0f;
 }
 
-bool Body3D::Resting() const
+inline bool Body3D::JustLanded(void) const
+{
+    return landed;
+}
+
+inline bool Body3D::Resting() const
 {
     return v3_is_zero(velocity) && OnGround();
 }
 
+inline bool Body3D::Idle() const
+{
+    return idle;
+}
+
+inline double Body3D::TimeSinceLastMove() const
+{
+    return glfwGetTime() - lastMoved;
+}
+
+inline void Body3D::ApplyForce(const Vector3 &force)
+{
+    velocity.x += force.x;
+    velocity.y += force.y;
+    velocity.z += force.z;
+}
+
 void Body3D::Update(double dt)
 {
-    // TODO: Account for dt in drag (How? exp()? I forgot..)
-    //const float drag_coef = 1.0f - CLAMP(drawThing->drag, 0.0f, 1.0f);
-    //drawThing->velocity.x += drawThing->acceleration.x * dt * drag_coef;
-    //drawThing->velocity.y += drawThing->acceleration.y * dt * drag_coef;
-    //drawThing->velocity.z += drawThing->acceleration.z * dt * drag_coef;
+    prevPosition = position;
 
     // Simulate physics if body not resting
     if (!Resting()) {
@@ -83,5 +128,4 @@ void Body3D::Update(double dt)
     idle = timeSinceLastMove > IDLE_THRESHOLD_SECONDS;
     idleChanged = idle != prevIdle;
     lastUpdated = glfwGetTime();
-    prevPosition = position;
 }

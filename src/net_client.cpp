@@ -215,7 +215,7 @@ void NetClient::ReconcilePlayer(double tickDt)
     // Roll back local player to server slimeSnapshot location
     bool init = playerSnapshot->init || playerSnapshot->spawned;
     if (init || playerSnapshot->moved) {
-        player->body.position = playerSnapshot->position;
+        player->body.Teleport(playerSnapshot->position);
         player->sprite.direction = playerSnapshot->direction;
     }
     if (init || playerSnapshot->tookDamage || playerSnapshot->healed) {
@@ -310,7 +310,6 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                         pos.recvAt = worldSnapshot.recvAt;
                         pos.v = playerSnapshot.position;
                         pos.direction = playerSnapshot.direction;
-                        player->body.lastMoved = glfwGetTime();
                     }
                     if (init || playerSnapshot.tookDamage || playerSnapshot.healed) {
                         player->combat.hitPoints = playerSnapshot.hitPoints;
@@ -415,7 +414,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
 #endif
                     break;
                 } case NetMessage_NearbyEvent::Type::EnemyState: {
-#if 0
+#if 1
                     NetMessage_NearbyEvent::EnemyState &state = nearbyEvent.data.enemyState;
 
                     if (state.nearby) {
@@ -431,7 +430,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                                 enemy->actionState = Slime::ActionState::Attacking;
                             }
                             if (state.moved) {
-                                enemy->body.position = state.position;
+                                enemy->body.Teleport(state.position);
                                 enemy->sprite.direction = state.direction;
                             }
                             if (state.tookDamage || state.healed) {

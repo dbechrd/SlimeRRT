@@ -262,9 +262,8 @@ ErrorType NetServer::SendWorldSnapshot(NetServerClient &client, WorldSnapshot &w
             continue;
         }
 
-
         // TODO: Make despawn threshold > spawn threshold to prevent spam on event horizon
-        const float distSq = v3_length_sq(v3_sub(player->body.position, otherPlayer.body.position));
+        const float distSq = v2_length_sq(v2_sub(player->body.GroundPosition(), otherPlayer.body.GroundPosition()));
         bool nearby = distSq <= SQUARED(SV_PLAYER_NEARBY_THRESHOLD);
         bool wasNearby = false;
         if (prevSnapshot) {
@@ -293,7 +292,7 @@ ErrorType NetServer::SendWorldSnapshot(NetServerClient &client, WorldSnapshot &w
         state.healed = false;
         bool init = state.init || state.spawned;
         if (init || state.moved) {
-            state.position = otherPlayer.body.position;
+            state.position = otherPlayer.body.WorldPosition();
             state.direction = otherPlayer.sprite.direction;
         }
         if (init || state.tookDamage || state.healed) {
@@ -304,6 +303,7 @@ ErrorType NetServer::SendWorldSnapshot(NetServerClient &client, WorldSnapshot &w
     }
 
     worldSnapshot.enemyCount = 0;
+#if 0
     for (size_t i = 0; i < SV_MAX_SLIMES && worldSnapshot.enemyCount < SNAPSHOT_MAX_SLIMES; i++) {
         Slime &enemy = serverWorld->slimes[i];
         if (!enemy.id) {
@@ -362,6 +362,7 @@ ErrorType NetServer::SendWorldSnapshot(NetServerClient &client, WorldSnapshot &w
         }
         worldSnapshot.enemyCount++;
     }
+#endif
 
     worldSnapshot.itemCount = 0;
     for (size_t i = 0; i < SV_MAX_ITEMS && worldSnapshot.itemCount < SNAPSHOT_MAX_ITEMS; i++) {
@@ -376,16 +377,55 @@ ErrorType NetServer::SendWorldSnapshot(NetServerClient &client, WorldSnapshot &w
     return ErrorType::Success;
 }
 
-ErrorType NetServer::SendNearbyEvents(const NetServerClient &client)
+ErrorType NetServer::SendNearbyEvents(NetServerClient &client)
 {
-    assert(!"Deprecated");
-
     Player *player = serverWorld->FindPlayer(client.playerId);
     assert(player);
     if (!player) {
+        TraceLog(LOG_ERROR, "Failed to find player to send nearby events to");
         return ErrorType::PlayerNotFound;
     }
 
+    WorldSnapshot *prevSnapshot = 0;
+    if (client.worldHistory.Count() > 1) {
+        prevSnapshot = &client.worldHistory.At(client.worldHistory.Count() - 2);
+    }
+
+    for (size_t i = 0; i < SV_MAX_SLIMES; i++) {
+        Slime &enemy = serverWorld->slimes[i];
+        if (!enemy.id) {
+            continue;
+        }
+
+        // TODO: Make despawn threshold > spawn threshold to prevent spam on event horizon
+        const float distSq = v2_length_sq(v2_sub(player->body.GroundPosition(), enemy.body.GroundPosition()));
+        bool nearby = distSq <= SQUARED(SV_ENEMY_NEARBY_THRESHOLD);
+        bool wasNearby = false;
+        if (prevSnapshot) {
+            assert(prevSnapshot->enemyCount < SNAPSHOT_MAX_SLIMES);
+            for (size_t j = 0; j < prevSnapshot->enemyCount; j++) {
+                if (prevSnapshot->enemies[j].id == enemy.id) {
+                    wasNearby = prevSnapshot->enemies[j].nearby;
+                    break;
+                }
+            }
+        }
+        if (!nearby && !wasNearby) {
+            continue;
+        }
+
+        if (nearby && !wasNearby) {
+            TraceLog(LOG_DEBUG, "Entered vicinity of enemy #%u", enemy.id);
+        }
+
+        if (!nearby && wasNearby) {
+            TraceLog(LOG_DEBUG, "Left vicinity of enemy #%u", enemy.id);
+        }
+
+        E_ASSERT(SendEnemyState(client, enemy, nearby, nearby && !wasNearby), "Failed to send nearby enemy state in welcome basket");
+    }
+
+#if 0
     for (size_t i = 0; i < SV_MAX_PLAYERS; i++) {
         Player &otherPlayer = serverWorld->players[i];
         if (!otherPlayer.id) {
@@ -425,6 +465,7 @@ ErrorType NetServer::SendNearbyEvents(const NetServerClient &client)
         bool spawned = nearby && !wasNearby;
         E_ASSERT(SendEnemyState(client, enemy, nearby, spawned), "Failed to send nearby enemy state in welcome basket");
     }
+#endif
 
     return ErrorType::Success;
 }
@@ -447,11 +488,11 @@ ErrorType NetServer::SendPlayerState(const NetServerClient &client, const Player
     state.tookDamage = true;
     // TODO: Is this also a state on player.. or? How do we know it happened?
     state.healed = false;
-    if (state.moved) {
-        state.position = otherPlayer.body.position;
+    if (state.spawned || state.moved) {
+        state.position = otherPlayer.body.WorldPosition();
         state.direction = otherPlayer.sprite.direction;
     }
-    if (state.tookDamage || state.healed) {
+    if (state.spawned || state.tookDamage || state.healed) {
         state.hitPoints = otherPlayer.combat.hitPoints;
         state.hitPointsMax = otherPlayer.combat.hitPointsMax;
     }
@@ -477,7 +518,7 @@ ErrorType NetServer::SendEnemyState(const NetServerClient &client, const Slime &
     // TODO: Is this also a state on slime.. or? How do we know it happened?
     state.healed = false;
     if (state.moved) {
-        state.position = enemy.body.position;
+        state.position = enemy.body.WorldPosition();
         state.direction = enemy.sprite.direction;
     }
     if (state.tookDamage || state.healed) {
@@ -560,7 +601,7 @@ void NetServer::ProcessMsg(NetServerClient &client, ENetPacket &packet)
 
             Player *player = serverWorld->AddPlayer(nextPlayerId);
             if (player) {
-                player->body.position = serverWorld->GetWorldSpawn();
+                player->body.Teleport(serverWorld->GetWorldSpawn());
                 nextPlayerId = MAX(1, nextPlayerId + 1); // Prevent ID zero from being used on overflow
                 client.playerId = player->id;
                 client.connectionToken = netMsg.connectionToken;

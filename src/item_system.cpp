@@ -20,7 +20,7 @@ void ItemSystem::SpawnItem(Vector3 pos, Catalog::ItemID id, uint32_t count)
     ItemWorld &item = *itemPtr;
     item.stack.id = id;
     item.stack.count = count;
-    item.body.position = pos;
+    item.body.Teleport(pos);
     float randX = dlb_rand32f_variance(METERS_TO_PIXELS(3.0f));
     float randY = dlb_rand32f_variance(METERS_TO_PIXELS(3.0f));
     float randZ = dlb_rand32f_range(2.0f, METERS_TO_PIXELS(4.0f));

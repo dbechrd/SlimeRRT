@@ -66,8 +66,8 @@ void UI::Minimap(const Font &font, const World &world)
     for (size_t i = 0; i < ARRAY_SIZE(world.slimes); i++) {
         const Slime &s = world.slimes[i];
         if (s.id) {
-            float x = (s.body.position.x / (world.map->width * TILE_W)) * minimapW + minimapX;
-            float y = (s.body.position.y / (world.map->height * TILE_W)) * minimapH + minimapY;
+            float x = (s.body.WorldPosition().x / (world.map->width * TILE_W)) * minimapW + minimapX;
+            float y = (s.body.WorldPosition().y / (world.map->height * TILE_W)) * minimapH + minimapY;
             DrawCircle((int)x, (int)y, 2.0f, Color{ 0, 170, 80, 255 });
         }
     }
@@ -76,8 +76,8 @@ void UI::Minimap(const Font &font, const World &world)
     for (size_t i = 0; i < ARRAY_SIZE(world.players); i++) {
         const Player &p = world.players[i];
         if (p.id) {
-            float x = (p.body.position.x / (world.map->width * TILE_W)) * minimapW + minimapX;
-            float y = (p.body.position.y / (world.map->height * TILE_W)) * minimapH + minimapY;
+            float x = (p.body.WorldPosition().x / (world.map->width * TILE_W)) * minimapW + minimapX;
+            float y = (p.body.WorldPosition().y / (world.map->height * TILE_W)) * minimapH + minimapY;
             const Color playerColor{ 220, 90, 20, 255 };
             DrawCircle((int)x, (int)y, 2.0f, playerColor);
             const char *pName = TextFormat("%.*s", p.nameLength, p.name);

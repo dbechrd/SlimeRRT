@@ -40,13 +40,24 @@ void Player::SetName(const char *playerName, uint32_t playerNameLength)
     memcpy(name, playerName, nameLength);
 }
 
+Vector3 Player::WorldCenter(void) const
+{
+    Vector3 worldC = v3_add(body.WorldPosition(), sprite_center(sprite));
+    return worldC;
+}
+
+Vector3 Player::WorldTopCenter(void) const
+{
+    Vector3 worldTopC = v3_add(body.WorldPosition(), sprite_top_center(sprite));
+    return worldTopC;
+}
+
 Vector3 Player::GetAttachPoint(AttachPoint attachPoint) const
 {
     Vector3 attach = {};
     switch (attachPoint) {
         case AttachPoint::Gut: {
-            Vector3 playerC = sprite_world_center(sprite, body.position, sprite.scale);
-            attach = v3_add(playerC, { 0.0f, 0.0f, -10.0f });
+            attach = v3_add(WorldCenter(), { 0.0f, 0.0f, -10.0f });
             break;
         } default: {
             assert(!"That's not a valid attachment point identifier");
@@ -103,8 +114,7 @@ bool Player::Move(Vector2 offset)
     // Don't allow player to move if they're not touching the ground (currently no jump/fall, so just assert)
     //assert(body.position.z == 0.0f);
 
-    body.position.x += offset.x;
-    body.position.y += offset.y;
+    body.Move(offset);
     UpdateDirection(offset);
 
     const float pixelsMoved = v2_length(offset);
@@ -117,7 +127,7 @@ bool Player::Attack(void)
 {
     if (actionState == ActionState::None) {
         actionState = ActionState::Attacking;
-        body.lastMoved = glfwGetTime();
+        body.Move({});  // update lastMoved to stop idle animation
         combat.attackStartedAt = glfwGetTime();
         combat.attackDuration = 0.2;
 
@@ -126,8 +136,7 @@ bool Player::Attack(void)
             case Catalog::ItemID::Weapon_Sword: {
                 stats.timesSwordSwung++;
                 break;
-            }
-            default: {
+            } default: {
                 stats.timesFistSwung++;
                 break;
             }
@@ -227,7 +236,7 @@ void Player::Update(double dt, InputSample &input, const Tilemap &map)
             }
         }
 
-        if (body.position.x < 0.0f) {
+        if (body.GroundPosition().x < 0.0f) {
             assert(!"wtf?");
         }
 
@@ -258,7 +267,7 @@ void Player::Update(double dt, InputSample &input, const Tilemap &map)
         if (selectedStack.id == Catalog::ItemID::Weapon_Sword) {
             switch (actionState) {
                 case ActionState::None: {
-                    switch (body.idle) {
+                    switch (body.Idle()) {
                         // TODO: sprite_by_name("player_sword");
                         case false: sprite.spriteDef = &sheet->sprites[2]; break;
                         // TODO: sprite_by_name("player_sword_idle");
@@ -277,7 +286,7 @@ void Player::Update(double dt, InputSample &input, const Tilemap &map)
                 }
             }
         } else {
-            switch (body.idle) {
+            switch (body.Idle()) {
                 // TODO: sprite_by_name("player_melee");
                 case false: sprite.spriteDef = &sheet->sprites[0]; break;
                 // TODO: sprite_by_name("player_melee_idle");
@@ -289,15 +298,15 @@ void Player::Update(double dt, InputSample &input, const Tilemap &map)
     body.Update(dt);
     sprite_update(sprite, dt);
 
+#if 0
+    // TODO: PushEvent(BODY_IDLE_CHANGED, body.idle);
     if (!input.skipFx && body.idleChanged) {
-        // TODO: PushEvent(BODY_IDLE_CHANGED, body.idle);
-
-        //fadeTo(music, target, speed = 1.0) { music.targetVol = float }
-        //fadeIn(music, speed = 1.0) { fade(Music, 1.0, speed) }
-        //fadeOut(music, speed = 1.0) { fadeTo(Music, 0.0, speed) }
-
+        fadeTo(music, target, speed = 1.0) { music.targetVol = float }
+        fadeIn(music, speed = 1.0) { fade(Music, 1.0, speed) }
+        fadeOut(music, speed = 1.0) { fadeTo(Music, 0.0, speed) }
         // TODO: HandleEvent, body.idle ? (fadeIn(idleMusic), fadeTo(bgMusic, 0.1)) : (fadeOut(idleMusic), fadeIn(bgMusic))
     }
+#endif
 
     // Skip sounds/particles etc. next time this input is used (e.g. during reconciliation)
     input.skipFx = true;
@@ -305,7 +314,7 @@ void Player::Update(double dt, InputSample &input, const Tilemap &map)
 
 float Player::Depth(void) const
 {
-    return body.position.y;
+    return body.GroundPosition().y;
 }
 
 bool Player::Cull(const Rectangle &cullRect) const
@@ -324,6 +333,6 @@ void Player::Draw(void) const
     Shadow::Draw((int)playerGroundPos.x, (int)playerGroundPos.y, 16.0f, -6.0f);
 
     sprite_draw_body(sprite, body, WHITE);
-    Vector3 topCenter = sprite_world_top_center(sprite, body.position, sprite.scale);
+    Vector3 topCenter = WorldTopCenter();
     HealthBar::Draw(10, { topCenter.x, topCenter.y - topCenter.z }, name, combat.hitPoints, combat.hitPointsMax);
 }

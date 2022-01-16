@@ -34,7 +34,7 @@ const Vector3 World::GetWorldSpawn(void)
     Vector3 worldSpawn = {
         (float)map->width / 2.0f * 32,
         (float)map->height / 2.0f * 32,
-        0.0f
+        0
     };
     return worldSpawn;
 };
@@ -64,8 +64,7 @@ Player *World::AddPlayer(uint32_t playerId)
             const Spritesheet &spritesheet = Catalog::g_spritesheets.FindById(Catalog::SpritesheetID::Charlie);
             const SpriteDef *spriteDef = spritesheet.FindSprite("player_sword");
             player.Init(spriteDef);
-            player.body.position = GetWorldSpawn();
-            player.body.prevPosition = player.body.position;
+            player.body.Teleport(GetWorldSpawn());
             return &player;
         }
     }
@@ -138,7 +137,7 @@ Slime &World::SpawnSam(void)
     sam.combat.hitPoints = sam.combat.hitPointsMax;
     sam.combat.meleeDamage = -1.0f;
     sam.combat.lootTableId = LootTableID::LT_Sam;
-    sam.body.position = v3_add(GetWorldSpawn(), { -200.0f, 0, 0 });
+    sam.body.Teleport(v3_add(GetWorldSpawn(), { -200.0f, 0, 0 }));
     sam.sprite.scale = 2.0f;
     return sam;
 }
@@ -180,10 +179,11 @@ Slime *World::SpawnSlime(uint32_t slimeId)
             const size_t mapPixelsY = (size_t)map->height * TILE_W;
             const float maxX = mapPixelsX - slimeRadius;
             const float maxY = mapPixelsY - slimeRadius;
-            slime.body.position.x = dlb_rand32f_range(slimeRadius, maxX);
-            slime.body.position.y = dlb_rand32f_range(slimeRadius, maxY);
-            slime.body.prevPosition = slime.body.position;
-
+            slime.body.Teleport({
+                dlb_rand32f_range(slimeRadius, maxX),
+                dlb_rand32f_range(slimeRadius, maxY),
+                0.0f
+            });
             return &slime;
         }
     }
@@ -210,8 +210,7 @@ void World::DespawnSlime(uint32_t slimeId)
     Slime *slime = FindSlime(slimeId);
     if (slime) {
         if (!slime->combat.hitPoints) {
-            const Vector3 slimeBC = sprite_world_center(slime->sprite, slime->body.position, slime->sprite.scale);
-            particleSystem.GenerateEffect(Catalog::ParticleEffectID::Goo, 20, slimeBC, 2.0);
+            particleSystem.GenerateEffect(Catalog::ParticleEffectID::Goo, 20, slime->WorldCenter(), 2.0);
             Catalog::g_sounds.Play(Catalog::SoundID::Squish2, 0.5f + dlb_rand32f_variance(0.1f), true);
         }
         printf("Despawn slime %u\n", slimeId);
@@ -262,7 +261,7 @@ void World::SimPlayers(double dt)
                     continue;
                 }
 
-                Vector3 playerToSlime = v3_sub(slime.body.position, player.body.position);
+                Vector3 playerToSlime = v3_sub(slime.body.WorldPosition(), player.body.WorldPosition());
                 if (v3_length_sq(playerToSlime) <= playerAttackReach * playerAttackReach) {
                     player.stats.damageDealt += CLAMP(playerDamage, 0.0f, slime.combat.hitPoints);
                     slime.combat.hitPoints = CLAMP(
@@ -274,7 +273,7 @@ void World::SimPlayers(double dt)
                         uint32_t coins = lootSystem.RollCoins(slime.combat.lootTableId, (int)slime.sprite.scale);
                         assert(coins);
 
-                        Vector3 itemPos = slime.body.position;
+                        Vector3 itemPos = slime.WorldCenter();
                         itemPos.x += dlb_rand32f_variance(METERS_TO_PIXELS(0.5f));
                         itemPos.y += dlb_rand32f_variance(METERS_TO_PIXELS(0.5f));
                         itemSystem.SpawnItem(itemPos, Catalog::ItemID::Currency_Coin, coins);
@@ -320,8 +319,8 @@ void World::SimSlimes(double dt)
             const float moveRandMult = 1.0f; //dlb_rand32i_range(1, 100) > 5 ? 1.0f : -1.0f;
             const Vector2 slimeMoveDir = v2_scale(slimeToPlayer, 1.0f / slimeToPlayerDist);
             const Vector2 slimeMove = v2_scale(slimeMoveDir, moveDist * moveRandMult);
-            const Vector2 slimePos = slime.body.GroundPosition();
-            const Vector2 slimePosNew = v2_add(slimePos, slimeMove);
+            const Vector3 slimePos = slime.body.WorldPosition();
+            const Vector3 slimePosNew = v3_add(slimePos, { slimeMove.x, slimeMove.y, 0 });
 
             int willCollide = 0;
             for (size_t collideIdx = slimeIdx + 1; collideIdx < SV_MAX_SLIMES; collideIdx++) {
@@ -330,16 +329,15 @@ void World::SimSlimes(double dt)
                     continue;
                 }
 
-                Vector2 otherSlimePos = otherSlime.body.GroundPosition();
-                const float zDist = fabsf(slime.body.position.z - otherSlime.body.position.z);
+                Vector3 otherSlimePos = otherSlime.body.WorldPosition();
                 const float radiusScaled = slimeRadius * slime.sprite.scale;
-                if (v2_length_sq(v2_sub(slimePos, otherSlimePos)) < SQUARED(radiusScaled) && zDist < radiusScaled) {
+                if (v3_length_sq(v3_sub(slimePos, otherSlimePos)) < SQUARED(radiusScaled)) {
                     if (slime.Combine(otherSlime)) {
                         const Slime &dead = slime.combat.hitPoints == 0.0f ? slime : otherSlime;
                         DespawnSlime(dead.id);
                     }
                 }
-                if (v2_length_sq(v2_sub(slimePosNew, otherSlimePos)) < SQUARED(radiusScaled) && zDist < radiusScaled) {
+                if (v3_length_sq(v3_sub(slimePosNew, otherSlimePos)) < SQUARED(radiusScaled)) {
                     willCollide = 1;
                 }
             }
@@ -399,7 +397,7 @@ void World::SimItems(double dt)
             continue;
         }
 
-        Vector3 itemToPlayer = v3_sub(closestPlayer->body.position, item.body.position);
+        Vector3 itemToPlayer = v3_sub(closestPlayer->body.WorldPosition(), item.body.WorldPosition());
         const float itemToPlayerDistSq = v3_length_sq(itemToPlayer);
         if (itemToPlayerDistSq < SQUARED(playerItemPickupDist)) {
             item.pickedUp = true;
@@ -449,7 +447,7 @@ bool World::InterpolateBody(Body3D &body, double renderAt, Direction direction)
         assert(renderAt < oldest.recvAt);
         //printf("renderAt %f before oldest snapshot %f\n", renderAt, oldest.recvAt);
 
-        body.position = oldest.v;
+        body.Teleport(oldest.v);
         direction = oldest.direction;
     // renderAt is after all snapshots, show entity at newest snapshot
     } else if (right == historyLen) {
@@ -467,7 +465,7 @@ bool World::InterpolateBody(Body3D &body, double renderAt, Direction direction)
             return false;
         }
 
-        body.position = newest.v;
+        body.Teleport(newest.v);
         direction = newest.direction;
         // renderAt is between two snapshots
     } else {
@@ -484,7 +482,8 @@ bool World::InterpolateBody(Body3D &body, double renderAt, Direction direction)
 
         // Linear interpolation: body.x = x0 + (x1 - x0) * alpha;
         double alpha = (renderAt - a.recvAt) / (b.recvAt - a.recvAt);
-        body.position = v3_add(a.v, v3_scale(v3_sub(b.v, a.v), (float)alpha));
+        const Vector3 interpPos = v3_add(a.v, v3_scale(v3_sub(b.v, a.v), (float)alpha));
+        body.Teleport(interpPos);
         direction = b.direction;
     }
 

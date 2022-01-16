@@ -289,7 +289,7 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                     TraceLog(LOG_FATAL, "Unexpected message");
                     break;
                 } case NetMessage_NearbyEvent::Type::EnemyState: {
-#if 0
+#if 1
                     NetMessage_NearbyEvent::EnemyState &state = nearbyEvent.data.enemyState;
                     stream.Process(state.id, 32, 1, UINT32_MAX);
                     stream.ProcessBool(state.nearby);

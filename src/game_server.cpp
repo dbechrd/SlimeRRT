@@ -25,8 +25,8 @@ ErrorType GameServer::Run()
             Slime &slime = world->slimes[i];
             uint32_t slimeId = 0;
             world->SpawnSlime(0);
-            //slime.body.position = world->GetWorldSpawn();
-            //slime.body.position.y -= 50;
+            slime.body.Teleport(world->GetWorldSpawn());
+            slime.body.Move({ -50.0f, 0 });
         }
     }
 
@@ -77,38 +77,28 @@ ErrorType GameServer::Run()
 
             world->Simulate(tickDt);
 
-#if 1
             for (size_t i = 0; i < SV_MAX_PLAYERS; i++) {
                 NetServerClient &client = netServer.clients[i];
-                if (client.playerId && (glfwGetTime() - client.lastSnapshotSentAt) > (1000.0 / SNAPSHOT_SEND_RATE) / 1000.0) {
+                if (!client.playerId) {
+                    continue;
+                }
+
+                if (glfwGetTime() - client.lastSnapshotSentAt > 1.0 / SNAPSHOT_SEND_RATE) {
 #if SV_DEBUG_INPUT
                     printf("Sending snapshot for tick %u / input seq #%u, to player %u\n", world->tick, client.lastInputAck, client.playerId);
 #endif
+                    // Send snapshot
                     WorldSnapshot &worldSnapshot = client.worldHistory.Alloc();
                     assert(!worldSnapshot.tick);  // ringbuffer alloc fucked up and didn't zero slot
                     E_ASSERT(netServer.SendWorldSnapshot(client, worldSnapshot), "Failed to send world snapshot");
                     client.lastSnapshotSentAt = glfwGetTime();
                 }
-            }
-#else
-            for (size_t clientIdx = 0; clientIdx < SV_MAX_PLAYERS; clientIdx++) {
-                NetServerClient &client = netServer.clients[clientIdx];
-                if (!client.playerId) {
-                    continue;
-                }
-
-                //---------------------
-                // Send global events
-                //---------------------
 
                 // TODO: Send global events
 
-                //---------------------
                 // Send nearby events
-                //---------------------
                 E_ASSERT(netServer.SendNearbyEvents(client), "Failed to send nearby events. playerId: %u", client.playerId);
             }
-#endif
 
             tickAccum -= tickDt;
         }
