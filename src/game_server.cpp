@@ -21,12 +21,14 @@ ErrorType GameServer::Run()
     netServer.serverWorld = world;
 
     {
-        for (size_t i = 0; i < SV_MAX_SLIMES; i++) {
-            Slime &slime = world->slimes[i];
-            uint32_t slimeId = 0;
-            world->SpawnSlime(0);
-            slime.body.Teleport(world->GetWorldSpawn());
-            slime.body.Move({ -50.0f, 0 });
+        Slime *slime = world->SpawnSlime(0);
+        memcpy(slime->name, CSTR("Sam"));
+        slime->nameLength = (uint32_t)strlen(slime->name);
+        slime->body.Teleport(world->GetWorldSpawn());
+        slime->body.Move({ -50.0f, 0 });
+
+        for (size_t i = 1; i < SV_MAX_SLIMES; i++) {
+            //world->SpawnSlime(0);
         }
     }
 
@@ -75,7 +77,7 @@ ErrorType GameServer::Run()
                 client->lastInputAck = sample.seq;
             }
 
-            world->Simulate(tickDt);
+            world->SV_Simulate(tickDt);
 
             for (size_t i = 0; i < SV_MAX_PLAYERS; i++) {
                 NetServerClient &client = netServer.clients[i];
@@ -97,9 +99,10 @@ ErrorType GameServer::Run()
                 // TODO: Send global events
 
                 // Send nearby events
-                E_ASSERT(netServer.SendNearbyEvents(client), "Failed to send nearby events. playerId: %u", client.playerId);
+                //E_ASSERT(netServer.SendNearbyEvents(client), "Failed to send nearby events. playerId: %u", client.playerId);
             }
 
+            world->SV_DespawnDeadEntities();
             tickAccum -= tickDt;
         }
     }

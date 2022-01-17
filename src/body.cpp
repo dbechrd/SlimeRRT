@@ -20,6 +20,12 @@ inline Vector2 Body3D::GroundPosition() const
     return groundPosition;
 }
 
+inline Vector2 Body3D::PrevGroundPosition() const
+{
+    Vector2 prevGroundPosition = { prevPosition.x, prevPosition.y };
+    return prevGroundPosition;
+}
+
 inline Vector2 Body3D::VisualPosition() const
 {
     Vector2 result = GroundPosition();

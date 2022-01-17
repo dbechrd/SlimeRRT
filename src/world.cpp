@@ -184,9 +184,13 @@ Slime *World::SpawnSlime(uint32_t slimeId)
                 dlb_rand32f_range(slimeRadius, maxY),
                 0.0f
             });
+
+            TraceLog(LOG_DEBUG, "Spawned slime %u", slime.id);
             return &slime;
         }
     }
+
+    TraceLog(LOG_ERROR, "Failed to spawn slime");
     return 0;
 }
 
@@ -209,11 +213,7 @@ void World::DespawnSlime(uint32_t slimeId)
 {
     Slime *slime = FindSlime(slimeId);
     if (slime) {
-        if (!slime->combat.hitPoints) {
-            particleSystem.GenerateEffect(Catalog::ParticleEffectID::Goo, 20, slime->WorldCenter(), 2.0);
-            Catalog::g_sounds.Play(Catalog::SoundID::Squish2, 0.5f + dlb_rand32f_variance(0.1f), true);
-        }
-        printf("Despawn slime %u\n", slimeId);
+        TraceLog(LOG_DEBUG, "Despawn enemy %u", slimeId);
         *slime = {};
     }
 }
@@ -227,14 +227,14 @@ void BloodParticlesFollowPlayer(ParticleEffect &effect, void *userData)
     effect.origin = player->GetAttachPoint(Player::AttachPoint::Gut);
 }
 
-void World::Simulate(double dt)
+void World::SV_Simulate(double dt)
 {
-    SimPlayers(dt);
-    SimSlimes(dt);
-    SimItems(dt);
+    SV_SimPlayers(dt);
+    SV_SimSlimes(dt);
+    SV_SimItems(dt);
 }
 
-void World::SimPlayers(double dt)
+void World::SV_SimPlayers(double dt)
 {
     for (size_t i = 0; i < SV_MAX_PLAYERS; i++) {
         Player &player = players[i];
@@ -270,6 +270,8 @@ void World::SimPlayers(double dt)
                         slime.combat.hitPointsMax
                     );
                     if (!slime.combat.hitPoints) {
+                        slime.combat.diedAt = glfwGetTime();
+
                         uint32_t coins = lootSystem.RollCoins(slime.combat.lootTableId, (int)slime.sprite.scale);
                         assert(coins);
 
@@ -277,8 +279,6 @@ void World::SimPlayers(double dt)
                         itemPos.x += dlb_rand32f_variance(METERS_TO_PIXELS(0.5f));
                         itemPos.y += dlb_rand32f_variance(METERS_TO_PIXELS(0.5f));
                         itemSystem.SpawnItem(itemPos, Catalog::ItemID::Currency_Coin, coins);
-
-                        DespawnSlime(slime.id);
                         player.stats.slimesSlain++;
                     } else {
                         Catalog::g_sounds.Play(Catalog::SoundID::Slime_Stab1, 1.0f + dlb_rand32f_variance(0.4f));
@@ -289,14 +289,8 @@ void World::SimPlayers(double dt)
     }
 }
 
-void World::SimSlimes(double dt)
+void World::SV_SimSlimes(double dt)
 {
-    // TODO: Move these to somewhere
-    const float slimeMoveSpeed = METERS_TO_PIXELS(2.0f);
-    const float slimeAttackReach = METERS_TO_PIXELS(0.5f);
-    const float slimeAttackTrack = METERS_TO_PIXELS(10.0f);
-    const float slimeRadius = METERS_TO_PIXELS(0.5f);
-
     for (size_t slimeIdx = 0; slimeIdx < SV_MAX_SLIMES; slimeIdx++) {
         Slime &slime = slimes[slimeIdx];
         if (!slime.id) {
@@ -304,7 +298,7 @@ void World::SimSlimes(double dt)
         }
 
         // TODO: Actually find closest alive player via RTree
-        Player *closestPlayer = FindClosestPlayer(slime.body.GroundPosition(), slimeAttackTrack);
+        Player *closestPlayer = FindClosestPlayer(slime.body.GroundPosition(), SV_SLIME_ATTACK_TRACK);
         if (!closestPlayer || !closestPlayer->id) {
             slime.Update(dt);
             continue;
@@ -312,9 +306,9 @@ void World::SimSlimes(double dt)
 
         Vector2 slimeToPlayer = v2_sub(closestPlayer->body.GroundPosition(), slime.body.GroundPosition());
         const float slimeToPlayerDistSq = v2_length_sq(slimeToPlayer);
-        if (slimeToPlayerDistSq <= SQUARED(slimeAttackTrack)) {
+        if (slimeToPlayerDistSq <= SQUARED(SV_SLIME_ATTACK_TRACK)) {
             const float slimeToPlayerDist = sqrtf(slimeToPlayerDistSq);
-            const float moveDist = MIN(slimeToPlayerDist, slimeMoveSpeed * slime.sprite.scale);
+            const float moveDist = MIN(slimeToPlayerDist, SV_SLIME_MOVE_SPEED * slime.sprite.scale);
             // 5% -1.0, 95% +1.0f
             const float moveRandMult = 1.0f; //dlb_rand32i_range(1, 100) > 5 ? 1.0f : -1.0f;
             const Vector2 slimeMoveDir = v2_scale(slimeToPlayer, 1.0f / slimeToPlayerDist);
@@ -330,11 +324,10 @@ void World::SimSlimes(double dt)
                 }
 
                 Vector3 otherSlimePos = otherSlime.body.WorldPosition();
-                const float radiusScaled = slimeRadius * slime.sprite.scale;
+                const float radiusScaled = SV_SLIME_RADIUS * slime.sprite.scale;
                 if (v3_length_sq(v3_sub(slimePos, otherSlimePos)) < SQUARED(radiusScaled)) {
                     if (slime.Combine(otherSlime)) {
                         const Slime &dead = slime.combat.hitPoints == 0.0f ? slime : otherSlime;
-                        DespawnSlime(dead.id);
                     }
                 }
                 if (v3_length_sq(v3_sub(slimePosNew, otherSlimePos)) < SQUARED(radiusScaled)) {
@@ -351,7 +344,7 @@ void World::SimSlimes(double dt)
 
         // Allow slime to attack if on the ground and close enough to the player
         slimeToPlayer = v2_sub(closestPlayer->body.GroundPosition(), slime.body.GroundPosition());
-        if (v2_length_sq(slimeToPlayer) <= SQUARED(slimeAttackReach)) {
+        if (v2_length_sq(slimeToPlayer) <= SQUARED(SV_SLIME_ATTACK_REACH)) {
             if (slime.Attack(dt)) {
                 closestPlayer->combat.hitPoints = CLAMP(
                     closestPlayer->combat.hitPoints - (slime.combat.meleeDamage * slime.sprite.scale),
@@ -378,7 +371,7 @@ void World::SimSlimes(double dt)
     }
 }
 
-void World::SimItems(double dt)
+void World::SV_SimItems(double dt)
 {
     // TODO: Move these to somewhere
     const float playerItemPickupReach = METERS_TO_PIXELS(1.5f);
@@ -424,7 +417,38 @@ void World::SimItems(double dt)
     itemSystem.Update(dt);
 }
 
-bool World::InterpolateBody(Body3D &body, double renderAt, Direction direction)
+void World::SV_DespawnDeadEntities(void)
+{
+    double now = glfwGetTime();
+
+    for (size_t i = 0; i < SV_MAX_PLAYERS; i++) {
+        Player &player = players[i];
+        if (!player.id) {
+            continue;
+        }
+
+        // NOTE: Player is likely going to respawn very quickly, so this may not be useful
+        if (!player.combat.hitPoints && glfwGetTime() - player.combat.diedAt > SV_PLAYER_CORPSE_LIFETIME) {
+            TraceLog(LOG_DEBUG, "Despawn stale player corpse %u", player.id);
+            DespawnPlayer(player.id);
+        }
+    }
+
+    for (size_t i = 0; i < SV_MAX_SLIMES; i++) {
+        Slime &enemy = slimes[i];
+        if (!enemy.id) {
+            continue;
+        }
+
+        // Check if enemy has been dead for awhile
+        if (!enemy.combat.hitPoints && now - enemy.combat.diedAt > SV_ENEMY_CORPSE_LIFETIME) {
+            TraceLog(LOG_DEBUG, "Despawn stale enemy corpse %u", enemy.id);
+            DespawnSlime(enemy.id);
+        }
+    }
+}
+
+bool World::CL_InterpolateBody(Body3D &body, double renderAt, Direction &direction)
 {
     auto positionHistory = body.positionHistory;
     const size_t historyLen = positionHistory.Count();
@@ -490,33 +514,84 @@ bool World::InterpolateBody(Body3D &body, double renderAt, Direction direction)
     return true;
 }
 
-void World::Interpolate(double renderAt)
+void World::CL_Interpolate(double renderAt)
 {
-    for (size_t i = 0; i < SV_MAX_PLAYERS; i++) {
-        Player &player = players[i];
+    for (Player &player : players) {
         if (!player.id || player.id == playerId) {
             continue;
         }
-        Direction direction{};
-        if (InterpolateBody(player.body, renderAt, direction)) {
-            player.sprite.direction = direction;
-        } else {
-            //DespawnPlayer(player.id);
-        }
+        CL_InterpolateBody(player.body, renderAt, player.sprite.direction);
     }
-    for (size_t i = 0; i < SV_MAX_SLIMES; i++) {
-        Slime &slime = slimes[i];
-        if (!slime.id) {
+    for (Slime &enemy : slimes) {
+        if (!enemy.id) {
             continue;
         }
-        Direction direction{};
-        if (slime.combat.hitPoints && InterpolateBody(slime.body, renderAt, direction)) {
-            slime.sprite.direction = direction;
-        } else {
-            //DespawnSlime(slime.id);
+        CL_InterpolateBody(enemy.body, renderAt, enemy.sprite.direction);
+    }
+}
+
+void World::CL_Extrapolate(double dt)
+{
+    // If there's no map, we can't do collision detection
+    if (!map) return;
+
+    // TODO: Collision detection is in Simulate() for enemies, but Player::Update() for players..
+    // this makes no sense. It should probably not be in either place. We need a ResolveCollisions, eh?
+
+    for (Player &player : players) {
+        if (!player.id || player.id == playerId) {
+            continue;
+        }
+        // TODO: Use future inputs we've received from the server to predict other players more reliability
+        InputSample input{};
+        player.Update(dt, input, *map);
+    }
+    for (Slime &enemy : slimes) {
+        if (!enemy.id) {
+            continue;
+        }
+        enemy.Update(dt);
+    }
+}
+
+void World::CL_DespawnStaleEntities(void)
+{
+    double now = glfwGetTime();
+
+    Player *player = FindPlayer(playerId);
+    if (!player) {
+        TraceLog(LOG_ERROR, "Failed to find player");
+        return;
+    }
+
+    for (const Player &otherPlayer : players) {
+        if (!otherPlayer.id || otherPlayer.id == playerId) {
+            continue;
+        }
+
+        const float distSq = v3_length_sq(v3_sub(player->body.WorldPosition(), otherPlayer.body.WorldPosition()));
+        const bool faraway = distSq >= SQUARED(CL_PLAYER_FARAWAY_THRESHOLD);
+        if (faraway) {
+            TraceLog(LOG_DEBUG, "Despawn far away player %u", otherPlayer.id);
+            DespawnPlayer(otherPlayer.id);
         }
     }
-    return;
+
+    for (const Slime &enemy : slimes) {
+        if (!enemy.id) {
+            continue;
+        }
+
+        if (enemy.body.positionHistory.Count()) {
+            auto &lastPos = enemy.body.positionHistory.Last();
+            const float distSq = v3_length_sq(v3_sub(player->body.WorldPosition(), lastPos.v));
+            const bool faraway = distSq >= SQUARED(CL_ENEMY_FARAWAY_THRESHOLD);
+            if (faraway) {
+                TraceLog(LOG_DEBUG, "Despawn far away enemy %u", enemy.id);
+                DespawnSlime(enemy.id);
+            }
+        }
+    }
 }
 
 void World::EnableCulling(Rectangle cullRect)
@@ -573,12 +648,11 @@ void World::DrawEntities(void)
     for (const Player &player : players) {
         if (player.id) {
             drawList.Push(player);
-
         }
     }
 
     for (const Slime &slime : slimes) {
-        if (slime.combat.hitPoints) {
+        if (slime.id) {
             drawList.Push(slime);
         }
     }

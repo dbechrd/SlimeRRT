@@ -187,31 +187,25 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
             for (size_t i = 0; i < worldSnapshot.enemyCount; i++) {
                 EnemySnapshot &enemy = worldSnapshot.enemies[i];
                 stream.Process(enemy.id, 32, 1, UINT32_MAX);
-                stream.ProcessBool(enemy.nearby);
-                if (enemy.nearby) {
-                    stream.ProcessBool(enemy.init);
-                    stream.ProcessBool(enemy.spawned);
-                    stream.ProcessBool(enemy.attacked);
-                    stream.ProcessBool(enemy.moved);
-                    stream.ProcessBool(enemy.resized);
-                    stream.ProcessBool(enemy.tookDamage);
-                    stream.ProcessBool(enemy.healed);
+                stream.Process((uint32_t &)enemy.flags, 8, 0, UINT8_MAX);
+                if (enemy.flags & EnemySnapshot::Flags::Position) {
+                    stream.ProcessFloat(enemy.position.x);
+                    stream.ProcessFloat(enemy.position.y);
+                    stream.ProcessFloat(enemy.position.z);
+                    stream.Process((uint32_t &)enemy.direction, 3, (uint32_t)Direction::North, (uint32_t)Direction::NorthWest);
                     stream.Align();
-                    bool init = enemy.init || enemy.spawned;
-                    if (init || enemy.moved) {
-                        stream.ProcessFloat(enemy.position.x);
-                        stream.ProcessFloat(enemy.position.y);
-                        stream.ProcessFloat(enemy.position.z);
-                        stream.Process((uint32_t &)enemy.direction, 3, (uint32_t)Direction::North, (uint32_t)Direction::NorthWest);
-                        stream.Align();
-                    }
-                    if (init || enemy.resized) {
-                        stream.ProcessFloat(enemy.scale);
-                    }
-                    if (init || enemy.tookDamage || enemy.healed) {
-                        stream.ProcessFloat(enemy.hitPoints);
-                        stream.ProcessFloat(enemy.hitPointsMax);
-                    }
+                } else if (enemy.flags & EnemySnapshot::Flags::Direction) {
+                    stream.Process((uint32_t &)enemy.direction, 3, (uint32_t)Direction::North, (uint32_t)Direction::NorthWest);
+                    stream.Align();
+                }
+                if (enemy.flags & EnemySnapshot::Flags::Scale) {
+                    stream.ProcessFloat(enemy.scale);
+                }
+                if (enemy.flags & EnemySnapshot::Flags::Health) {
+                    stream.ProcessFloat(enemy.hitPoints);
+                }
+                if (enemy.flags & EnemySnapshot::Flags::HealthMax) {
+                    stream.ProcessFloat(enemy.hitPointsMax);
                 }
             }
 

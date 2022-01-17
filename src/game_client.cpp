@@ -279,7 +279,7 @@ ErrorType GameClient::Run(void)
         double renderAt = 0;
         if (connectedToServer) {
             if (netClient.worldHistory.Count()) {
-                WorldSnapshot &worldSnapshot = netClient.worldHistory.Last();
+                const WorldSnapshot &worldSnapshot = netClient.worldHistory.Last();
 
                 static uint32_t lastTickAck = 0;
                 if (lastTickAck < worldSnapshot.tick) {
@@ -299,7 +299,6 @@ ErrorType GameClient::Run(void)
 
                     assert(world->map);
                     player.Update(tickDt, inputSample, *world->map);
-                    world->itemSystem.Update(tickDt);
                     world->particleSystem.Update(tickDt);
 
                     tickAccum -= tickDt;
@@ -311,6 +310,8 @@ ErrorType GameClient::Run(void)
                     sendInputAccum -= sendInputDt;
                 }
 
+                world->CL_DespawnStaleEntities();
+
                 // Interpolate all of the other entities in the world
                 //printf("RTT: %u RTTv: %u LRT: %u LRTv: %u HRTv %u\n",
                 //    netClient.server->roundTripTime,
@@ -320,7 +321,8 @@ ErrorType GameClient::Run(void)
                 //    netClient.server->highestRoundTripTimeVariance
                 //);
                 renderAt = now - (1.0 / SNAPSHOT_SEND_RATE) - (1.0 / (netClient.server->lastRoundTripTime + netClient.server->lastRoundTripTimeVariance));
-                world->Interpolate(renderAt);
+                world->CL_Interpolate(renderAt);
+                //world->CL_Extrapolate(now - renderAt);
             }
         } else {
 #if 1
@@ -331,8 +333,7 @@ ErrorType GameClient::Run(void)
                 assert(world->map);
                 player.Update(tickDt, inputSample, *world->map);
 
-                world->Simulate(tickDt);
-                world->itemSystem.Update(tickDt);
+                world->SV_Simulate(tickDt);
                 world->particleSystem.Update(tickDt);
 
                 //WorldSnapshot &worldSnapshot = netClient.worldHistory.Alloc();

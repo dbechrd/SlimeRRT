@@ -21,6 +21,7 @@ struct Body3D {
 
     Vector3 WorldPosition() const;
     Vector2 GroundPosition() const;
+    Vector2 PrevGroundPosition() const;
     Vector2 VisualPosition() const;
     void Teleport(const Vector3 &pos);
     void Move(const Vector2 &offset);

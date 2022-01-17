@@ -173,6 +173,7 @@ ErrorType NetServer::SendWelcomeBasket(const NetServerClient &client)
     E_ASSERT(BroadcastChatMessage(chatMsg), "Failed to broadcast player join chat msg");
 
     SendWorldChunk(client);
+    //SendNearbyEvents(client);
     //SendWorldSnapshot(client);
 
     return ErrorType::Success;
@@ -303,66 +304,68 @@ ErrorType NetServer::SendWorldSnapshot(NetServerClient &client, WorldSnapshot &w
     }
 
     worldSnapshot.enemyCount = 0;
-#if 0
     for (size_t i = 0; i < SV_MAX_SLIMES && worldSnapshot.enemyCount < SNAPSHOT_MAX_SLIMES; i++) {
         Slime &enemy = serverWorld->slimes[i];
         if (!enemy.id) {
             continue;
         }
 
-        // TODO: Make despawn threshold > spawn threshold to prevent spam on event horizon
-        const float distSq = v3_length_sq(v3_sub(player->body.position, enemy.body.position));
-        bool nearby = distSq <= SQUARED(SV_ENEMY_NEARBY_THRESHOLD);
-        bool wasNearby = false;
+        EnemySnapshot *prevState{};
         if (prevSnapshot) {
-            assert(prevSnapshot->enemyCount < SNAPSHOT_MAX_SLIMES);
+            assert(prevSnapshot->enemyCount <= SNAPSHOT_MAX_SLIMES);
             for (size_t j = 0; j < prevSnapshot->enemyCount; j++) {
                 if (prevSnapshot->enemies[j].id == enemy.id) {
-                    wasNearby = prevSnapshot->enemies[j].nearby;
+                    prevState = &prevSnapshot->enemies[j];
                     break;
                 }
             }
         }
-        if (!nearby && !wasNearby) {
+
+        if (prevState) {
+            //TraceLog(LOG_DEBUG, "Found prevState for #%u", enemy.id);
+        }
+
+        const float distSq = v3_length_sq(v3_sub(player->body.WorldPosition(), enemy.body.WorldPosition()));
+        const bool nearby = distSq <= SQUARED(SV_ENEMY_NEARBY_THRESHOLD);
+        if (!nearby) {
             continue;
         }
 
-        if (nearby && !wasNearby) {
+        if (!prevState) {
             TraceLog(LOG_DEBUG, "Entered vicinity of enemy #%u", enemy.id);
-        }
-
-        if (!nearby && wasNearby) {
-            TraceLog(LOG_DEBUG, "Left vicinity of enemy #%u", enemy.id);
         }
 
         EnemySnapshot &state = worldSnapshot.enemies[worldSnapshot.enemyCount];
         state.id = enemy.id;
-        state.nearby = nearby;
-        state.init = !prevSnapshot || (nearby && !wasNearby);
-        state.spawned = false;
-        state.attacked = enemy.actionState == Slime::ActionState::Attacking;
-        state.moved = enemy.moveState != Slime::MoveState::Idle;
-        // TODO: Track previous size? E.g. for slime combine
-        state.resized = true;
-        // TODO: Proper animation state or hit recovery state for this? Can attacked and tookDamage both be true?
-        state.tookDamage = true;
-        // TODO: Is this also a state on slime.. or? How do we know it happened?
-        state.healed = false;
-        bool init = state.init || state.spawned;
-        if (init || state.moved) {
-            state.position = enemy.body.position;
-            state.direction = enemy.sprite.direction;
+        if (!prevState) {
+            state.flags = EnemySnapshot::Flags::All;
+        } else {
+            if (!v3_equal(enemy.body.WorldPosition(), prevState->position)) {
+                state.flags |= EnemySnapshot::Flags::Position | EnemySnapshot::Flags::Direction;
+            } else if (enemy.sprite.direction != prevState->direction) {
+                state.flags |= EnemySnapshot::Flags::Direction;
+            }
+            if (enemy.sprite.scale != prevState->scale) {
+                state.flags |= EnemySnapshot::Flags::Scale;
+            }
+            if (enemy.combat.hitPoints != prevState->hitPoints) {
+                state.flags |= EnemySnapshot::Flags::Health;
+            }
+            if (enemy.combat.hitPointsMax != prevState->hitPointsMax) {
+                state.flags |= EnemySnapshot::Flags::HealthMax;
+            }
         }
-        if (init || state.resized) {
-            state.scale = enemy.sprite.scale;
-        }
-        if (init || state.tookDamage || state.healed) {
-            state.hitPoints = enemy.combat.hitPoints;
-            state.hitPointsMax = enemy.combat.hitPointsMax;
-        }
+
+        // TODO: Let Enemy serialize itself by storing a reference in the Snapshot, then
+        // having NetMessage::Process call a serialize method and forwarding the BitStream
+        // and state flags to it.
+        state.position = enemy.body.WorldPosition();
+        state.direction = enemy.sprite.direction;
+        state.scale = enemy.sprite.scale;
+        state.hitPoints = enemy.combat.hitPoints;
+        state.hitPointsMax = enemy.combat.hitPointsMax;
         worldSnapshot.enemyCount++;
     }
-#endif
 
     worldSnapshot.itemCount = 0;
     for (size_t i = 0; i < SV_MAX_ITEMS && worldSnapshot.itemCount < SNAPSHOT_MAX_ITEMS; i++) {
@@ -377,18 +380,13 @@ ErrorType NetServer::SendWorldSnapshot(NetServerClient &client, WorldSnapshot &w
     return ErrorType::Success;
 }
 
-ErrorType NetServer::SendNearbyEvents(NetServerClient &client)
+ErrorType NetServer::SendNearbyEvents(const NetServerClient &client)
 {
     Player *player = serverWorld->FindPlayer(client.playerId);
     assert(player);
     if (!player) {
         TraceLog(LOG_ERROR, "Failed to find player to send nearby events to");
         return ErrorType::PlayerNotFound;
-    }
-
-    WorldSnapshot *prevSnapshot = 0;
-    if (client.worldHistory.Count() > 1) {
-        prevSnapshot = &client.worldHistory.At(client.worldHistory.Count() - 2);
     }
 
     for (size_t i = 0; i < SV_MAX_SLIMES; i++) {
@@ -399,17 +397,9 @@ ErrorType NetServer::SendNearbyEvents(NetServerClient &client)
 
         // TODO: Make despawn threshold > spawn threshold to prevent spam on event horizon
         const float distSq = v2_length_sq(v2_sub(player->body.GroundPosition(), enemy.body.GroundPosition()));
+        const float prevDistSq = v2_length_sq(v2_sub(player->body.PrevGroundPosition(), enemy.body.PrevGroundPosition()));
         bool nearby = distSq <= SQUARED(SV_ENEMY_NEARBY_THRESHOLD);
-        bool wasNearby = false;
-        if (prevSnapshot) {
-            assert(prevSnapshot->enemyCount < SNAPSHOT_MAX_SLIMES);
-            for (size_t j = 0; j < prevSnapshot->enemyCount; j++) {
-                if (prevSnapshot->enemies[j].id == enemy.id) {
-                    wasNearby = prevSnapshot->enemies[j].nearby;
-                    break;
-                }
-            }
-        }
+        bool wasNearby = distSq <= SQUARED(SV_ENEMY_NEARBY_THRESHOLD);
         if (!nearby && !wasNearby) {
             continue;
         }

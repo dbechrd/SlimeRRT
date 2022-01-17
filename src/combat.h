@@ -7,6 +7,7 @@ struct Combat {
     float       meleeDamage     {};  // TODO: add min/max and randomly choose?
     double      attackStartedAt {};
     double      attackDuration  {};
+    double      diedAt          {};
     uint32_t    attackFrame     {};
     LootTableID lootTableId     {};
 };

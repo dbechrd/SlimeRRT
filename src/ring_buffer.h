@@ -56,7 +56,7 @@ struct RingBuffer : protected std::array<T, BufferSize> {
         return std::array<T, BufferSize>::at(at);
     }
 
-    T &Last()
+    const T &Last() const
     {
         assert(count);
         size_t at = (first + count - 1) % std::array<T, BufferSize>::size();

@@ -1,6 +1,6 @@
 #pragma once
 
-enum class Direction {
+enum class Direction : uint8_t {
     North     = 0,
     NorthEast = 1,
     East      = 2,

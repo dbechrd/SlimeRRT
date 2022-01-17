@@ -157,7 +157,7 @@ ErrorType NetClient::SendPlayerInput(void)
         return ErrorType::Success;
     }
 
-    WorldSnapshot &worldSnapshot = worldHistory.Last();
+    const WorldSnapshot &worldSnapshot = worldHistory.Last();
 
     memset(&tempMsg, 0, sizeof(tempMsg));
     tempMsg.type = NetMessage::Type::Input;
@@ -197,8 +197,8 @@ void NetClient::ReconcilePlayer(double tickDt)
         return;
     }
 
-    WorldSnapshot &latestSnapshot = worldHistory.Last();
-    PlayerSnapshot *playerSnapshot = 0;
+    const WorldSnapshot &latestSnapshot = worldHistory.Last();
+    const PlayerSnapshot *playerSnapshot = 0;
     for (size_t i = 0; i < latestSnapshot.playerCount; i++) {
         if (latestSnapshot.players[i].id == serverWorld->playerId) {
             playerSnapshot = &latestSnapshot.players[i];
@@ -286,13 +286,13 @@ void NetClient::ProcessMsg(ENetPacket &packet)
             //NetMessage_WorldChunk &worldChunk = netMsg.data.worldChunk;
             break;
         } case NetMessage::Type::WorldSnapshot: {
-            WorldSnapshot &netSnapshot = tempMsg.data.worldSnapshot;
+            const WorldSnapshot &netSnapshot = tempMsg.data.worldSnapshot;
             WorldSnapshot &worldSnapshot = worldHistory.Alloc();
             worldSnapshot = netSnapshot;
             worldSnapshot.recvAt = glfwGetTime();
 
             for (size_t i = 0; i < worldSnapshot.playerCount; i++) {
-                PlayerSnapshot &playerSnapshot = worldSnapshot.players[i];
+                const PlayerSnapshot &playerSnapshot = worldSnapshot.players[i];
                 Player *player = serverWorld->FindPlayer(playerSnapshot.id);
                 if (!player) {
                     continue;
@@ -320,49 +320,66 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                 }
             }
             for (size_t i = 0; i < worldSnapshot.enemyCount; i++) {
-                EnemySnapshot &enemySnapshot = worldSnapshot.enemies[i];
+                const EnemySnapshot &enemySnapshot = worldSnapshot.enemies[i];
                 Slime *slime = serverWorld->FindSlime(enemySnapshot.id);
-
-                bool init = enemySnapshot.init || enemySnapshot.spawned;
-                if (init && !slime) {
-                    slime = serverWorld->SpawnSlime(enemySnapshot.id);
-                }
                 if (!slime) {
-                    TraceLog(LOG_ERROR, "Failed to spawn slime.");
-                    continue;
+                    slime = serverWorld->SpawnSlime(enemySnapshot.id);
+                    if (!slime) {
+                        TraceLog(LOG_ERROR, "Failed to spawn slime.");
+                        continue;
+                    }
                 }
 
-                // TODO: World::Interpolate() should used snapshots directly.. why did I change that?
-                if (enemySnapshot.nearby) {
-                    if (enemySnapshot.spawned) {
-                        // TODO: Play spawn animation
+                if (enemySnapshot.flags & EnemySnapshot::Flags::Position) {
+                    TraceLog(LOG_DEBUG, "Snapshot: pos dir %f %f %f %d",
+                        enemySnapshot.position.x,
+                        enemySnapshot.position.y,
+                        enemySnapshot.position.z,
+                        (char)enemySnapshot.direction);
+                    Vector3Snapshot &pos = slime->body.positionHistory.Alloc();
+                    pos.recvAt = worldSnapshot.recvAt;
+                    pos.v = enemySnapshot.position;
+                    pos.direction = enemySnapshot.direction;
+                } else if (enemySnapshot.flags & EnemySnapshot::Flags::Direction) {
+                    TraceLog(LOG_DEBUG, "Snapshot: dir %d", (char)enemySnapshot.direction);
+                    Vector3 prevPos = slime->body.WorldPosition();
+                    if (slime->body.positionHistory.Count()) {
+                        prevPos = slime->body.positionHistory.Last().v;
+                    } else {
+                        TraceLog(LOG_ERROR, "Received direction update but prevPosition is not known. Default to worldPos.");
                     }
-                    if (init || enemySnapshot.moved) {
-                        assert(enemySnapshot.position.x);
-                        Vector3Snapshot &pos = slime->body.positionHistory.Alloc();
-                        pos.recvAt = worldSnapshot.recvAt;
-                        pos.v = enemySnapshot.position;
-                        pos.direction = enemySnapshot.direction;
+                    Vector3Snapshot &pos = slime->body.positionHistory.Alloc();
+                    pos.recvAt = worldSnapshot.recvAt;
+                    pos.v = prevPos;
+                    pos.direction = enemySnapshot.direction;
+                }
+
+                // TODO: Pos/dir are history based, but these are instantaneous.. hmm.. is that okay?
+                if (enemySnapshot.flags & EnemySnapshot::Flags::Scale) {
+                    TraceLog(LOG_DEBUG, "Snapshot: scale %f", (char)enemySnapshot.direction);
+                    slime->sprite.scale = enemySnapshot.scale;
+                }
+                if (enemySnapshot.flags & EnemySnapshot::Flags::Health) {
+                    TraceLog(LOG_DEBUG, "Snapshot: health %f", enemySnapshot.hitPoints);
+                    if (slime->combat.hitPoints && !enemySnapshot.hitPoints) {
+                        TraceLog(LOG_DEBUG, "Snapshot: Slime died");
+                        serverWorld->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Goo, 20, slime->WorldCenter(), 2.0);
+                        Catalog::g_sounds.Play(Catalog::SoundID::Squish2, 0.5f + dlb_rand32f_variance(0.1f), true);
                     }
-                    if (init || enemySnapshot.resized) {
-                        // TODO: Keep scale buffer and interpolate? Playing a proper animation would be better..
-                        slime->sprite.scale = enemySnapshot.scale;
-                    }
-                    if (init || enemySnapshot.tookDamage || enemySnapshot.healed) {
-                        slime->combat.hitPoints = enemySnapshot.hitPoints;
-                        slime->combat.hitPointsMax = enemySnapshot.hitPointsMax;
-                    }
-                } else {
-                    serverWorld->DespawnSlime(enemySnapshot.id);
+                    slime->combat.hitPoints = enemySnapshot.hitPoints;
+                }
+                if (enemySnapshot.flags & EnemySnapshot::Flags::HealthMax) {
+                    TraceLog(LOG_DEBUG, "Snapshot: healthMax %f", enemySnapshot.hitPointsMax);
+                    slime->combat.hitPointsMax = enemySnapshot.hitPointsMax;
                 }
             }
             break;
         } case NetMessage::Type::GlobalEvent: {
-            NetMessage_GlobalEvent &globalEvent = tempMsg.data.globalEvent;
+            const NetMessage_GlobalEvent &globalEvent = tempMsg.data.globalEvent;
 
             switch (globalEvent.type) {
                 case NetMessage_GlobalEvent::Type::PlayerJoin: {
-                    NetMessage_GlobalEvent::PlayerJoin &playerJoin = globalEvent.data.playerJoin;
+                    const NetMessage_GlobalEvent::PlayerJoin &playerJoin = globalEvent.data.playerJoin;
                     if (playerJoin.playerId != serverWorld->playerId) {
                         Player *player = serverWorld->AddPlayer(playerJoin.playerId);
                         if (player) {
@@ -372,19 +389,19 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                     }
                     break;
                 } case NetMessage_GlobalEvent::Type::PlayerLeave: {
-                    NetMessage_GlobalEvent::PlayerLeave &playerLeave = globalEvent.data.playerLeave;
+                    const NetMessage_GlobalEvent::PlayerLeave &playerLeave = globalEvent.data.playerLeave;
                     serverWorld->RemovePlayer(playerLeave.playerId);
                     break;
                 }
             }
             break;
         } case NetMessage::Type::NearbyEvent: {
-            NetMessage_NearbyEvent &nearbyEvent = tempMsg.data.nearbyEvent;
+            const NetMessage_NearbyEvent &nearbyEvent = tempMsg.data.nearbyEvent;
 
             switch (nearbyEvent.type) {
                 case NetMessage_NearbyEvent::Type::PlayerState: {
 #if 0
-                    NetMessage_NearbyEvent::PlayerState &state = nearbyEvent.data.playerState;
+                    const NetMessage_NearbyEvent::PlayerState &state = nearbyEvent.data.playerState;
 
                     Player *player = serverWorld->FindPlayer(state.id);
                     if (player) {
@@ -414,8 +431,8 @@ void NetClient::ProcessMsg(ENetPacket &packet)
 #endif
                     break;
                 } case NetMessage_NearbyEvent::Type::EnemyState: {
-#if 1
-                    NetMessage_NearbyEvent::EnemyState &state = nearbyEvent.data.enemyState;
+#if 0
+                    const NetMessage_NearbyEvent::EnemyState &state = nearbyEvent.data.enemyState;
 
                     if (state.nearby) {
                         Slime *enemy = serverWorld->FindSlime(state.id);

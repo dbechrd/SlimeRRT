@@ -58,24 +58,54 @@ struct PlayerSnapshot {
 };
 
 struct EnemySnapshot {
+    enum class Flags : char {
+        None      = 0,
+        Position  = 0x01,  // world position
+        Direction = 0x02,  // facing direction
+        Scale     = 0x04,  // sprite scale, e.g. when slimes combine
+        Health    = 0x08,  // current health, e.g. heal/damage
+        HealthMax = 0x10,  // max health
+        All = Position
+            | Direction
+            | Scale
+            | Health
+            | HealthMax
+    };
+
+    Flags flags;
     uint32_t  id           {};
-    bool      nearby       {};  // [rel] true = enter vicinity, false = despawn this entity
-    bool      init         {};  // if true, all fields present for initialization (welcome basket)
-    bool      spawned      {};
-    bool      attacked     {};
-    bool      moved        {};
-    bool      resized      {};
-    bool      tookDamage   {};
-    bool      healed       {};
-    // if moved
+    // A approach
+    // B change pos (spawn, teleport, move)
     Vector3   position     {};
+    // A approach
+    // B change dir (spawn, teleport, move)
     Direction direction    {};
-    // if resized
+    // A approach
+    // B change scale (combine)
     float     scale        {};
-    // if took damage
+    // A approach
+    // B change hp (heal, damage)
     float     hitPoints    {};
+    // A approach
+    // B change max hp (none yet)
     float     hitPointsMax {};
 };
+
+static inline EnemySnapshot::Flags operator|(EnemySnapshot::Flags lhs, EnemySnapshot::Flags rhs)
+{
+    return static_cast<EnemySnapshot::Flags>(static_cast<char>(lhs) | static_cast<char>(rhs));
+}
+
+static inline EnemySnapshot::Flags &operator|=(EnemySnapshot::Flags &lhs, EnemySnapshot::Flags rhs)
+{
+    lhs = static_cast<EnemySnapshot::Flags>(static_cast<char>(lhs) | static_cast<char>(rhs));
+    return lhs;
+}
+
+static inline bool operator&(EnemySnapshot::Flags lhs, EnemySnapshot::Flags rhs)
+{
+    return static_cast<char>(lhs) & static_cast<char>(rhs);
+}
 
 struct ItemSnapshot {
     uint32_t id       {};

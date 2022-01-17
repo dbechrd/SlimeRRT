@@ -50,7 +50,7 @@ struct NetServer {
     ErrorType OpenSocket(unsigned short socketPort);
     ErrorType SendWorldChunk(const NetServerClient &client);
     ErrorType SendWorldSnapshot(NetServerClient &client, WorldSnapshot &worldSnapshot);
-    ErrorType SendNearbyEvents(NetServerClient &client);
+    ErrorType SendNearbyEvents(const NetServerClient &client);
     NetServerClient *FindClient(uint32_t playerId);
     ErrorType Listen();
     void CloseSocket();

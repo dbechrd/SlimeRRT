@@ -21,10 +21,9 @@ void net_message_test_snapshot()
 
     EnemySnapshot &enemy = msgWritten.data.worldSnapshot.enemies[0];
     enemy.id = 70;
-    enemy.nearby = false;
-    enemy.tookDamage = true;
-    enemy.hitPoints = 140;
-    enemy.hitPointsMax = 150;
+    enemy.flags = EnemySnapshot::Flags::Health | EnemySnapshot::Flags::HealthMax;
+    enemy.hitPoints = 140.0f;
+    enemy.hitPointsMax = 150.0f;
 
     World *world = new World;
     world->AddPlayer(player.id);
@@ -51,8 +50,8 @@ void net_message_test_snapshot()
 
     EnemySnapshot &enemyRead = msgRead.enemies[0];
     assert(enemyRead.id == enemy.id);
-    assert(enemyRead.hitPointsMax == 0.0f);
-    assert(enemyRead.hitPoints == 0.0f);
+    assert(enemyRead.hitPoints == 140.0f);
+    assert(enemyRead.hitPointsMax == 150.0f);
 
     delete &msgWritten;
     free(rawPacket.data);

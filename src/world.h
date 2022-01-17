@@ -57,8 +57,12 @@ struct World {
     // ^^^ DO NOT HOLD A POINTER TO THESE! ^^^
     ////////////////////////////////////////////
 
-    void Simulate(double dt);
-    void Interpolate(double renderAt);
+    void SV_Simulate(double dt);
+    void SV_DespawnDeadEntities(void);
+
+    void CL_Interpolate(double renderAt);
+    void CL_Extrapolate(double dt);
+    void CL_DespawnStaleEntities(void);
 
     void EnableCulling(Rectangle cullRect);
     size_t DrawMap(int zoomMipLevel);
@@ -68,10 +72,11 @@ struct World {
     void DrawFlush(void);
 
 private:
-    void SimPlayers(double dt);
-    void SimSlimes(double dt);
-    void SimItems(double dt);
-    bool InterpolateBody(Body3D &body, double renderAt, Direction direction);
+    void SV_SimPlayers(double dt);
+    void SV_SimSlimes(double dt);
+    void SV_SimItems(double dt);
+
+    bool CL_InterpolateBody(Body3D &body, double renderAt, Direction &direction);
 
     DrawList drawList{};
     bool CullTile(Vector2 tilePos, int zoomMipLevel);

@@ -1,8 +1,9 @@
 #include "player.h"
+#include "catalog/items.h"
 #include "controller.h"
 #include "draw_command.h"
 #include "healthbar.h"
-#include "catalog/items.h"
+#include "helpers.h"
 #include "maths.h"
 #include "shadow.h"
 #include "sprite.h"
@@ -331,6 +332,14 @@ void Player::Draw(void) const
     //const float shadowScale = 1.0f + slime->transform.position.z / 20.0f;
     const Vector2 playerGroundPos = body.GroundPosition();
     Shadow::Draw((int)playerGroundPos.x, (int)playerGroundPos.y, 16.0f, -6.0f);
+
+#if DEMO_SNAPSHOT_RADII
+    {
+        const Vector2 visPos = body.VisualPosition();
+        DrawCircleLines((int)visPos.x, (int)visPos.y, SV_ENEMY_NEARBY_THRESHOLD, GREEN);
+        DrawCircleLines((int)visPos.x, (int)visPos.y, CL_ENEMY_FARAWAY_THRESHOLD, RED);
+    }
+#endif
 
     sprite_draw_body(sprite, body, WHITE);
     Vector3 topCenter = WorldTopCenter();

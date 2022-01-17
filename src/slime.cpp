@@ -202,14 +202,28 @@ bool Slime::Cull(const Rectangle &cullRect) const
 
 void Slime::Draw(void) const
 {
-    // Player shadow
-    // TODO: Shadow size based on height from ground
-    // https://yal.cc/top-down-bouncing-loot-effects/
-    //const float shadowScale = 1.0f + transform.position.z / 20.0f;
     const Vector2 slimeBC = body.GroundPosition();
-    Shadow::Draw((int)slimeBC.x, (int)slimeBC.y, 16.0f * sprite.scale, -8.0f * sprite.scale);
+    if (combat.hitPoints) {
+        // TODO: Shadow size based on height from ground
+        // https://yal.cc/top-down-bouncing-loot-effects/
+        //const float shadowScale = 1.0f + transform.position.z / 20.0f;
+        Shadow::Draw((int)slimeBC.x, (int)slimeBC.y, 16.0f * sprite.scale, -8.0f * sprite.scale);
 
-    sprite_draw_body(sprite, body, Fade(WHITE, 0.7f));
-    Vector3 topCenter = WorldTopCenter();
-    HealthBar::Draw(10, { topCenter.x, topCenter.y - topCenter.z }, name, combat.hitPoints, combat.hitPointsMax);
+        sprite_draw_body(sprite, body, Fade(WHITE, 0.7f));
+        Vector3 topCenter = WorldTopCenter();
+        HealthBar::Draw(10, { topCenter.x, topCenter.y - topCenter.z }, name, combat.hitPoints, combat.hitPointsMax);
+
+#if DEMO_SNAPSHOT_RADII
+        // DEBUG: Draw stale visual marker if no snapshot received in a while
+        if (body.positionHistory.Count()) {
+            auto &lastPos = body.positionHistory.Last();
+            if (glfwGetTime() - lastPos.recvAt > 3.0f) {
+                DrawCircleV(body.VisualPosition(), 3.0f, BEIGE);
+            }
+        }
+#endif
+    } else {
+        const float radius = 5.0f;
+        DrawRectangleRec({ slimeBC.x - radius, slimeBC.y - radius, radius * 2, radius * 2 }, RED);
+    }
 }
