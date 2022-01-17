@@ -22,14 +22,16 @@ ErrorType GameServer::Run()
 
     {
         Slime *slime = world->SpawnSlime(0);
-        memcpy(slime->name, CSTR("Sam"));
-        slime->nameLength = (uint32_t)strlen(slime->name);
         slime->body.Teleport(world->GetWorldSpawn());
         slime->body.Move({ -50.0f, 0 });
 
-        for (size_t i = 1; i < SV_MAX_SLIMES; i++) {
-            //world->SpawnSlime(0);
-        }
+        slime = world->SpawnSlime(0);
+        slime->body.Teleport(world->GetWorldSpawn());
+        slime->body.Move({ -50.0f, 30.0f });
+
+        //for (size_t i = 1; i < SV_MAX_SLIMES; i++) {
+        //    world->SpawnSlime(0);
+        //}
     }
 
     E_ASSERT(netServer.OpenSocket(args.port), "Failed to open socket");
@@ -90,9 +92,7 @@ ErrorType GameServer::Run()
                     printf("Sending snapshot for tick %u / input seq #%u, to player %u\n", world->tick, client.lastInputAck, client.playerId);
 #endif
                     // Send snapshot
-                    WorldSnapshot &worldSnapshot = client.worldHistory.Alloc();
-                    assert(!worldSnapshot.tick);  // ringbuffer alloc fucked up and didn't zero slot
-                    E_ASSERT(netServer.SendWorldSnapshot(client, worldSnapshot), "Failed to send world snapshot");
+                    E_ASSERT(netServer.SendWorldSnapshot(client), "Failed to send world snapshot");
                     client.lastSnapshotSentAt = glfwGetTime();
                 }
 

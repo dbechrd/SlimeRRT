@@ -231,26 +231,20 @@ ErrorType NetServer::SendWorldChunk(const NetServerClient &client)
     return ErrorType::Success;
 }
 
-ErrorType NetServer::SendWorldSnapshot(NetServerClient &client, WorldSnapshot &worldSnapshot)
+ErrorType NetServer::SendWorldSnapshot(NetServerClient &client)
 {
     assert(client.playerId);
-    assert(ARRAY_SIZE(worldSnapshot.players) <= ARRAY_SIZE(serverWorld->players));
-    assert(ARRAY_SIZE(worldSnapshot.enemies) <= ARRAY_SIZE(serverWorld->slimes));
-    assert(ARRAY_SIZE(worldSnapshot.items)   <= ARRAY_SIZE(serverWorld->items));
-    assert(ARRAY_SIZE(worldSnapshot.players) == SNAPSHOT_MAX_PLAYERS);
-    assert(ARRAY_SIZE(worldSnapshot.enemies) == SNAPSHOT_MAX_SLIMES);
-    assert(ARRAY_SIZE(worldSnapshot.items)   == SNAPSHOT_MAX_ITEMS);
 
-    Player *player = serverWorld->FindPlayer(client.playerId);
-    if (!player) {
+    memset(&netMsg, 0, sizeof(netMsg));
+    netMsg.type = NetMessage::Type::WorldSnapshot;
+    WorldSnapshot &worldSnapshot = netMsg.data.worldSnapshot;
+
+    Player *playerPtr = serverWorld->FindPlayer(client.playerId);
+    if (!playerPtr) {
         TraceLog(LOG_ERROR, "Failed to find player to send world snapshot to");
         return ErrorType::PlayerNotFound;
     }
-
-    WorldSnapshot *prevSnapshot = 0;
-    if (client.worldHistory.Count() > 1) {
-        prevSnapshot = &client.worldHistory.At(client.worldHistory.Count() - 2);
-    }
+    Player &player = *playerPtr;
 
     worldSnapshot.lastInputAck = client.lastInputAck;
     worldSnapshot.tick = serverWorld->tick;
@@ -264,42 +258,51 @@ ErrorType NetServer::SendWorldSnapshot(NetServerClient &client, WorldSnapshot &w
         }
 
         // TODO: Make despawn threshold > spawn threshold to prevent spam on event horizon
-        const float distSq = v2_length_sq(v2_sub(player->body.GroundPosition(), otherPlayer.body.GroundPosition()));
+        const float distSq = v2_length_sq(v2_sub(player.body.GroundPosition(), otherPlayer.body.GroundPosition()));
         bool nearby = distSq <= SQUARED(SV_PLAYER_NEARBY_THRESHOLD);
-        bool wasNearby = false;
-        if (prevSnapshot) {
-            assert(prevSnapshot->playerCount < SNAPSHOT_MAX_PLAYERS);
-            for (size_t j = 0; j < prevSnapshot->playerCount; j++) {
-                if (prevSnapshot->players[j].id == otherPlayer.id) {
-                    wasNearby = prevSnapshot->players[j].nearby;
-                    break;
-                }
-            }
-        }
-        if (!nearby && !wasNearby) {
+        if (!nearby) {
+            TraceLog(LOG_DEBUG, "Left vicinity of player #%u", otherPlayer.id);
+            client.playerHistory.erase(otherPlayer.id);
             continue;
         }
 
-        PlayerSnapshot &state = worldSnapshot.players[worldSnapshot.playerCount];
+        auto prevState = client.playerHistory.find(otherPlayer.id);
+        PlayerSnapshot::Flags flags = PlayerSnapshot::Flags::None;
+        if (prevState == client.playerHistory.end()) {
+            flags = PlayerSnapshot::Flags::All;
+            TraceLog(LOG_DEBUG, "Entered vicinity of player #%u", otherPlayer.id);
+        } else {
+            if (!v3_equal(otherPlayer.body.WorldPosition(), prevState->second.position)) {
+                flags |= PlayerSnapshot::Flags::Position;
+            }
+            if (otherPlayer.sprite.direction != prevState->second.direction) {
+                flags |= PlayerSnapshot::Flags::Direction;
+            }
+            if (otherPlayer.combat.hitPoints != prevState->second.hitPoints) {
+                flags |= PlayerSnapshot::Flags::Health;
+            }
+            if (otherPlayer.combat.hitPointsMax != prevState->second.hitPointsMax) {
+                flags |= PlayerSnapshot::Flags::HealthMax;
+            }
+        }
+
+        if (flags == PlayerSnapshot::Flags::None && otherPlayer.id != player.id) {
+            TraceLog(LOG_DEBUG, "Skipping snapshot for unchanged player #%u", otherPlayer.id);
+            continue;
+        }
+
+        // TODO: Let Player serialize itself by storing a reference in the Snapshot, then
+        // having NetMessage::Process call a serialize method and forwarding the BitStream
+        // and state flags to it.
+        PlayerSnapshot &state = client.playerHistory[otherPlayer.id];
+        state.flags = flags;
         state.id = otherPlayer.id;
-        state.nearby = nearby;
-        state.init = !prevSnapshot || (nearby && !wasNearby);
-        state.spawned = false;
-        state.attacked = otherPlayer.actionState == Player::ActionState::Attacking;
-        state.moved = otherPlayer.moveState != Player::MoveState::Idle;
-        // TODO: Proper animation state or hit recovery state for this? Can attacked and tookDamage both be true?
-        state.tookDamage = true;
-        // TODO: Is this also a state on player.. or? How do we know it happened?
-        state.healed = false;
-        bool init = state.init || state.spawned;
-        if (init || state.moved) {
-            state.position = otherPlayer.body.WorldPosition();
-            state.direction = otherPlayer.sprite.direction;
-        }
-        if (init || state.tookDamage || state.healed) {
-            state.hitPoints = otherPlayer.combat.hitPoints;
-            state.hitPointsMax = otherPlayer.combat.hitPointsMax;
-        }
+        state.position = otherPlayer.body.WorldPosition();
+        state.direction = otherPlayer.sprite.direction;
+        state.hitPoints = otherPlayer.combat.hitPoints;
+        state.hitPointsMax = otherPlayer.combat.hitPointsMax;
+
+        worldSnapshot.players[worldSnapshot.playerCount] = state;
         worldSnapshot.playerCount++;
     }
 
@@ -310,60 +313,53 @@ ErrorType NetServer::SendWorldSnapshot(NetServerClient &client, WorldSnapshot &w
             continue;
         }
 
-        EnemySnapshot *prevState{};
-        if (prevSnapshot) {
-            assert(prevSnapshot->enemyCount <= SNAPSHOT_MAX_SLIMES);
-            for (size_t j = 0; j < prevSnapshot->enemyCount; j++) {
-                if (prevSnapshot->enemies[j].id == enemy.id) {
-                    prevState = &prevSnapshot->enemies[j];
-                    break;
-                }
-            }
-        }
-
-        if (prevState) {
-            //TraceLog(LOG_DEBUG, "Found prevState for #%u", enemy.id);
-        }
-
-        const float distSq = v3_length_sq(v3_sub(player->body.WorldPosition(), enemy.body.WorldPosition()));
+        const float distSq = v3_length_sq(v3_sub(player.body.WorldPosition(), enemy.body.WorldPosition()));
         const bool nearby = distSq <= SQUARED(SV_ENEMY_NEARBY_THRESHOLD);
         if (!nearby) {
+            client.enemyHistory.erase(enemy.id);
             continue;
         }
 
-        if (!prevState) {
+        auto prevState = client.enemyHistory.find(enemy.id);
+        EnemySnapshot::Flags flags = EnemySnapshot::Flags::None;
+        if (prevState == client.enemyHistory.end()) {
+            flags = EnemySnapshot::Flags::All;
             TraceLog(LOG_DEBUG, "Entered vicinity of enemy #%u", enemy.id);
+        } else {
+            if (!v3_equal(enemy.body.WorldPosition(), prevState->second.position)) {
+                flags |= EnemySnapshot::Flags::Position;
+            }
+            if (enemy.sprite.direction != prevState->second.direction) {
+                flags |= EnemySnapshot::Flags::Direction;
+            }
+            if (enemy.sprite.scale != prevState->second.scale) {
+                flags |= EnemySnapshot::Flags::Scale;
+            }
+            if (enemy.combat.hitPoints != prevState->second.hitPoints) {
+                flags |= EnemySnapshot::Flags::Health;
+            }
+            if (enemy.combat.hitPointsMax != prevState->second.hitPointsMax) {
+                flags |= EnemySnapshot::Flags::HealthMax;
+            }
         }
 
-        EnemySnapshot &state = worldSnapshot.enemies[worldSnapshot.enemyCount];
-        state.id = enemy.id;
-        if (!prevState) {
-            state.flags = EnemySnapshot::Flags::All;
-        } else {
-            if (!v3_equal(enemy.body.WorldPosition(), prevState->position)) {
-                state.flags |= EnemySnapshot::Flags::Position | EnemySnapshot::Flags::Direction;
-            } else if (enemy.sprite.direction != prevState->direction) {
-                state.flags |= EnemySnapshot::Flags::Direction;
-            }
-            if (enemy.sprite.scale != prevState->scale) {
-                state.flags |= EnemySnapshot::Flags::Scale;
-            }
-            if (enemy.combat.hitPoints != prevState->hitPoints) {
-                state.flags |= EnemySnapshot::Flags::Health;
-            }
-            if (enemy.combat.hitPointsMax != prevState->hitPointsMax) {
-                state.flags |= EnemySnapshot::Flags::HealthMax;
-            }
+        if (flags == EnemySnapshot::Flags::None) {
+            continue;
         }
 
         // TODO: Let Enemy serialize itself by storing a reference in the Snapshot, then
         // having NetMessage::Process call a serialize method and forwarding the BitStream
         // and state flags to it.
+        EnemySnapshot &state = client.enemyHistory[enemy.id];
+        state.flags = flags;
+        state.id = enemy.id;
         state.position = enemy.body.WorldPosition();
         state.direction = enemy.sprite.direction;
         state.scale = enemy.sprite.scale;
         state.hitPoints = enemy.combat.hitPoints;
         state.hitPointsMax = enemy.combat.hitPointsMax;
+
+        worldSnapshot.enemies[worldSnapshot.enemyCount] = state;
         worldSnapshot.enemyCount++;
     }
 
@@ -372,11 +368,7 @@ ErrorType NetServer::SendWorldSnapshot(NetServerClient &client, WorldSnapshot &w
         // TODO: Snapshot items
     }
 
-    memset(&netMsg, 0, sizeof(netMsg));
-    netMsg.type = NetMessage::Type::WorldSnapshot;
-    netMsg.data.worldSnapshot = worldSnapshot;
     E_ASSERT(SendMsg(client, netMsg), "Failed to send world snapshot");
-
     return ErrorType::Success;
 }
 
@@ -692,7 +684,7 @@ ErrorType NetServer::RemoveClient(ENetPeer *peer)
         }
 
         serverWorld->RemovePlayer(client->playerId);
-        memset(client, 0, sizeof(*client));
+        *client = {};
     }
     peer->data = 0;
     enet_peer_reset(peer);

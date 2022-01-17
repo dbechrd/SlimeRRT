@@ -1,4 +1,4 @@
-﻿//#define _CRTDBG_MAP_ALLOC
+﻿#define _CRTDBG_MAP_ALLOC
 
 #include "args.h"
 #include "error.h"
@@ -10,7 +10,7 @@
 
 int main(int argc, char *argv[])
 {
-    //_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_CHECK_ALWAYS_DF | _CRTDBG_LEAK_CHECK_DF); //| _CRTDBG_CHECK_CRT_DF);
+    _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_CHECK_ALWAYS_DF | _CRTDBG_LEAK_CHECK_DF); //| _CRTDBG_CHECK_CRT_DF);
     //_CrtSetBreakAlloc(3569);
 
 #if _DEBUG
@@ -18,7 +18,7 @@ int main(int argc, char *argv[])
 #endif
 
     Args args{ argc, argv };
-    //args.server = true;
+    //args.standalone = true;
 
     //--------------------------------------------------------------------------------------
     // Initialization

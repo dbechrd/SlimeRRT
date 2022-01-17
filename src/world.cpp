@@ -105,6 +105,7 @@ Player *World::FindClosestPlayer(Vector2 worldPos, float maxDist)
     return 0;
 }
 
+#if 0
 void World::DespawnPlayer(uint32_t playerId)
 {
     Player *player = FindPlayer(playerId);
@@ -115,6 +116,7 @@ void World::DespawnPlayer(uint32_t playerId)
 
     player->sprite.spriteDef = 0;
 }
+#endif
 
 void World::RemovePlayer(uint32_t playerId)
 {
@@ -236,9 +238,8 @@ void World::SV_Simulate(double dt)
 
 void World::SV_SimPlayers(double dt)
 {
-    for (size_t i = 0; i < SV_MAX_PLAYERS; i++) {
-        Player &player = players[i];
-        if (!player.id) {
+    for (Player &player : players) {
+        if (!player.id || !player.combat.hitPoints) {
             continue;
         }
 
@@ -257,7 +258,7 @@ void World::SV_SimPlayers(double dt)
             }
 
             for (Slime &slime : slimes) {
-                if (!slime.id) {
+                if (!slime.id || !slime.combat.hitPoints) {
                     continue;
                 }
 
@@ -293,7 +294,7 @@ void World::SV_SimSlimes(double dt)
 {
     for (size_t slimeIdx = 0; slimeIdx < SV_MAX_SLIMES; slimeIdx++) {
         Slime &slime = slimes[slimeIdx];
-        if (!slime.id) {
+        if (!slime.id || !slime.combat.hitPoints) {
             continue;
         }
 
@@ -319,7 +320,7 @@ void World::SV_SimSlimes(double dt)
             int willCollide = 0;
             for (size_t collideIdx = slimeIdx + 1; collideIdx < SV_MAX_SLIMES; collideIdx++) {
                 Slime &otherSlime = slimes[collideIdx];
-                if (!otherSlime.id) {
+                if (!otherSlime.id || !slime.combat.hitPoints) {
                     continue;
                 }
 
@@ -421,6 +422,7 @@ void World::SV_DespawnDeadEntities(void)
 {
     double now = glfwGetTime();
 
+#if 0
     for (size_t i = 0; i < SV_MAX_PLAYERS; i++) {
         Player &player = players[i];
         if (!player.id) {
@@ -433,6 +435,7 @@ void World::SV_DespawnDeadEntities(void)
             DespawnPlayer(player.id);
         }
     }
+#endif
 
     for (size_t i = 0; i < SV_MAX_SLIMES; i++) {
         Slime &enemy = slimes[i];
@@ -564,6 +567,7 @@ void World::CL_DespawnStaleEntities(void)
         return;
     }
 
+#if 0
     for (const Player &otherPlayer : players) {
         if (!otherPlayer.id || otherPlayer.id == playerId) {
             continue;
@@ -576,6 +580,7 @@ void World::CL_DespawnStaleEntities(void)
             DespawnPlayer(otherPlayer.id);
         }
     }
+#endif
 
     for (const Slime &enemy : slimes) {
         if (!enemy.id) {

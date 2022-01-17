@@ -213,13 +213,16 @@ void NetClient::ReconcilePlayer(double tickDt)
 
     // TODO: Do this more smoothly
     // Roll back local player to server slimeSnapshot location
-    bool init = playerSnapshot->init || playerSnapshot->spawned;
-    if (init || playerSnapshot->moved) {
+    if (playerSnapshot->flags & PlayerSnapshot::Flags::Position) {
         player->body.Teleport(playerSnapshot->position);
+    }
+    if (playerSnapshot->flags & PlayerSnapshot::Flags::Direction) {
         player->sprite.direction = playerSnapshot->direction;
     }
-    if (init || playerSnapshot->tookDamage || playerSnapshot->healed) {
+    if (playerSnapshot->flags & PlayerSnapshot::Flags::Health) {
         player->combat.hitPoints = playerSnapshot->hitPoints;
+    }
+    if (playerSnapshot->flags & PlayerSnapshot::Flags::HealthMax) {
         player->combat.hitPointsMax = playerSnapshot->hitPointsMax;
     }
 
@@ -291,6 +294,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
             worldSnapshot = netSnapshot;
             worldSnapshot.recvAt = glfwGetTime();
 
+#if 0
             for (size_t i = 0; i < worldSnapshot.playerCount; i++) {
                 const PlayerSnapshot &playerSnapshot = worldSnapshot.players[i];
                 Player *player = serverWorld->FindPlayer(playerSnapshot.id);
@@ -319,6 +323,76 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                     serverWorld->DespawnPlayer(playerSnapshot.id);
                 }
             }
+#else
+            for (size_t i = 0; i < worldSnapshot.playerCount; i++) {
+                const PlayerSnapshot &playerSnapshot = worldSnapshot.players[i];
+                Player *player = serverWorld->FindPlayer(playerSnapshot.id);
+                if (!player) {
+                    TraceLog(LOG_ERROR, "Failed to find player %u.", playerSnapshot.id);
+                    continue;
+                }
+
+                if (playerSnapshot.flags != PlayerSnapshot::Flags::None) {
+                    //TraceLog(LOG_DEBUG, "Snapshot: id %u", playerSnapshot.id);
+                }
+
+                const bool posChanged = playerSnapshot.flags & PlayerSnapshot::Flags::Position;
+                const bool dirChanged = playerSnapshot.flags & PlayerSnapshot::Flags::Direction;
+
+                if (posChanged || dirChanged) {
+                    const Vector3Snapshot *prevState{};
+                    if (player->body.positionHistory.Count()) {
+                        prevState = &player->body.positionHistory.Last();
+                    }
+
+                    Vector3Snapshot &state = player->body.positionHistory.Alloc();
+                    state.recvAt = worldSnapshot.recvAt;
+
+                    if (posChanged) {
+                        //TraceLog(LOG_DEBUG, "Snapshot: pos %f %f %f",
+                            //playerSnapshot.position.x,
+                            //playerSnapshot.position.y,
+                            //playerSnapshot.position.z);
+                        state.v = playerSnapshot.position;
+                    } else {
+                        if (prevState) {
+                            state.v = prevState->v;
+                        } else {
+                            //TraceLog(LOG_WARNING, "Received direction update but prevPosition is not known.");
+                            state.v = player->body.WorldPosition();
+                        }
+                    }
+
+                    if (dirChanged) {
+                        state.direction = playerSnapshot.direction;
+                        //TraceLog(LOG_DEBUG, "Snapshot: dir %d", (char)state.direction);
+                    } else {
+                        if (prevState) {
+                            state.direction = prevState->direction;
+                            //TraceLog(LOG_DEBUG, "Snapshot: dir %d (fallback prev)", (char)state.direction);
+                        } else {
+                            TraceLog(LOG_WARNING, "Received position update but prevState.direction is not available.");
+                            state.direction = player->sprite.direction;
+                        }
+                    }
+                }
+
+                // TODO: Pos/dir are history based, but these are instantaneous.. hmm.. is that okay?
+                if (playerSnapshot.flags & PlayerSnapshot::Flags::Health) {
+                    TraceLog(LOG_DEBUG, "Snapshot: health %f", playerSnapshot.hitPoints);
+                    if (player->combat.hitPoints && !playerSnapshot.hitPoints) {
+                        TraceLog(LOG_DEBUG, "Snapshot: Player died");
+                        serverWorld->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Blood, 20, player->WorldCenter(), 2.0);
+                        Catalog::g_sounds.Play(Catalog::SoundID::Slime_Stab1, 0.5f + dlb_rand32f_variance(0.1f), true);
+                    }
+                    player->combat.hitPoints = playerSnapshot.hitPoints;
+                }
+                if (playerSnapshot.flags & PlayerSnapshot::Flags::HealthMax) {
+                    TraceLog(LOG_DEBUG, "Snapshot: healthMax %f", playerSnapshot.hitPointsMax);
+                    player->combat.hitPointsMax = playerSnapshot.hitPointsMax;
+                }
+            }
+#endif
             for (size_t i = 0; i < worldSnapshot.enemyCount; i++) {
                 const EnemySnapshot &enemySnapshot = worldSnapshot.enemies[i];
                 Slime *slime = serverWorld->FindSlime(enemySnapshot.id);
@@ -330,28 +404,49 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                     }
                 }
 
-                if (enemySnapshot.flags & EnemySnapshot::Flags::Position) {
-                    TraceLog(LOG_DEBUG, "Snapshot: pos dir %f %f %f %d",
-                        enemySnapshot.position.x,
-                        enemySnapshot.position.y,
-                        enemySnapshot.position.z,
-                        (char)enemySnapshot.direction);
-                    Vector3Snapshot &pos = slime->body.positionHistory.Alloc();
-                    pos.recvAt = worldSnapshot.recvAt;
-                    pos.v = enemySnapshot.position;
-                    pos.direction = enemySnapshot.direction;
-                } else if (enemySnapshot.flags & EnemySnapshot::Flags::Direction) {
-                    TraceLog(LOG_DEBUG, "Snapshot: dir %d", (char)enemySnapshot.direction);
-                    Vector3 prevPos = slime->body.WorldPosition();
+                if (enemySnapshot.flags != EnemySnapshot::Flags::None) {
+                    TraceLog(LOG_DEBUG, "Snapshot: id %u", enemySnapshot.id);
+                }
+
+                const bool posChanged = enemySnapshot.flags & EnemySnapshot::Flags::Position;
+                const bool dirChanged = enemySnapshot.flags & EnemySnapshot::Flags::Direction;
+
+                if (posChanged || dirChanged) {
+                    const Vector3Snapshot *prevState{};
                     if (slime->body.positionHistory.Count()) {
-                        prevPos = slime->body.positionHistory.Last().v;
-                    } else {
-                        TraceLog(LOG_ERROR, "Received direction update but prevPosition is not known. Default to worldPos.");
+                        prevState = &slime->body.positionHistory.Last();
                     }
-                    Vector3Snapshot &pos = slime->body.positionHistory.Alloc();
-                    pos.recvAt = worldSnapshot.recvAt;
-                    pos.v = prevPos;
-                    pos.direction = enemySnapshot.direction;
+
+                    Vector3Snapshot &state = slime->body.positionHistory.Alloc();
+                    state.recvAt = worldSnapshot.recvAt;
+
+                    if (posChanged) {
+                        TraceLog(LOG_DEBUG, "Snapshot: pos %f %f %f",
+                            enemySnapshot.position.x,
+                            enemySnapshot.position.y,
+                            enemySnapshot.position.z);
+                        state.v = enemySnapshot.position;
+                    } else {
+                        if (prevState) {
+                            state.v = prevState->v;
+                        } else {
+                            TraceLog(LOG_WARNING, "Received direction update but prevPosition is not known.");
+                            state.v = slime->body.WorldPosition();
+                        }
+                    }
+
+                    if (dirChanged) {
+                        state.direction = enemySnapshot.direction;
+                        TraceLog(LOG_DEBUG, "Snapshot: dir %d", (char)state.direction);
+                    } else {
+                        if (prevState) {
+                            state.direction = prevState->direction;
+                            TraceLog(LOG_DEBUG, "Snapshot: dir %d (fallback prev)", (char)state.direction);
+                        } else {
+                            TraceLog(LOG_WARNING, "Received position update but prevState.direction is not available.");
+                            state.direction = slime->sprite.direction;
+                        }
+                    }
                 }
 
                 // TODO: Pos/dir are history based, but these are instantaneous.. hmm.. is that okay?

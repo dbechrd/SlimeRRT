@@ -41,21 +41,49 @@ struct WorldSnapshot {
 #endif
 
 struct PlayerSnapshot {
+    enum class Flags : char {
+        None      = 0,
+        Position  = 0x01,  // world position
+        Direction = 0x02,  // facing direction
+        Health    = 0x08,  // current health, e.g. heal/damage
+        HealthMax = 0x10,  // max health
+        All = Position
+            | Direction
+            | Health
+            | HealthMax
+    };
+
+    Flags flags;
     uint32_t  id           {};
-    bool      nearby       {};  // [rel] true = enter vicinity, false = despawn this entity
-    bool      init         {};  // [rel] if true, all fields present for initialization (welcome basket)
-    bool      spawned      {};  // [rel] respawn, teleport
-    bool      attacked     {};  // [rel] attacked
-    bool      moved        {};  // [rel] moved       (position change)
-    bool      tookDamage   {};  // [rel] took damage (health change)
-    bool      healed       {};  // [rel] healed      (health change)
-    // if moved
+    // A approach
+    // B change pos (spawn, teleport, move)
     Vector3   position     {};
+    // A approach
+    // B change dir (spawn, teleport, move)
     Direction direction    {};
-    // if took damage
+    // A approach
+    // B change hp (heal, damage)
     float     hitPoints    {};
+    // A approach
+    // B change max hp (none yet)
     float     hitPointsMax {};
 };
+
+static inline PlayerSnapshot::Flags operator|(PlayerSnapshot::Flags lhs, PlayerSnapshot::Flags rhs)
+{
+    return static_cast<PlayerSnapshot::Flags>(static_cast<char>(lhs) | static_cast<char>(rhs));
+}
+
+static inline PlayerSnapshot::Flags &operator|=(PlayerSnapshot::Flags &lhs, PlayerSnapshot::Flags rhs)
+{
+    lhs = static_cast<PlayerSnapshot::Flags>(static_cast<char>(lhs) | static_cast<char>(rhs));
+    return lhs;
+}
+
+static inline bool operator&(PlayerSnapshot::Flags lhs, PlayerSnapshot::Flags rhs)
+{
+    return static_cast<char>(lhs) & static_cast<char>(rhs);
+}
 
 struct EnemySnapshot {
     enum class Flags : char {

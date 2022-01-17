@@ -137,6 +137,8 @@ bool Slime::Combine(Slime &other)
 
     // Kill slime B
     b->combat.hitPoints = 0.0f;
+
+    TraceLog(LOG_DEBUG, "Combined slime #%u into slime #%u", b->id, a->id);
     return true;
 }
 

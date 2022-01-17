@@ -35,7 +35,12 @@ struct NetServerClient {
     uint32_t  playerId           {};
     uint32_t  lastInputAck       {};  // sequence # of last processed input for this client
     double    lastSnapshotSentAt {};
-    RingBuffer<WorldSnapshot, SV_WORLD_HISTORY> worldHistory {};
+
+    //RingBuffer<WorldSnapshot, SV_WORLD_HISTORY> worldHistory {};
+
+    std::unordered_map<uint32_t, PlayerSnapshot> playerHistory{};
+    std::unordered_map<uint32_t, EnemySnapshot> enemyHistory{};
+    std::unordered_map<uint32_t, ItemSnapshot> itemHistory{};
 };
 
 struct NetServer {
@@ -49,7 +54,7 @@ struct NetServer {
     ~NetServer();
     ErrorType OpenSocket(unsigned short socketPort);
     ErrorType SendWorldChunk(const NetServerClient &client);
-    ErrorType SendWorldSnapshot(NetServerClient &client, WorldSnapshot &worldSnapshot);
+    ErrorType SendWorldSnapshot(NetServerClient &client);
     ErrorType SendNearbyEvents(const NetServerClient &client);
     NetServerClient *FindClient(uint32_t playerId);
     ErrorType Listen();

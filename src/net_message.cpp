@@ -159,28 +159,21 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
             for (size_t i = 0; i < worldSnapshot.playerCount; i++) {
                 PlayerSnapshot &player = worldSnapshot.players[i];
                 stream.Process(player.id, 32, 1, UINT32_MAX);
-                stream.ProcessBool(player.nearby);
-                if (player.nearby) {
-                    stream.ProcessBool(player.init);
-                    stream.ProcessBool(player.spawned);
-                    stream.ProcessBool(player.attacked);
-                    stream.ProcessBool(player.moved);
-                    stream.ProcessBool(player.tookDamage);
-                    stream.ProcessBool(player.healed);
+                stream.Process((uint32_t &)player.flags, 8, 0, UINT8_MAX);
+                if (player.flags & PlayerSnapshot::Flags::Position) {
+                    stream.ProcessFloat(player.position.x);
+                    stream.ProcessFloat(player.position.y);
+                    stream.ProcessFloat(player.position.z);
+                }
+                if (player.flags & PlayerSnapshot::Flags::Direction) {
+                    stream.Process((uint32_t &)player.direction, 3, (uint32_t)Direction::North, (uint32_t)Direction::NorthWest);
                     stream.Align();
-                    bool init = player.init || player.spawned;
-                    if (init || player.moved) {
-                        // TODO: range validation on floats (why? malicious server?)
-                        stream.ProcessFloat(player.position.x);
-                        stream.ProcessFloat(player.position.y);
-                        stream.ProcessFloat(player.position.z);
-                        stream.Process((uint32_t &)player.direction, 3, (uint32_t)Direction::North, (uint32_t)Direction::NorthWest);
-                        stream.Align();
-                    }
-                    if (init || player.tookDamage || player.healed) {
-                        stream.ProcessFloat(player.hitPoints);
-                        stream.ProcessFloat(player.hitPointsMax);
-                    }
+                }
+                if (player.flags & PlayerSnapshot::Flags::Health) {
+                    stream.ProcessFloat(player.hitPoints);
+                }
+                if (player.flags & PlayerSnapshot::Flags::HealthMax) {
+                    stream.ProcessFloat(player.hitPointsMax);
                 }
             }
 
@@ -192,9 +185,8 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                     stream.ProcessFloat(enemy.position.x);
                     stream.ProcessFloat(enemy.position.y);
                     stream.ProcessFloat(enemy.position.z);
-                    stream.Process((uint32_t &)enemy.direction, 3, (uint32_t)Direction::North, (uint32_t)Direction::NorthWest);
-                    stream.Align();
-                } else if (enemy.flags & EnemySnapshot::Flags::Direction) {
+                }
+                if (enemy.flags & EnemySnapshot::Flags::Direction) {
                     stream.Process((uint32_t &)enemy.direction, 3, (uint32_t)Direction::North, (uint32_t)Direction::NorthWest);
                     stream.Align();
                 }
