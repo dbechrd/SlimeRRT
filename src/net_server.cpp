@@ -273,13 +273,20 @@ ErrorType NetServer::SendWorldSnapshot(NetServerClient &client)
             flags = PlayerSnapshot::Flags::All;
             TraceLog(LOG_DEBUG, "Entered vicinity of player #%u", otherPlayer.id);
         } else {
+            // "Despawn" notification already sent
+            if (prevState->second.flags & PlayerSnapshot::Flags::Despawn) {
+                continue;
+            } else if (!otherPlayer.combat.hitPoints) {
+                flags |= PlayerSnapshot::Flags::Despawn;
+            }
+
             if (!v3_equal(otherPlayer.body.WorldPosition(), prevState->second.position, POSITION_EPSILON)) {
                 flags |= PlayerSnapshot::Flags::Position;
             }
             if (otherPlayer.sprite.direction != prevState->second.direction) {
                 flags |= PlayerSnapshot::Flags::Direction;
             }
-            if (otherPlayer.combat.hitPoints != prevState->second.hitPoints) {
+            if (!otherPlayer.combat.hitPoints || (otherPlayer.combat.hitPoints != prevState->second.hitPoints)) {
                 flags |= PlayerSnapshot::Flags::Health;
             }
             if (otherPlayer.combat.hitPointsMax != prevState->second.hitPointsMax) {
@@ -327,6 +334,13 @@ ErrorType NetServer::SendWorldSnapshot(NetServerClient &client)
             flags = EnemySnapshot::Flags::All;
             TraceLog(LOG_DEBUG, "Entered vicinity of enemy #%u", enemy.id);
         } else {
+            // "Despawn" notification already sent
+            if (prevState->second.flags & EnemySnapshot::Flags::Despawn) {
+                continue;
+            } else if (!enemy.combat.hitPoints) {
+                flags |= EnemySnapshot::Flags::Despawn;
+            }
+
             if (!v3_equal(enemy.body.WorldPosition(), prevState->second.position, POSITION_EPSILON)) {
                 flags |= EnemySnapshot::Flags::Position;
             }
@@ -366,7 +380,7 @@ ErrorType NetServer::SendWorldSnapshot(NetServerClient &client)
 
     worldSnapshot.itemCount = 0;
     for (size_t i = 0; i < serverWorld->itemSystem.ItemsActive() && worldSnapshot.itemCount < SNAPSHOT_MAX_ITEMS; i++) {
-        const ItemWorld *item = serverWorld->itemSystem.At(i);
+        ItemWorld *item = serverWorld->itemSystem.At(i);
         if (!item) {
             continue;
         }
@@ -384,6 +398,13 @@ ErrorType NetServer::SendWorldSnapshot(NetServerClient &client)
             flags = ItemSnapshot::Flags::All;
             TraceLog(LOG_DEBUG, "Entered vicinity of item #%u", item->id);
         } else {
+            // "Despawn" notification already sent
+            if (prevState->second.flags & ItemSnapshot::Flags::Despawn) {
+                continue;
+            } else if (item->pickedUpAt) {
+                flags |= ItemSnapshot::Flags::Despawn;
+            }
+
             if (!v3_equal(item->body.WorldPosition(), prevState->second.position, POSITION_EPSILON)) {
                 flags |= ItemSnapshot::Flags::Position;
             }
@@ -393,7 +414,7 @@ ErrorType NetServer::SendWorldSnapshot(NetServerClient &client)
             if (item->stack.count != prevState->second.stackCount) {
                 flags |= ItemSnapshot::Flags::StackCount;
             }
-            if (item->pickedUp != prevState->second.pickedUp) {
+            if (!!item->pickedUpAt != prevState->second.pickedUp) {
                 flags |= ItemSnapshot::Flags::PickedUp;
             }
         }
@@ -411,7 +432,7 @@ ErrorType NetServer::SendWorldSnapshot(NetServerClient &client)
         state.position = item->body.WorldPosition();
         state.catalogId = item->stack.id;
         state.stackCount = item->stack.count;
-        state.pickedUp = item->pickedUp;
+        state.pickedUp = !!item->pickedUpAt;
 
         // DEBUG(cleanup): FPSDfasdf
         const Vector3 worldPos = item->body.WorldPosition();

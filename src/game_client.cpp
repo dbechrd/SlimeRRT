@@ -336,6 +336,9 @@ ErrorType GameClient::Run(void)
 
                 world->SV_Simulate(tickDt);
                 world->particleSystem.Update(tickDt);
+                world->itemSystem.Update(tickDt);
+                world->CL_DespawnStaleEntities();
+
 
                 //WorldSnapshot &worldSnapshot = netClient.worldHistory.Alloc();
                 //assert(!worldSnapshot.tick);  // ringbuffer alloc fucked up and didn't zero slot

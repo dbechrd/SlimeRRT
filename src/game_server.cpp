@@ -27,9 +27,9 @@ ErrorType GameServer::Run()
 
         slime = world->SpawnSlime(0);
         slime->body.Teleport(world->GetWorldSpawn());
-        slime->body.Move({ -50.0f, 30.0f });
+        slime->body.Move({ -50.0f, 50.0f });
 
-        for (size_t i = 1; i < SV_MAX_SLIMES; i++) {
+        for (size_t i = 0; i < SV_MAX_SLIMES; i++) {
             world->SpawnSlime(0);
         }
     }

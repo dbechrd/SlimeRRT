@@ -6,13 +6,13 @@
 #define ITEM_WORLD_RADIUS 10.0f
 
 struct ItemWorld : Drawable {
-    uint32_t  id        {};
-    ItemStack stack     {};
-    Body3D    body      {};
-    Sprite    sprite    {};
-    double    spawnedAt {};
-    bool      pickedUp  {};
-    ItemWorld *next     {};
+    uint32_t  id         {};
+    ItemStack stack      {};
+    Body3D    body       {};
+    Sprite    sprite     {};
+    double    spawnedAt  {};
+    double    pickedUpAt {};
+    ItemWorld *next      {};
 
     float Depth(void) const;
     bool Cull(const Rectangle& cullRect) const;

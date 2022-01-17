@@ -185,12 +185,12 @@ Slime *World::SpawnSlime(uint32_t slimeId)
                 0.0f
             });
 
-            TraceLog(LOG_DEBUG, "Spawned slime %u", slime.id);
+            //TraceLog(LOG_DEBUG, "Spawned enemy %u", slime.id);
             return &slime;
         }
     }
 
-    TraceLog(LOG_ERROR, "Failed to spawn slime");
+    TraceLog(LOG_ERROR, "Failed to spawn enemy");
     return 0;
 }
 
@@ -216,7 +216,7 @@ void World::DespawnSlime(uint32_t slimeId)
         return;
     }
 
-    TraceLog(LOG_DEBUG, "Despawn enemy %u", slimeId);
+    //TraceLog(LOG_DEBUG, "Despawn enemy %u", slimeId);
     *slime = {};
 }
 
@@ -382,39 +382,40 @@ void World::SV_SimItems(double dt)
 
     const size_t itemCount = itemSystem.ItemsActive();
     for (size_t itemIdx = 0; itemIdx < itemCount; itemIdx++) {
-        ItemWorld *itemPtr = itemSystem.At(itemIdx);
-        if (!itemPtr) continue;
-        ItemWorld &item = *itemPtr;
+        ItemWorld *item = itemSystem.At(itemIdx);
+        if (!item || item->pickedUpAt) {
+            continue;
+        }
 
-        assert(item.stack.id != Catalog::ItemID::Empty);
+        assert(item->stack.id != Catalog::ItemID::Empty);
 
         // TODO: Actually find closest alive player via RTree
-        Player *closestPlayer = FindClosestPlayer(item.body.GroundPosition(), playerItemPickupReach);
+        Player *closestPlayer = FindClosestPlayer(item->body.GroundPosition(), playerItemPickupReach);
         if (!closestPlayer || !closestPlayer->id) {
             continue;
         }
 
-        Vector3 itemToPlayer = v3_sub(closestPlayer->body.WorldPosition(), item.body.WorldPosition());
-        const float itemToPlayerDistSq = v3_length_sq(itemToPlayer);
+        Vector2 itemToPlayer = v2_sub(closestPlayer->body.GroundPosition(), item->body.GroundPosition());
+        const float itemToPlayerDistSq = v2_length_sq(itemToPlayer);
         if (itemToPlayerDistSq < SQUARED(playerItemPickupDist)) {
-            item.pickedUp = true;
+            item->pickedUpAt = glfwGetTime();
+            TraceLog(LOG_DEBUG, "Sim: Item picked up %u", item->id);
 
-            switch (item.stack.id) {
+            switch (item->stack.id) {
                 case Catalog::ItemID::Currency_Coin: {
                     // TODO(design): Convert coins to higher currency if stack fills up?
-                    closestPlayer->inventory.slots[(int)PlayerInventorySlot::Coins].count += item.stack.count;
-                    closestPlayer->stats.coinsCollected += item.stack.count;
-                    Catalog::g_sounds.Play(Catalog::SoundID::Gold, 1.0f + dlb_rand32f_variance(0.2f), true);
+                    closestPlayer->inventory.slots[(int)PlayerInventorySlot::Coins].count += item->stack.count;
+                    closestPlayer->stats.coinsCollected += item->stack.count;
                     break;
                 }
             }
         } else {
-            const Vector3 itemToPlayerDir = v3_normalize(itemToPlayer);
+            const Vector2 itemToPlayerDir = v2_normalize(itemToPlayer);
             const float speed = MAX(0, 1.0f / PIXELS_TO_METERS(sqrtf(itemToPlayerDistSq)));
-            const Vector3 itemVel = v3_scale(itemToPlayerDir, METERS_TO_PIXELS(speed));
-            item.body.velocity.x = itemVel.x;
-            item.body.velocity.y = itemVel.y;
-            //item.body.velocity.z = MAX(item.body.velocity.z, itemVel.z);
+            const Vector2 itemVel = v2_scale(itemToPlayerDir, METERS_TO_PIXELS(speed));
+            item->body.velocity.x = itemVel.x;
+            item->body.velocity.y = itemVel.y;
+            //item->body.velocity.z = MAX(item->body.velocity.z, itemVel.z);
         }
     }
 
@@ -447,7 +448,7 @@ void World::DespawnDeadEntities(void)
 
         // Check if enemy has been dead for awhile
         if (enemy.combat.diedAt && now - enemy.combat.diedAt > SV_ENEMY_CORPSE_LIFETIME) {
-            TraceLog(LOG_DEBUG, "Despawn stale enemy corpse %u", enemy.id);
+            //TraceLog(LOG_DEBUG, "Despawn stale enemy corpse %u", enemy.id);
             DespawnSlime(enemy.id);
         }
     }
@@ -596,12 +597,14 @@ void World::CL_DespawnStaleEntities(void)
             const float distSq = v3_length_sq(v3_sub(player->body.WorldPosition(), lastPos.v));
             const bool faraway = distSq >= SQUARED(CL_ENEMY_FARAWAY_THRESHOLD);
             if (faraway) {
-                TraceLog(LOG_DEBUG, "Despawn far away enemy %u", enemy.id);
+                //TraceLog(LOG_DEBUG, "Despawn far away enemy %u", enemy.id);
                 DespawnSlime(enemy.id);
                 continue;
             }
         }
     }
+
+    itemSystem.CL_DespawnStaleEntities();
 }
 
 void World::EnableCulling(Rectangle cullRect)

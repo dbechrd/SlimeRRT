@@ -43,8 +43,9 @@ struct WorldSnapshot {
 struct PlayerSnapshot {
     enum class Flags : char {
         None      = 0,
-        Position  = 0x01,  // world position
-        Direction = 0x02,  // facing direction
+        Despawn   = 0x01,  // ??
+        Position  = 0x02,  // world position
+        Direction = 0x04,  // facing direction
         Health    = 0x08,  // current health, e.g. heal/damage
         HealthMax = 0x10,  // max health
         All = Position
@@ -80,11 +81,12 @@ static inline bool operator&(PlayerSnapshot::Flags lhs, PlayerSnapshot::Flags rh
 struct EnemySnapshot {
     enum class Flags : char {
         None      = 0,
-        Position  = 0x01,  // world position
-        Direction = 0x02,  // facing direction
-        Scale     = 0x04,  // sprite scale, e.g. when slimes combine
-        Health    = 0x08,  // current health, e.g. heal/damage
-        HealthMax = 0x10,  // max health
+        Despawn   = 0x01,  // health = 0
+        Position  = 0x02,  // world position
+        Direction = 0x04,  // facing direction
+        Scale     = 0x08,  // sprite scale, e.g. when slimes combine
+        Health    = 0x10,  // current health, e.g. heal/damage
+        HealthMax = 0x20,  // max health
         All = Position
             | Direction
             | Scale
@@ -120,10 +122,11 @@ static inline bool operator&(EnemySnapshot::Flags lhs, EnemySnapshot::Flags rhs)
 struct ItemSnapshot {
    enum class Flags : char {
         None       = 0,
-        Position   = 0x01,  // world position
-        CatalogId  = 0x02,  // type of item
-        StackCount = 0x04,  // size of item stack
-        PickedUp   = 0x08,  // item gone
+        Despawn    = 0x01,  // picked up / stale
+        Position   = 0x02,  // world position
+        CatalogId  = 0x04,  // type of item
+        StackCount = 0x08,  // size of item stack
+        PickedUp   = 0x10,  // item gone
         All = Position
             | CatalogId
             | StackCount

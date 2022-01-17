@@ -104,7 +104,7 @@ void Body3D::Update(double dt)
             // Clamp tiny velocities to zero
             const Vector3 zero = { 0, 0, 0 };
             if ((fabsf(velocity.z) - gravity * (float)dt) < VELOCITY_EPSILON) {
-                TraceLog(LOG_DEBUG, "Resting body since velocity due to gravity");
+                //TraceLog(LOG_DEBUG, "Resting body since velocity due to gravity");
                 velocity = zero;
                 position.z = 0.0f;
             } else {

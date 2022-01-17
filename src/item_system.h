@@ -10,9 +10,10 @@ struct ItemSystem {
     size_t ItemsActive(void) const;
     ItemWorld *At(size_t index);
     ItemWorld *Find(uint32_t id);
-    void Remove(uint32_t itemId);
+    bool Remove(uint32_t itemId);
     void Update(double dt);
     void DespawnDeadEntities(void);
+    void CL_DespawnStaleEntities(void);
     void PushAll(DrawList& drawList);
 
 private:

@@ -399,6 +399,9 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                 const EnemySnapshot &enemySnapshot = worldSnapshot.enemies[i];
                 Slime *slime = serverWorld->FindSlime(enemySnapshot.id);
                 if (!slime) {
+                    if (enemySnapshot.flags & EnemySnapshot::Flags::Despawn) {
+                        continue;
+                    }
                     slime = serverWorld->SpawnSlime(enemySnapshot.id);
                     if (!slime) {
                         TraceLog(LOG_ERROR, "Failed to spawn slime.");
@@ -407,7 +410,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                 }
 
                 if (enemySnapshot.flags != EnemySnapshot::Flags::None) {
-                    TraceLog(LOG_DEBUG, "Snapshot: enemy #%u", enemySnapshot.id);
+                    //TraceLog(LOG_DEBUG, "Snapshot: enemy #%u", enemySnapshot.id);
                 }
 
                 const bool posChanged = enemySnapshot.flags & EnemySnapshot::Flags::Position;
@@ -477,6 +480,9 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                 const ItemSnapshot &itemSnapshot = worldSnapshot.items[i];
                 ItemWorld *item = serverWorld->itemSystem.Find(itemSnapshot.id);
                 if (!item) {
+                    if (itemSnapshot.flags & ItemSnapshot::Flags::Despawn) {
+                        continue;
+                    }
                     item = serverWorld->itemSystem.SpawnItem(serverWorld->GetWorldSpawn(), Catalog::ItemID::Weapon_Sword, 42, itemSnapshot.id);
                     if (!item) {
                         TraceLog(LOG_ERROR, "Failed to spawn item.");
@@ -498,7 +504,11 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                     item->stack.count = itemSnapshot.stackCount;
                 }
                 if (itemSnapshot.flags & ItemSnapshot::Flags::PickedUp) {
-                    item->pickedUp = itemSnapshot.pickedUp;
+                    if (!item->pickedUpAt && itemSnapshot.pickedUp) {
+                        Catalog::g_sounds.Play(Catalog::SoundID::Gold, 1.0f + dlb_rand32f_variance(0.2f), true);
+                        item->pickedUpAt = worldSnapshot.recvAt;
+                    }
+                    TraceLog(LOG_DEBUG, "Snapshot: item #%u picked up = %s", item->id, item->pickedUpAt ? "true" : "false");
                 }
             }
             break;

@@ -30,12 +30,12 @@ ItemWorld *ItemSystem::SpawnItem(Vector3 pos, Catalog::ItemID catalogId, uint32_
     item.stack.id = catalogId;
     item.stack.count = count;
     item.body.Teleport(pos);
-    float randX = dlb_rand32f_variance(METERS_TO_PIXELS(3.0f));
-    float randY = dlb_rand32f_variance(METERS_TO_PIXELS(3.0f));
-    float randZ = dlb_rand32f_range(2.0f, METERS_TO_PIXELS(4.0f));
+    float randX = dlb_rand32f_variance(METERS_TO_PIXELS(2.0f));
+    float randY = dlb_rand32f_variance(METERS_TO_PIXELS(2.0f));
+    float randZ = dlb_rand32f_range(3.0f, METERS_TO_PIXELS(4.0f));
     item.body.velocity = { randX, randY, randZ };
-    item.body.restitution = 0.8f;
-    item.body.friction = 0.1f;
+    item.body.restitution = 0.2f;
+    item.body.friction = 0.2f;
 
     static const SpriteDef *coinSpriteDef{};
     if (!coinSpriteDef) {
@@ -90,12 +90,12 @@ ItemWorld *ItemSystem::Find(uint32_t itemId)
     return 0;
 }
 
-void ItemSystem::Remove(uint32_t itemId)
+bool ItemSystem::Remove(uint32_t itemId)
 {
     ItemWorld *item = Find(itemId);
     if (!item) {
         TraceLog(LOG_ERROR, "Cannot remove a item that doesn't exist. itemId: %u", itemId);
-        return;
+        return false;
     }
 
     TraceLog(LOG_DEBUG, "Despawn item %u", itemId);
@@ -109,6 +109,7 @@ void ItemSystem::Remove(uint32_t itemId)
         *item = items[itemsCount];
     }
     items[itemsCount] = {};
+    return true;
 }
 
 void ItemSystem::Update(double dt)
@@ -137,11 +138,34 @@ void ItemSystem::DespawnDeadEntities(void)
         ItemWorld &item = items[i];
         assert(item.stack.id != Catalog::ItemID::Empty);
 
-        if (item.pickedUp || (glfwGetTime() - item.spawnedAt >= SV_WORLD_ITEM_LIFETIME)) {
-            Remove(item.id);
-        } else {
-            i++;
+        if ((item.pickedUpAt && ((glfwGetTime() - item.pickedUpAt) > 1.0 / SNAPSHOT_SEND_RATE)) ||
+            (item.spawnedAt  && ((glfwGetTime() - item.spawnedAt ) > SV_WORLD_ITEM_LIFETIME  ))) {
+            if (Remove(item.id)) {
+                continue;
+            }
         }
+        i++;
+    }
+}
+
+void ItemSystem::CL_DespawnStaleEntities(void)
+{
+    assert(itemsCount < SV_MAX_ITEMS);
+
+    DespawnDeadEntities();
+
+    size_t i = 0;
+    while (i < itemsCount) {
+        ItemWorld &item = items[i];
+        assert(item.stack.id != Catalog::ItemID::Empty);
+
+        if ((item.pickedUpAt) ||
+            (item.spawnedAt && ((glfwGetTime() - item.spawnedAt) > SV_WORLD_ITEM_LIFETIME))) {
+            if (Remove(item.id)) {
+                continue;
+            }
+        }
+        i++;
     }
 }
 
