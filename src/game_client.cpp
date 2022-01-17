@@ -354,7 +354,7 @@ ErrorType GameClient::Run(void)
         }
 
         static bool samTreasureRoom = false;
-        if (!samTreasureRoom && world == lobby && !sam.combat.hitPoints) {
+        if (!samTreasureRoom && world == lobby && sam.combat.diedAt) {
             const Vector2 playerBC = player.body.GroundPosition();
             uint32_t chestX = MAX(0, int(playerBC.x / TILE_W));
             uint32_t chestY = MAX(0, int(playerBC.y / TILE_W) - 2);

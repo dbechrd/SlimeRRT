@@ -94,7 +94,7 @@ Player *World::FindPlayer(uint32_t playerId)
 Player *World::FindClosestPlayer(Vector2 worldPos, float maxDist)
 {
     for (size_t i = 0; i < SV_MAX_PLAYERS; i++) {
-        if (players[i].id && players[i].combat.hitPoints > 0) {
+        if (players[i].id && players[i].combat.hitPoints) {
             Vector2 toPlayer = v2_sub(players[i].body.GroundPosition(), worldPos);
             const float toPlayerDistSq = v2_length_sq(toPlayer);
             if (toPlayerDistSq <= SQUARED(maxDist)) {
@@ -320,16 +320,14 @@ void World::SV_SimSlimes(double dt)
             int willCollide = 0;
             for (size_t collideIdx = slimeIdx + 1; collideIdx < SV_MAX_SLIMES; collideIdx++) {
                 Slime &otherSlime = slimes[collideIdx];
-                if (!otherSlime.id || !slime.combat.hitPoints) {
+                if (!otherSlime.id || !otherSlime.combat.hitPoints) {
                     continue;
                 }
 
                 Vector3 otherSlimePos = otherSlime.body.WorldPosition();
                 const float radiusScaled = SV_SLIME_RADIUS * slime.sprite.scale;
                 if (v3_length_sq(v3_sub(slimePos, otherSlimePos)) < SQUARED(radiusScaled)) {
-                    if (slime.Combine(otherSlime)) {
-                        const Slime &dead = slime.combat.hitPoints == 0.0f ? slime : otherSlime;
-                    }
+                    slime.TryCombine(otherSlime);
                 }
                 if (v3_length_sq(v3_sub(slimePosNew, otherSlimePos)) < SQUARED(radiusScaled)) {
                     willCollide = 1;
@@ -437,14 +435,13 @@ void World::SV_DespawnDeadEntities(void)
     }
 #endif
 
-    for (size_t i = 0; i < SV_MAX_SLIMES; i++) {
-        Slime &enemy = slimes[i];
+    for (const Slime &enemy : slimes) {
         if (!enemy.id) {
             continue;
         }
 
         // Check if enemy has been dead for awhile
-        if (!enemy.combat.hitPoints && now - enemy.combat.diedAt > SV_ENEMY_CORPSE_LIFETIME) {
+        if (enemy.combat.diedAt && now - enemy.combat.diedAt > SV_ENEMY_CORPSE_LIFETIME) {
             TraceLog(LOG_DEBUG, "Despawn stale enemy corpse %u", enemy.id);
             DespawnSlime(enemy.id);
         }
@@ -587,6 +584,13 @@ void World::CL_DespawnStaleEntities(void)
             continue;
         }
 
+        // Check if enemy has been dead for awhile
+        if (!enemy.combat.hitPoints && now - enemy.combat.diedAt > SV_ENEMY_CORPSE_LIFETIME) {
+            TraceLog(LOG_DEBUG, "Despawn stale enemy corpse %u", enemy.id);
+            DespawnSlime(enemy.id);
+            continue;
+        }
+
         if (enemy.body.positionHistory.Count()) {
             auto &lastPos = enemy.body.positionHistory.Last();
             const float distSq = v3_length_sq(v3_sub(player->body.WorldPosition(), lastPos.v));
@@ -594,6 +598,7 @@ void World::CL_DespawnStaleEntities(void)
             if (faraway) {
                 TraceLog(LOG_DEBUG, "Despawn far away enemy %u", enemy.id);
                 DespawnSlime(enemy.id);
+                continue;
             }
         }
     }

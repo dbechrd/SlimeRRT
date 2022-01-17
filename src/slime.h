@@ -37,7 +37,7 @@ struct Slime : public Drawable {
     Vector3 WorldTopCenter(void) const;
 
     bool Move(double dt, Vector2 offset);
-    bool Combine(Slime &other);
+    bool TryCombine(Slime &other);
     bool Attack(double dt);
     void Update(double dt);
 

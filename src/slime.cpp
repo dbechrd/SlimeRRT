@@ -109,7 +109,7 @@ bool Slime::Move(double dt, Vector2 offset)
     return false;
 }
 
-bool Slime::Combine(Slime &other)
+bool Slime::TryCombine(Slime &other)
 {
     // The bigger slime should absorb the smaller one
     Slime *a = nullptr;
@@ -137,6 +137,7 @@ bool Slime::Combine(Slime &other)
 
     // Kill slime B
     b->combat.hitPoints = 0.0f;
+    b->combat.diedAt = glfwGetTime();
 
     TraceLog(LOG_DEBUG, "Combined slime #%u into slime #%u", b->id, a->id);
     return true;

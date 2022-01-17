@@ -63,7 +63,7 @@
 #define SV_SLIME_RADIUS             METERS_TO_PIXELS(0.5f)
 
 // NOTE: Due to how "enemy.moved" flag is calculated atm, this *MUST* match SV_TICK_RATE
-#define SNAPSHOT_SEND_RATE          MIN(30, SV_TICK_RATE)
+#define SNAPSHOT_SEND_RATE          SV_TICK_RATE  //MIN(30, SV_TICK_RATE)
 #define SNAPSHOT_MAX_PLAYERS        SV_MAX_PLAYERS
 #define SNAPSHOT_MAX_SLIMES         MIN(64, SV_MAX_SLIMES)
 #define SNAPSHOT_MAX_ITEMS          MIN(64, SV_MAX_ITEMS)

@@ -15,6 +15,7 @@ const char *NetServer::LOG_SRC = "NetServer";
 
 NetServer::~NetServer()
 {
+    TraceLog(LOG_DEBUG, "Killing NetServer");
     CloseSocket();
 }
 
@@ -751,5 +752,7 @@ void NetServer::CloseSocket()
     enet_host_service(server, nullptr, 0);
     enet_host_destroy(server);
     assert(sizeof(clients) > 8); // in case i change client list to a pointer and break the memset
-    memset(clients, 0, sizeof(clients));
+    //memset(clients, 0, sizeof(clients));
+    *clients = {};
+    assert(sizeof(clients) > 8); // in case i change client list to a pointer and break the memset
 }

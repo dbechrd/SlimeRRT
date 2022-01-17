@@ -379,16 +379,17 @@ void NetClient::ProcessMsg(ENetPacket &packet)
 
                 // TODO: Pos/dir are history based, but these are instantaneous.. hmm.. is that okay?
                 if (playerSnapshot.flags & PlayerSnapshot::Flags::Health) {
-                    TraceLog(LOG_DEBUG, "Snapshot: health %f", playerSnapshot.hitPoints);
+                    //TraceLog(LOG_DEBUG, "Snapshot: health %f", playerSnapshot.hitPoints);
                     if (player->combat.hitPoints && !playerSnapshot.hitPoints) {
-                        TraceLog(LOG_DEBUG, "Snapshot: Player died");
+                        //TraceLog(LOG_DEBUG, "Snapshot: Player died");
+                        player->combat.diedAt = worldSnapshot.recvAt;
                         serverWorld->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Blood, 20, player->WorldCenter(), 2.0);
                         Catalog::g_sounds.Play(Catalog::SoundID::Slime_Stab1, 0.5f + dlb_rand32f_variance(0.1f), true);
                     }
                     player->combat.hitPoints = playerSnapshot.hitPoints;
                 }
                 if (playerSnapshot.flags & PlayerSnapshot::Flags::HealthMax) {
-                    TraceLog(LOG_DEBUG, "Snapshot: healthMax %f", playerSnapshot.hitPointsMax);
+                    //TraceLog(LOG_DEBUG, "Snapshot: healthMax %f", playerSnapshot.hitPointsMax);
                     player->combat.hitPointsMax = playerSnapshot.hitPointsMax;
                 }
             }
@@ -421,10 +422,10 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                     state.recvAt = worldSnapshot.recvAt;
 
                     if (posChanged) {
-                        TraceLog(LOG_DEBUG, "Snapshot: pos %f %f %f",
-                            enemySnapshot.position.x,
-                            enemySnapshot.position.y,
-                            enemySnapshot.position.z);
+                        //TraceLog(LOG_DEBUG, "Snapshot: pos %f %f %f",
+                        //    enemySnapshot.position.x,
+                        //    enemySnapshot.position.y,
+                        //    enemySnapshot.position.z);
                         state.v = enemySnapshot.position;
                     } else {
                         if (prevState) {
@@ -437,11 +438,11 @@ void NetClient::ProcessMsg(ENetPacket &packet)
 
                     if (dirChanged) {
                         state.direction = enemySnapshot.direction;
-                        TraceLog(LOG_DEBUG, "Snapshot: dir %d", (char)state.direction);
+                        //TraceLog(LOG_DEBUG, "Snapshot: dir %d", (char)state.direction);
                     } else {
                         if (prevState) {
                             state.direction = prevState->direction;
-                            TraceLog(LOG_DEBUG, "Snapshot: dir %d (fallback prev)", (char)state.direction);
+                            //TraceLog(LOG_DEBUG, "Snapshot: dir %d (fallback prev)", (char)state.direction);
                         } else {
                             TraceLog(LOG_WARNING, "Received position update but prevState.direction is not available.");
                             state.direction = slime->sprite.direction;
@@ -451,20 +452,21 @@ void NetClient::ProcessMsg(ENetPacket &packet)
 
                 // TODO: Pos/dir are history based, but these are instantaneous.. hmm.. is that okay?
                 if (enemySnapshot.flags & EnemySnapshot::Flags::Scale) {
-                    TraceLog(LOG_DEBUG, "Snapshot: scale %f", (char)enemySnapshot.direction);
+                    //TraceLog(LOG_DEBUG, "Snapshot: scale %f", (char)enemySnapshot.direction);
                     slime->sprite.scale = enemySnapshot.scale;
                 }
                 if (enemySnapshot.flags & EnemySnapshot::Flags::Health) {
-                    TraceLog(LOG_DEBUG, "Snapshot: health %f", enemySnapshot.hitPoints);
+                    //TraceLog(LOG_DEBUG, "Snapshot: health %f", enemySnapshot.hitPoints);
                     if (slime->combat.hitPoints && !enemySnapshot.hitPoints) {
-                        TraceLog(LOG_DEBUG, "Snapshot: Slime died");
+                        //TraceLog(LOG_DEBUG, "Snapshot: Slime died");
+                        slime->combat.diedAt = worldSnapshot.recvAt;
                         serverWorld->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Goo, 20, slime->WorldCenter(), 2.0);
                         Catalog::g_sounds.Play(Catalog::SoundID::Squish2, 0.5f + dlb_rand32f_variance(0.1f), true);
                     }
                     slime->combat.hitPoints = enemySnapshot.hitPoints;
                 }
                 if (enemySnapshot.flags & EnemySnapshot::Flags::HealthMax) {
-                    TraceLog(LOG_DEBUG, "Snapshot: healthMax %f", enemySnapshot.hitPointsMax);
+                    //TraceLog(LOG_DEBUG, "Snapshot: healthMax %f", enemySnapshot.hitPointsMax);
                     slime->combat.hitPointsMax = enemySnapshot.hitPointsMax;
                 }
             }

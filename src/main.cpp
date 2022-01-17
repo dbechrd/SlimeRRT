@@ -23,6 +23,7 @@ int main(int argc, char *argv[])
     //--------------------------------------------------------------------------------------
     // Initialization
     //--------------------------------------------------------------------------------------
+    InitConsole();
     error_init(args.standalone ? "server.log" : "game.log");
 
     int enet_code = enet_initialize();

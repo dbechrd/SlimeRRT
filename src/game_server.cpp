@@ -29,9 +29,9 @@ ErrorType GameServer::Run()
         slime->body.Teleport(world->GetWorldSpawn());
         slime->body.Move({ -50.0f, 30.0f });
 
-        //for (size_t i = 1; i < SV_MAX_SLIMES; i++) {
-        //    world->SpawnSlime(0);
-        //}
+        for (size_t i = 1; i < SV_MAX_SLIMES; i++) {
+            world->SpawnSlime(0);
+        }
     }
 
     E_ASSERT(netServer.OpenSocket(args.port), "Failed to open socket");
@@ -94,6 +94,8 @@ ErrorType GameServer::Run()
                     // Send snapshot
                     E_ASSERT(netServer.SendWorldSnapshot(client), "Failed to send world snapshot");
                     client.lastSnapshotSentAt = glfwGetTime();
+                } else {
+                    TraceLog(LOG_DEBUG, "Skipping shapshot for %u", client.playerId);
                 }
 
                 // TODO: Send global events
