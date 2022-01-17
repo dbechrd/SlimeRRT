@@ -6,10 +6,13 @@ struct ItemSystem {
     ItemSystem(void) {};
     ~ItemSystem(void) {};
 
-    void ItemSystem::SpawnItem(Vector3 pos, Catalog::ItemID id, uint32_t stackCount);
+    ItemWorld *SpawnItem(Vector3 pos, Catalog::ItemID catalogId, uint32_t stackCount, uint32_t id = 0);
     size_t ItemsActive(void) const;
-    ItemWorld *Items(void);
+    ItemWorld *At(size_t index);
+    ItemWorld *Find(uint32_t id);
+    void Remove(uint32_t itemId);
     void Update(double dt);
+    void DespawnDeadEntities(void);
     void PushAll(DrawList& drawList);
 
 private:

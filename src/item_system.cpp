@@ -4,21 +4,30 @@
 // Server spawns items into world
 // Server broadcasts ItemDrop event
 // Client creates proxy, updates physics
-// Client sends ItemPickup event
+// Client sends ItemPickup event (request, server will respond yes/no)
 // Server validates item is still on ground and is close enough for player to pick up
 // Server adds item to player's inventory
 // Server sends InventoryUpdate event
 // Server broadcasts ItemPickup event
 
-void ItemSystem::SpawnItem(Vector3 pos, Catalog::ItemID id, uint32_t count)
+ItemWorld *ItemSystem::SpawnItem(Vector3 pos, Catalog::ItemID catalogId, uint32_t count, uint32_t id)
 {
     ItemWorld *itemPtr = Alloc();
     if (!itemPtr) {
-        return;
+        return 0;
     }
 
     ItemWorld &item = *itemPtr;
-    item.stack.id = id;
+
+    if (id) {
+        item.id = id;
+    } else {
+        static uint32_t nextId = 0;
+        nextId = MAX(1, nextId + 1); // Prevent ID zero from being used on overflow
+        item.id = nextId;
+    }
+
+    item.stack.id = catalogId;
     item.stack.count = count;
     item.body.Teleport(pos);
     float randX = dlb_rand32f_variance(METERS_TO_PIXELS(3.0f));
@@ -36,7 +45,8 @@ void ItemSystem::SpawnItem(Vector3 pos, Catalog::ItemID id, uint32_t count)
     }
     item.sprite.spriteDef = coinSpriteDef;
     item.sprite.scale = 1.0f;
-    item.spawnedAt = GetTime();
+    item.spawnedAt = glfwGetTime();
+    return itemPtr;
 }
 
 ItemWorld *ItemSystem::Alloc(void)
@@ -56,35 +66,80 @@ size_t ItemSystem::ItemsActive(void) const
     return itemsCount;
 }
 
-ItemWorld *ItemSystem::Items(void)
+ItemWorld *ItemSystem::At(size_t index)
 {
-    return items;
+    assert(itemsCount < SV_MAX_ITEMS);
+    if (index < itemsCount) {
+        return &items[index];
+    }
+    assert(!"Invalid item index");
+    return 0;
+}
+
+ItemWorld *ItemSystem::Find(uint32_t itemId)
+{
+    if (!itemId) {
+        return 0;
+    }
+
+    for (ItemWorld &item : items) {
+        if (item.id == itemId) {
+            return &item;
+        }
+    }
+    return 0;
+}
+
+void ItemSystem::Remove(uint32_t itemId)
+{
+    ItemWorld *item = Find(itemId);
+    if (!item) {
+        TraceLog(LOG_ERROR, "Cannot remove a item that doesn't exist. itemId: %u", itemId);
+        return;
+    }
+
+    TraceLog(LOG_DEBUG, "Despawn item %u", itemId);
+
+    // Return item to free list
+    assert(itemsCount > 0);
+    itemsCount--;
+
+    // Copy last item to empty slot to keep densely packed
+    if (itemsCount) {
+        *item = items[itemsCount];
+    }
+    items[itemsCount] = {};
 }
 
 void ItemSystem::Update(double dt)
 {
-    assert(itemsCount <= SV_MAX_ITEMS);
+    assert(itemsCount < SV_MAX_ITEMS);
 
     size_t i = 0;
     while (i < itemsCount) {
         ItemWorld& item = items[i];
         assert(item.stack.id != Catalog::ItemID::Empty);
 
-        if (item.pickedUp || (GetTime() - item.spawnedAt >= SV_WORLD_ITEM_LIFETIME)) {
-            // Return item to free list
-            assert(itemsCount > 0);
-            itemsCount--;
+        item.body.Update(dt);
+        sprite_update(item.sprite, dt);
+        // TODO: do we need animated sprites for world items?
+        //sprite_update(item.sprite, dt);
+        i++;
+    }
+}
 
-            // Copy last item to empty slot to keep densely packed
-            if (itemsCount) {
-                item = items[itemsCount];
-            }
-            items[itemsCount] = {};
+void ItemSystem::DespawnDeadEntities(void)
+{
+    assert(itemsCount < SV_MAX_ITEMS);
+
+    size_t i = 0;
+    while (i < itemsCount) {
+        ItemWorld &item = items[i];
+        assert(item.stack.id != Catalog::ItemID::Empty);
+
+        if (item.pickedUp || (glfwGetTime() - item.spawnedAt >= SV_WORLD_ITEM_LIFETIME)) {
+            Remove(item.id);
         } else {
-            item.body.Update(dt);
-            sprite_update(item.sprite, dt);
-            // TODO: do we need animated sprites for world items?
-            //sprite_update(item.sprite, dt);
             i++;
         }
     }
@@ -92,13 +147,12 @@ void ItemSystem::Update(double dt)
 
 void ItemSystem::PushAll(DrawList& drawList)
 {
-    assert(itemsCount <= SV_MAX_ITEMS);
-
-    size_t itemsPushed = 0;
-    for (size_t i = 0; itemsPushed < itemsCount; i++) {
+    for (size_t i = 0; i < itemsCount; i++) {
         const ItemWorld &item = items[i];
-        assert(item.stack.id != Catalog::ItemID::Empty);
-        drawList.Push(item);
-        itemsPushed++;
+        if (item.stack.id != Catalog::ItemID::Empty) {
+            drawList.Push(item);
+        } else {
+            assert(!"Empty item id");
+        }
     }
 }

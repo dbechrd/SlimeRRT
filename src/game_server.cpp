@@ -95,7 +95,7 @@ ErrorType GameServer::Run()
                     E_ASSERT(netServer.SendWorldSnapshot(client), "Failed to send world snapshot");
                     client.lastSnapshotSentAt = glfwGetTime();
                 } else {
-                    TraceLog(LOG_DEBUG, "Skipping shapshot for %u", client.playerId);
+                    //TraceLog(LOG_DEBUG, "Skipping shapshot for %u", client.playerId);
                 }
 
                 // TODO: Send global events
@@ -104,7 +104,7 @@ ErrorType GameServer::Run()
                 //E_ASSERT(netServer.SendNearbyEvents(client), "Failed to send nearby events. playerId: %u", client.playerId);
             }
 
-            world->SV_DespawnDeadEntities();
+            world->DespawnDeadEntities();
             tickAccum -= tickDt;
         }
     }

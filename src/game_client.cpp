@@ -300,6 +300,7 @@ ErrorType GameClient::Run(void)
                     assert(world->map);
                     player.Update(tickDt, inputSample, *world->map);
                     world->particleSystem.Update(tickDt);
+                    world->itemSystem.Update(tickDt);
 
                     tickAccum -= tickDt;
                 //}

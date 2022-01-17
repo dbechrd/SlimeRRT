@@ -189,9 +189,12 @@ static inline Vector3 v3_negate(const Vector3 v)
     return result;
 }
 
-static inline int v3_equal(const Vector3 a, const Vector3 b)
+static inline int v3_equal(const Vector3 a, const Vector3 b, float epsilon)
 {
-    int equal = a.x == b.x && a.y == b.y && a.z == b.z;
+    int equal =
+        fabsf(a.x - b.x) < epsilon &&
+        fabsf(a.y - b.y) < epsilon &&
+        fabsf(a.z - b.z) < epsilon;
     return equal;
 }
 

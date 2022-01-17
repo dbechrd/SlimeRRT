@@ -95,6 +95,13 @@ void BitStream::ProcessInt(int &i)
     i = *(int *)&word;
 }
 
+void BitStream::ProcessUint(uint32_t &u)
+{
+    uint32_t word = *(uint32_t *)&u;
+    Process(word, 32, 0, UINT32_MAX);
+    u = word;
+}
+
 void BitStream::ProcessFloat(float &flt)
 {
     uint32_t word = *(uint32_t *)&flt;

@@ -6,7 +6,6 @@
 #include <cassert>
 #include <cmath>
 
-#define VELOCITY_EPSILON 0.001f
 #define IDLE_THRESHOLD_SECONDS 6.0
 
 inline Vector3 Body3D::WorldPosition() const
@@ -100,30 +99,31 @@ void Body3D::Update(double dt)
         position.y += velocity.y * (float)dt;
         position.z += velocity.z * (float)dt;
 
-        bounced = position.z <= 0.0f;
-
         float friction_coef = 1.0f;
         if (position.z <= 0.0f) {
-            // Bounce
-            velocity.z *= -restitution;
-            position.z *= -restitution;
+            // Clamp tiny velocities to zero
+            const Vector3 zero = { 0, 0, 0 };
+            if ((fabsf(velocity.z) - gravity * (float)dt) < VELOCITY_EPSILON) {
+                TraceLog(LOG_DEBUG, "Resting body since velocity due to gravity");
+                velocity = zero;
+                position.z = 0.0f;
+            } else {
+                // Bounce
+                velocity.z *= -restitution;
+                position.z *= -restitution;
+                bounced = true;
 
-            // Apply friction
-            // TODO: Account for dt in friction?
-            friction_coef = 1.0f - CLAMP(friction, 0.0f, 1.0f);
-            velocity.x *= friction_coef;
-            velocity.y *= friction_coef;
+                // Apply friction
+                // TODO: Account for dt in friction?
+                friction_coef = 1.0f - CLAMP(friction, 0.0f, 1.0f);
+                velocity.x *= friction_coef;
+                velocity.y *= friction_coef;
+            }
         }
-
-        // TODO: Epsilon could be defined per drawThing? Idk if that's useful enough to be worth it
-        // Clamp tiny velocities to zero
-        if (fabsf(velocity.x) < VELOCITY_EPSILON) velocity.x = 0.0f;
-        if (fabsf(velocity.y) < VELOCITY_EPSILON) velocity.y = 0.0f;
-        if (fabsf(velocity.z) < VELOCITY_EPSILON) velocity.z = 0.0f;
     }
 
     // NOTE: Position can be updated manually outside of physics sim (e.g. player Move() controller)
-    if (!v3_equal(position, prevPosition)) {
+    if (!v3_equal(position, prevPosition, POSITION_EPSILON)) {
         lastMoved = glfwGetTime();
     }
     landed = (prevPosition.z > 0.0f && position.z == 0.0f);

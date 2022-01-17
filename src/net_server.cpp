@@ -273,7 +273,7 @@ ErrorType NetServer::SendWorldSnapshot(NetServerClient &client)
             flags = PlayerSnapshot::Flags::All;
             TraceLog(LOG_DEBUG, "Entered vicinity of player #%u", otherPlayer.id);
         } else {
-            if (!v3_equal(otherPlayer.body.WorldPosition(), prevState->second.position)) {
+            if (!v3_equal(otherPlayer.body.WorldPosition(), prevState->second.position, POSITION_EPSILON)) {
                 flags |= PlayerSnapshot::Flags::Position;
             }
             if (otherPlayer.sprite.direction != prevState->second.direction) {
@@ -309,7 +309,7 @@ ErrorType NetServer::SendWorldSnapshot(NetServerClient &client)
 
     worldSnapshot.enemyCount = 0;
     for (size_t i = 0; i < SV_MAX_SLIMES && worldSnapshot.enemyCount < SNAPSHOT_MAX_SLIMES; i++) {
-        Slime &enemy = serverWorld->slimes[i];
+        const Slime &enemy = serverWorld->slimes[i];
         if (!enemy.id) {
             continue;
         }
@@ -327,7 +327,7 @@ ErrorType NetServer::SendWorldSnapshot(NetServerClient &client)
             flags = EnemySnapshot::Flags::All;
             TraceLog(LOG_DEBUG, "Entered vicinity of enemy #%u", enemy.id);
         } else {
-            if (!v3_equal(enemy.body.WorldPosition(), prevState->second.position)) {
+            if (!v3_equal(enemy.body.WorldPosition(), prevState->second.position, POSITION_EPSILON)) {
                 flags |= EnemySnapshot::Flags::Position;
             }
             if (enemy.sprite.direction != prevState->second.direction) {
@@ -365,8 +365,60 @@ ErrorType NetServer::SendWorldSnapshot(NetServerClient &client)
     }
 
     worldSnapshot.itemCount = 0;
-    for (size_t i = 0; i < SV_MAX_ITEMS && worldSnapshot.itemCount < SNAPSHOT_MAX_ITEMS; i++) {
-        // TODO: Snapshot items
+    for (size_t i = 0; i < serverWorld->itemSystem.ItemsActive() && worldSnapshot.itemCount < SNAPSHOT_MAX_ITEMS; i++) {
+        const ItemWorld *item = serverWorld->itemSystem.At(i);
+        if (!item) {
+            continue;
+        }
+
+        const float distSq = v3_length_sq(v3_sub(player.body.WorldPosition(), item->body.WorldPosition()));
+        const bool nearby = distSq <= SQUARED(SV_ITEM_NEARBY_THRESHOLD);
+        if (!nearby) {
+            client.itemHistory.erase(item->id);
+            continue;
+        }
+
+        auto prevState = client.itemHistory.find(item->id);
+        ItemSnapshot::Flags flags = ItemSnapshot::Flags::None;
+        if (prevState == client.itemHistory.end()) {
+            flags = ItemSnapshot::Flags::All;
+            TraceLog(LOG_DEBUG, "Entered vicinity of item #%u", item->id);
+        } else {
+            if (!v3_equal(item->body.WorldPosition(), prevState->second.position, POSITION_EPSILON)) {
+                flags |= ItemSnapshot::Flags::Position;
+            }
+            if (item->stack.id != prevState->second.catalogId) {
+                flags |= ItemSnapshot::Flags::CatalogId;
+            }
+            if (item->stack.count != prevState->second.stackCount) {
+                flags |= ItemSnapshot::Flags::StackCount;
+            }
+            if (item->pickedUp != prevState->second.pickedUp) {
+                flags |= ItemSnapshot::Flags::PickedUp;
+            }
+        }
+
+        if (flags == ItemSnapshot::Flags::None) {
+            continue;
+        }
+
+        // TODO: Let Item serialize itself by storing a reference in the Snapshot, then
+        // having NetMessage::Process call a serialize method and forwarding the BitStream
+        // and state flags to it.
+        ItemSnapshot &state = client.itemHistory[item->id];
+        state.flags = flags;
+        state.id = item->id;
+        state.position = item->body.WorldPosition();
+        state.catalogId = item->stack.id;
+        state.stackCount = item->stack.count;
+        state.pickedUp = item->pickedUp;
+
+        // DEBUG(cleanup): FPSDfasdf
+        const Vector3 worldPos = item->body.WorldPosition();
+        TraceLog(LOG_DEBUG, "Sending snapshot for Item %u pos: %f %f %f", item->id, worldPos.x, worldPos.y, worldPos.z);
+
+        worldSnapshot.items[worldSnapshot.itemCount] = state;
+        worldSnapshot.itemCount++;
     }
 
     E_ASSERT(SendMsg(client, netMsg), "Failed to send world snapshot");

@@ -44,7 +44,7 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
         } case NetMessage::Type::ChatMessage: {
             NetMessage_ChatMessage &chatMsg = data.chatMsg;
 
-            stream.Process((uint32_t &)chatMsg.source, 6, (uint32_t)NetMessage_ChatMessage::Source::Unknown + 1, (uint32_t)NetMessage_ChatMessage::Source::Count);
+            stream.Process((uint32_t &)chatMsg.source, 6, (uint32_t)NetMessage_ChatMessage::Source::Unknown + 1, (uint32_t)NetMessage_ChatMessage::Source::Count - 1);
             switch (chatMsg.source) {
                 case NetMessage_ChatMessage::Source::Client: {
                     stream.Process(chatMsg.id, 32, 0, UINT32_MAX);
@@ -198,6 +198,27 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                 }
                 if (enemy.flags & EnemySnapshot::Flags::HealthMax) {
                     stream.ProcessFloat(enemy.hitPointsMax);
+                }
+            }
+
+            for (size_t i = 0; i < worldSnapshot.itemCount; i++) {
+                ItemSnapshot &item = worldSnapshot.items[i];
+                stream.Process(item.id, 32, 1, UINT32_MAX);
+                stream.Process((uint32_t &)item.flags, 8, 0, UINT8_MAX);
+                if (item.flags & ItemSnapshot::Flags::Position) {
+                    stream.ProcessFloat(item.position.x);
+                    stream.ProcessFloat(item.position.y);
+                    stream.ProcessFloat(item.position.z);
+                }
+                if (item.flags & ItemSnapshot::Flags::CatalogId) {
+                    stream.Process((uint32_t &)item.catalogId, 3, (uint32_t)Catalog::ItemID::Empty + 1, (uint32_t)Catalog::ItemID::Count - 1);
+                }
+                if (item.flags & ItemSnapshot::Flags::StackCount) {
+                    stream.Process(item.stackCount, 32, 1, UINT_MAX);
+                }
+                if (item.flags & ItemSnapshot::Flags::PickedUp) {
+                    stream.ProcessBool(item.pickedUp);
+                    stream.Align();
                 }
             }
 

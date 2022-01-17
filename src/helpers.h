@@ -16,6 +16,9 @@
 #define METERS_TO_PIXELS(meters) ((meters) * 64.0f)
 #define PIXELS_TO_METERS(pixels) ((pixels) / 64.0f)
 
+#define POSITION_EPSILON 0.0001f
+#define VELOCITY_EPSILON 0.001f
+
 //------------------------------------------------------------------------------
 // Feature flags
 //------------------------------------------------------------------------------
@@ -53,6 +56,7 @@
 // NOTE: max diagonal distance at 1080p is 1100 + radius units. 1200px allows for a ~50px wide entity
 #define SV_PLAYER_NEARBY_THRESHOLD  1200.0f
 #define SV_ENEMY_NEARBY_THRESHOLD   600.0f //1200.0f
+#define SV_ITEM_NEARBY_THRESHOLD    1200.0f
 #define SV_STALE_RADIUS             50.0f
 #define SV_PLAYER_CORPSE_LIFETIME   8.0
 #define SV_ENEMY_CORPSE_LIFETIME    4.0

@@ -27,13 +27,11 @@ struct World {
     Player         players        [SV_MAX_PLAYERS]{};
     // TODO: SlimeSystem or EnemySystem
     Slime          slimes         [SV_MAX_SLIMES]{};
-    ItemWorld      items          [SV_MAX_ITEMS]{};
-
-    ChatHistory    chatHistory    {};
     ItemSystem     itemSystem     {};
     LootSystem     lootSystem     {};
     MapSystem      mapSystem      {};
     ParticleSystem particleSystem {};
+    ChatHistory    chatHistory    {};
 
     World  (void);
     ~World (void);
@@ -58,7 +56,7 @@ struct World {
     ////////////////////////////////////////////
 
     void SV_Simulate(double dt);
-    void SV_DespawnDeadEntities(void);
+    void DespawnDeadEntities(void);
 
     void CL_Interpolate(double renderAt);
     void CL_Extrapolate(double dt);

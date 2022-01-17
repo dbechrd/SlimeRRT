@@ -333,7 +333,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                 }
 
                 if (playerSnapshot.flags != PlayerSnapshot::Flags::None) {
-                    //TraceLog(LOG_DEBUG, "Snapshot: id %u", playerSnapshot.id);
+                    //TraceLog(LOG_DEBUG, "Snapshot: player #%u", playerSnapshot.id);
                 }
 
                 const bool posChanged = playerSnapshot.flags & PlayerSnapshot::Flags::Position;
@@ -380,6 +380,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                 // TODO: Pos/dir are history based, but these are instantaneous.. hmm.. is that okay?
                 if (playerSnapshot.flags & PlayerSnapshot::Flags::Health) {
                     //TraceLog(LOG_DEBUG, "Snapshot: health %f", playerSnapshot.hitPoints);
+                    // TODO: Move this to DespawnStaleEntities or whatever
                     if (player->combat.hitPoints && !playerSnapshot.hitPoints) {
                         //TraceLog(LOG_DEBUG, "Snapshot: Player died");
                         player->combat.diedAt = worldSnapshot.recvAt;
@@ -406,7 +407,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                 }
 
                 if (enemySnapshot.flags != EnemySnapshot::Flags::None) {
-                    TraceLog(LOG_DEBUG, "Snapshot: id %u", enemySnapshot.id);
+                    TraceLog(LOG_DEBUG, "Snapshot: enemy #%u", enemySnapshot.id);
                 }
 
                 const bool posChanged = enemySnapshot.flags & EnemySnapshot::Flags::Position;
@@ -457,6 +458,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                 }
                 if (enemySnapshot.flags & EnemySnapshot::Flags::Health) {
                     //TraceLog(LOG_DEBUG, "Snapshot: health %f", enemySnapshot.hitPoints);
+                    // TODO: Move this to DespawnStaleEntities or whatever
                     if (slime->combat.hitPoints && !enemySnapshot.hitPoints) {
                         //TraceLog(LOG_DEBUG, "Snapshot: Slime died");
                         slime->combat.diedAt = worldSnapshot.recvAt;
@@ -468,6 +470,35 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                 if (enemySnapshot.flags & EnemySnapshot::Flags::HealthMax) {
                     //TraceLog(LOG_DEBUG, "Snapshot: healthMax %f", enemySnapshot.hitPointsMax);
                     slime->combat.hitPointsMax = enemySnapshot.hitPointsMax;
+                }
+            }
+
+            for (size_t i = 0; i < worldSnapshot.itemCount; i++) {
+                const ItemSnapshot &itemSnapshot = worldSnapshot.items[i];
+                ItemWorld *item = serverWorld->itemSystem.Find(itemSnapshot.id);
+                if (!item) {
+                    item = serverWorld->itemSystem.SpawnItem(serverWorld->GetWorldSpawn(), Catalog::ItemID::Weapon_Sword, 42, itemSnapshot.id);
+                    if (!item) {
+                        TraceLog(LOG_ERROR, "Failed to spawn item.");
+                        continue;
+                    }
+                }
+
+                if (itemSnapshot.flags != ItemSnapshot::Flags::None) {
+                    TraceLog(LOG_DEBUG, "Snapshot: item #%u", itemSnapshot.id);
+                }
+
+                if (itemSnapshot.flags & ItemSnapshot::Flags::Position) {
+                    item->body.Teleport(itemSnapshot.position);
+                }
+                if (itemSnapshot.flags & ItemSnapshot::Flags::CatalogId) {
+                    item->stack.id = itemSnapshot.catalogId;
+                }
+                if (itemSnapshot.flags & ItemSnapshot::Flags::StackCount) {
+                    item->stack.count = itemSnapshot.stackCount;
+                }
+                if (itemSnapshot.flags & ItemSnapshot::Flags::PickedUp) {
+                    item->pickedUp = itemSnapshot.pickedUp;
                 }
             }
             break;

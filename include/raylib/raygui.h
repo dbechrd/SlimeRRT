@@ -4307,8 +4307,10 @@ char **GuiLoadIcons(const char *fileName, bool loadIconsName)
             }
             else fseek(rgiFile, iconCount*RICON_MAX_NAME_LENGTH, SEEK_CUR);
 
+#pragma push(warning, 0)
             // Read icons data directly over guiIcons data array
             fread(guiIcons, iconCount*((size_t)iconSize*iconSize/32), sizeof(unsigned int), rgiFile);
+#pragma pop(warning)
         }
 
         fclose(rgiFile);

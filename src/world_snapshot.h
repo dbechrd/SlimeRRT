@@ -53,20 +53,12 @@ struct PlayerSnapshot {
             | HealthMax
     };
 
-    Flags flags;
+    Flags     flags        {};
     uint32_t  id           {};
-    // A approach
-    // B change pos (spawn, teleport, move)
-    Vector3   position     {};
-    // A approach
-    // B change dir (spawn, teleport, move)
-    Direction direction    {};
-    // A approach
-    // B change hp (heal, damage)
-    float     hitPoints    {};
-    // A approach
-    // B change max hp (none yet)
-    float     hitPointsMax {};
+    Vector3   position     {};  // teleport, move
+    Direction direction    {};  // teleport, move
+    float     hitPoints    {};  // heal, damage, die
+    float     hitPointsMax {};  // <no events>
 };
 
 static inline PlayerSnapshot::Flags operator|(PlayerSnapshot::Flags lhs, PlayerSnapshot::Flags rhs)
@@ -100,23 +92,13 @@ struct EnemySnapshot {
             | HealthMax
     };
 
-    Flags flags;
+    Flags     flags        {};
     uint32_t  id           {};
-    // A approach
-    // B change pos (spawn, teleport, move)
-    Vector3   position     {};
-    // A approach
-    // B change dir (spawn, teleport, move)
-    Direction direction    {};
-    // A approach
-    // B change scale (combine)
-    float     scale        {};
-    // A approach
-    // B change hp (heal, damage)
-    float     hitPoints    {};
-    // A approach
-    // B change max hp (none yet)
-    float     hitPointsMax {};
+    Vector3   position     {};  // teleport, move
+    Direction direction    {};  // teleport, move
+    float     scale        {};  // combine
+    float     hitPoints    {};  // heal, damage, die
+    float     hitPointsMax {};  // <no events>
 };
 
 static inline EnemySnapshot::Flags operator|(EnemySnapshot::Flags lhs, EnemySnapshot::Flags rhs)
@@ -136,14 +118,41 @@ static inline bool operator&(EnemySnapshot::Flags lhs, EnemySnapshot::Flags rhs)
 }
 
 struct ItemSnapshot {
-    uint32_t id       {};
-    bool     nearby   {};  // [rel] true = enter vicinity, false = despawn this entity
-    bool     init     {};  // [rel] if true, all fields present for initialization (welcome basket)
-    bool     spawned  {};  // [rel] monster kill, chest pop, player drop
-    bool     moved    {};
-    // if moved
-    Vector3  position {};
+   enum class Flags : char {
+        None       = 0,
+        Position   = 0x01,  // world position
+        CatalogId  = 0x02,  // type of item
+        StackCount = 0x04,  // size of item stack
+        PickedUp   = 0x08,  // item gone
+        All = Position
+            | CatalogId
+            | StackCount
+            | PickedUp
+    };
+
+    Flags           flags      {};
+    uint32_t        id         {};
+    Vector3         position   {};  // spawn, move
+    Catalog::ItemID catalogId  {};  // spawn
+    uint32_t        stackCount {};  // spawn, combine (future)
+    bool            pickedUp   {};  // item is gone
 };
+
+static inline ItemSnapshot::Flags operator|(ItemSnapshot::Flags lhs, ItemSnapshot::Flags rhs)
+{
+    return static_cast<ItemSnapshot::Flags>(static_cast<char>(lhs) | static_cast<char>(rhs));
+}
+
+static inline ItemSnapshot::Flags &operator|=(ItemSnapshot::Flags &lhs, ItemSnapshot::Flags rhs)
+{
+    lhs = static_cast<ItemSnapshot::Flags>(static_cast<char>(lhs) | static_cast<char>(rhs));
+    return lhs;
+}
+
+static inline bool operator&(ItemSnapshot::Flags lhs, ItemSnapshot::Flags rhs)
+{
+    return static_cast<char>(lhs) & static_cast<char>(rhs);
+}
 
 struct WorldSnapshot {
     uint32_t       lastInputAck {};  // sequence # of last processed input

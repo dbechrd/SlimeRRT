@@ -6,6 +6,7 @@
 #define ITEM_WORLD_RADIUS 10.0f
 
 struct ItemWorld : Drawable {
+    uint32_t  id        {};
     ItemStack stack     {};
     Body3D    body      {};
     Sprite    sprite    {};
