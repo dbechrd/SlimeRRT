@@ -288,10 +288,10 @@ ErrorType GameClient::Run(void)
                     world->tick = worldSnapshot.tick;
 
                     // TODO: Update world state from worldSnapshot and re-apply input with input.tick > snapshot.tick
-                    netClient.ReconcilePlayer(tickDt);
+                    //netClient.ReconcilePlayer(tickDt);
                 }
                 // TODO: Update world state from worldSnapshot and re-apply input with input.tick > snapshot.tick
-                //netClient.ReconcilePlayer(tickDt);
+                netClient.ReconcilePlayer(tickDt);
 
                 //while (tickAccum > tickDt) {
                     InputSample &inputSample = netClient.inputHistory.Alloc();
@@ -302,7 +302,7 @@ ErrorType GameClient::Run(void)
                     world->particleSystem.Update(tickDt);
                     world->itemSystem.Update(tickDt);
 
-                    tickAccum -= tickDt;
+                //    tickAccum -= tickDt;
                 //}
 
                 // Send input to server at a fixed rate that matches server tick rate
@@ -321,7 +321,8 @@ ErrorType GameClient::Run(void)
                 //    netClient.server->lastRoundTripTimeVariance,
                 //    netClient.server->highestRoundTripTimeVariance
                 //);
-                renderAt = now - (1.0 / SNAPSHOT_SEND_RATE) - (1.0 / (netClient.server->lastRoundTripTime + netClient.server->lastRoundTripTimeVariance));
+                //renderAt = now - (1.0 / SNAPSHOT_SEND_RATE) - (1.0 / (netClient.server->lastRoundTripTime + netClient.server->lastRoundTripTimeVariance));
+                renderAt = now - (1.0 / (SNAPSHOT_SEND_RATE * 1.5));
                 world->CL_Interpolate(renderAt);
                 //world->CL_Extrapolate(now - renderAt);
             }

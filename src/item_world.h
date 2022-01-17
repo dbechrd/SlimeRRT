@@ -14,7 +14,14 @@ struct ItemWorld : Drawable {
     double    pickedUpAt {};
     ItemWorld *next      {};
 
+    Vector3 WorldCenter(void) const;
+    Vector3 WorldTopCenter(void) const;
     float Depth(void) const;
     bool Cull(const Rectangle& cullRect) const;
+    void Update(double dt);
     void Draw(void) const;
+
+private:
+    char name[64]{};
+    ItemStack namedStack{};  // so that we know if/when to refresh name buffer
 };

@@ -18,7 +18,6 @@ void HealthBar::Draw(int fontSize, const Vector2 &topCenter, const char *name, f
     float y = topCenter.y - 10.0f;
     //float y = topCenter.y - 10.0f;
 
-    const float hpPercent = hitPoints / maxHitPoints;
     //const char *hpText = TextFormat("HP: %.02f / %.02f", hitPoints, hitPointsMax);
     const char *hpText = TextFormat("HP: %.f / %.f", hitPoints, maxHitPoints);
     const char *nameText = name ? TextFormat(name) : nullptr;
@@ -34,7 +33,10 @@ void HealthBar::Draw(int fontSize, const Vector2 &topCenter, const char *name, f
         nameRect.width = (float)MeasureText(nameText, fontSize);
         nameRect.height = (float)fontSize;
         nameRect.x = x - ceilf(nameRect.width / 2.0f);
-        nameRect.y = y - fontSize - 4.0f - fontSize;
+        nameRect.y = y - fontSize;
+        if (maxHitPoints) {
+            nameRect.y -= 4.0f + fontSize;
+        }
     } else {
         nameRect.x = FLT_MAX;
         nameRect.y = FLT_MAX;
@@ -46,13 +48,19 @@ void HealthBar::Draw(int fontSize, const Vector2 &topCenter, const char *name, f
     bgRect.width  = MAX(hpRect.width, nameRect.width) + pad.x * 2.0f;
     bgRect.height = hpRect.height + pad.y * 2.0f;
 
-    Rectangle indicatorRect = bgRect;
-    indicatorRect.width *= hpPercent;
+    // Draw background
+    DrawRectangleRec(bgRect, DARKGRAY);
 
     // Draw hitpoint indicators
-    DrawRectangleRec(bgRect, DARKGRAY);
-    DrawRectangleRec(indicatorRect, RED);
+    if (maxHitPoints) {
+        Rectangle indicatorRect = bgRect;
+        indicatorRect.width *= hitPoints / maxHitPoints;
+
+        DrawRectangleRec(indicatorRect, RED);
+        DrawTextFont(s_font, hpText, hpRect.x, hpRect.y, 0, 0, fontSize, WHITE);
+    }
+
+    // Draw label
     DrawTextFont(s_font, nameText, nameRect.x, nameRect.y, 0, 0, fontSize, WHITE);
-    DrawTextFont(s_font, hpText, hpRect.x, hpRect.y, 0, 0, fontSize, WHITE);
     DrawRectangleLinesEx(bgRect, 1, BLACK);
 }

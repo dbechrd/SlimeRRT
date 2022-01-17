@@ -13,4 +13,17 @@ namespace Catalog {
     {
         return byId[(size_t)id];
     }
+
+    const char *Items::Name(ItemID id, bool plural) const
+    {
+#define PLURALIZE(one, many) {switch(plural) { case 0: return (one); case 1: return (many); }}
+        switch (id) {
+        case ItemID::Empty        : PLURALIZE("Empty", "Empty");
+        case ItemID::Currency_Coin: PLURALIZE("Sterling", "Sterlings");
+        case ItemID::Weapon_Sword : PLURALIZE("Sword", "Swords");
+        default:
+            return "<some item>";
+        }
+#undef NAME_PAIR
+    }
 }

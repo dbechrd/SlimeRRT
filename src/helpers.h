@@ -29,6 +29,7 @@
 #define DEMO_BODY_RECT 0
 #define DEMO_SNAPSHOT_RADII 1
 #define SV_DEBUG_INPUT 0
+#define CL_DEBUG_PLAYER_RECONCILIATION 0
 
 #if _DEBUG
     #define SHOW_DEBUG_STATS 1
@@ -54,9 +55,9 @@
 #define SV_INPUT_HISTORY            (SV_TICK_RATE * SV_MAX_PLAYERS)
 #define SV_WORLD_HISTORY            SV_TICK_RATE
 // NOTE: max diagonal distance at 1080p is 1100 + radius units. 1200px allows for a ~50px wide entity
-#define SV_PLAYER_NEARBY_THRESHOLD  1200.0f
+#define SV_PLAYER_NEARBY_THRESHOLD  600.0f //1200.0f
 #define SV_ENEMY_NEARBY_THRESHOLD   600.0f //1200.0f
-#define SV_ITEM_NEARBY_THRESHOLD    1200.0f
+#define SV_ITEM_NEARBY_THRESHOLD    600.0f //1200.0f
 #define SV_STALE_RADIUS             50.0f
 #define SV_PLAYER_CORPSE_LIFETIME   8.0
 #define SV_ENEMY_CORPSE_LIFETIME    4.0

@@ -380,32 +380,30 @@ void World::SV_SimItems(double dt)
     const float playerItemPickupReach = METERS_TO_PIXELS(1.5f);
     const float playerItemPickupDist = METERS_TO_PIXELS(0.1f);
 
-    const size_t itemCount = itemSystem.ItemsActive();
-    for (size_t itemIdx = 0; itemIdx < itemCount; itemIdx++) {
-        ItemWorld *item = itemSystem.At(itemIdx);
-        if (!item || item->pickedUpAt) {
+    for (ItemWorld &item : itemSystem.items) {
+        if (!item.id || item.pickedUpAt) {
             continue;
         }
 
-        assert(item->stack.id != Catalog::ItemID::Empty);
+        assert(item.stack.id != Catalog::ItemID::Empty);
 
         // TODO: Actually find closest alive player via RTree
-        Player *closestPlayer = FindClosestPlayer(item->body.GroundPosition(), playerItemPickupReach);
+        Player *closestPlayer = FindClosestPlayer(item.body.GroundPosition(), playerItemPickupReach);
         if (!closestPlayer || !closestPlayer->id) {
             continue;
         }
 
-        Vector2 itemToPlayer = v2_sub(closestPlayer->body.GroundPosition(), item->body.GroundPosition());
+        Vector2 itemToPlayer = v2_sub(closestPlayer->body.GroundPosition(), item.body.GroundPosition());
         const float itemToPlayerDistSq = v2_length_sq(itemToPlayer);
         if (itemToPlayerDistSq < SQUARED(playerItemPickupDist)) {
-            item->pickedUpAt = glfwGetTime();
-            TraceLog(LOG_DEBUG, "Sim: Item picked up %u", item->id);
+            item.pickedUpAt = glfwGetTime();
+            TraceLog(LOG_DEBUG, "Sim: Item picked up %u", item.id);
 
-            switch (item->stack.id) {
+            switch (item.stack.id) {
                 case Catalog::ItemID::Currency_Coin: {
                     // TODO(design): Convert coins to higher currency if stack fills up?
-                    closestPlayer->inventory.slots[(int)PlayerInventorySlot::Coins].count += item->stack.count;
-                    closestPlayer->stats.coinsCollected += item->stack.count;
+                    closestPlayer->inventory.slots[(int)PlayerInventorySlot::Coins].count += item.stack.count;
+                    closestPlayer->stats.coinsCollected += item.stack.count;
                     break;
                 }
             }
@@ -413,9 +411,9 @@ void World::SV_SimItems(double dt)
             const Vector2 itemToPlayerDir = v2_normalize(itemToPlayer);
             const float speed = MAX(0, 1.0f / PIXELS_TO_METERS(sqrtf(itemToPlayerDistSq)));
             const Vector2 itemVel = v2_scale(itemToPlayerDir, METERS_TO_PIXELS(speed));
-            item->body.velocity.x = itemVel.x;
-            item->body.velocity.y = itemVel.y;
-            //item->body.velocity.z = MAX(item->body.velocity.z, itemVel.z);
+            item.body.velocity.x = itemVel.x;
+            item.body.velocity.y = itemVel.y;
+            //item.body.velocity.z = MAX(item.body.velocity.z, itemVel.z);
         }
     }
 
@@ -536,6 +534,12 @@ void World::CL_Interpolate(double renderAt)
         }
         CL_InterpolateBody(enemy.body, renderAt, enemy.sprite.direction);
     }
+    for (ItemWorld &item : itemSystem.items) {
+        if (!item.id) {
+            continue;
+        }
+        CL_InterpolateBody(item.body, renderAt, item.sprite.direction);
+    }
 }
 
 void World::CL_Extrapolate(double dt)
@@ -559,6 +563,12 @@ void World::CL_Extrapolate(double dt)
             continue;
         }
         enemy.Update(dt);
+    }
+    for (ItemWorld &item : itemSystem.items) {
+        if (!item.id) {
+            continue;
+        }
+        item.Update(dt);
     }
 }
 

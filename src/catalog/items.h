@@ -27,6 +27,7 @@ namespace Catalog {
     struct Items {
         void Load(void);
         const Item &FindById(ItemID id) const;
+        const char *Name(ItemID id, bool plural = false) const;
 
     private:
         std::array<Item, (size_t)ItemID::Count> byId {};

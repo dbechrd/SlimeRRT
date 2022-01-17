@@ -61,21 +61,6 @@ ItemWorld *ItemSystem::Alloc(void)
     return item;
 }
 
-size_t ItemSystem::ItemsActive(void) const
-{
-    return itemsCount;
-}
-
-ItemWorld *ItemSystem::At(size_t index)
-{
-    assert(itemsCount < SV_MAX_ITEMS);
-    if (index < itemsCount) {
-        return &items[index];
-    }
-    assert(!"Invalid item index");
-    return 0;
-}
-
 ItemWorld *ItemSystem::Find(uint32_t itemId)
 {
     if (!itemId) {
@@ -125,6 +110,8 @@ void ItemSystem::Update(double dt)
         sprite_update(item.sprite, dt);
         // TODO: do we need animated sprites for world items?
         //sprite_update(item.sprite, dt);
+
+        item.Update(dt);
         i++;
     }
 }

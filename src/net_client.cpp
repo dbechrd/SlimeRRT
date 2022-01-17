@@ -208,13 +208,54 @@ void NetClient::ReconcilePlayer(double tickDt)
     assert(playerSnapshot);
     if (!playerSnapshot) {
         // Server sent us a slimeSnapshot that doesn't contain our own player??
+        TraceLog(LOG_WARNING, "Can't reconcile player; no snapshot");
         return;
     }
 
     // TODO: Do this more smoothly
     // Roll back local player to server slimeSnapshot location
     if (playerSnapshot->flags & PlayerSnapshot::Flags::Position) {
+        const Vector3 before = player->body.WorldPosition();
         player->body.Teleport(playerSnapshot->position);
+
+        if (inputHistory.Count()) {
+            const InputSample &oldestInput = inputHistory.At(0);
+            if (latestSnapshot.lastInputAck + 1 < oldestInput.seq) {
+                TraceLog(LOG_WARNING, "inputHistory buffer too small. Server ack'd seq #%u on tick %u, but oldest input we still have is seq #%u",
+                    latestSnapshot.lastInputAck, latestSnapshot.tick, oldestInput.seq);
+            }
+        }
+#if CL_DEBUG_PLAYER_RECONCILIATION
+        printf("Reconcile player position (tick #%u ack'd input #%u):\n"
+            "Teleport: %f %f %f\n", latestSnapshot.tick, latestSnapshot.lastInputAck,
+            playerSnapshot->position.x,
+            playerSnapshot->position.y,
+            playerSnapshot->position.z);
+#endif
+        // Predict player for each input not yet handled by the server
+        for (size_t i = 0; i < inputHistory.Count(); i++) {
+            InputSample &input = inputHistory.At(i);
+            // NOTE: Old input's ownerId might not match if the player recently reconnected to a
+            // server and received a new playerId. Intentionally ignore those.
+            if (input.ownerId == player->id && input.seq > latestSnapshot.lastInputAck) {
+#if CL_DEBUG_PLAYER_RECONCILIATION
+                putchar(input.walkWest ? '<' : '.');
+#endif
+                assert(serverWorld->map);
+                player->Update(tickDt, input, *serverWorld->map);
+            }
+        }
+#if CL_DEBUG_PLAYER_RECONCILIATION
+        putchar('\n');
+        const Vector3 after = player->body.WorldPosition();
+        printf(
+            "Pos: %f\n"
+            "     %f\n",
+            before.x,
+            after.x
+        );
+        printf("\n");
+#endif
     }
     if (playerSnapshot->flags & PlayerSnapshot::Flags::Direction) {
         player->sprite.direction = playerSnapshot->direction;
@@ -225,27 +266,6 @@ void NetClient::ReconcilePlayer(double tickDt)
     if (playerSnapshot->flags & PlayerSnapshot::Flags::HealthMax) {
         player->combat.hitPointsMax = playerSnapshot->hitPointsMax;
     }
-
-#if 1
-    if (inputHistory.Count()) {
-        const InputSample &oldestInput = inputHistory.At(0);
-        if (latestSnapshot.lastInputAck + 1 < oldestInput.seq) {
-            TraceLog(LOG_WARNING, "inputHistory buffer too small. Server ack'd seq #%u on tick %u, but oldest input we still have is seq #%u",
-                latestSnapshot.lastInputAck, latestSnapshot.tick, oldestInput.seq);
-        }
-    }
-
-    // Predict player for each input not yet handled by the server
-    for (size_t i = 0; i < inputHistory.Count(); i++) {
-        InputSample &input = inputHistory.At(i);
-        // NOTE: Old input's ownerId might not match if the player recently
-        // reconnect to a server and received a new playerId
-        if (input.ownerId == player->id && input.seq > latestSnapshot.lastInputAck) {
-            assert(serverWorld->map);
-            player->Update(tickDt, input, *serverWorld->map);
-        }
-    }
-#endif
 }
 
 void NetClient::ProcessMsg(ENetPacket &packet)
@@ -358,7 +378,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                         if (prevState) {
                             state.v = prevState->v;
                         } else {
-                            //TraceLog(LOG_WARNING, "Received direction update but prevPosition is not known.");
+                            TraceLog(LOG_WARNING, "Received direction update but prevPosition is not known. playerId: %u", playerSnapshot.id);
                             state.v = player->body.WorldPosition();
                         }
                     }

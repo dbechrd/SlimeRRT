@@ -252,8 +252,10 @@ ErrorType NetServer::SendWorldSnapshot(NetServerClient &client)
 
     // TODO: Find players/slimes/etc. that are actually near the player this snapshot is being generated for
     worldSnapshot.playerCount = 0;
-    for (size_t i = 0; i < SV_MAX_PLAYERS && worldSnapshot.playerCount < SNAPSHOT_MAX_PLAYERS; i++) {
-        const Player &otherPlayer = serverWorld->players[i];
+    for (const Player &otherPlayer : serverWorld->players) {
+        if (worldSnapshot.playerCount == ARRAY_SIZE(worldSnapshot.players)) {
+            break;
+        }
         if (!otherPlayer.id) {
             continue;
         }
@@ -295,7 +297,6 @@ ErrorType NetServer::SendWorldSnapshot(NetServerClient &client)
         }
 
         if (flags == PlayerSnapshot::Flags::None && otherPlayer.id != player.id) {
-            TraceLog(LOG_DEBUG, "Skipping snapshot for unchanged player #%u", otherPlayer.id);
             continue;
         }
 
@@ -315,8 +316,10 @@ ErrorType NetServer::SendWorldSnapshot(NetServerClient &client)
     }
 
     worldSnapshot.enemyCount = 0;
-    for (size_t i = 0; i < SV_MAX_SLIMES && worldSnapshot.enemyCount < SNAPSHOT_MAX_SLIMES; i++) {
-        const Slime &enemy = serverWorld->slimes[i];
+    for (const Slime &enemy : serverWorld->slimes) {
+        if (worldSnapshot.enemyCount == ARRAY_SIZE(worldSnapshot.enemies)) {
+            break;
+        }
         if (!enemy.id) {
             continue;
         }
@@ -379,42 +382,45 @@ ErrorType NetServer::SendWorldSnapshot(NetServerClient &client)
     }
 
     worldSnapshot.itemCount = 0;
-    for (size_t i = 0; i < serverWorld->itemSystem.ItemsActive() && worldSnapshot.itemCount < SNAPSHOT_MAX_ITEMS; i++) {
-        ItemWorld *item = serverWorld->itemSystem.At(i);
-        if (!item) {
+    //for (size_t i = 0; i < serverWorld->itemSystem.itemsCount && worldSnapshot.itemCount < ARRAY_SIZE(worldSnapshot.items); i++) {
+    for (const ItemWorld &item : serverWorld->itemSystem.items) {
+        if (worldSnapshot.itemCount == ARRAY_SIZE(worldSnapshot.items)) {
+            break;
+        }
+        if (!item.id) {
             continue;
         }
 
-        const float distSq = v3_length_sq(v3_sub(player.body.WorldPosition(), item->body.WorldPosition()));
+        const float distSq = v3_length_sq(v3_sub(player.body.WorldPosition(), item.body.WorldPosition()));
         const bool nearby = distSq <= SQUARED(SV_ITEM_NEARBY_THRESHOLD);
         if (!nearby) {
-            client.itemHistory.erase(item->id);
+            client.itemHistory.erase(item.id);
             continue;
         }
 
-        auto prevState = client.itemHistory.find(item->id);
+        auto prevState = client.itemHistory.find(item.id);
         ItemSnapshot::Flags flags = ItemSnapshot::Flags::None;
         if (prevState == client.itemHistory.end()) {
             flags = ItemSnapshot::Flags::All;
-            TraceLog(LOG_DEBUG, "Entered vicinity of item #%u", item->id);
+            TraceLog(LOG_DEBUG, "Entered vicinity of item #%u", item.id);
         } else {
             // "Despawn" notification already sent
             if (prevState->second.flags & ItemSnapshot::Flags::Despawn) {
                 continue;
-            } else if (item->pickedUpAt) {
+            } else if (item.pickedUpAt) {
                 flags |= ItemSnapshot::Flags::Despawn;
             }
 
-            if (!v3_equal(item->body.WorldPosition(), prevState->second.position, POSITION_EPSILON)) {
+            if (!v3_equal(item.body.WorldPosition(), prevState->second.position, POSITION_EPSILON)) {
                 flags |= ItemSnapshot::Flags::Position;
             }
-            if (item->stack.id != prevState->second.catalogId) {
+            if (item.stack.id != prevState->second.catalogId) {
                 flags |= ItemSnapshot::Flags::CatalogId;
             }
-            if (item->stack.count != prevState->second.stackCount) {
+            if (item.stack.count != prevState->second.stackCount) {
                 flags |= ItemSnapshot::Flags::StackCount;
             }
-            if (!!item->pickedUpAt != prevState->second.pickedUp) {
+            if (!!item.pickedUpAt != prevState->second.pickedUp) {
                 flags |= ItemSnapshot::Flags::PickedUp;
             }
         }
@@ -426,17 +432,17 @@ ErrorType NetServer::SendWorldSnapshot(NetServerClient &client)
         // TODO: Let Item serialize itself by storing a reference in the Snapshot, then
         // having NetMessage::Process call a serialize method and forwarding the BitStream
         // and state flags to it.
-        ItemSnapshot &state = client.itemHistory[item->id];
+        ItemSnapshot &state = client.itemHistory[item.id];
         state.flags = flags;
-        state.id = item->id;
-        state.position = item->body.WorldPosition();
-        state.catalogId = item->stack.id;
-        state.stackCount = item->stack.count;
-        state.pickedUp = !!item->pickedUpAt;
+        state.id = item.id;
+        state.position = item.body.WorldPosition();
+        state.catalogId = item.stack.id;
+        state.stackCount = item.stack.count;
+        state.pickedUp = !!item.pickedUpAt;
 
         // DEBUG(cleanup): FPSDfasdf
-        const Vector3 worldPos = item->body.WorldPosition();
-        TraceLog(LOG_DEBUG, "Sending snapshot for Item %u pos: %f %f %f", item->id, worldPos.x, worldPos.y, worldPos.z);
+        const Vector3 worldPos = item.body.WorldPosition();
+        TraceLog(LOG_DEBUG, "Sending snapshot for Item %u pos: %f %f %f", item.id, worldPos.x, worldPos.y, worldPos.z);
 
         worldSnapshot.items[worldSnapshot.itemCount] = state;
         worldSnapshot.itemCount++;
