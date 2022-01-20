@@ -12,12 +12,12 @@
 
 ItemWorld *ItemSystem::SpawnItem(Vector3 pos, Catalog::ItemID catalogId, uint32_t count, uint32_t id)
 {
-    ItemWorld *itemPtr = Alloc();
-    if (!itemPtr) {
+    if (items.size() == SV_MAX_ITEMS) {
+        // TODO: Delete oldest item instead of dropping new one
+        TraceLog(LOG_ERROR, "Item pool is full; discarding item.");
         return 0;
     }
-
-    ItemWorld &item = *itemPtr;
+    ItemWorld item{};
 
     if (id) {
         item.id = id;
@@ -25,6 +25,12 @@ ItemWorld *ItemSystem::SpawnItem(Vector3 pos, Catalog::ItemID catalogId, uint32_
         static uint32_t nextId = 0;
         nextId = MAX(1, nextId + 1); // Prevent ID zero from being used on overflow
         item.id = nextId;
+    }
+
+    ItemWorld *existingItemWithId = Find(item.id);
+    if (existingItemWithId) {
+        TraceLog(LOG_ERROR, "Trying to spawn an item with id of an already existing item.");
+        return 0;
     }
 
     item.stack.id = catalogId;
@@ -46,19 +52,9 @@ ItemWorld *ItemSystem::SpawnItem(Vector3 pos, Catalog::ItemID catalogId, uint32_
     item.sprite.spriteDef = coinSpriteDef;
     item.sprite.scale = 1.0f;
     item.spawnedAt = glfwGetTime();
-    return itemPtr;
-}
 
-ItemWorld *ItemSystem::Alloc(void)
-{
-    if (itemsCount == SV_MAX_ITEMS) {
-        // TODO: Delete oldest item instead of dropping new one
-        TraceLog(LOG_ERROR, "Item pool is full; discarding item.");
-        return 0;
-    }
-    ItemWorld *item = &items[itemsCount];
-    itemsCount++;
-    return item;
+    byId[item.id] = items.size();
+    return &items.emplace_back(item);
 }
 
 ItemWorld *ItemSystem::Find(uint32_t itemId)
@@ -67,43 +63,55 @@ ItemWorld *ItemSystem::Find(uint32_t itemId)
         return 0;
     }
 
-    for (ItemWorld &item : items) {
-        if (item.id == itemId) {
-            return &item;
-        }
+    auto elem = byId.find(itemId);
+    if (elem == byId.end()) {
+        return 0;
     }
-    return 0;
+
+    size_t idx = elem->second;
+    assert(idx < items.size());
+    return &items[idx];
 }
 
 bool ItemSystem::Remove(uint32_t itemId)
 {
-    ItemWorld *item = Find(itemId);
-    if (!item) {
-        TraceLog(LOG_ERROR, "Cannot remove a item that doesn't exist. itemId: %u", itemId);
+    TraceLog(LOG_DEBUG, "Despawning item %u", itemId);
+
+    auto elem = byId.find(itemId);
+    if (elem == byId.end()) {
+        TraceLog(LOG_WARNING, "Cannot remove an item that doesn't exist. itemId: %u", itemId);
         return false;
     }
 
-    TraceLog(LOG_DEBUG, "Despawn item %u", itemId);
-
-    // Return item to free list
-    assert(itemsCount > 0);
-    itemsCount--;
-
-    // Copy last item to empty slot to keep densely packed
-    if (itemsCount) {
-        *item = items[itemsCount];
+    bool success = false;
+    size_t idx = elem->second;
+    size_t len = items.size();
+    if (idx < len) {
+        if (idx == len - 1) {
+            items.pop_back();
+        } else {
+            // Copy last item to empty slot to keep densely packed
+            items[idx] = items.back();
+            // Update hash table
+            byId[items[idx].id] = idx;
+            // Zero free slot
+            items[items.size() - 1] = {};
+            // Update size
+            items.pop_back();
+        }
+        success = true;
+    } else {
+        TraceLog(LOG_ERROR, "Item index out of range. itemId: %u idx: %zu size: %zu", itemId, idx, items.size());
     }
-    items[itemsCount] = {};
-    return true;
+    byId.erase(itemId);
+
+    TraceLog(LOG_DEBUG, "Despawned item %u", itemId);
+    return success;
 }
 
 void ItemSystem::Update(double dt)
 {
-    assert(itemsCount < SV_MAX_ITEMS);
-
-    size_t i = 0;
-    while (i < itemsCount) {
-        ItemWorld& item = items[i];
+    for (ItemWorld &item : items) {
         assert(item.stack.id != Catalog::ItemID::Empty);
 
         item.body.Update(dt);
@@ -112,54 +120,47 @@ void ItemSystem::Update(double dt)
         //sprite_update(item.sprite, dt);
 
         item.Update(dt);
-        i++;
     }
 }
 
-void ItemSystem::DespawnDeadEntities(void)
+void ItemSystem::DespawnDeadEntities(double pickupDespawnDelay)
 {
-    assert(itemsCount < SV_MAX_ITEMS);
-
+    const double now = glfwGetTime();
+#if 1
     size_t i = 0;
-    while (i < itemsCount) {
+    while (i < items.size()) {
         ItemWorld &item = items[i];
         assert(item.stack.id != Catalog::ItemID::Empty);
 
-        if ((item.pickedUpAt && ((glfwGetTime() - item.pickedUpAt) > 1.0 / SNAPSHOT_SEND_RATE)) ||
-            (item.spawnedAt  && ((glfwGetTime() - item.spawnedAt ) > SV_WORLD_ITEM_LIFETIME  ))) {
-            if (Remove(item.id)) {
-                continue;
-            }
+        // NOTE: Server adds extra pickupDespawnDelay to ensure all clients receive a snapshot
+        // containing the pickup flag before despawning the item. This may not be necessary
+        // one nearby_events are implemented and send item pickup notifications.
+        if ((item.pickedUpAt && ((now - item.pickedUpAt) > pickupDespawnDelay)) ||
+            (item.spawnedAt && ((now - item.spawnedAt) > SV_WORLD_ITEM_LIFETIME)))
+        {
+            // NOTE: If remove succeeds, don't increment index, next element to check is in the
+            // same slot now.
+            i += !Remove(item.id);
+        } else {
+            i++;
         }
-        i++;
     }
-}
-
-void ItemSystem::CL_DespawnStaleEntities(void)
-{
-    assert(itemsCount < SV_MAX_ITEMS);
-
-    DespawnDeadEntities();
-
-    size_t i = 0;
-    while (i < itemsCount) {
-        ItemWorld &item = items[i];
+#else
+    items.erase(std::remove_if(items.begin(), items.end(), [pickupDespawnDelay](const ItemWorld &item) {
         assert(item.stack.id != Catalog::ItemID::Empty);
 
-        if ((item.pickedUpAt) ||
-            (item.spawnedAt && ((glfwGetTime() - item.spawnedAt) > SV_WORLD_ITEM_LIFETIME))) {
-            if (Remove(item.id)) {
-                continue;
-            }
-        }
-        i++;
-    }
+        // NOTE: Server adds extra pickupDespawnDelay to ensure all clients receive a snapshot
+        // containing the pickup flag before despawning the item. This may not be necessary
+        // one nearby_events are implemented and send item pickup notifications.
+        return ((item.pickedUpAt && ((now - item.pickedUpAt) > pickupDespawnDelay)) ||
+                (item.spawnedAt && ((now - item.spawnedAt) > SV_WORLD_ITEM_LIFETIME)));
+    }));
+#endif
 }
 
-void ItemSystem::PushAll(DrawList& drawList)
+void ItemSystem::PushAll(DrawList &drawList)
 {
-    for (size_t i = 0; i < itemsCount; i++) {
-        const ItemWorld &item = items[i];
+    for (const ItemWorld &item : items) {
         if (item.stack.id != Catalog::ItemID::Empty) {
             drawList.Push(item);
         } else {

@@ -28,7 +28,7 @@ void DrawTextFont(Font font, const char *text, float posX, float posY, float off
     if (font.texture.id != 0) {
         Vector2 position = { posX, posY };
         Vector2 shadowPosition = position;
-        shadowPosition.x += shadowOffset;
+        shadowPosition.x -= shadowOffset;
         shadowPosition.y += shadowOffset;
 
         int defaultFontSize = 10;   // Default Font chars height in pixel

@@ -451,7 +451,7 @@ void World::DespawnDeadEntities(void)
         }
     }
 
-    itemSystem.DespawnDeadEntities();
+    itemSystem.DespawnDeadEntities(1.0 / SNAPSHOT_SEND_RATE);
 }
 
 bool World::CL_InterpolateBody(Body3D &body, double renderAt, Direction &direction)
@@ -522,6 +522,7 @@ bool World::CL_InterpolateBody(Body3D &body, double renderAt, Direction &directi
 
 void World::CL_Interpolate(double renderAt)
 {
+    // TODO: Probably would help to unify entities in some way so there's less duplication here
     for (Player &player : players) {
         if (!player.id || player.id == playerId) {
             continue;
@@ -614,7 +615,7 @@ void World::CL_DespawnStaleEntities(void)
         }
     }
 
-    itemSystem.CL_DespawnStaleEntities();
+    itemSystem.DespawnDeadEntities();
 }
 
 void World::EnableCulling(Rectangle cullRect)

@@ -71,25 +71,40 @@ ErrorType GameClient::Run(void)
 #endif
 
     // SDF font generation from TTF font
-    Font fontSdf{};
+    Font fontSdf24{};
+    Font fontSdf72{};
     {
-        fontSdf.baseSize = 72;
-        fontSdf.glyphCount = 95;
+        unsigned int fileSize = 0;
+        unsigned char *fileData = 0;
+        Image atlas{};
+
+        fontSdf24.baseSize = 24;
+        fontSdf24.glyphCount = 95;
         // Parameters > font size: 16, no glyphs array provided (0), glyphs count: 0 (defaults to 95)
         // Loading file to memory
-        unsigned int fileSize = 0;
-        unsigned char *fileData = LoadFileData(fontName, &fileSize);
-        fontSdf.glyphs = LoadFontData(fileData, fileSize, fontSdf.baseSize, 0, 0, FONT_SDF);
+        fileData = LoadFileData(fontName, &fileSize);
+        fontSdf24.glyphs = LoadFontData(fileData, fileSize, fontSdf24.baseSize, 0, 0, FONT_SDF);
         // Parameters > glyphs count: 95, font size: 16, glyphs padding in image: 0 px, pack method: 1 (Skyline algorythm)
-        Image atlas = GenImageFontAtlas(fontSdf.glyphs, &fontSdf.recs, 95, fontSdf.baseSize, 0, 1);
-        fontSdf.texture = LoadTextureFromImage(atlas);
+        atlas = GenImageFontAtlas(fontSdf24.glyphs, &fontSdf24.recs, 95, fontSdf24.baseSize, 0, 1);
+        fontSdf24.texture = LoadTextureFromImage(atlas);
         UnloadImage(atlas);
+        UnloadFileData(fileData);  // Free memory from loaded file
 
-        UnloadFileData(fileData);      // Free memory from loaded file
+        fontSdf72.baseSize = 72;
+        fontSdf72.glyphCount = 95;
+        // Parameters > font size: 16, no glyphs array provided (0), glyphs count: 0 (defaults to 95)
+        // Loading file to memory
+        fileData = LoadFileData(fontName, &fileSize);
+        fontSdf72.glyphs = LoadFontData(fileData, fileSize, fontSdf72.baseSize, 0, 0, FONT_SDF);
+        // Parameters > glyphs count: 95, font size: 16, glyphs padding in image: 0 px, pack method: 1 (Skyline algorythm)
+        atlas = GenImageFontAtlas(fontSdf72.glyphs, &fontSdf72.recs, 95, fontSdf72.baseSize, 0, 1);
+        fontSdf72.texture = LoadTextureFromImage(atlas);
+        UnloadImage(atlas);
+        UnloadFileData(fileData);  // Free memory from loaded file
 
         // Load SDF required shader (we use default vertex shader)
         g_sdfShader = LoadShader(0, "resources/sdf.fs");
-        SetTextureFilter(fontSdf.texture, TEXTURE_FILTER_BILINEAR);    // Required for SDF font
+        SetTextureFilter(fontSdf72.texture, TEXTURE_FILTER_BILINEAR);  // Required for SDF font
     }
 
     // NOTE: There could be other, bigger monitors
@@ -183,6 +198,7 @@ ErrorType GameClient::Run(void)
     bool gifRecording = false;
     bool chatVisible = false;
     bool menuActive = false;
+    bool mixerActive = false;
     bool disconnectRequested = false;
     bool quit = false;
 
@@ -596,7 +612,8 @@ ErrorType GameClient::Run(void)
             debugStats.bytes_sent = enet_peer_get_bytes_sent(netClient.server);
             debugStats.bytes_recv = enet_peer_get_bytes_received(netClient.server);
         }
-        UI::HUD(fontSmall, player, debugStats);
+        //UI::HUD(fontSmall, player, debugStats);
+        UI::QuickHUD(fontSdf24, player);
         UI::Chat(fontSmall, *world, netClient, inputMode == INPUT_MODE_PLAY || inputMode == INPUT_MODE_CHAT, chatVisible, escape);
 
         rlDrawRenderBatchActive();
@@ -606,8 +623,10 @@ ErrorType GameClient::Run(void)
         }
 
         UI::LoginForm(netClient, io, escape);
-        UI::Mixer();
-        UI::Netstat(netClient, renderAt);
+        if (mixerActive) {
+            UI::Mixer();
+        }
+        //UI::Netstat(netClient, renderAt);
 
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
@@ -627,11 +646,12 @@ ErrorType GameClient::Run(void)
         if (menuActive) {
             if (connectedToServer) {
                 const char *menuItems[] = { "Resume", "Audio", "Log off" };
-                switch (UI::Menu(fontSdf, escape, quit, menuItems, ARRAY_SIZE(menuItems))) {
+                switch (UI::Menu(fontSdf72, escape, quit, menuItems, ARRAY_SIZE(menuItems))) {
                     case 0: {    // Resume
                         menuActive = false;
                         break;
                     } case 1: {  // Audio
+                        mixerActive = !mixerActive;
                         break;
                     } case 2: {  // Log off
                         disconnectRequested = true;
@@ -641,11 +661,12 @@ ErrorType GameClient::Run(void)
                 }
             } else {
                 const char *menuItems[] = { "Resume", "Audio", "Quit" };
-                switch (UI::Menu(fontSdf, escape, quit, menuItems, ARRAY_SIZE(menuItems))) {
+                switch (UI::Menu(fontSdf72, escape, quit, menuItems, ARRAY_SIZE(menuItems))) {
                     case 0: {    // Resume
                         menuActive = false;
                         break;
                     } case 1: {  // Audio
+                        mixerActive = !mixerActive;
                         break;
                     } case 2: {  // Quit
                         menuActive = false;
@@ -674,7 +695,8 @@ ErrorType GameClient::Run(void)
     // TODO: Wrap these in classes to use destructors?
     delete lobby;
     UnloadShader(g_sdfShader);
-    UnloadFont(fontSdf);
+    UnloadFont(fontSdf24);
+    UnloadFont(fontSdf72);
 #if PIXEL_FIXER
     UnloadShader(pixelFixer);
 #endif

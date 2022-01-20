@@ -452,6 +452,35 @@ void UI::HUD(const Font &font, const Player &player, const DebugStats &debugStat
 #undef PUSH_TEXT
 }
 
+void UI::QuickHUD(const Font &font, const Player &player)
+{
+    const char *text = 0;
+
+    int linesOfText = 1;
+    const float margin = 6.0f;   // left/top margin
+    const float pad = 4.0f;      // left/top pad
+    const float hudWidth = 240.0f;
+    const float hudHeight = linesOfText * (font.baseSize + pad) + pad;
+
+    float hudCursorY = margin;
+
+    hudCursorY += pad;
+
+    const Spritesheet &coinSpritesheet = Catalog::g_spritesheets.FindById(Catalog::SpritesheetID::Coin);
+    const SpriteDef *coinSpriteDef = coinSpritesheet.FindSprite("coin");
+    Rectangle frameRect{};
+    frameRect.x      = (float)coinSpriteDef->spritesheet->frames[3].x;
+    frameRect.y      = (float)coinSpriteDef->spritesheet->frames[3].y;
+    frameRect.width  = (float)coinSpriteDef->spritesheet->frames[3].width;
+    frameRect.height = (float)coinSpriteDef->spritesheet->frames[3].height;
+    DrawTextureRec(coinSpriteDef->spritesheet->texture, frameRect, { margin + pad, hudCursorY }, WHITE);
+
+    text = TextFormat("%d", player.inventory.slots[(int)PlayerInventorySlot::Coins].count);
+
+    DrawTextFont(font, text, margin + pad + frameRect.width + pad, hudCursorY, 0, 0, font.baseSize, WHITE);
+    hudCursorY += font.baseSize + pad;
+}
+
 void UI::Chat(const Font &font, World &world, NetClient &netClient, bool processKeyboard, bool &chatActive, bool &escape)
 {
     const float margin = 6.0f;   // left/bottom margin
@@ -588,7 +617,7 @@ int UI::Menu(const Font &font, bool &escape, bool &exiting, const char **items, 
         itemPos.y = menuPos.y + menuItems[i].offset.y;
         Rectangle hitbox{ menuPos.x + menuPad.x, itemPos.y - hitboxPadY, menuSize.x - menuPad.x * 2, menuItems[i].size.y + hitboxPadY * 2 };
         bool hovered = PointInRect(mouseScreen, hitbox);
-        bool pressed = hovered && IsMouseButtonDown(MOUSE_LEFT_BUTTON);
+        bool pressed = hovered && IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
         if (pressed) {
             itemPressed = i;
         }
