@@ -771,7 +771,7 @@ ErrorType NetServer::RemoveClient(ENetPeer *peer)
     return ErrorType::Success;
 }
 
-ErrorType NetServer::Listen()
+ErrorType NetServer::Listen(void)
 {
     assert(server->address.port);
 
@@ -822,7 +822,7 @@ ErrorType NetServer::Listen()
     return ErrorType::Success;
 }
 
-void NetServer::CloseSocket()
+void NetServer::CloseSocket(void)
 {
     // Notify all clients that the server is stopping
     for (int i = 0; i < server->peerCount; i++) {

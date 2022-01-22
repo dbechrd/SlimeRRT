@@ -481,16 +481,16 @@ void UI::QuickHUD(const Font &font, const Player &player)
     hudCursorY += font.baseSize + pad;
 }
 
-void UI::Chat(const Font &font, World &world, NetClient &netClient, bool processKeyboard, bool &chatActive, bool &escape)
+void UI::Chat(const Font &font, int fontSize, World &world, NetClient &netClient, bool processKeyboard, bool &chatActive, bool &escape)
 {
     const float margin = 6.0f;   // left/bottom margin
     const float pad = 4.0f;      // left/bottom pad
-    const float inputBoxHeight = font.baseSize + pad * 2.0f;
+    const float inputBoxHeight = fontSize + pad * 2.0f;
     const float chatWidth = 800.0f;
     const float chatBottom = screenSize.y - margin - inputBoxHeight;
 
     // Render chat history
-    world.chatHistory.Render(font, world, margin, chatBottom, chatWidth, chatActive);
+    world.chatHistory.Render(font, fontSize, world, margin, chatBottom, chatWidth, chatActive);
 
     // Render chat input box
     static GuiTextBoxAdvancedState chatInputState;

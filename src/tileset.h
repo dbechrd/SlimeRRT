@@ -18,6 +18,8 @@ struct Tileset {
     size_t      tilesPerRow      {};
 };
 
+extern Tileset g_tilesets[(size_t)TilesetID::Count];
+
 void tileset_init(void);
 const Rectangle &tileset_tile_rect(TilesetID tilesetId, TileType tileType);
 void tileset_draw_tile(TilesetID tilesetId, TileType tileType, Vector2 at);

@@ -13,7 +13,7 @@ struct ChatHistory {
     void PushPlayer(uint32_t playerId, const char *message, size_t messageLength);
     void PushSam(const char *message, size_t messageLength);
 
-    void Render(const Font &font, World &world, float left, float bottom, float chatWidth, bool chatActive);
+    void Render(const Font &font, int fontSize, World &world, float left, float bottom, float chatWidth, bool chatActive);
 
 private:
     static const char *LOG_SRC;

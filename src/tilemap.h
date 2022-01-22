@@ -32,7 +32,7 @@ struct Tile {
     TileType tileType {};
 
     bool IsWalkable() const {
-        return tileType != TileType::Water;
+        return true; //tileType != TileType::Water;
     }
 };
 

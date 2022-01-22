@@ -530,6 +530,70 @@ ErrorType GameClient::Run(void)
         world->DrawParticles();
         world->DrawFlush();
 
+        Vector2 playerPos = player.body.GroundPosition();
+        Tile *playerTileLeft = world->map->TileAtWorldTry(playerPos.x - 15.0f, playerPos.y, 0, 0);
+        Tile *playerTileRight = world->map->TileAtWorldTry(playerPos.x + 15.0f, playerPos.y, 0, 0);
+        if (playerTileLeft && playerTileLeft->tileType == TileType::Water &&
+            playerTileRight && playerTileRight->tileType == TileType::Water)
+        {
+            auto tilesetId = world->map->tilesetId;
+            Tileset &tileset = g_tilesets[(size_t)tilesetId];
+            Rectangle tileRect = tileset_tile_rect(tilesetId, TileType::Water);
+            assert(tileRect.width == TILE_W);
+            assert(tileRect.height == TILE_W);
+
+            Vector3 playerGut3D = player.GetAttachPoint(Player::AttachPoint::Gut);
+            Vector2 playerGut2D = { playerGut3D.x, playerGut3D.y - playerGut3D.z + 10.0f };
+            float offsetX = fmodf(playerGut2D.x, TILE_W);
+            float offsetY = fmodf(playerGut2D.y, TILE_W);
+
+            Rectangle dstTopMid{
+                playerGut2D.x - offsetX,
+                playerGut2D.y,
+                TILE_W,
+                TILE_W - offsetY
+            };
+
+            Rectangle dstTopLeft = dstTopMid;
+            dstTopLeft.x -= TILE_W;
+
+            Rectangle dstTopRight = dstTopMid;
+            dstTopRight.x += TILE_W;
+
+            Rectangle srcTop = tileRect;
+            srcTop.y += offsetY;
+            srcTop.height -= offsetY;
+
+            Rectangle dstBotMid{
+                playerGut2D.x - offsetX,
+                playerGut2D.y - offsetY + TILE_W,
+                TILE_W,
+                TILE_W
+            };
+
+            Rectangle dstBotLeft = dstBotMid;
+            dstBotLeft.x -= TILE_W;
+
+            Rectangle dstBotRight = dstBotMid;
+            dstBotRight.x += TILE_W;
+
+#define CHECK_AND_DRAW(src, dst) \
+            tile = world->map->TileAtWorldTry((dst).x, (dst).y, 0, 0);            \
+            if (tile && tile->tileType == TileType::Water) {                      \
+                DrawTexturePro(tileset.texture, (src), (dst), { 0, 0 }, 0, WHITE);\
+            }
+
+            Tile *tile = 0;
+            CHECK_AND_DRAW(srcTop, dstTopLeft);
+            CHECK_AND_DRAW(srcTop, dstTopMid);
+            CHECK_AND_DRAW(srcTop, dstTopRight);
+            CHECK_AND_DRAW(tileRect, dstBotLeft);
+            CHECK_AND_DRAW(tileRect, dstBotMid);
+            CHECK_AND_DRAW(tileRect, dstBotRight);
+
+#undef CHECK_AND_DRAW
+        }
+
 #if DEMO_VIEW_RTREE
         AABB searchAABB = {
             mousePosWorld.x - 50,
@@ -614,7 +678,15 @@ ErrorType GameClient::Run(void)
         }
         //UI::HUD(fontSmall, player, debugStats);
         UI::QuickHUD(fontSdf24, player);
-        UI::Chat(fontSmall, *world, netClient, inputMode == INPUT_MODE_PLAY || inputMode == INPUT_MODE_CHAT, chatVisible, escape);
+
+        static int fontSize = fontSdf72.baseSize;
+        if (IsKeyDown(KEY_MINUS)) {
+            fontSize--;
+        }
+        if (IsKeyDown(KEY_EQUAL)) {
+            fontSize++;
+        }
+        UI::Chat(fontSdf72, fontSize, *world, netClient, inputMode == INPUT_MODE_PLAY || inputMode == INPUT_MODE_CHAT, chatVisible, escape);
 
         rlDrawRenderBatchActive();
 

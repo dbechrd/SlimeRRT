@@ -175,6 +175,13 @@ void Player::Update(double dt, InputSample &input, const Tilemap &map)
         moveState = Player::MoveState::Idle;
     }
 
+    const Vector2 pos = body.GroundPosition();
+    const Tile *tile = map.TileAtWorldTry(pos.x, pos.y, 0, 0);
+    if (tile && tile->tileType == TileType::Water) {
+        playerSpeed *= 0.5f;
+        // TODO: moveState = Player::MoveState::Swimming;
+    }
+
     Vector2 moveOffset = v2_scale(v2_normalize(move), METERS_TO_PIXELS(playerSpeed) * (float)dt);
     moveBuffer = v2_add(moveBuffer, moveOffset);
 
@@ -183,8 +190,7 @@ void Player::Update(double dt, InputSample &input, const Tilemap &map)
     }
 
     if (!v2_is_zero(moveBuffer)) {
-        const Vector2 pos = body.GroundPosition();
-        const Tile *tile = map.TileAtWorldTry(pos.x, pos.y, 0, 0);
+
         const bool walkable = tile && tile->IsWalkable();
 
         Vector2 newPos = v2_add(pos, moveBuffer);

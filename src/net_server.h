@@ -6,29 +6,6 @@
 #include <cstdint>
 #include <unordered_map>
 
-//struct NetAddressHash {
-//    std::size_t operator()(const ENetAddress &address) const
-//    {
-//        return (size_t)dlb_murmur3(&address.host, sizeof(address.host)) ^
-//              ((size_t)dlb_murmur3(&address.port, sizeof(address.port)) << 1);
-//    }
-//};
-//
-//struct NetAddressEqual {
-//    bool operator()(const ENetAddress &lhs, const ENetAddress &rhs) const
-//    {
-//        return lhs.host.u.Word[0] == rhs.host.u.Word[0] &&
-//               lhs.host.u.Word[1] == rhs.host.u.Word[1] &&
-//               lhs.host.u.Word[2] == rhs.host.u.Word[2] &&
-//               lhs.host.u.Word[3] == rhs.host.u.Word[3] &&
-//               lhs.host.u.Word[4] == rhs.host.u.Word[4] &&
-//               lhs.host.u.Word[5] == rhs.host.u.Word[5] &&
-//               lhs.host.u.Word[6] == rhs.host.u.Word[6] &&
-//               lhs.host.u.Word[7] == rhs.host.u.Word[7] &&
-//               lhs.port == rhs.port;
-//    }
-//};
-
 struct NetServerClient {
     ENetPeer *peer               {};
     uint32_t  connectionToken    {};  // unique identifier in addition to ip/port to detect reconnect from same UDP port
@@ -37,47 +14,45 @@ struct NetServerClient {
     double    lastSnapshotSentAt {};
 
     //RingBuffer<WorldSnapshot, SV_WORLD_HISTORY> worldHistory {};
-
-    std::unordered_map<uint32_t, PlayerSnapshot> playerHistory{};
-    std::unordered_map<uint32_t, EnemySnapshot> enemyHistory{};
-    std::unordered_map<uint32_t, ItemSnapshot> itemHistory{};
+    std::unordered_map<uint32_t, PlayerSnapshot> playerHistory {};
+    std::unordered_map<uint32_t, EnemySnapshot>  enemyHistory  {};
+    std::unordered_map<uint32_t, ItemSnapshot>   itemHistory   {};
 };
 
 struct NetServer {
-    ENetHost *server {};
-    //std::unordered_map<ENetAddress, NetServerClient, NetAddressHash, NetAddressEqual> clients{};
-    uint32_t nextPlayerId = 1;
+    ENetHost        *server      {};
+    World           *serverWorld {};
+    uint32_t        nextPlayerId = 1;
     NetServerClient clients[SV_MAX_PLAYERS]{};
     RingBuffer<InputSample, SV_INPUT_HISTORY> inputHistory {};
-    World *serverWorld {};
 
     ~NetServer();
-    ErrorType OpenSocket(unsigned short socketPort);
-    ErrorType SendWorldChunk(const NetServerClient &client);
-    ErrorType SendWorldSnapshot(NetServerClient &client);
-    ErrorType SendNearbyEvents(const NetServerClient &client);
-    NetServerClient *FindClient(uint32_t playerId);
-    ErrorType Listen();
-    void CloseSocket();
+    ErrorType        OpenSocket        (unsigned short socketPort);
+    ErrorType        SendWorldChunk    (const NetServerClient &client);
+    ErrorType        SendWorldSnapshot (NetServerClient &client);
+    ErrorType        SendNearbyEvents  (const NetServerClient &client);
+    NetServerClient *FindClient        (uint32_t playerId);
+    ErrorType        Listen            (void);
+    void             CloseSocket       (void);
 
 private:
     static const char *LOG_SRC;
     NetMessage netMsg {};
 
-    ErrorType SendRaw(const NetServerClient &client, const void *data, size_t size);
-    ErrorType SendMsg(const NetServerClient &client, NetMessage &message);
-    ErrorType BroadcastRaw(const void *data, size_t size);
-    ErrorType BroadcastMsg(NetMessage &message);
-    ErrorType SendWelcomeBasket(const NetServerClient &client);
-    ErrorType BroadcastChatMessage(NetMessage_ChatMessage &chatMsg);
-    ErrorType BroadcastPlayerJoin(const Player &player);
-    ErrorType BroadcastPlayerLeave(const Player &player);
-    ErrorType SendPlayerState(const NetServerClient &client, const Player &otherPlayer, bool nearby, bool spawned);
-    ErrorType SendEnemyState(const NetServerClient &client, const Slime &enemy, bool nearby, bool spawned);
-    ErrorType SendItemState(const NetServerClient &client, const ItemWorld &item, bool nearby, bool spawned);
+    ErrorType SendRaw              (const NetServerClient &client, const void *data, size_t size);
+    ErrorType SendMsg              (const NetServerClient &client, NetMessage &message);
+    ErrorType BroadcastRaw         (const void *data, size_t size);
+    ErrorType BroadcastMsg         (NetMessage &message);
+    ErrorType SendWelcomeBasket    (const NetServerClient &client);
+    ErrorType BroadcastChatMessage (NetMessage_ChatMessage &chatMsg);
+    ErrorType BroadcastPlayerJoin  (const Player &player);
+    ErrorType BroadcastPlayerLeave (const Player &player);
+    ErrorType SendPlayerState      (const NetServerClient &client, const Player &otherPlayer, bool nearby, bool spawned);
+    ErrorType SendEnemyState       (const NetServerClient &client, const Slime &enemy, bool nearby, bool spawned);
+    ErrorType SendItemState        (const NetServerClient &client, const ItemWorld &item, bool nearby, bool spawned);
 
-    bool IsValidInput(const NetServerClient &client, const InputSample &sample);
-    void ProcessMsg(NetServerClient &client, ENetPacket &packet);
+    bool IsValidInput (const NetServerClient &client, const InputSample &sample);
+    void ProcessMsg   (NetServerClient &client, ENetPacket &packet);
 
     NetServerClient *AddClient    (ENetPeer *peer);
     NetServerClient *FindClient   (ENetPeer *peer);

@@ -60,9 +60,9 @@ void ChatHistory::PushMessage(NetMessage_ChatMessage::Source source, uint32_t id
     memcpy(chat.message, message, chat.messageLength);
 }
 
-void ChatHistory::Render(const Font &font, World &world, float left, float bottom, float chatWidth, bool chatActive)
+void ChatHistory::Render(const Font &font, int fontSize, World &world, float left, float bottom, float chatWidth, bool chatActive)
 {
-    double now = glfwGetTime();
+    const double now = glfwGetTime();
     const float fadeBeginAt = 9.0f;
     const float visibleFor = 10.0f;
 
@@ -72,12 +72,12 @@ void ChatHistory::Render(const Font &font, World &world, float left, float botto
     }
 
     const float pad = 4.0f;
-    const float chatHeight = (int)chatMsgCount * (font.baseSize + pad) + pad;
+    const float chatHeight = (int)chatMsgCount * (fontSize + pad) + pad;
     const Color chatBgColor = Fade(BLACK, 0.5f);
     const float chatBgAlpha = chatBgColor.a / 255.0f;
 
     // NOTE: The chat history renders from the bottom up (most recent message first)
-    float cursorY = bottom - pad - font.baseSize;
+    float cursorY = bottom - pad - fontSize;
     bool bottomLine = true;
 
     if (chatActive) {
@@ -126,9 +126,9 @@ void ChatHistory::Render(const Font &font, World &world, float left, float botto
                 DrawRectangle((int)left, (int)(bottom - pad), (int)chatWidth, (int)pad, Fade(chatBgColor, chatBgAlpha * fadeAlpha));
                 bottomLine = false;
             }
-            DrawRectangleRec({ left, cursorY - pad, chatWidth, font.baseSize + pad }, Fade(chatBgColor, chatBgAlpha * fadeAlpha));
+            DrawRectangleRec({ left, cursorY - pad, chatWidth, fontSize + pad }, Fade(chatBgColor, chatBgAlpha * fadeAlpha));
         }
-        DrawTextFont(font, chatText, left + pad, cursorY, 0, 0, font.baseSize, Fade(chatColor, fadeAlpha));
-        cursorY -= font.baseSize + pad;
+        DrawTextFont(font, chatText, left + pad, cursorY, 0, 0, fontSize, Fade(chatColor, fadeAlpha));
+        cursorY -= fontSize + pad;
     }
 }

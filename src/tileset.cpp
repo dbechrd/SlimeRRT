@@ -3,7 +3,7 @@
 #include <cassert>
 #include <stdlib.h>
 
-static Tileset tilesets[(size_t)TilesetID::Count];
+Tileset g_tilesets[(size_t)TilesetID::Count];
 
 static void tileset_load(TilesetID tilesetId, const char *texturePath);
 
@@ -14,7 +14,7 @@ void tileset_init(void)
 
 static void tileset_load(TilesetID tilesetId, const char *texturePath)
 {
-    Tileset &tileset = tilesets[(size_t)tilesetId];
+    Tileset &tileset = g_tilesets[(size_t)tilesetId];
 
     tileset.texture = LoadTexture(texturePath);
     assert(tileset.texture.width);
@@ -31,13 +31,13 @@ static void tileset_load(TilesetID tilesetId, const char *texturePath)
 
 const Rectangle &tileset_tile_rect(TilesetID tilesetId, TileType tileType)
 {
-    Tileset &tileset = tilesets[(size_t)tilesetId];
+    Tileset &tileset = g_tilesets[(size_t)tilesetId];
     return tileset.textureRects[(size_t)tileType];
 }
 
 void tileset_draw_tile(TilesetID tilesetId, TileType tileType, Vector2 at)
 {
-    Tileset &tileset = tilesets[(size_t)tilesetId];
+    Tileset &tileset = g_tilesets[(size_t)tilesetId];
     Rectangle tileRect = tileset_tile_rect(tilesetId, tileType);
     DrawTextureRec(tileset.texture, tileRect, at, WHITE);
 }

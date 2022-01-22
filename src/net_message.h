@@ -77,7 +77,8 @@ struct NetMessage_GlobalEvent {
             default: return "NetMessage_GlobalEvent::Type::???";
         }
     }
-    const char *TypeString() {
+    const char *TypeString() const
+    {
         return NetMessage_GlobalEvent::TypeString(type);
     }
 

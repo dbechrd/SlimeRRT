@@ -48,7 +48,7 @@ struct UI {
     static void Netstat(NetClient &netClient, double renderAt);
     static void HUD(const Font &font, const Player &player, const DebugStats &debugStats);
     static void QuickHUD(const Font &font, const Player &player);
-    static void Chat(const Font &font, World &world, NetClient &netClient, bool processKeyboard, bool &chatActive, bool &escape);
+    static void Chat(const Font &font, int fontSize, World &world, NetClient &netClient, bool processKeyboard, bool &chatActive, bool &escape);
     static void TileHoverTip(const Font &font, const Tilemap &map);
     static int Menu(const Font &font, bool &escape, bool &exiting, const char **items, size_t itemCount);
 

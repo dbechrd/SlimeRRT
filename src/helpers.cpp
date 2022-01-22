@@ -21,7 +21,7 @@ void DrawTextFont(Font font, const char *text, float posX, float posY, float off
     int shadowOffset = 1;
     if (fontSize >= 54) {
         shadowOffset = 3;
-    } else if (fontSize >= 36) {
+    } else if (fontSize >= 24) {
         shadowOffset = 2;
     }
     // Check if default font has been loaded
