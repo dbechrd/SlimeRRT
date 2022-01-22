@@ -577,10 +577,15 @@ ErrorType GameClient::Run(void)
             Rectangle dstBotRight = dstBotMid;
             dstBotRight.x += TILE_W;
 
+            float minXWater = FLT_MAX;
+            float maxXWater = FLT_MIN;
+
 #define CHECK_AND_DRAW(src, dst) \
-            tile = world->map->TileAtWorldTry((dst).x, (dst).y, 0, 0);            \
-            if (tile && tile->tileType == TileType::Water) {                      \
-                DrawTexturePro(tileset.texture, (src), (dst), { 0, 0 }, 0, WHITE);\
+            tile = world->map->TileAtWorldTry((dst).x, (dst).y, 0, 0);                         \
+            if (tile && tile->tileType == TileType::Water) {                                   \
+                DrawTexturePro(tileset.texture, (src), (dst), { 0, 0 }, 0, Fade(WHITE, 0.8f)); \
+                minXWater = MIN(minXWater, (dst).x);                                           \
+                maxXWater = MAX(maxXWater, (dst).x + (dst).width);                             \
             }
 
             Tile *tile = 0;
@@ -592,6 +597,27 @@ ErrorType GameClient::Run(void)
             CHECK_AND_DRAW(tileRect, dstBotRight);
 
 #undef CHECK_AND_DRAW
+
+            Tile *playerGutTile = world->map->TileAtWorldTry(playerGut2D.x, playerGut2D.y, 0, 0);
+            if (playerGutTile && playerGutTile->tileType == TileType::Water) {
+                Rectangle bubblesDstTopMid{
+                    playerGut2D.x - 20.0f,
+                    playerGut2D.y,
+                    40.0f,
+                    8.0f
+                };
+
+                Rectangle bubblesSrcTop = tileRect;
+                bubblesSrcTop.y += offsetY;
+                bubblesSrcTop.height -= offsetY;
+
+                //DrawCircleV({ minXWater, playerGut2D.y }, 2.0f, PINK);
+                //DrawCircleV({ maxXWater, playerGut2D.y }, 2.0f, PINK);
+
+                const float radiusDelta = (player.moveState != Player::MoveState::Idle) ? (float)(sin(now * 8) * 3) : 0.0f;
+                const float radius = 20.0f + radiusDelta;
+                DrawEllipse((int)playerGut2D.x, (int)playerGut2D.y, radius, radius * 0.5f, Fade(SKYBLUE, 0.4f));
+            }
         }
 
 #if DEMO_VIEW_RTREE
