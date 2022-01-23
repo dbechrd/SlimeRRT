@@ -11,7 +11,7 @@ void Structure::Spawn(Tilemap &map, uint32_t x, uint32_t y)
 
     for (uint32_t j = 0; j < g_structure_vault_h; j++) {
         for (uint32_t i = 0; i < g_structure_vault_w; i++) {
-            Tile *tile = map.TileAtTry(x+i, y+j);
+            Tile *tile = (Tile *)map.TileAtWorld((float)x+i, (float)y+j);
             if (tile) {
                 switch (g_structure_vault[j * g_structure_vault_w + i]) {
                     case '.': continue;

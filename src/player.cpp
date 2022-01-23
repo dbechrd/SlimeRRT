@@ -176,7 +176,7 @@ void Player::Update(double dt, InputSample &input, const Tilemap &map)
     }
 
     const Vector2 pos = body.GroundPosition();
-    const Tile *tile = map.TileAtWorldTry(pos.x, pos.y, 0, 0);
+    const Tile *tile = map.TileAtWorld(pos.x, pos.y);
     if (tile && tile->tileType == TileType::Water) {
         playerSpeed *= 0.5f;
         // TODO: moveState = Player::MoveState::Swimming;
@@ -194,7 +194,7 @@ void Player::Update(double dt, InputSample &input, const Tilemap &map)
         const bool walkable = tile && tile->IsWalkable();
 
         Vector2 newPos = v2_add(pos, moveBuffer);
-        Tile *newTile = map.TileAtWorldTry(newPos.x, newPos.y, 0, 0);
+        const Tile *newTile = map.TileAtWorld(newPos.x, newPos.y);
 
         // NOTE: This extra logic allows the player to slide when attempting to move diagonally against a wall
         // NOTE: If current tile isn't walkable, allow player to walk off it. This may not be the best solution
@@ -208,12 +208,12 @@ void Player::Update(double dt, InputSample &input, const Tilemap &map)
                 // XY unwalkable, try only X offset
                 newPos = pos;
                 newPos.x += moveBuffer.x;
-                newTile = map.TileAtWorldTry(newPos.x, newPos.y, 0, 0);
+                newTile = map.TileAtWorld(newPos.x, newPos.y);
                 if (!newTile || !newTile->IsWalkable()) {
                     // X unwalkable, try only Y offset
                     newPos = pos;
                     newPos.y += moveBuffer.y;
-                    newTile = map.TileAtWorldTry(newPos.x, newPos.y, 0, 0);
+                    newTile = map.TileAtWorld(newPos.x, newPos.y);
                     if (!newTile || !newTile->IsWalkable()) {
                         // XY, and both slide directions are all unwalkable
                         moveBuffer.x = 0.0f;

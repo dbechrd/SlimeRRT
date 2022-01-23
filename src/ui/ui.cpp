@@ -16,12 +16,13 @@ void UI::TileHoverOutline(const Tilemap &map)
 {
     assert(spycam);
 
-    int mouseTileX = 0;
-    int mouseTileY = 0;
-    Tile *mouseTile = map.TileAtWorldTry(mouseWorld.x, mouseWorld.y, &mouseTileX, &mouseTileY);
+    const Tile *mouseTile = map.TileAtWorld(mouseWorld.x, mouseWorld.y);
     if (!mouseTile) {
         return;
     }
+
+    const int mouseTileX = (int)mouseWorld.x / TILE_W;
+    const int mouseTileY = (int)mouseWorld.y / TILE_W;
 
     // Draw red outline on hovered tile
     const int zoomMipLevel = spycam->GetZoomMipLevel();
@@ -532,12 +533,13 @@ void UI::Chat(const Font &font, int fontSize, World &world, NetClient &netClient
 
 void UI::TileHoverTip(const Font &font, const Tilemap &map)
 {
-    int mouseTileX = 0;
-    int mouseTileY = 0;
-    Tile *mouseTile = map.TileAtWorldTry(mouseWorld.x, mouseWorld.y, &mouseTileX, &mouseTileY);
+    const Tile *mouseTile = map.TileAtWorld(mouseWorld.x, mouseWorld.y);
     if (!mouseTile) {
         return;
     }
+
+    const int mouseTileX = (int)mouseWorld.x / TILE_W;
+    const int mouseTileY = (int)mouseWorld.y / TILE_W;
 
     const float tooltipOffsetX = 10.0f;
     const float tooltipOffsetY = 10.0f;

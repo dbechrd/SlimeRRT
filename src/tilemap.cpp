@@ -10,7 +10,7 @@
 
 Tilemap::~Tilemap()
 {
-    free(tiles);
+    //free(tiles);
     free(rrt.vertices);
     UnloadTexture(minimap);
 }
@@ -26,8 +26,8 @@ void Tilemap::GenerateMinimap(void)
 
     Image minimapImg{};
     // NOTE: This is the client-side world map. Fog of war until tile types known?
-    minimapImg.width = (int)width;
-    minimapImg.height = (int)height;
+    minimapImg.width = 16;
+    minimapImg.height = 16;
     minimapImg.mipmaps = 1;
     minimapImg.format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
     assert(sizeof(Color) == 4);
@@ -44,9 +44,9 @@ void Tilemap::GenerateMinimap(void)
     tileColors[(int)TileType::Grass3] = GREEN;
 
     Color *minimapPixel = (Color *)minimapImg.data;
-    for (size_t y = 0; y < height; y += 1) {
-        for (size_t x = 0; x < width; x += 1) {
-            const Tile *tile = &tiles[y * width + x];
+    for (size_t y = 0; y < minimapImg.height; y++) {
+        for (size_t x = 0; x < minimapImg.width; x++) {
+            const Tile *tile = &tileChunks[0][0].tiles[y][x];
             // Draw all tiles as different colored pixels
             assert((int)tile->tileType >= 0);
             assert((int)tile->tileType < (int)TileType::Count);
@@ -59,58 +59,27 @@ void Tilemap::GenerateMinimap(void)
     free(minimapImg.data);
 }
 
-Tile *Tilemap::TileAt(int tileX, int tileY) const
-{
-    size_t idx = (size_t)tileY * width + tileX;
-    assert(idx < (size_t)width * height);
-    return &tiles[idx];
-}
-
-Tile *Tilemap::TileAtTry(int tileX, int tileY) const
-{
-    Tile *tile = NULL;
-    if (tileX >= 0 && tileY >= 0 && tileX < (int)width && tileY < (int)width) {
-        size_t idx = (size_t)tileY * width + tileX;
-        assert(idx < (size_t)width * height);
-        tile = &tiles[idx];
-    }
-    return tile;
-}
-
-Tile *Tilemap::TileAtWorld(float x, float y, int *tileX, int *tileY) const
-{
-    assert(x >= 0);
-    assert(y >= 0);
-    assert(x < (int)TILE_W * width);
-    assert(y < (int)TILE_W * height);
-
-    int tile_x = (int)x / (int)TILE_W;
-    int tile_y = (int)y / (int)TILE_W;
-    Tile *tile = TileAt(tile_x, tile_y);
-    if (tile) {
-        if (tileX) *tileX = tile_x;
-        if (tileY) *tileY = tile_y;
-    }
-    return tile;
-}
-
-Tile *Tilemap::TileAtWorldTry(float x, float y, int *tileX, int *tileY) const
+const Tile *Tilemap::TileAtWorld(float x, float y) const
 {
     if (x < 0 ||
         y < 0 ||
         x >= (float)TILE_W * width ||
-        y >= (float)TILE_W * height) {
+        y >= (float)TILE_W * height)
+    {
         return 0;
     }
 
-    int tile_x = (int)x / (int)TILE_W;
-    int tile_y = (int)y / (int)TILE_W;
-    Tile *tile = TileAtTry(tile_x, tile_y);
-    if (tile) {
-        if (tileX) *tileX = tile_x;
-        if (tileY) *tileY = tile_y;
-    }
-    return tile;
+    const int tileXWorld = (int)x / TILE_W;
+    const int tileYWorld = (int)y / TILE_W;
+    const int chunkX = tileXWorld / 16;
+    const int chunkY = tileYWorld / 16;
+    const int tileXChunk = tileXWorld % 16;
+    const int tileYChunk = tileYWorld % 16;
+    assert(chunkX < 8);
+    assert(chunkY < 8);
+    assert(tileXChunk < 16);
+    assert(tileYChunk < 16);
+    return &tileChunks[chunkY][chunkX].tiles[tileYChunk][tileXChunk];
 }
 
 MapSystem::MapSystem(void)
@@ -137,32 +106,31 @@ Tilemap *MapSystem::GenerateLobby(void)
         return 0;
     }
 
-    map->width = 84;
-    map->height = 64;
+    map->width = TILE_W * 16 * 8;
+    map->height = TILE_W * 16 * 8;
     map->tilesetId = TilesetID::TS_Overworld;
-
-    map->tiles = (Tile *)calloc((size_t)map->width * map->height, sizeof(*map->tiles));
-    assert(map->tiles);
 
     for (int y = 0; y < (int)map->height; y++) {
         for (int x = 0; x < (int)map->width; x++) {
             const Vector2 position = v2_init((float)x, (float)y);
-            Tile *tile = map->TileAt(x, y);
-            const int cx = x - (int)map->width / 2;
-            const int cy = y - (int)map->height / 2;
-            const int island_radius = 16;
-            if (cx*cx + cy*cy > island_radius*island_radius) {
-            //const int border_width = 26;
-            //if (y < border_width || x < border_width || y >= map->height - border_width || x >= map->width - border_width) {
-                tile->tileType = TileType::Water;
-            } else {
-                tile->tileType = TileType::Concrete;
+            Tile *tile = (Tile *)map->TileAtWorld((float)x * TILE_W, (float)y * TILE_W);
+            assert(tile);
+            if (tile) {
+                const int cx = x - (int)map->width / 2;
+                const int cy = y - (int)map->height / 2;
+                const int island_radius = 16;
+                if (cx*cx + cy*cy > island_radius*island_radius) {
+                //const int border_width = 26;
+                //if (y < border_width || x < border_width || y >= map->height - border_width || x >= map->width - border_width) {
+                    tile->tileType = TileType::Water;
+                } else {
+                    tile->tileType = TileType::Concrete;
+                }
             }
         }
     }
 
     map->GenerateMinimap();
-
     return map;
 }
 
@@ -178,8 +146,6 @@ Tilemap *MapSystem::Generate(dlb_rand32_t &rng, uint32_t width, uint32_t height)
     map->width = width;
     map->height = height;
     map->tilesetId = TilesetID::TS_Overworld;
-    map->tiles = (Tile *)calloc((size_t)map->width * map->height, sizeof(*map->tiles));
-    assert(map->tiles);
 
     // NOTE: These parameters are chosen somewhat arbitrarily at this point
     const Vector2 middle = v2_init(0.5f, 0.5f);
@@ -194,21 +160,26 @@ Tilemap *MapSystem::Generate(dlb_rand32_t &rng, uint32_t width, uint32_t height)
             const Vector2 center = v2_add(position, tileCenterOffset);
             const size_t nearestIdx = RRTNearestIndex(*map, center);
 
-            Tile *tile = map->TileAt(x, y);
-            tile->tileType = map->rrt.vertices[nearestIdx].tileType;
+            Tile *tile = (Tile *)map->TileAtWorld((float)x * TILE_W, (float)y * TILE_W);
+            assert(tile);
+            if (tile) {
+                assert(nearestIdx < map->rrt.vertexCount);
+                tile->tileType = map->rrt.vertices[nearestIdx].tileType;
+            }
         }
     }
 
     // Pass 2: Surround water with sand for @rusteel
     for (int y = 0; y < (int)map->height; y++) {
         for (int x = 0; x < (int)map->width; x++) {
-            TileType tileType = map->TileAt(x, y)->tileType;
-            if (tileType == TileType::Water) {
+            const Tile *tile = map->TileAtWorld((float)x * TILE_W, (float)y * TILE_W);
+            assert(tile);
+            if (tile && tile->tileType == TileType::Water) {
                 static const int beachWidth = 2;
                 for (int beachX = x-beachWidth; beachX <= x+beachWidth; beachX++) {
                     for (int beachY = y-beachWidth; beachY <= y+beachWidth; beachY++) {
                         if (beachX == 0 && beachY == 0) continue;  // this is the water tile
-                        Tile *tile = map->TileAtTry(beachX, beachY);
+                        Tile *tile = (Tile *)map->TileAtWorld((float)beachX * TILE_W, (float)beachY * TILE_W);
                         if (tile && tile->tileType != TileType::Water && tile->tileType != TileType::Concrete) {
                             tile->tileType = TileType::Concrete;
                         }
@@ -218,6 +189,7 @@ Tilemap *MapSystem::Generate(dlb_rand32_t &rng, uint32_t width, uint32_t height)
         }
     }
 
+    map->GenerateMinimap();
     return map;
 }
 

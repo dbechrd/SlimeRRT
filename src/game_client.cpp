@@ -137,8 +137,7 @@ ErrorType GameClient::Run(void)
 
     World *lobby = new World;
     lobby->tick = 1;
-    lobby->map = lobby->mapSystem.Generate(lobby->rtt_rand, 64, 64);
-    lobby->map->GenerateMinimap();
+    lobby->map = lobby->mapSystem.Generate(lobby->rtt_rand, 128, 128);
     Slime &sam = lobby->SpawnSam();
     world = lobby;
 
@@ -531,8 +530,8 @@ ErrorType GameClient::Run(void)
         world->DrawFlush();
 
         Vector2 playerPos = player.body.GroundPosition();
-        Tile *playerTileLeft = world->map->TileAtWorldTry(playerPos.x - 15.0f, playerPos.y, 0, 0);
-        Tile *playerTileRight = world->map->TileAtWorldTry(playerPos.x + 15.0f, playerPos.y, 0, 0);
+        const Tile *playerTileLeft = world->map->TileAtWorld(playerPos.x - 15.0f, playerPos.y);
+        const Tile *playerTileRight = world->map->TileAtWorld(playerPos.x + 15.0f, playerPos.y);
         if (playerTileLeft && playerTileLeft->tileType == TileType::Water &&
             playerTileRight && playerTileRight->tileType == TileType::Water)
         {
@@ -581,14 +580,14 @@ ErrorType GameClient::Run(void)
             float maxXWater = FLT_MIN;
 
 #define CHECK_AND_DRAW(src, dst) \
-            tile = world->map->TileAtWorldTry((dst).x, (dst).y, 0, 0);                         \
+            tile = world->map->TileAtWorld((dst).x, (dst).y);                                  \
             if (tile && tile->tileType == TileType::Water) {                                   \
                 DrawTexturePro(tileset.texture, (src), (dst), { 0, 0 }, 0, Fade(WHITE, 0.8f)); \
                 minXWater = MIN(minXWater, (dst).x);                                           \
                 maxXWater = MAX(maxXWater, (dst).x + (dst).width);                             \
             }
 
-            Tile *tile = 0;
+            const Tile *tile = 0;
             CHECK_AND_DRAW(srcTop, dstTopLeft);
             CHECK_AND_DRAW(srcTop, dstTopMid);
             CHECK_AND_DRAW(srcTop, dstTopRight);
@@ -598,7 +597,7 @@ ErrorType GameClient::Run(void)
 
 #undef CHECK_AND_DRAW
 
-            Tile *playerGutTile = world->map->TileAtWorldTry(playerGut2D.x, playerGut2D.y, 0, 0);
+            const Tile *playerGutTile = world->map->TileAtWorld(playerGut2D.x, playerGut2D.y);
             if (playerGutTile && playerGutTile->tileType == TileType::Water) {
                 Rectangle bubblesDstTopMid{
                     playerGut2D.x - 20.0f,
@@ -704,15 +703,7 @@ ErrorType GameClient::Run(void)
         }
         //UI::HUD(fontSmall, player, debugStats);
         UI::QuickHUD(fontSdf24, player);
-
-        static int fontSize = fontSdf72.baseSize;
-        if (IsKeyDown(KEY_MINUS)) {
-            fontSize--;
-        }
-        if (IsKeyDown(KEY_EQUAL)) {
-            fontSize++;
-        }
-        UI::Chat(fontSdf72, fontSize, *world, netClient, inputMode == INPUT_MODE_PLAY || inputMode == INPUT_MODE_CHAT, chatVisible, escape);
+        UI::Chat(fontSdf72, 20, *world, netClient, inputMode == INPUT_MODE_PLAY || inputMode == INPUT_MODE_CHAT, chatVisible, escape);
 
         rlDrawRenderBatchActive();
 

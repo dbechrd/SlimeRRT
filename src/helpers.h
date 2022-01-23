@@ -101,9 +101,7 @@
 #define WORLD_WIDTH_MAX         256
 #define WORLD_HEIGHT_MIN        1
 #define WORLD_HEIGHT_MAX        256
-#define WORLD_CHUNK_WIDTH       16
-#define WORLD_CHUNK_HEIGHT      16
-#define WORLD_CHUNK_TILES_MAX   256
+#define WORLD_CHUNK_TILES       256
 #define ENTITY_POSITION_X_MIN   0
 #define ENTITY_POSITION_X_MAX   UINT32_MAX  // Actually a float, so we need to allow full range
 #define ENTITY_POSITION_Y_MIN   0

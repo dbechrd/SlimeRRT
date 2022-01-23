@@ -3,9 +3,7 @@
 #include "math.h"
 #include "dlb_rand.h"
 
-struct NetTile;
-
-enum class TileType {
+enum class TileType : uint8_t {
     Grass,
     Water,
     Forest,
@@ -31,26 +29,31 @@ struct RRT {
 struct Tile {
     TileType tileType {};
 
-    bool IsWalkable() const {
+    inline bool IsWalkable() const {
         return true; //tileType != TileType::Water;
+    }
+
+    inline bool IsSwimmable() const {
+        return tileType == TileType::Water;
     }
 };
 
+struct TileChunk {
+    Tile tiles[16][16]{};
+};
+
 struct Tilemap {
-    uint32_t  width     {};  // width of map in tiles
-    uint32_t  height    {};  // height of map in tiles
-    RRT       rrt       {};  // "Rapidly-exploring Random Tree" data struture (used for procedural generation)
-    Tile     *tiles     {};  // array of tile data
-    Texture   minimap   {};
-    TilesetID tilesetId {};
-    Tilemap  *next      {};
+    uint32_t  width      {};  // width of map in tiles
+    uint32_t  height     {};  // height of map in tiles
+    RRT       rrt        {};  // "Rapidly-exploring Random Tree" data struture (used for procedural generation)
+    TileChunk tileChunks [8][8]{};
+    Texture   minimap    {};
+    TilesetID tilesetId  {};
+    Tilemap  *next       {};
 
     ~Tilemap();
-    void GenerateMinimap (void);
-    Tile *TileAt         (int tileX, int tileY) const;  // Return tile at grid position x,y, assert on failure
-    Tile *TileAtTry      (int tileX, int tileY) const;  // Return tile at grid position x,y, if it exists
-    Tile *TileAtWorld    (float x, float y, int *tileX, int *tileY) const;  // Return tile at pixel position in world space, assert on failure
-    Tile *TileAtWorldTry (float x, float y, int *tileX, int *tileY) const;  // Return tile at pixel position in world space, if it exists
+    void GenerateMinimap    (void);
+    const Tile *TileAtWorld (float x, float y) const;  // Return tile at pixel position in world space, assert on failure
 };
 
 #define MAX_TILEMAPS 8

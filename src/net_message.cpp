@@ -12,7 +12,7 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
 
     BitStream stream(mode, buffer.data, buffer.dataLength);
 
-    stream.Process(connectionToken, 32, 0, UINT32_MAX);
+    stream.Process(connectionToken);
 
     stream.Process((uint32_t &)type, 4, (uint32_t)NetMessage::Type::Unknown + 1, (uint32_t)NetMessage::Type::Count - 1);
     stream.Align();
@@ -98,7 +98,7 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
             for (size_t i = 0; i < input.sampleCount; i++) {
                 InputSample &sample = input.samples[i];
                 bool same = i && sample.Equals(input.samples[i - 1]) && (sample.seq == (input.samples[i - 1].seq + 1));
-                stream.ProcessBool(same);
+                stream.Process(same);
                 if (same) {
                     if (mode == BitStream::Mode::Reader) {
 #pragma warning(push)
@@ -113,12 +113,12 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                     stream.Process(sample.seq, 32, 0, UINT32_MAX);
                     // TODO: Don't send ownerId more than once.. move this up outside of the loop
                     stream.Process(sample.ownerId, 32, 0, UINT32_MAX);
-                    stream.ProcessBool(sample.walkNorth);
-                    stream.ProcessBool(sample.walkEast);
-                    stream.ProcessBool(sample.walkSouth);
-                    stream.ProcessBool(sample.walkWest);
-                    stream.ProcessBool(sample.run);
-                    stream.ProcessBool(sample.attack);
+                    stream.Process(sample.walkNorth);
+                    stream.Process(sample.walkEast);
+                    stream.Process(sample.walkSouth);
+                    stream.Process(sample.walkWest);
+                    stream.Process(sample.run);
+                    stream.Process(sample.attack);
                     stream.Process(sample.selectSlot, 4, (uint32_t)PlayerInventorySlot::None, (uint32_t)PlayerInventorySlot::Slot_6);
                 }
             }
@@ -128,19 +128,17 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
         } case NetMessage::Type::WorldChunk: {
             NetMessage_WorldChunk &worldChunk = data.worldChunk;
 
-            stream.Process(worldChunk.offsetX, 8, 0, WORLD_WIDTH_MAX - WORLD_CHUNK_WIDTH);
-            stream.Process(worldChunk.offsetY, 8, 0, WORLD_HEIGHT_MAX - WORLD_CHUNK_HEIGHT);
-            stream.Process(worldChunk.tilesLength, 16, 0, WORLD_CHUNK_TILES_MAX);
+            stream.Process(worldChunk.chunkX, 16, 0, WORLD_WIDTH_MAX);
+            stream.Process(worldChunk.chunkY, 16, 0, WORLD_HEIGHT_MAX);
 
-            assert(worldChunk.tilesLength < world.map->width * world.map->width);
-            for (size_t i = 0; i < worldChunk.tilesLength; i++) {
-                Tile &tile = world.map->tiles[i];
-                uint32_t tileType = (uint32_t)tile.tileType;
-                stream.Process(tileType, 3, 0, (uint32_t)TileType::Count - 1);
-                tile.tileType = (TileType)tileType;
+            for (size_t y = 0; y < ARRAY_SIZE(worldChunk.chunkData.tiles); y++) {
+                for (size_t x = 0; x < ARRAY_SIZE(worldChunk.chunkData.tiles[y]); x++) {
+                    stream.Process((uint8_t &)worldChunk.chunkData.tiles[y][x].tileType, 4, (uint8_t)TileType::Grass, (uint8_t)TileType::Count);
+                }
             }
             stream.Align();
 
+            // TODO(cleanup): Move this out to net_client.cpp
             if (mode == BitStream::Mode::Reader) {
                 world.map->GenerateMinimap();
             }
@@ -150,7 +148,7 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
             WorldSnapshot &worldSnapshot = data.worldSnapshot;
 
             stream.Process(worldSnapshot.tick, 32, 1, UINT32_MAX);
-            stream.Process(worldSnapshot.lastInputAck, 32, 0, UINT32_MAX);
+            stream.Process(worldSnapshot.lastInputAck);
             stream.Process(worldSnapshot.playerCount, 4, 0, SNAPSHOT_MAX_PLAYERS);
             stream.Process(worldSnapshot.enemyCount, 9, 0, SNAPSHOT_MAX_SLIMES);
             stream.Process(worldSnapshot.itemCount, 9, 0, SNAPSHOT_MAX_ITEMS);
@@ -161,54 +159,56 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                 stream.Process(player.id, 32, 1, UINT32_MAX);
                 stream.Process((uint32_t &)player.flags, 8, 0, UINT8_MAX);
                 if (player.flags & PlayerSnapshot::Flags::Position) {
-                    stream.ProcessFloat(player.position.x);
-                    stream.ProcessFloat(player.position.y);
-                    stream.ProcessFloat(player.position.z);
+                    stream.Process(player.position.x);
+                    stream.Process(player.position.y);
+                    stream.Process(player.position.z);
                 }
                 if (player.flags & PlayerSnapshot::Flags::Direction) {
-                    stream.Process((uint32_t &)player.direction, 3, (uint32_t)Direction::North, (uint32_t)Direction::NorthWest);
+                    stream.Process((uint8_t &)player.direction, 3, (uint8_t)Direction::North, (uint8_t)Direction::NorthWest);
                     stream.Align();
                 }
                 if (player.flags & PlayerSnapshot::Flags::Health) {
-                    stream.ProcessFloat(player.hitPoints);
+                    stream.Process(player.hitPoints);
                 }
                 if (player.flags & PlayerSnapshot::Flags::HealthMax) {
-                    stream.ProcessFloat(player.hitPointsMax);
+                    stream.Process(player.hitPointsMax);
                 }
             }
 
             for (size_t i = 0; i < worldSnapshot.enemyCount; i++) {
                 EnemySnapshot &enemy = worldSnapshot.enemies[i];
                 stream.Process(enemy.id, 32, 1, UINT32_MAX);
-                stream.Process((uint32_t &)enemy.flags, 8, 0, UINT8_MAX);
+                assert((uint32_t)enemy.flags <= UINT8_MAX);
+                stream.Process((uint8_t &)enemy.flags);
                 if (enemy.flags & EnemySnapshot::Flags::Position) {
-                    stream.ProcessFloat(enemy.position.x);
-                    stream.ProcessFloat(enemy.position.y);
-                    stream.ProcessFloat(enemy.position.z);
+                    stream.Process(enemy.position.x);
+                    stream.Process(enemy.position.y);
+                    stream.Process(enemy.position.z);
                 }
                 if (enemy.flags & EnemySnapshot::Flags::Direction) {
-                    stream.Process((uint32_t &)enemy.direction, 3, (uint32_t)Direction::North, (uint32_t)Direction::NorthWest);
+                    stream.Process((uint8_t &)enemy.direction, 3, (uint8_t)Direction::North, (uint8_t)Direction::NorthWest);
                     stream.Align();
                 }
                 if (enemy.flags & EnemySnapshot::Flags::Scale) {
-                    stream.ProcessFloat(enemy.scale);
+                    stream.Process(enemy.scale);
                 }
                 if (enemy.flags & EnemySnapshot::Flags::Health) {
-                    stream.ProcessFloat(enemy.hitPoints);
+                    stream.Process(enemy.hitPoints);
                 }
                 if (enemy.flags & EnemySnapshot::Flags::HealthMax) {
-                    stream.ProcessFloat(enemy.hitPointsMax);
+                    stream.Process(enemy.hitPointsMax);
                 }
             }
 
             for (size_t i = 0; i < worldSnapshot.itemCount; i++) {
                 ItemSnapshot &item = worldSnapshot.items[i];
                 stream.Process(item.id, 32, 1, UINT32_MAX);
-                stream.Process((uint32_t &)item.flags, 8, 0, UINT8_MAX);
+                assert((uint32_t)item.flags <= UINT8_MAX);
+                stream.Process((uint8_t &)item.flags);
                 if (item.flags & ItemSnapshot::Flags::Position) {
-                    stream.ProcessFloat(item.position.x);
-                    stream.ProcessFloat(item.position.y);
-                    stream.ProcessFloat(item.position.z);
+                    stream.Process(item.position.x);
+                    stream.Process(item.position.y);
+                    stream.Process(item.position.z);
                 }
                 if (item.flags & ItemSnapshot::Flags::CatalogId) {
                     stream.Process((uint32_t &)item.catalogId, 3, (uint32_t)Catalog::ItemID::Empty + 1, (uint32_t)Catalog::ItemID::Count - 1);
@@ -217,7 +217,7 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                     stream.Process(item.stackCount, 32, 1, UINT_MAX);
                 }
                 if (item.flags & ItemSnapshot::Flags::PickedUp) {
-                    stream.ProcessBool(item.pickedUp);
+                    stream.Process(item.pickedUp);
                     stream.Align();
                 }
             }
@@ -299,24 +299,24 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
 #if 1
                     NetMessage_NearbyEvent::EnemyState &state = nearbyEvent.data.enemyState;
                     stream.Process(state.id, 32, 1, UINT32_MAX);
-                    stream.ProcessBool(state.nearby);
+                    stream.Process(state.nearby);
                     if (state.nearby) {
-                        stream.ProcessBool(state.spawned);
-                        stream.ProcessBool(state.attacked);
-                        stream.ProcessBool(state.moved);
-                        stream.ProcessBool(state.tookDamage);
-                        stream.ProcessBool(state.healed);
+                        stream.Process(state.spawned);
+                        stream.Process(state.attacked);
+                        stream.Process(state.moved);
+                        stream.Process(state.tookDamage);
+                        stream.Process(state.healed);
                         stream.Align();
                         if (state.moved) {
-                            stream.ProcessFloat(state.position.x);
-                            stream.ProcessFloat(state.position.y);
-                            stream.ProcessFloat(state.position.z);
-                            stream.Process((uint32_t &)state.direction, 3, (uint32_t)Direction::North, (uint32_t)Direction::NorthWest);
+                            stream.Process(state.position.x);
+                            stream.Process(state.position.y);
+                            stream.Process(state.position.z);
+                            stream.Process((uint8_t &)state.direction, 3, (uint8_t)Direction::North, (uint8_t)Direction::NorthWest);
                             stream.Align();
                         }
                         if (state.tookDamage || state.healed) {
-                            stream.ProcessFloat(state.hitPoints);
-                            stream.ProcessFloat(state.hitPointsMax);
+                            stream.Process(state.hitPoints);
+                            stream.Process(state.hitPointsMax);
                         }
                     }
 #else

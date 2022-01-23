@@ -31,7 +31,7 @@ size_t BitStream::BytesProcessed() const
 }
 
 // Read bits from scratch into word / Write bits form word to scratch
-void BitStream::Process(uint32_t &word, uint8_t bits, uint32_t min, uint32_t max)
+void BitStream::ProcessInternal(uint32_t &word, uint8_t bits)
 {
     assert(buffer);
     assert(bits);
@@ -51,14 +51,8 @@ void BitStream::Process(uint32_t &word, uint8_t bits, uint32_t min, uint32_t max
             word = (((uint64_t)1 << bits) - 1) & scratch;
             scratch >>= bits;
             scratchBits -= bits;
-
-            assert(word >= min);
-            assert(word <= max);
             break;
         } case Mode::Writer: {
-            assert(word >= min);
-            assert(word <= max);
-
             assert((uint64_t)word < ((uint64_t)1 << bits));  // Ensure there's enough bits to fit the whole value
             uint64_t maskedWord = (((uint64_t)1 << bits) - 1) & word;
             scratch |= maskedWord << scratchBits;
@@ -74,50 +68,132 @@ void BitStream::Process(uint32_t &word, uint8_t bits, uint32_t min, uint32_t max
     bitsProcessed += bits;
 }
 
-void BitStream::ProcessBool(bool &flag)
+void BitStream::Process(bool &value)
 {
-    uint32_t word = (uint32_t)flag;
-    Process(word, 1, 0, 1);
-    flag = (bool)word;
+    uint32_t word = (uint32_t)value;
+    ProcessInternal(word, 1);
+    value = (bool)word;
 }
 
-void BitStream::ProcessChar(char &chr)
+void BitStream::Process(uint8_t &value, uint8_t bits, uint8_t min, uint8_t max)
 {
-    uint32_t word = (uint32_t)chr;
-    Process(word, 8, STRING_ASCII_MIN, STRING_ASCII_MAX);
-    chr = (char)word;
+    if (mode == Mode::Writer) {
+        assert(value >= min);
+        assert(value <= max);
+    }
+
+    uint32_t word = (uint32_t)value;
+    ProcessInternal(word, bits);
+    value = (uint8_t)word;
+
+    if (mode == Mode::Reader) {
+        assert(value >= min);
+        assert(value <= max);
+    }
 }
 
-void BitStream::ProcessInt(int &i)
+void BitStream::Process(uint16_t &value, uint8_t bits, uint16_t min, uint16_t max)
 {
-    uint32_t word = *(uint32_t *)&i;
-    Process(word, 32, 0, UINT32_MAX);
-    i = *(int *)&word;
+    if (mode == Mode::Writer) {
+        assert(value >= min);
+        assert(value <= max);
+    }
+
+    uint32_t word = (uint32_t)value;
+    ProcessInternal(word, bits);
+    value = (uint16_t)word;
+
+    if (mode == Mode::Reader) {
+        assert(value >= min);
+        assert(value <= max);
+    }
 }
 
-void BitStream::ProcessUint(uint32_t &u)
+void BitStream::Process(uint32_t &value, uint8_t bits, uint32_t min, uint32_t max)
 {
-    uint32_t word = *(uint32_t *)&u;
-    Process(word, 32, 0, UINT32_MAX);
-    u = word;
+    if (mode == Mode::Writer) {
+        assert(value >= min);
+        assert(value <= max);
+    }
+
+    ProcessInternal(value, bits);
+
+    if (mode == Mode::Reader) {
+        assert(value >= min);
+        assert(value <= max);
+    }
 }
 
-void BitStream::ProcessFloat(float &flt)
+void BitStream::Process(int32_t &value, uint8_t bits, int32_t min, int32_t max)
 {
-    uint32_t word = *(uint32_t *)&flt;
-    Process(word, 32, 0, UINT32_MAX);
-    flt = *(float *)&word;
+    if (mode == Mode::Writer) {
+        assert(value >= min);
+        assert(value <= max);
+    }
+
+    uint32_t word = (uint32_t)value;
+    ProcessInternal(word, bits);
+    value = (int)word;
+
+    if (mode == Mode::Reader) {
+        assert(value >= min);
+        assert(value <= max);
+    }
 }
 
-void BitStream::ProcessDouble(double &dbl)
+void BitStream::Process(float &value, uint8_t bits, float min, float max)
 {
+    if (mode == Mode::Writer) {
+        assert(value >= min);
+        assert(value <= max);
+    }
+
+    uint32_t word = *(uint32_t *)&value;
+    ProcessInternal(word, bits);
+    value = *(float *)&word;
+
+    if (mode == Mode::Reader) {
+        assert(value >= min);
+        assert(value <= max);
+    }
+}
+
+void BitStream::Process(double &value, uint8_t bits, double min, double max)
+{
+    if (mode == Mode::Writer) {
+        assert(value >= min);
+        assert(value <= max);
+    }
+
     assert(sizeof(uint32_t) * 2 == sizeof(double));
-    uint32_t word0 = ((uint32_t *)&dbl)[0];
-    uint32_t word1 = ((uint32_t *)&dbl)[1];
-    Process(word0, 32, 0, UINT32_MAX);
-    Process(word1, 32, 0, UINT32_MAX);
-    ((uint32_t *)&dbl)[0] = word0;
-    ((uint32_t *)&dbl)[1] = word1;
+    uint32_t word0 = ((uint32_t *)&value)[0];
+    uint32_t word1 = ((uint32_t *)&value)[1];
+    ProcessInternal(word0, bits);
+    ProcessInternal(word1, bits);
+    ((uint32_t *)&value)[0] = word0;
+    ((uint32_t *)&value)[1] = word1;
+
+    if (mode == Mode::Reader) {
+        assert(value >= min);
+        assert(value <= max);
+    }
+}
+
+void BitStream::ProcessChar(char &value)
+{
+    if (mode == Mode::Writer) {
+        assert(value >= STRING_ASCII_MIN);
+        assert(value <= STRING_ASCII_MAX);
+    }
+
+    uint32_t word = (uint32_t)value;
+    ProcessInternal(word, 8);
+    value = (char)word;
+
+    if (mode == Mode::Reader) {
+        assert(value >= STRING_ASCII_MIN);
+        assert(value <= STRING_ASCII_MAX);
+    }
 }
 
 // Flush word from scratch to buffer

@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <cfloat>
 
 // https://gafferongames.com/post/reading_and_writing_packets/
 // https://gafferongames.com/post/serialization_strategies/
@@ -22,13 +23,15 @@ struct BitStream {
     size_t BytesProcessed() const;
 
     // Read bits from scratch into word / Write bits form word to scratch
-    void Process       (uint32_t &word, uint8_t bits, uint32_t min, uint32_t max);
-    void ProcessBool   (bool &flag);
+    void Process (bool     &value);
+    void Process (uint8_t  &value, uint8_t bits = 8 , uint8_t  min = 0        , uint8_t  max = UINT8_MAX );
+    void Process (uint16_t &value, uint8_t bits = 16, uint16_t min = 0        , uint16_t max = UINT16_MAX);
+    void Process (uint32_t &value, uint8_t bits = 32, uint32_t min = 0        , uint32_t max = UINT32_MAX);
+    void Process (int32_t  &value, uint8_t bits = 32, int32_t  min = INT32_MIN, int32_t  max = INT32_MAX );
+    void Process (float    &value, uint8_t bits = 32, float    min = FLT_MIN  , float    max = FLT_MAX   );
+    void Process (double   &value, uint8_t bits = 64, double   min = DBL_MIN  , double   max = DBL_MAX   );
+
     void ProcessChar   (char &chr);
-    void ProcessInt    (int &i);
-    void ProcessUint   (uint32_t &u);
-    void ProcessFloat  (float &flt);
-    void ProcessDouble (double &dbl);
 
     // Flush word from scratch to buffer
     void Flush();
@@ -45,4 +48,6 @@ private:
     void     *buffer        {};  // buffer we're writing to / reading from
     size_t    bufferBits    {};  // size of packet in bytes * 8
     size_t    bitsProcessed {};  // number of bits we've read/written so far
+
+    void ProcessInternal(uint32_t &word, uint8_t bits);
 };

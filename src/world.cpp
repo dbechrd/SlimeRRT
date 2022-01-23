@@ -645,16 +645,20 @@ bool World::CullTile(Vector2 tilePos, int zoomMipLevel)
 size_t World::DrawMap(int zoomMipLevel)
 {
     assert(zoomMipLevel > 0);
-    if (!map || !map->tiles) return 0;
+    if (!map || zoomMipLevel <= 0) {
+        return 0;
+    }
 
     size_t tilesDrawn = 0;
     for (size_t y = 0; y < map->height; y += zoomMipLevel) {
         for (size_t x = 0; x < map->width; x += zoomMipLevel) {
-            const Tile *tile = &map->tiles[y * map->width + x];
             const Vector2 tilePos = { (float)x * TILE_W, (float)y * TILE_W };
             if (!CullTile(tilePos, zoomMipLevel)) {
                 // Draw all tiles as textured rects (looks best, performs worst)
-                tileset_draw_tile(map->tilesetId, tile->tileType, tilePos);
+                const Tile *tile = map->TileAtWorld(tilePos.x, tilePos.y);
+                if (tile) {
+                    tileset_draw_tile(map->tilesetId, tile->tileType, tilePos);
+                }
                 tilesDrawn++;
             }
         }

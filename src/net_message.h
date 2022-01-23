@@ -55,10 +55,9 @@ struct NetMessage_Input {
 };
 
 struct NetMessage_WorldChunk {
-    uint32_t offsetX     {};
-    uint32_t offsetY     {};
-    uint32_t tilesLength {};
-    // world.tiles
+    uint16_t  chunkX    {};
+    uint16_t  chunkY    {};
+    TileChunk chunkData {};
 };
 
 struct NetMessage_GlobalEvent {

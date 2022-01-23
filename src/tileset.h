@@ -4,7 +4,7 @@
 #define TILE_W 32
 #define TILE_H TILE_W
 
-enum class TileType;
+enum class TileType : uint8_t;
 
 enum class TilesetID {
     TS_Overworld,
