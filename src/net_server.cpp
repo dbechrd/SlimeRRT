@@ -173,7 +173,11 @@ ErrorType NetServer::SendWelcomeBasket(const NetServerClient &client)
     memcpy(chatMsg.message, message, chatMsg.messageLength);
     E_ASSERT(BroadcastChatMessage(chatMsg), "Failed to broadcast player join chat msg");
 
-    //SendWorldChunk(client);
+    for (size_t i = 0; i < ARRAY_SIZE(serverWorld->map->tileChunks); i++) {
+        for (size_t j = 0; j < ARRAY_SIZE(serverWorld->map->tileChunks[i]); j++) {
+            SendWorldChunk(client, (uint16_t)i, (uint16_t)j);
+        }
+    }
     //SendNearbyEvents(client);
     //SendWorldSnapshot(client);
 
@@ -219,13 +223,13 @@ ErrorType NetServer::BroadcastPlayerLeave(const Player &player)
     return BroadcastMsg(netMsg);
 }
 
-ErrorType NetServer::SendWorldChunk(const NetServerClient &client)
+ErrorType NetServer::SendWorldChunk(const NetServerClient &client, uint16_t chunkX, uint16_t chunkY)
 {
     memset(&netMsg, 0, sizeof(netMsg));
     netMsg.type = NetMessage::Type::WorldChunk;
     NetMessage_WorldChunk &worldChunk = netMsg.data.worldChunk;
-    worldChunk.chunkX = 0;
-    worldChunk.chunkY = 0;
+    worldChunk.chunkX = chunkX;
+    worldChunk.chunkY = chunkY;
 
     // TODO: Delete me.
     size_t a = ARRAY_SIZE(serverWorld->map->tileChunks);
@@ -235,7 +239,7 @@ ErrorType NetServer::SendWorldChunk(const NetServerClient &client)
 
     assert(worldChunk.chunkX < ARRAY_SIZE(serverWorld->map->tileChunks));
     assert(worldChunk.chunkY < ARRAY_SIZE(serverWorld->map->tileChunks[worldChunk.chunkX]));
-    netMsg.data.worldChunk.chunkData = serverWorld->map->tileChunks[worldChunk.chunkX][worldChunk.chunkY];
+    worldChunk.chunkData = serverWorld->map->tileChunks[worldChunk.chunkX][worldChunk.chunkY];
     E_ASSERT(SendMsg(client, netMsg), "Failed to send world chunk");
     return ErrorType::Success;
 }

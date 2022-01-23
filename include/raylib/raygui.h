@@ -4309,7 +4309,10 @@ char **GuiLoadIcons(const char *fileName, bool loadIconsName)
 
 #pragma push(warning, 0)
             // Read icons data directly over guiIcons data array
-            fread(guiIcons, iconCount*((size_t)iconSize*iconSize/32), sizeof(unsigned int), rgiFile);
+            const size_t idx = iconCount*((size_t)iconSize*iconSize/32);
+            if (idx < sizeof(guiIcons)) {
+                fread(guiIcons, idx, sizeof(unsigned int), rgiFile);
+            }
 #pragma pop(warning)
         }
 

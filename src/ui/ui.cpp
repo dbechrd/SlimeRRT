@@ -564,7 +564,7 @@ void UI::TileHoverTip(const Font &font, const Tilemap &map)
     DrawTextFont(font, TextFormat("tileSize: %zu, %zu", TILE_W, TILE_W),
         tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, 0, 0, font.baseSize, WHITE);
     lineOffset += font.baseSize;
-    DrawTextFont(font, TextFormat("tileType: %d", mouseTile->tileType),
+    DrawTextFont(font, TextFormat("tileType: %d", mouseTile->type),
         tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, 0, 0, font.baseSize, WHITE);
     lineOffset += font.baseSize;
 }

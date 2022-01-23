@@ -28,7 +28,7 @@ struct NetServer {
 
     ~NetServer();
     ErrorType        OpenSocket        (unsigned short socketPort);
-    ErrorType        SendWorldChunk    (const NetServerClient &client);
+    ErrorType        SendWorldChunk    (const NetServerClient &client, uint16_t chunkX, uint16_t chunkY);
     ErrorType        SendWorldSnapshot (NetServerClient &client);
     ErrorType        SendNearbyEvents  (const NetServerClient &client);
     NetServerClient *FindClient        (uint32_t playerId);

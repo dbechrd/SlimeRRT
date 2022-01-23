@@ -657,7 +657,7 @@ size_t World::DrawMap(int zoomMipLevel)
                 // Draw all tiles as textured rects (looks best, performs worst)
                 const Tile *tile = map->TileAtWorld(tilePos.x, tilePos.y);
                 if (tile) {
-                    tileset_draw_tile(map->tilesetId, tile->tileType, tilePos);
+                    tileset_draw_tile(map->tilesetId, tile->type, tilePos);
                 }
                 tilesDrawn++;
             }

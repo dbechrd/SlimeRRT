@@ -288,13 +288,18 @@ void NetClient::ProcessMsg(ENetPacket &packet)
         } case NetMessage::Type::Welcome: {
             // TODO: Auth challenge. Store salt sent from server instead.. handshake stuffs
             NetMessage_Welcome &welcomeMsg = tempMsg.data.welcome;
-            serverWorld->chatHistory.PushServer(welcomeMsg.motd, welcomeMsg.motdLength);
 
-            serverWorld->map = serverWorld->mapSystem.Generate(serverWorld->rtt_rand, welcomeMsg.width, welcomeMsg.height);
-            //serverWorld->map->GenerateMinimap();
-            assert(serverWorld->map);
+            //serverWorld->map = serverWorld->mapSystem.Generate(serverWorld->rtt_rand, welcomeMsg.width, welcomeMsg.height);
+            serverWorld->map = serverWorld->mapSystem.Alloc();
+            if (!serverWorld->map) {
+                break;
+            }
+
+            serverWorld->map->width = welcomeMsg.width;
+            serverWorld->map->height = welcomeMsg.height;
             // TODO: Get tileset ID from server
             serverWorld->map->tilesetId = TilesetID::TS_Overworld;
+            //serverWorld->map->GenerateMinimap();
             serverWorld->playerId = welcomeMsg.playerId;
 
             for (size_t i = 0; i < welcomeMsg.playerCount; i++) {
@@ -304,9 +309,14 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                     memcpy(player->name, welcomeMsg.players[i].name, player->nameLength);
                 }
             }
+
+            serverWorld->chatHistory.PushServer(welcomeMsg.motd, welcomeMsg.motdLength);
             break;
         } case NetMessage::Type::WorldChunk: {
-            //NetMessage_WorldChunk &worldChunk = netMsg.data.worldChunk;
+            NetMessage_WorldChunk &worldChunk = tempMsg.data.worldChunk;
+            TraceLog(LOG_DEBUG, "Received world chunk %u %u", worldChunk.chunkX, worldChunk.chunkY);
+            serverWorld->map->tileChunks[worldChunk.chunkX][worldChunk.chunkY] = worldChunk.chunkData;
+            serverWorld->map->GenerateMinimap();
             break;
         } case NetMessage::Type::WorldSnapshot: {
             const WorldSnapshot &netSnapshot = tempMsg.data.worldSnapshot;

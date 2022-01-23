@@ -137,7 +137,7 @@ ErrorType GameClient::Run(void)
 
     World *lobby = new World;
     lobby->tick = 1;
-    lobby->map = lobby->mapSystem.Generate(lobby->rtt_rand, 128, 128);
+    lobby->map = lobby->mapSystem.Generate(lobby->rtt_rand, CHUNK_W * 8, CHUNK_W * 8);
     Slime &sam = lobby->SpawnSam();
     world = lobby;
 
@@ -532,12 +532,12 @@ ErrorType GameClient::Run(void)
         Vector2 playerPos = player.body.GroundPosition();
         const Tile *playerTileLeft = world->map->TileAtWorld(playerPos.x - 15.0f, playerPos.y);
         const Tile *playerTileRight = world->map->TileAtWorld(playerPos.x + 15.0f, playerPos.y);
-        if (playerTileLeft && playerTileLeft->tileType == TileType::Water &&
-            playerTileRight && playerTileRight->tileType == TileType::Water)
+        if (playerTileLeft && playerTileLeft->type == Tile::Type::Water &&
+            playerTileRight && playerTileRight->type == Tile::Type::Water)
         {
             auto tilesetId = world->map->tilesetId;
             Tileset &tileset = g_tilesets[(size_t)tilesetId];
-            Rectangle tileRect = tileset_tile_rect(tilesetId, TileType::Water);
+            Rectangle tileRect = tileset_tile_rect(tilesetId, Tile::Type::Water);
             assert(tileRect.width == TILE_W);
             assert(tileRect.height == TILE_W);
 
@@ -581,7 +581,7 @@ ErrorType GameClient::Run(void)
 
 #define CHECK_AND_DRAW(src, dst) \
             tile = world->map->TileAtWorld((dst).x, (dst).y);                                  \
-            if (tile && tile->tileType == TileType::Water) {                                   \
+            if (tile && tile->type == Tile::Type::Water) {                                   \
                 DrawTexturePro(tileset.texture, (src), (dst), { 0, 0 }, 0, Fade(WHITE, 0.8f)); \
                 minXWater = MIN(minXWater, (dst).x);                                           \
                 maxXWater = MAX(maxXWater, (dst).x + (dst).width);                             \
@@ -598,7 +598,7 @@ ErrorType GameClient::Run(void)
 #undef CHECK_AND_DRAW
 
             const Tile *playerGutTile = world->map->TileAtWorld(playerGut2D.x, playerGut2D.y);
-            if (playerGutTile && playerGutTile->tileType == TileType::Water) {
+            if (playerGutTile && playerGutTile->type == Tile::Type::Water) {
                 Rectangle bubblesDstTopMid{
                     playerGut2D.x - 20.0f,
                     playerGut2D.y,
@@ -741,6 +741,7 @@ ErrorType GameClient::Run(void)
                         break;
                     } case 1: {  // Audio
                         mixerActive = !mixerActive;
+                        menuActive = false;
                         break;
                     } case 2: {  // Log off
                         disconnectRequested = true;
@@ -756,6 +757,7 @@ ErrorType GameClient::Run(void)
                         break;
                     } case 1: {  // Audio
                         mixerActive = !mixerActive;
+                        menuActive = false;
                         break;
                     } case 2: {  // Quit
                         menuActive = false;

@@ -133,7 +133,7 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
 
             for (size_t y = 0; y < ARRAY_SIZE(worldChunk.chunkData.tiles); y++) {
                 for (size_t x = 0; x < ARRAY_SIZE(worldChunk.chunkData.tiles[y]); x++) {
-                    stream.Process((uint8_t &)worldChunk.chunkData.tiles[y][x].tileType, 4, (uint8_t)TileType::Grass, (uint8_t)TileType::Count);
+                    stream.Process((uint8_t &)worldChunk.chunkData.tiles[y][x].type, 4, (uint8_t)Tile::Type::Grass, (uint8_t)Tile::Type::Count);
                 }
             }
             stream.Align();

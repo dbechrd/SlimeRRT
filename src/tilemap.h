@@ -3,22 +3,11 @@
 #include "math.h"
 #include "dlb_rand.h"
 
-enum class TileType : uint8_t {
-    Grass,
-    Water,
-    Forest,
-    Wood,
-    Concrete,
-    Grass2,
-    Grass3,
-    Count
-};
-
 // TODO: Refactor RRT logic out into standalone file
 struct RRTVertex {
-    TileType  tileType    {};
-    Vector2   position    {};
-    Rectangle textureRect {};
+    Tile::Type tileType    {};
+    Vector2    position    {};
+    Rectangle  textureRect {};
 };
 
 struct RRT {
@@ -26,20 +15,8 @@ struct RRT {
     RRTVertex * vertices    {};
 };
 
-struct Tile {
-    TileType tileType {};
-
-    inline bool IsWalkable() const {
-        return true; //tileType != TileType::Water;
-    }
-
-    inline bool IsSwimmable() const {
-        return tileType == TileType::Water;
-    }
-};
-
 struct TileChunk {
-    Tile tiles[16][16]{};
+    Tile tiles[32][32]{};
 };
 
 struct Tilemap {
@@ -62,13 +39,13 @@ struct MapSystem {
     MapSystem(void);
     ~MapSystem(void);
 
+    Tilemap *Alloc         (void);
     Tilemap *GenerateLobby (void);
     Tilemap *Generate      (dlb_rand32_t &rng, uint32_t width, uint32_t height);
 
 private:
-    Tilemap *Alloc           (void);
     void     BuildRRT        (Tilemap &map, dlb_rand32_t &rng, Vector2 qinit, size_t numVertices, float maxGrowthDist);
-    size_t   RRTNearestIndex (Tilemap &map, Vector2 p);
+    size_t   RRTNearestIndex (Tilemap &map, Vector2 p, size_t randTiles);
 
     Tilemap  maps[MAX_TILEMAPS] {};
     Tilemap *mapsFree           {};

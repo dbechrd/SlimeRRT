@@ -40,6 +40,11 @@
 //------------------------------------------------------------------------------
 // Constants
 //------------------------------------------------------------------------------
+#define TILE_W 32
+#define TILE_H TILE_W
+#define CHUNK_W 32
+#define CHUNK_H CHUNK_W
+
 #define SV_HOSTNAME_LENGTH_MAX      256
 #define SV_DEFAULT_PORT             4040
 #define SV_SINGLEPLAYER_HOST        "localhost"
@@ -55,9 +60,9 @@
 #define SV_INPUT_HISTORY            (SV_TICK_RATE * SV_MAX_PLAYERS)
 #define SV_WORLD_HISTORY            SV_TICK_RATE
 // NOTE: max diagonal distance at 1080p is 1100 + radius units. 1200px allows for a ~50px wide entity
-#define SV_PLAYER_NEARBY_THRESHOLD  600.0f //1200.0f
-#define SV_ENEMY_NEARBY_THRESHOLD   600.0f //1200.0f
-#define SV_ITEM_NEARBY_THRESHOLD    600.0f //1200.0f
+#define SV_PLAYER_NEARBY_THRESHOLD  1200.0f
+#define SV_ENEMY_NEARBY_THRESHOLD   1200.0f
+#define SV_ITEM_NEARBY_THRESHOLD    1200.0f
 #define SV_STALE_RADIUS             50.0f
 #define SV_PLAYER_CORPSE_LIFETIME   8.0
 #define SV_ENEMY_CORPSE_LIFETIME    4.0

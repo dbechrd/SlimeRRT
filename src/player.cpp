@@ -177,7 +177,7 @@ void Player::Update(double dt, InputSample &input, const Tilemap &map)
 
     const Vector2 pos = body.GroundPosition();
     const Tile *tile = map.TileAtWorld(pos.x, pos.y);
-    if (tile && tile->tileType == TileType::Water) {
+    if (tile && tile->type == Tile::Type::Water) {
         playerSpeed *= 0.5f;
         // TODO: moveState = Player::MoveState::Swimming;
     }

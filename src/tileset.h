@@ -1,10 +1,6 @@
 #pragma once
 #include "raylib/raylib.h"
-
-#define TILE_W 32
-#define TILE_H TILE_W
-
-enum class TileType : uint8_t;
+#include "tile.h"
 
 enum class TilesetID {
     TS_Overworld,
@@ -13,7 +9,7 @@ enum class TilesetID {
 
 struct Tileset {
     Texture     texture          {};
-    Rectangle   textureRects[16] {};
+    Rectangle   textureRects     [(size_t)Tile::Type::Count]{};
     size_t      tileCount        {};
     size_t      tilesPerRow      {};
 };
@@ -21,5 +17,5 @@ struct Tileset {
 extern Tileset g_tilesets[(size_t)TilesetID::Count];
 
 void tileset_init(void);
-const Rectangle &tileset_tile_rect(TilesetID tilesetId, TileType tileType);
-void tileset_draw_tile(TilesetID tilesetId, TileType tileType, Vector2 at);
+const Rectangle &tileset_tile_rect(TilesetID tilesetId, Tile::Type tileType);
+void tileset_draw_tile(TilesetID tilesetId, Tile::Type tileType, Vector2 at);
