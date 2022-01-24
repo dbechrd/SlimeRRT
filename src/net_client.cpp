@@ -314,9 +314,24 @@ void NetClient::ProcessMsg(ENetPacket &packet)
             break;
         } case NetMessage::Type::WorldChunk: {
             NetMessage_WorldChunk &worldChunk = tempMsg.data.worldChunk;
-            TraceLog(LOG_DEBUG, "Received world chunk %u %u", worldChunk.chunkX, worldChunk.chunkY);
-            serverWorld->map->tileChunks[worldChunk.chunkX][worldChunk.chunkY] = worldChunk.chunkData;
-            serverWorld->map->GenerateMinimap();
+            TraceLog(LOG_DEBUG, "Received world chunk %u %u", worldChunk.chunk.x, worldChunk.chunk.y);
+            if (serverWorld->map) {
+                Tilemap &map = *serverWorld->map;
+                auto chunkIter = map.chunksIndex.find(worldChunk.chunk.Hash());
+                if (chunkIter != map.chunksIndex.end()) {
+                    TraceLog(LOG_DEBUG, "  Updating existing chunk");
+                    uint32_t idx = chunkIter->second;
+                    assert(idx < map.chunks.size());
+                    map.chunks[chunkIter->second] = worldChunk.chunk;
+                    map.GenerateMinimap();
+                } else {
+                    TraceLog(LOG_DEBUG, "  Adding new chunk to chunk list");
+                    map.chunks.emplace_back(worldChunk.chunk);
+                    map.chunksIndex[worldChunk.chunk.Hash()] = (uint32_t)map.chunks.size() - 1;
+                }
+            } else {
+                TraceLog(LOG_ERROR, "  Map is invalid, cannot process chunk");
+            }
             break;
         } case NetMessage::Type::WorldSnapshot: {
             const WorldSnapshot &netSnapshot = tempMsg.data.worldSnapshot;

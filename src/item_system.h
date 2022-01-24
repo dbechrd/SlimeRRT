@@ -17,5 +17,5 @@ struct ItemSystem {
     void PushAll(DrawList& drawList);
 
     std::vector<ItemWorld> items{};
-    std::unordered_map<uint32_t, size_t> byId{};  // map of item.id -> items[] index
+    std::unordered_map<uint32_t, uint32_t> byId{};  // map of item.id -> items[] index
 };

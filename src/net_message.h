@@ -55,9 +55,7 @@ struct NetMessage_Input {
 };
 
 struct NetMessage_WorldChunk {
-    uint16_t  chunkX    {};
-    uint16_t  chunkY    {};
-    TileChunk chunkData {};
+    Chunk chunk {};
 };
 
 struct NetMessage_GlobalEvent {

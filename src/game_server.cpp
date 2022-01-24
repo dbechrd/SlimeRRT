@@ -16,7 +16,7 @@ ErrorType GameServer::Run()
     Catalog::g_items.Load();
 
     World *world = new World;
-    world->map = world->mapSystem.Generate(world->rtt_rand, CHUNK_W * 8, CHUNK_W * 8);
+    world->map = world->mapSystem.Generate(world->rtt_rand, 4);
     netServer.serverWorld = world;
 
     {

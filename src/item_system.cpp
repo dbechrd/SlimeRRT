@@ -53,7 +53,7 @@ ItemWorld *ItemSystem::SpawnItem(Vector3 pos, Catalog::ItemID catalogId, uint32_
     item.sprite.scale = 1.0f;
     item.spawnedAt = glfwGetTime();
 
-    byId[item.id] = items.size();
+    byId[item.id] = (uint32_t)items.size();
     return &items.emplace_back(item);
 }
 
@@ -84,8 +84,8 @@ bool ItemSystem::Remove(uint32_t itemId)
     }
 
     bool success = false;
-    size_t idx = elem->second;
-    size_t len = items.size();
+    uint32_t idx = elem->second;
+    uint32_t len = (uint32_t)items.size();
     if (idx < len) {
         if (idx == len - 1) {
             items.pop_back();

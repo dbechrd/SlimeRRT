@@ -17,6 +17,8 @@ Tilemap::~Tilemap()
 
 void Tilemap::GenerateMinimap(void)
 {
+    return;
+
     // Check for OpenGL context
     if (!IsWindowReady()) {
         return;
@@ -44,19 +46,17 @@ void Tilemap::GenerateMinimap(void)
     tileColors[(int)Tile::Type::Grass2] = GREEN;
     tileColors[(int)Tile::Type::Grass3] = GREEN;
 
+    // TODO: Calculate chunk x,y for chunk -4,-4 from player's position, to chunk +4, +4
+    // Also, make sure to put pixels in minimapPixel in the correct location
     Color *minimapPixel = (Color *)minimapImg.data;
-    for (size_t cy = 0; cy < 8; cy++) {
-        for (size_t y = 0; y < CHUNK_W; y++) {
-            for (size_t cx = 0; cx < 8; cx++) {
-                for (size_t x = 0; x < CHUNK_W; x++) {
-                    const Tile *tile = &tileChunks[cy][cx].tiles[y][x];
-                    // Draw all tiles as different colored pixels
-                    assert((int)tile->type >= 0);
-                    assert((int)tile->type < (int)Tile::Type::Count);
-                    *minimapPixel = tileColors[(int)tile->type];
-                    minimapPixel++;
-                }
-            }
+    for (const Chunk &chunk : chunks) {
+        for (size_t i = 0; i < ARRAY_SIZE(chunk.tiles); i++) {
+            const Tile &tile = chunk.tiles[i];
+            // Draw all tiles as different colored pixels
+            assert((int)tile.type >= 0);
+            assert((int)tile.type < (int)Tile::Type::Count);
+            *minimapPixel = tileColors[(int)tile.type];
+            minimapPixel++;
         }
     }
 
@@ -78,13 +78,22 @@ const Tile *Tilemap::TileAtWorld(float x, float y) const
     const int tileYWorld = (int)y / TILE_W;
     const int chunkX = tileXWorld / CHUNK_W;
     const int chunkY = tileYWorld / CHUNK_W;
-    const int tileXChunk = tileXWorld % CHUNK_W;
-    const int tileYChunk = tileYWorld % CHUNK_W;
+    const int tileX = tileXWorld % CHUNK_W;
+    const int tileY = tileYWorld % CHUNK_W;
     assert(chunkX < 8);
     assert(chunkY < 8);
-    assert(tileXChunk < CHUNK_W);
-    assert(tileYChunk < CHUNK_W);
-    return &tileChunks[chunkY][chunkX].tiles[tileYChunk][tileXChunk];
+    assert(tileX < CHUNK_W);
+    assert(tileY < CHUNK_W);
+
+    auto iter = chunksIndex.find(Chunk::Hash(chunkX, chunkY));
+    if (iter != chunksIndex.end()) {
+        uint32_t idx = iter->second;
+        assert(idx < chunks.size());
+        const Chunk &chunk = chunks[idx];
+        return &chunk.tiles[tileY * CHUNK_W + tileX];
+    }
+
+    return 0;
 }
 
 MapSystem::MapSystem(void)
@@ -139,18 +148,34 @@ Tilemap *MapSystem::GenerateLobby(void)
     return map;
 }
 
-Tilemap *MapSystem::Generate(dlb_rand32_t &rng, uint32_t width, uint32_t height)
+Tilemap *MapSystem::Generate(dlb_rand32_t &rng, uint16_t chunkRadius)
 {
-    assert(width);
-    assert(height);
+    assert(chunkRadius);
     Tilemap *map = Alloc();
     if (!map) {
         return 0;
     }
 
-    map->width = width;
-    map->height = height;
+    map->chunks.clear();
+    map->chunksIndex.clear();
+
+    map->width = chunkRadius * 2 * CHUNK_W;
+    map->height = map->width;
     map->tilesetId = TilesetID::TS_Overworld;
+
+    {
+        const int16_t chunksWide = chunkRadius * 2;
+        map->chunks.resize(chunksWide * chunksWide);
+        uint32_t idx = 0;
+        for (int16_t y = 0; y < chunksWide; y++) {
+            for (int16_t x = 0; x < chunksWide; x++) {
+                map->chunks[idx].x = x;
+                map->chunks[idx].y = y;
+                map->chunksIndex[Chunk::Hash(x, y)] = idx;
+                idx++;
+            }
+        }
+    }
 
     // NOTE: These parameters are chosen somewhat arbitrarily at this point
     const Vector2 middle = v2_init(0.5f, 0.5f);

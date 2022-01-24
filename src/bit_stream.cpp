@@ -77,6 +77,7 @@ void BitStream::Process(bool &value)
 
 void BitStream::Process(uint8_t &value, uint8_t bits, uint8_t min, uint8_t max)
 {
+    assert(bits <= sizeof(value) * 8);
     if (mode == Mode::Writer) {
         assert(value >= min);
         assert(value <= max);
@@ -94,6 +95,7 @@ void BitStream::Process(uint8_t &value, uint8_t bits, uint8_t min, uint8_t max)
 
 void BitStream::Process(uint16_t &value, uint8_t bits, uint16_t min, uint16_t max)
 {
+    assert(bits <= sizeof(value) * 8);
     if (mode == Mode::Writer) {
         assert(value >= min);
         assert(value <= max);
@@ -111,6 +113,7 @@ void BitStream::Process(uint16_t &value, uint8_t bits, uint16_t min, uint16_t ma
 
 void BitStream::Process(uint32_t &value, uint8_t bits, uint32_t min, uint32_t max)
 {
+    assert(bits <= sizeof(value) * 8);
     if (mode == Mode::Writer) {
         assert(value >= min);
         assert(value <= max);
@@ -124,8 +127,9 @@ void BitStream::Process(uint32_t &value, uint8_t bits, uint32_t min, uint32_t ma
     }
 }
 
-void BitStream::Process(int32_t &value, uint8_t bits, int32_t min, int32_t max)
+void BitStream::Process(int16_t &value, uint8_t bits, int16_t min, int16_t max)
 {
+    assert(bits <= sizeof(value) * 8);
     if (mode == Mode::Writer) {
         assert(value >= min);
         assert(value <= max);
@@ -133,7 +137,25 @@ void BitStream::Process(int32_t &value, uint8_t bits, int32_t min, int32_t max)
 
     uint32_t word = (uint32_t)value;
     ProcessInternal(word, bits);
-    value = (int)word;
+    value = (int16_t)word;
+
+    if (mode == Mode::Reader) {
+        assert(value >= min);
+        assert(value <= max);
+    }
+}
+
+void BitStream::Process(int32_t &value, uint8_t bits, int32_t min, int32_t max)
+{
+    assert(bits <= sizeof(value) * 8);
+    if (mode == Mode::Writer) {
+        assert(value >= min);
+        assert(value <= max);
+    }
+
+    uint32_t word = (uint32_t)value;
+    ProcessInternal(word, bits);
+    value = (int32_t)word;
 
     if (mode == Mode::Reader) {
         assert(value >= min);
@@ -143,6 +165,7 @@ void BitStream::Process(int32_t &value, uint8_t bits, int32_t min, int32_t max)
 
 void BitStream::Process(float &value, uint8_t bits, float min, float max)
 {
+    assert(bits <= sizeof(value) * 8);
     if (mode == Mode::Writer) {
         assert(value >= min);
         assert(value <= max);
@@ -160,6 +183,7 @@ void BitStream::Process(float &value, uint8_t bits, float min, float max)
 
 void BitStream::Process(double &value, uint8_t bits, double min, double max)
 {
+    assert(bits <= sizeof(value) * 8);
     if (mode == Mode::Writer) {
         assert(value >= min);
         assert(value <= max);

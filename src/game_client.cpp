@@ -137,7 +137,7 @@ ErrorType GameClient::Run(void)
 
     World *lobby = new World;
     lobby->tick = 1;
-    lobby->map = lobby->mapSystem.Generate(lobby->rtt_rand, CHUNK_W * 8, CHUNK_W * 8);
+    lobby->map = lobby->mapSystem.Generate(lobby->rtt_rand, 4);
     Slime &sam = lobby->SpawnSam();
     world = lobby;
 

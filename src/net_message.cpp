@@ -128,13 +128,11 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
         } case NetMessage::Type::WorldChunk: {
             NetMessage_WorldChunk &worldChunk = data.worldChunk;
 
-            stream.Process(worldChunk.chunkX, 16, 0, WORLD_WIDTH_MAX);
-            stream.Process(worldChunk.chunkY, 16, 0, WORLD_HEIGHT_MAX);
+            stream.Process(worldChunk.chunk.x, 16, 0, WORLD_WIDTH_MAX);
+            stream.Process(worldChunk.chunk.y, 16, 0, WORLD_HEIGHT_MAX);
 
-            for (size_t y = 0; y < ARRAY_SIZE(worldChunk.chunkData.tiles); y++) {
-                for (size_t x = 0; x < ARRAY_SIZE(worldChunk.chunkData.tiles[y]); x++) {
-                    stream.Process((uint8_t &)worldChunk.chunkData.tiles[y][x].type, 4, (uint8_t)Tile::Type::Grass, (uint8_t)Tile::Type::Count);
-                }
+            for (size_t i = 0; i < ARRAY_SIZE(worldChunk.chunk.tiles); i++) {
+                stream.Process((uint8_t &)worldChunk.chunk.tiles[i].type, 4, (uint8_t)Tile::Type::Grass, (uint8_t)Tile::Type::Count);
             }
             stream.Align();
 
