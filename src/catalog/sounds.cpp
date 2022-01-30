@@ -1,5 +1,6 @@
 #include "catalog/sounds.h"
 #include "helpers.h"
+#include "mixer.h"
 #include "raylib/raylib.h"
 #include <cassert>
 

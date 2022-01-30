@@ -51,7 +51,7 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                     break;
                 }
             }
-            stream.Process((uint32_t)chatMsg.messageLength, 9, CHATMSG_LENGTH_MIN, CHATMSG_LENGTH_MAX);
+            stream.Process(chatMsg.messageLength, 9, CHATMSG_LENGTH_MIN, CHATMSG_LENGTH_MAX);
             stream.Align();
             for (size_t i = 0; i < chatMsg.messageLength; i++) {
                 stream.ProcessChar(chatMsg.message[i]);
@@ -82,7 +82,7 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
 
                 if (player.id) {
                     // TODO: Don't sync name unless it has changed
-                    stream.Process((uint32_t)player.nameLength, 6, USERNAME_LENGTH_MIN, USERNAME_LENGTH_MAX);
+                    stream.Process(player.nameLength, 6, USERNAME_LENGTH_MIN, USERNAME_LENGTH_MAX);
                     stream.Align();
                     for (size_t i = 0; i < player.nameLength; i++) {
                         stream.ProcessChar(player.name[i]);
@@ -131,6 +131,8 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
             stream.Process(worldChunk.chunk.x, 16, 0, WORLD_WIDTH_MAX);
             stream.Process(worldChunk.chunk.y, 16, 0, WORLD_HEIGHT_MAX);
 
+            // TODO(perf): RLE compression
+            // https://moddingwiki.shikadi.net/wiki/RLE_Compression#Code
             for (size_t i = 0; i < ARRAY_SIZE(worldChunk.chunk.tiles); i++) {
                 stream.Process((uint8_t &)worldChunk.chunk.tiles[i].type, 4, (uint8_t)Tile::Type::Grass, (uint8_t)Tile::Type::Count);
             }
@@ -234,7 +236,7 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                     stream.Process(playerJoin.playerId, 32, 1, UINT32_MAX);
                     stream.Align();
 
-                    stream.Process((uint32_t)playerJoin.nameLength, 6, USERNAME_LENGTH_MIN, USERNAME_LENGTH_MAX);
+                    stream.Process(playerJoin.nameLength, 6, USERNAME_LENGTH_MIN, USERNAME_LENGTH_MAX);
                     stream.Align();
                     for (size_t i = 0; i < playerJoin.nameLength; i++) {
                         stream.ProcessChar(playerJoin.name[i]);

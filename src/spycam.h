@@ -12,7 +12,7 @@ struct Spycam {
     float GetZoom(void) const { return invZoom; }
     float GetInvZoom(void) const { return camera.zoom; }
     int   GetZoomMipLevel(void) const { return zoomMipLevel; }
-    const Rectangle &Spycam::GetRect(void) const { return cameraRect; }
+    const Rectangle &GetRect(void) const { return cameraRect; }
     const Camera2D &GetCamera(void) const { return camera; }
 
     Vector2 cameraGoal {};

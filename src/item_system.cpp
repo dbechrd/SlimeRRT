@@ -1,5 +1,9 @@
 #include "item_system.h"
+#include "catalog/spritesheets.h"
 #include "raylib/raylib.h"
+#include "sprite.h"
+#include "dlb_rand.h"
+#include "GLFW/glfw3.h"
 
 // Server spawns items into world
 // Server broadcasts ItemDrop event

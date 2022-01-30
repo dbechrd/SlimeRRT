@@ -16,7 +16,7 @@ namespace Catalog {
 
     const char *Items::Name(ItemID id, bool plural) const
     {
-#define PLURALIZE(one, many) {switch(plural) { case 0: return (one); case 1: return (many); }}
+#define PLURALIZE(one, many) {switch((int)plural) { case 0: return (one); case 1: return (many); }}
         switch (id) {
         case ItemID::Empty        : PLURALIZE("Empty", "Empty");
         case ItemID::Currency_Coin: PLURALIZE("Sterling", "Sterlings");

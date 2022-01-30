@@ -3,6 +3,7 @@
 #include "net_message.h"
 #include "world.h"
 #include "raylib/raylib.h"
+#include "GLFW/glfw3.h"
 #include <cassert>
 #include <cstring>
 
@@ -16,7 +17,7 @@ void ChatHistory::PushNetMessage(const NetMessage_ChatMessage &netChat)
     chat.recvAt = glfwGetTime();
     assert(!chat.timestampStr[0]); // If this triggers, FYI, your timestamp will be overwritten
     const char *timestampStr = TextFormatTimestamp();
-    memcpy(chat.timestampStr, timestampStr, sizeof(timestampStr));
+    memcpy(chat.timestampStr, timestampStr, MIN(sizeof(chat.timestampStr), strlen(timestampStr)));
 }
 
 void ChatHistory::PushSystem(const char *message, size_t messageLength)
@@ -53,7 +54,7 @@ void ChatHistory::PushMessage(NetMessage_ChatMessage::Source source, uint32_t id
     NetMessage_ChatMessage &chat = buffer.Alloc();
     chat.recvAt = glfwGetTime();
     const char *timestampStr = TextFormatTimestamp();
-    memcpy(chat.timestampStr, timestampStr, sizeof(timestampStr));
+    memcpy(chat.timestampStr, timestampStr, MIN(sizeof(chat.timestampStr), strlen(timestampStr)));
     chat.source = source;
     chat.id = id;
     chat.messageLength = (uint32_t)MIN(messageLength, CHATMSG_LENGTH_MAX);

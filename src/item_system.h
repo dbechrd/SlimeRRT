@@ -9,7 +9,7 @@ struct ItemSystem {
     ~ItemSystem(void) {};
 
     ItemWorld *SpawnItem(Vector3 pos, Catalog::ItemID catalogId, uint32_t stackCount, uint32_t id = 0);
-    const std::vector<ItemWorld> &ItemSystem::Items() const;
+    const std::vector<ItemWorld> &Items() const;
     ItemWorld *Find(uint32_t id);
     bool Remove(uint32_t itemId);
     void Update(double dt);

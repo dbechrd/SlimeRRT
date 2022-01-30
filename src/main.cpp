@@ -142,6 +142,7 @@ int main(int argc, char *argv[])
 #include "fx/golden_chest.cpp"
 #include "fx/goo.cpp"
 #include "particles.cpp"
+#include "perlin.cpp"
 #include "player.cpp"
 #include "server_cli.cpp"
 #include "shadow.cpp"

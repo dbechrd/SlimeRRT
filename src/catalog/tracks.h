@@ -36,6 +36,6 @@ namespace Catalog {
         TrackMixer mixer{};
     private:
         Music byId[(size_t)TrackID::Count]{};
-        Music Tracks::MissingOggTrack(void);
+        Music MissingOggTrack(void);
     } g_tracks;
 }

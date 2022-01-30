@@ -1,7 +1,10 @@
 #include "helpers.h"
 #include "raylib/raylib.h"
+#include <cassert>
+#include <cmath>
+#include <cstdio>
 
-extern Shader g_sdfShader{};
+Shader g_sdfShader{};
 
 static Color ShadowColor(const Color color)
 {

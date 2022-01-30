@@ -274,11 +274,11 @@ void Player::Update(double dt, InputSample &input, const Tilemap &map)
         if (selectedStack.id == Catalog::ItemID::Weapon_Sword) {
             switch (actionState) {
                 case ActionState::None: {
-                    switch (body.Idle()) {
+                    switch ((int)body.Idle()) {
                         // TODO: sprite_by_name("player_sword");
-                        case false: sprite.spriteDef = &sheet->sprites[2]; break;
+                        case 0: sprite.spriteDef = &sheet->sprites[2]; break;
                         // TODO: sprite_by_name("player_sword_idle");
-                        case true:  sprite.spriteDef = &sheet->sprites[3]; break;
+                        case 1: sprite.spriteDef = &sheet->sprites[3]; break;
                     }
                     break;
                 }
@@ -293,11 +293,11 @@ void Player::Update(double dt, InputSample &input, const Tilemap &map)
                 }
             }
         } else {
-            switch (body.Idle()) {
+            switch ((int)body.Idle()) {
                 // TODO: sprite_by_name("player_melee");
-                case false: sprite.spriteDef = &sheet->sprites[0]; break;
+                case 0: sprite.spriteDef = &sheet->sprites[0]; break;
                 // TODO: sprite_by_name("player_melee_idle");
-                case true:  sprite.spriteDef = &sheet->sprites[1]; break;
+                case 1: sprite.spriteDef = &sheet->sprites[1]; break;
             }
         }
     }

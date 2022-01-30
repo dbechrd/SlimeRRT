@@ -3,3 +3,4 @@ bin/*.log
 bin/screenshots
 secret.txt
 imgui.ini
+build/

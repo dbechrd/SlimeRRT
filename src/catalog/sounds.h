@@ -1,4 +1,5 @@
 #pragma once
+#include "raylib/raylib.h"
 
 namespace Catalog {
     enum class SoundID {
@@ -26,7 +27,7 @@ namespace Catalog {
         const Sound &FindById(SoundID id) const;
         void Play(SoundID id, float pitch, bool multi = false);
         bool Playing(SoundID id);
-        const unsigned char *Sounds::MissingOggData(size_t &fileSize);
+        const unsigned char *MissingOggData(size_t &fileSize);
 
         SoundMixer mixer{};
     private:

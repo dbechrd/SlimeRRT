@@ -27,7 +27,7 @@ struct Chunk {
     inline ChunkHash Hash(void) {
         return ((uint16_t)x << 16) | (uint16_t)y;
     };
-    static inline ChunkHash Chunk::Hash(int16_t x, int16_t y) {
+    static inline ChunkHash Hash(int16_t x, int16_t y) {
         return ((uint16_t)x << 16) | (uint16_t)y;
     };
 };
