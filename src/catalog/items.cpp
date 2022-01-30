@@ -1,4 +1,4 @@
-#include "catalog/items.h"
+#include "items.h"
 
 namespace Catalog {
     void Items::Load(void)
