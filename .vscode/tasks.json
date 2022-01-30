@@ -28,6 +28,28 @@
                 "build"
             ],
             "problemMatcher": "$gcc",
+            // "problemMatcher": [
+            //     {
+            //         "base": "$gcc"
+            //     },
+            //     {
+            //         "owner": "lld-link",
+            //         "fileLocation": "absolute",
+            //         "source": "lld-link",
+            //         "pattern": [
+            //             {
+            //                 "regexp": "^lld-link: (error|warning): (.*)$",
+            //                 "severity": 1,
+            //                 "message": 2
+            //             },
+            //             {
+            //                 "regexp": "^>>> referenced by (.*):(\\d+)$",
+            //                 "file": 1,
+            //                 "line": 2
+            //             }
+            //         ]
+            //     }
+            // ],
             //"dependsOn": [
             //    "cmake"
             //],

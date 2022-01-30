@@ -11,8 +11,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="include\imgui\unity.cpp" />
     <ClCompile Include="src\jail_enet.cpp" />
+    <ClCompile Include="src\jail_imgui.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\jail_win32_console.cpp" />
   </ItemGroup>
