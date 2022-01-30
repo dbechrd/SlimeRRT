@@ -25,6 +25,7 @@ struct PlayerControllerState {
     bool  cameraRotateCW   {};
     bool  cameraRotateCCW  {};
     bool  cameraZoomOut    {};
+    float cameraZoomDelta  {};
     float cameraSpeedDelta {};
     bool  cameraReset      {};
 

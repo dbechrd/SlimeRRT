@@ -644,14 +644,16 @@ bool World::CullTile(Vector2 tilePos, int zoomMipLevel)
     return false;
 }
 
-size_t World::DrawMap(int zoomMipLevel)
+size_t World::DrawMap(const Spycam &spycam)
 {
+    const int zoomMipLevel = spycam.GetZoomMipLevel();
     assert(zoomMipLevel > 0);
     if (!map || zoomMipLevel <= 0) {
         return 0;
     }
 
     size_t tilesDrawn = 0;
+#if 0
     for (size_t y = 0; y < map->height; y += zoomMipLevel) {
         for (size_t x = 0; x < map->width; x += zoomMipLevel) {
             const Vector2 tilePos = { (float)x * TILE_W, (float)y * TILE_W };
@@ -665,6 +667,53 @@ size_t World::DrawMap(int zoomMipLevel)
             }
         }
     }
+#endif
+
+    thread_local OpenSimplexEnv *ose = 0;
+    if (!ose) ose = initOpenSimplex();
+    thread_local OpenSimplexGradients *osg = 0;
+    if (!osg) osg = newOpenSimplexGradients(ose, 1234);
+
+#define PERIOD 2000.0
+#define FREQ 1.0 / PERIOD
+#define PAD 8
+
+    const Rectangle &cameraRect = spycam.GetRect();
+    const float cx = cameraRect.x;
+    const float cy = cameraRect.y;
+    const float tilesW = cameraRect.width / TILE_W;
+    const float tilesH = cameraRect.height / TILE_W;
+    for (float y = -1; y < tilesH + 2; y += zoomMipLevel) {
+        for (float x = -1; x < tilesW + 2; x += zoomMipLevel) {
+            float xx = cx + x * TILE_W;
+            float yy = cy + y * TILE_W;
+            xx -= fmodf(xx, TILE_W);
+            yy -= fmodf(yy, TILE_W);
+            const double noise = 0.5 + noise2(ose, osg, xx * FREQ, yy * FREQ) / 2.0;
+            uint8_t tileColor = (uint8_t)CLAMP(noise * 256, 0, 255.999); // tileColors[(int)tile.type];
+
+            Tile::Type tileType{};
+            if (noise < 0.15) {
+                tileType = Tile::Type::Water;
+            } else if (noise < 0.2) {
+                tileType = Tile::Type::Concrete;
+            } else if (noise < 0.6) {
+                tileType = Tile::Type::Grass;
+            } else if (noise < 0.85) {
+                tileType = Tile::Type::Forest;
+            } else {
+                tileType = Tile::Type::Concrete;
+            }
+
+            tileset_draw_tile(map->tilesetId, tileType, { xx, yy });
+            //DrawRectangle((int)xx + PAD, (int)yy + PAD, TILE_W - PAD*2, TILE_W - PAD*2, { tileColor, tileColor, tileColor, 255 });
+        }
+    }
+
+#undef PERIOD
+#undef FREQ
+#undef PAD
+
     return tilesDrawn;
 }
 

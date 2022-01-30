@@ -43,6 +43,7 @@ struct Tilemap {
     Tilemap  *next       {};
 
     ~Tilemap();
+    bool GenerateNoise      (Texture &tex);
     void GenerateMinimap    (void);
     const Tile *TileAtWorld (float x, float y) const;  // Return tile at pixel position in world space, assert on failure
 };

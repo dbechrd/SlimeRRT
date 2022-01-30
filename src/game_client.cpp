@@ -206,6 +206,10 @@ ErrorType GameClient::Run(void)
     bool show_demo_window = false;
     //---------------------------------------------------------------------------------------
 
+    // TODO(cleanup): Noise test
+    //Texture noise{};
+    //world->map->GenerateNoise(noise);
+
 #define KEY_DOWN(key)
 
     // Main game loop
@@ -516,7 +520,7 @@ ErrorType GameClient::Run(void)
 #if PIXEL_FIXER
         BeginShaderMode(pixelFixer);
 #endif
-        size_t tilesDrawn = world->DrawMap(spycam.GetZoomMipLevel());
+        size_t tilesDrawn = world->DrawMap(spycam);
 #if PIXEL_FIXER
         EndShaderMode();
 #endif
@@ -682,6 +686,12 @@ ErrorType GameClient::Run(void)
         // Render screen (HUD, UI, etc.)
         //----------------------------------------------------------------------
         UI::Minimap(fontSmall, *world);
+
+        // TODO(cleanup): Noise test
+        //DrawTexturePro(noise,
+        //    { 0, 0, (float)noise.width, (float)noise.height },
+        //    { screenSize.x - 4 - 256, (float)4 + world->map->minimap.height + 4, 256, 256 },
+        //    { 0, 0 }, 0, WHITE);
 
         // Render HUD
         UI::DebugStats debugStats{};

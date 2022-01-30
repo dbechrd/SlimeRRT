@@ -3,6 +3,7 @@
 #include "dlb_types.h"
 #include "maths.h"
 #include "net_message.h"
+#include "OpenSimplex2F.h"
 #include "raylib/raylib.h"
 #include <cassert>
 #include <float.h>
@@ -13,6 +14,68 @@ Tilemap::~Tilemap()
     //free(tiles);
     free(rrt.vertices);
     UnloadTexture(minimap);
+}
+
+bool Tilemap::GenerateNoise(Texture &tex)
+{
+    // Check for OpenGL context
+    if (!IsWindowReady()) {
+        return false;
+    }
+
+    Color tileColors[(int)Tile::Type::Count]{};
+    tileColors[(int)Tile::Type::Void] = BLACK;
+    tileColors[(int)Tile::Type::Grass] = GREEN;
+    tileColors[(int)Tile::Type::Water] = SKYBLUE;
+    tileColors[(int)Tile::Type::Forest] = DARKGREEN;
+    tileColors[(int)Tile::Type::Wood] = BROWN;
+    tileColors[(int)Tile::Type::Concrete] = GRAY;
+    tileColors[(int)Tile::Type::Grass2] = GREEN;
+    tileColors[(int)Tile::Type::Grass3] = GREEN;
+
+    thread_local OpenSimplexEnv *ose = 0;
+    if (!ose) ose = initOpenSimplex();
+    thread_local OpenSimplexGradients *osg = 0;
+    if (!osg) osg = newOpenSimplexGradients(ose, 1234);
+
+#define WIDTH 256 //4096
+#define HEIGHT 256 //4096
+#define PERIOD 64.0
+#define OFF_X 2048
+#define OFF_Y 2048
+#define FREQ 1.0 / PERIOD
+
+    Image minimapImg{};
+    minimapImg.width = WIDTH;
+    minimapImg.height = HEIGHT;
+    minimapImg.mipmaps = 1;
+    minimapImg.format = PIXELFORMAT_UNCOMPRESSED_GRAYSCALE; //PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
+    minimapImg.data = calloc(WIDTH * HEIGHT, sizeof(uint8_t));
+    assert(minimapImg.data);
+
+    uint8_t *minimapPixel = (uint8_t *)minimapImg.data;
+    for (int y = 0; y < HEIGHT; y++) {
+        for (int x = 0; x < WIDTH; x++) {
+            const double noise = noise2(ose, osg, (x + OFF_X) * FREQ, (y + OFF_Y) * FREQ);
+            //printf("%0.2f ", noise);
+
+            *minimapPixel = (uint8_t)(128.0 + noise * 128.0); // tileColors[(int)tile.type];
+            //printf("%d ", *minimapPixel);
+            minimapPixel++;
+        }
+        //printf("\n");
+    }
+
+#undef WIDTH
+#undef HEIGHT
+#undef PERIOD
+#undef OFF_X
+#undef OFF_Y
+#undef FREQ
+
+    tex = LoadTextureFromImage(minimapImg);
+    free(minimapImg.data);
+    return true;
 }
 
 void Tilemap::GenerateMinimap(void)
@@ -165,7 +228,7 @@ Tilemap *MapSystem::Generate(dlb_rand32_t &rng, uint16_t chunkRadius)
 
     {
         const int16_t chunksWide = chunkRadius * 2;
-        map->chunks.resize(chunksWide * chunksWide);
+        map->chunks.resize((size_t)chunksWide * chunksWide);
         uint32_t idx = 0;
         for (int16_t y = 0; y < chunksWide; y++) {
             for (int16_t x = 0; x < chunksWide; x++) {

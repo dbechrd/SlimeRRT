@@ -13,6 +13,8 @@
 #include "dlb_rand.h"
 #include <vector>
 
+struct Spycam;
+
 struct World {
     uint64_t       rtt_seed       {};
     dlb_rand32_t   rtt_rand       {};
@@ -63,7 +65,7 @@ struct World {
     void CL_DespawnStaleEntities(void);
 
     void EnableCulling(Rectangle cullRect);
-    size_t DrawMap(int zoomMipLevel);
+    size_t DrawMap(const Spycam &spycam);
     void DrawItems(void);
     void DrawEntities(void);
     void DrawParticles(void);

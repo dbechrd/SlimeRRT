@@ -18,7 +18,11 @@ PlayerControllerState PlayerControllerState::Query(bool processMouse, bool proce
     // Freecam events
     if (freeCamera) {
         if (processMouse) {
-            input.cameraSpeedDelta = GetMouseWheelMove();
+            if (IsKeyDown(KEY_LEFT_CONTROL)) {
+                input.cameraZoomDelta = GetMouseWheelMove();
+            } else {
+                input.cameraSpeedDelta = GetMouseWheelMove();
+            }
         }
         if (processKeyboard) {
             input.cameraNorth = IsKeyDown(KEY_W) && !IsKeyDown(KEY_S);

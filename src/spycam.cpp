@@ -62,7 +62,7 @@ void Spycam::Update(const PlayerControllerState &input, double dt)
 
         // Camera zoom controls
         float zoom = camera.zoom;
-#if 0
+#if 1
         zoom += input.cameraZoomDelta * 0.1f * zoom;
 #elif 0
         if (input.cameraZoomDelta) {
