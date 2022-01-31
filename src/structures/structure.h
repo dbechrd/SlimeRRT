@@ -8,5 +8,5 @@ enum StructureType {
 };
 
 struct Structure {
-    static void Spawn(Tilemap &map, uint32_t x, uint32_t y);
+    static void Spawn(Tilemap &map, float x, float y);
 };

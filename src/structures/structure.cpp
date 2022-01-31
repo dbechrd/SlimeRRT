@@ -4,14 +4,11 @@
 
 #include "vault.cpp"
 
-void Structure::Spawn(Tilemap &map, uint32_t x, uint32_t y)
+void Structure::Spawn(Tilemap &map, float x, float y)
 {
-    assert(x < map.width);
-    assert(y < map.height);
-
-    for (uint32_t j = 0; j < g_structure_vault_h; j++) {
-        for (uint32_t i = 0; i < g_structure_vault_w; i++) {
-            Tile *tile = (Tile *)map.TileAtWorld((float)x+i, (float)y+j);
+    for (uint32_t j = 0; j < g_structure_vault_h; j += TILE_W) {
+        for (uint32_t i = 0; i < g_structure_vault_w; i += TILE_W) {
+            Tile *tile = (Tile *)map.TileAtWorld(x+i, y+j);
             if (tile) {
                 switch (g_structure_vault[j * g_structure_vault_w + i]) {
                     case '.': continue;

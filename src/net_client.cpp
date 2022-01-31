@@ -295,8 +295,6 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                 break;
             }
 
-            serverWorld->map->width = welcomeMsg.width;
-            serverWorld->map->height = welcomeMsg.height;
             // TODO: Get tileset ID from server
             serverWorld->map->tilesetId = TilesetID::TS_Overworld;
             //serverWorld->map->GenerateMinimap();
@@ -320,14 +318,14 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                 auto chunkIter = map.chunksIndex.find(worldChunk.chunk.Hash());
                 if (chunkIter != map.chunksIndex.end()) {
                     TraceLog(LOG_DEBUG, "  Updating existing chunk");
-                    uint32_t idx = chunkIter->second;
+                    size_t idx = chunkIter->second;
                     assert(idx < map.chunks.size());
                     map.chunks[chunkIter->second] = worldChunk.chunk;
                     map.GenerateMinimap();
                 } else {
                     TraceLog(LOG_DEBUG, "  Adding new chunk to chunk list");
                     map.chunks.emplace_back(worldChunk.chunk);
-                    map.chunksIndex[worldChunk.chunk.Hash()] = (uint32_t)map.chunks.size() - 1;
+                    map.chunksIndex[worldChunk.chunk.Hash()] = map.chunks.size() - 1;
                 }
             } else {
                 TraceLog(LOG_ERROR, "  Map is invalid, cannot process chunk");

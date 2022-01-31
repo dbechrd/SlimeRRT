@@ -39,10 +39,10 @@ struct UI {
 
     // World UI
     static void TileHoverOutline(const Tilemap &map);
-    static void WorldGrid(const Tilemap &map);
+    static void WorldGrid(const Spycam &spycam);
 
     // Screen UI
-    static void Minimap(const Font &font, const World &world);
+    static void Minimap(const Font &font, const Spycam &spycam, const World &world);
     static void LoginForm(NetClient &netClient, ImGuiIO& io, bool &escape);
     static void Mixer(void);
     static void Netstat(NetClient &netClient, double renderAt);

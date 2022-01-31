@@ -142,8 +142,6 @@ ErrorType NetServer::SendWelcomeBasket(const NetServerClient &client)
         NetMessage_Welcome &welcome = netMsg.data.welcome;
         welcome.motdLength = (uint32_t)(sizeof("Welcome to The Lonely Island") - 1);
         memcpy(welcome.motd, CSTR("Welcome to The Lonely Island"));
-        welcome.width = serverWorld->map->width;
-        welcome.height = serverWorld->map->height;
         welcome.playerId = client.playerId;
         welcome.playerCount = 0;
         for (size_t i = 0; i < SV_MAX_PLAYERS; i++) {

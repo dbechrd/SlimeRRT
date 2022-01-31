@@ -68,8 +68,6 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                 stream.ProcessChar(welcome.motd[i]);
             }
 
-            stream.Process(welcome.width, 9, WORLD_WIDTH_MIN, WORLD_WIDTH_MAX);
-            stream.Process(welcome.height, 9, WORLD_HEIGHT_MIN, WORLD_HEIGHT_MAX);
             stream.Process(welcome.playerId, 32, 1, UINT32_MAX);
             stream.Align();
 

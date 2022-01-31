@@ -243,10 +243,6 @@ void Player::Update(double dt, InputSample &input, const Tilemap &map)
             }
         }
 
-        if (body.GroundPosition().x < 0.0f) {
-            assert(!"wtf?");
-        }
-
         moveBuffer = {};
     }
 

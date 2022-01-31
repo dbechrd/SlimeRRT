@@ -38,8 +38,6 @@ struct NetMessage_ChatMessage {
 struct NetMessage_Welcome {
     uint32_t motdLength  {};
     char     motd        [MOTD_LENGTH_MAX]{};  // message of the day
-    uint32_t width       {};                   // width of map in tiles
-    uint32_t height      {};                   // height of map in tiles
     uint32_t playerId    {};                   // client's assigned playerId
     uint32_t playerCount {};                   // players in game
     struct NetMessage_Welcome_Player {

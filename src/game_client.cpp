@@ -137,7 +137,7 @@ ErrorType GameClient::Run(void)
 
     World *lobby = new World;
     lobby->tick = 1;
-    lobby->map = lobby->mapSystem.Generate(lobby->rtt_rand, 4);
+    lobby->map = lobby->mapSystem.Alloc();
     Slime &sam = lobby->SpawnSam();
     world = lobby;
 
@@ -380,10 +380,8 @@ ErrorType GameClient::Run(void)
         static bool samTreasureRoom = false;
         if (!samTreasureRoom && world == lobby && sam.combat.diedAt) {
             const Vector2 playerBC = player.body.GroundPosition();
-            uint32_t chestX = MAX(0, int(playerBC.x / TILE_W));
-            uint32_t chestY = MAX(0, int(playerBC.y / TILE_W) - 2);
-            Structure::Spawn(*world->map, chestX - 3, chestY - 4);
-            Vector3 chestPos{ (chestX * TILE_W) + TILE_W * 0.5f, float(chestY * TILE_W), 0.0f };
+            const Vector3 chestPos{ playerBC.x - 3, playerBC.y - 4, 0 };
+            Structure::Spawn(*world->map, chestPos.x, chestPos.y);
 
             // TODO: Make chest/gems items.. or?
             // - D2: flying item animation -> ground item
@@ -521,6 +519,7 @@ ErrorType GameClient::Run(void)
         BeginShaderMode(pixelFixer);
 #endif
         size_t tilesDrawn = world->DrawMap(spycam);
+        //world->DrawNoiseDebug(spycam);
 #if PIXEL_FIXER
         EndShaderMode();
 #endif
@@ -685,7 +684,7 @@ ErrorType GameClient::Run(void)
         //----------------------------------------------------------------------
         // Render screen (HUD, UI, etc.)
         //----------------------------------------------------------------------
-        UI::Minimap(fontSmall, *world);
+        UI::Minimap(fontSmall, spycam, *world);
 
         // TODO(cleanup): Noise test
         //DrawTexturePro(noise,

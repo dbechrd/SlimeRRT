@@ -35,22 +35,37 @@ void UI::TileHoverOutline(const Tilemap &map)
     DrawRectangleLinesEx(mouseTileRect, floorf(spycam->GetInvZoom()), RED);
 }
 
-void UI::WorldGrid(const Tilemap &map)
+void UI::WorldGrid(const Spycam &spycam)
 {
-    for (uint32_t y = 0; y <= map.height; y++) {
-        DrawLine(0, y * TILE_H, map.width * TILE_W, y * TILE_H, BLACK);
+    const Rectangle &camRect = spycam.GetRect();
+    for (float y = 0; y <= camRect.height; y++) {
+        DrawLine(
+            (int)(camRect.x + 0),
+            (int)(camRect.y + y * TILE_H),
+            (int)(camRect.x + camRect.width * TILE_W),
+            (int)(camRect.y + y * TILE_H),
+            BLACK
+        );
     }
-    for (uint32_t x = 0; x <= map.width; x++) {
-        DrawLine(x * TILE_W, 0, x * TILE_W, map.height * TILE_H, BLACK);
+    for (float x = 0; x <= camRect.width; x++) {
+        DrawLine(
+            (int)(camRect.x + x * TILE_W),
+            (int)(camRect.y + 0),
+            (int)(camRect.x + x * TILE_W),
+            (int)(camRect.y + camRect.height * TILE_H),
+            BLACK
+        );
     }
-    const int center_y = map.height / 2 * TILE_H;
-    const int center_x = map.width / 2 * TILE_W;
-    DrawLineEx({ 0, (float)center_y }, { (float)map.width * TILE_W, (float)center_y }, 3.0f, RED);
-    DrawLineEx({ (float)center_x, 0 }, { (float)center_x, (float)map.height * TILE_H }, 3.0f, GREEN);
+    const float center_y = camRect.height / 2 * TILE_H;
+    const float center_x = camRect.width / 2 * TILE_W;
+    DrawLineEx({ 0, (float)center_y }, { camRect.width * TILE_W, center_y }, 3.0f, RED);
+    DrawLineEx({ (float)center_x, 0 }, { center_x, camRect.height * TILE_H }, 3.0f, GREEN);
 }
 
-void UI::Minimap(const Font &font, const World &world)
+void UI::Minimap(const Font &font, const Spycam &spycam, const World &world)
 {
+    const Rectangle &camRect = spycam.GetRect();
+
     // Render minimap
     const int minimapMargin = 6;
     const int minimapBorderWidth = 1;
@@ -67,8 +82,8 @@ void UI::Minimap(const Font &font, const World &world)
     for (size_t i = 0; i < ARRAY_SIZE(world.slimes); i++) {
         const Slime &s = world.slimes[i];
         if (s.id) {
-            float x = (s.body.WorldPosition().x / (world.map->width * TILE_W)) * minimapW + minimapX;
-            float y = (s.body.WorldPosition().y / (world.map->height * TILE_W)) * minimapH + minimapY;
+            float x = (s.body.WorldPosition().x / camRect.width) * minimapW + minimapX;
+            float y = (s.body.WorldPosition().y / camRect.height) * minimapH + minimapY;
             DrawCircle((int)x, (int)y, 2.0f, Color{ 0, 170, 80, 255 });
         }
     }
@@ -77,8 +92,8 @@ void UI::Minimap(const Font &font, const World &world)
     for (size_t i = 0; i < ARRAY_SIZE(world.players); i++) {
         const Player &p = world.players[i];
         if (p.id) {
-            float x = (p.body.WorldPosition().x / (world.map->width * TILE_W)) * minimapW + minimapX;
-            float y = (p.body.WorldPosition().y / (world.map->height * TILE_W)) * minimapH + minimapY;
+            float x = (p.body.WorldPosition().x / camRect.width) * minimapW + minimapX;
+            float y = (p.body.WorldPosition().y / camRect.height) * minimapH + minimapY;
             const Color playerColor{ 220, 90, 20, 255 };
             DrawCircle((int)x, (int)y, 2.0f, playerColor);
             const char *pName = TextFormat("%.*s", p.nameLength, p.name);

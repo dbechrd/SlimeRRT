@@ -31,11 +31,7 @@ const Vector3 World::GetWorldSpawn(void)
     if (!map) {
         return Vector3{};
     }
-    Vector3 worldSpawn = {
-        (float)map->width / 2.0f * 32,
-        (float)map->height / 2.0f * 32,
-        0
-    };
+    Vector3 worldSpawn{ 0, 0, 0 };
     return worldSpawn;
 };
 
@@ -171,17 +167,12 @@ Slime *World::SpawnSlime(uint32_t slimeId)
 
             slime.Init();
 
-            // TODO: Move slime radius somewhere more logical.. some global table of magic numbers?
-            // Or.. use sprite size as radius
-            // Or.. implement a more general "place entity" solution for rocks, trees, monsters, etc.
-            const float slimeRadius = 50.0f;
-            const size_t mapPixelsX = (size_t)map->width * TILE_W;
-            const size_t mapPixelsY = (size_t)map->height * TILE_W;
-            const float maxX = mapPixelsX - slimeRadius;
-            const float maxY = mapPixelsY - slimeRadius;
+            // TODO: Implement a more general "place entity" solution for rocks, trees, monsters, etc.
+            const float maxX = 8192;
+            const float maxY = 8192;
             slime.body.Teleport({
-                dlb_rand32f_range(slimeRadius, maxX),
-                dlb_rand32f_range(slimeRadius, maxY),
+                dlb_rand32f_range(100, maxX),
+                dlb_rand32f_range(100, maxY),
                 0.0f
             });
 
@@ -653,21 +644,44 @@ size_t World::DrawMap(const Spycam &spycam)
     }
 
     size_t tilesDrawn = 0;
-#if 0
-    for (size_t y = 0; y < map->height; y += zoomMipLevel) {
-        for (size_t x = 0; x < map->width; x += zoomMipLevel) {
-            const Vector2 tilePos = { (float)x * TILE_W, (float)y * TILE_W };
-            if (!CullTile(tilePos, zoomMipLevel)) {
-                // Draw all tiles as textured rects (looks best, performs worst)
-                const Tile *tile = map->TileAtWorld(tilePos.x, tilePos.y);
-                if (tile) {
-                    tileset_draw_tile(map->tilesetId, tile->type, tilePos);
-                }
-                tilesDrawn++;
+    const Rectangle &camRect = spycam.GetRect();
+    const float cx = camRect.x;
+    const float cy = camRect.y;
+    const float tilesW = camRect.width / TILE_W;
+    const float tilesH = camRect.height / TILE_W;
+    for (float y = -1; y < tilesH + 2; y += zoomMipLevel) {
+        for (float x = -1; x < tilesW + 2; x += zoomMipLevel) {
+            float xx = cx + x * TILE_W;
+            float yy = cy + y * TILE_W;
+            xx -= fmodf(xx, TILE_W);
+            yy -= fmodf(yy, TILE_W);
+            const Vector2 tilePos = { xx, yy };
+
+            // TODO(perf): Don't try to generate chunks EVERY SINGLE TIME we
+            // draw a freaking tile!! Yikes!
+            const int chunkX = map->CalcChunk(tilePos.x);
+            const int chunkY = map->CalcChunk(tilePos.y);
+            map->FindOrGenChunk(1234, chunkX, chunkY);
+
+            // Draw all tiles as textured rects (looks best, performs worst)
+            const Tile *tile = map->TileAtWorld(tilePos.x, tilePos.y);
+            assert(tile);
+            if (tile) {
+                tileset_draw_tile(map->tilesetId, tile->type, tilePos);
             }
+            tilesDrawn++;
         }
     }
-#endif
+    return tilesDrawn;
+}
+
+void World::DrawNoiseDebug(const Spycam &spycam)
+{
+    const int zoomMipLevel = spycam.GetZoomMipLevel();
+    assert(zoomMipLevel > 0);
+    if (!map || zoomMipLevel <= 0) {
+        return;
+    }
 
     const int seed = 1234;
     thread_local OpenSimplexEnv *ose = 0;
@@ -734,8 +748,6 @@ size_t World::DrawMap(const Spycam &spycam)
 #undef PAD
         }
     }
-
-    return tilesDrawn;
 }
 
 void World::DrawItems(void)

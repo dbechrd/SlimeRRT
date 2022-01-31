@@ -127,36 +127,148 @@ void Tilemap::GenerateMinimap(void)
     free(minimapImg.data);
 }
 
+const int16_t Tilemap::CalcChunk(float world) const
+{
+    const float chunk = world / CHUNK_W / TILE_W;
+    const float chunkFixNeg = chunk < 0.0f ? ceilf(chunk) - 1 : floorf(chunk);
+    return (int16_t)chunkFixNeg;
+}
+
+const int16_t Tilemap::CalcChunkTile(float world) const
+{
+    const float chunk = CalcChunk(world);
+    const float chunkStart = chunk * CHUNK_W * TILE_W;
+    const float chunkOffset = world - chunkStart;
+    const float tile = CLAMP(floorf(chunkOffset / TILE_W), 0, CHUNK_W - 1);
+    return (int16_t)tile;
+}
+
 const Tile *Tilemap::TileAtWorld(float x, float y) const
 {
-    if (x < 0 ||
-        y < 0 ||
-        x >= (float)TILE_W * width ||
-        y >= (float)TILE_W * height)
-    {
-        return 0;
-    }
+    assert(CalcChunk(0) == 0);
+    assert(CalcChunk(1) == 0);
+    assert(CalcChunk(CHUNK_W * TILE_W - 1) == 0);
+    assert(CalcChunk(CHUNK_W * TILE_W) == 1);
 
-    const int tileXWorld = (int)x / TILE_W;
-    const int tileYWorld = (int)y / TILE_W;
-    const int chunkX = tileXWorld / CHUNK_W;
-    const int chunkY = tileYWorld / CHUNK_W;
-    const int tileX = tileXWorld % CHUNK_W;
-    const int tileY = tileYWorld % CHUNK_W;
-    assert(chunkX < 8);
-    assert(chunkY < 8);
+    assert(CalcChunk(-1) == -1);
+    assert(CalcChunk(-(CHUNK_W * TILE_W - 1)) == -1);
+    assert(CalcChunk(-CHUNK_W * TILE_W) == -2);
+
+    assert(CalcChunkTile(0) == 0);
+    assert(CalcChunkTile(1) == 0);
+    assert(CalcChunkTile(TILE_W - 1) == 0);
+    assert(CalcChunkTile(TILE_W) == 1);
+
+    assert(CalcChunkTile(-1) == CHUNK_W - 1);
+    assert(CalcChunkTile(-(CHUNK_W * TILE_W - 1)) == 0);
+    assert(CalcChunkTile(-CHUNK_W * TILE_W) == CHUNK_W - 1);
+
+    const int chunkX = CalcChunk(x);
+    const int chunkY = CalcChunk(y);
+    const int tileX = CalcChunkTile(x);
+    const int tileY = CalcChunkTile(y);
+    assert(tileX >= 0);
+    assert(tileY >= 0);
     assert(tileX < CHUNK_W);
     assert(tileY < CHUNK_W);
 
     auto iter = chunksIndex.find(Chunk::Hash(chunkX, chunkY));
     if (iter != chunksIndex.end()) {
-        uint32_t idx = iter->second;
-        assert(idx < chunks.size());
-        const Chunk &chunk = chunks[idx];
+        size_t chunkIdx = iter->second;
+        assert(chunkIdx < chunks.size());
+        const Chunk &chunk = chunks[chunkIdx];
+        size_t tileIdx = tileY * CHUNK_W + tileX;
+        assert(tileIdx < ARRAY_SIZE(chunk.tiles));
         return &chunk.tiles[tileY * CHUNK_W + tileX];
     }
 
     return 0;
+}
+
+Chunk &Tilemap::FindOrGenChunk(long seed, int16_t chunkX, int16_t chunkY)
+{
+    thread_local OpenSimplexEnv *ose = 0;
+    if (!ose) ose = initOpenSimplex();
+    thread_local OpenSimplexGradients *osg = 0;
+    if (!osg) osg = newOpenSimplexGradients(ose, seed);
+    thread_local OpenSimplexGradients *osg2 = 0;
+    if (!osg2) osg2 = newOpenSimplexGradients(ose, seed + 1);
+
+    ChunkHash chunkHash = Chunk::Hash(chunkX, chunkY);
+    auto chunkIter = chunksIndex.find(chunkHash);
+    if (chunkIter != chunksIndex.end()) {
+        size_t chunkIdx = chunkIter->second;
+        assert(chunkIdx < chunks.size());
+        Chunk &chunk = chunks[chunkIdx];
+        return chunk;
+    }
+
+    Chunk &chunk = chunks.emplace_back();
+    chunksIndex[chunkHash] = chunks.size() - 1;
+
+    chunk.x = chunkX;
+    chunk.y = chunkY;
+
+    size_t tileCount = 0;
+    for (int tileY = 0; tileY < CHUNK_H; tileY++) {
+        for (int tileX = 0; tileX < CHUNK_W; tileX++) {
+            int tileIdx = tileY * CHUNK_W + tileX;
+            assert(tileIdx < ARRAY_SIZE(chunk.tiles));
+            Tile &tile = chunk.tiles[tileY * CHUNK_W + tileX];
+
+            double worldX = (chunk.x * CHUNK_W + tileX) * TILE_W;
+            double worldY = (chunk.y * CHUNK_H + tileY) * TILE_W;
+            //worldX -= fmod(worldX, TILE_W);
+            //worldY -= fmod(worldY, TILE_W);
+
+            Tile::Type tileType{};
+#if 1
+#define FREQ_BASE_LAYER 1.0 / 8000
+#define FREQ_BASE_NOISE 1.0 / 600
+            const double base = 0.5 + noise2(ose, osg, worldX * FREQ_BASE_LAYER, worldY * FREQ_BASE_LAYER) / 2.0;
+            const double baseNoise = 0.5 + noise2(ose, osg2, worldX * FREQ_BASE_NOISE, worldY * FREQ_BASE_NOISE) / 2.0;
+            if (base < 0.15 || (base < 0.25 && baseNoise < 0.7) || (base < 0.35 && baseNoise < 0.3)) {
+                tileType = Tile::Type::Water;
+            } else if (base < 0.4 || (base < 0.5 && baseNoise < 0.7) || (base < 0.55 && baseNoise < 0.3)) {
+                tileType = Tile::Type::Concrete;
+            } else if (base < 0.6 || (base < 0.7 && baseNoise < 0.7) || (base < 0.8 && baseNoise < 0.3)) {
+                tileType = Tile::Type::Grass;
+            } else if (base < 0.9) {
+                tileType = Tile::Type::Forest;
+            } else {
+                tileType = Tile::Type::Concrete;
+                tileType = Tile::Type::Forest;
+            }
+#else
+#define FREQ_BASE_LAYER 1.0 / 10000
+#define FREQ_BASE_NOISE 1.0 / 3000
+            const double base = 0.5 + noise2(ose, osg, xx * FREQ_BASE_LAYER, yy * FREQ_BASE_LAYER) / 2.0;
+            const double baseNoise = 0.5 + noise2(ose, osg2, xx * FREQ_BASE_NOISE, yy * FREQ_BASE_NOISE) / 2.0;
+            if (base + baseNoise < 0.8) {
+                tileType = Tile::Type::Water;
+            } else if (base + baseNoise < 0.86) {
+                tileType = Tile::Type::Concrete;
+            } else if (base + baseNoise < 1.5) {
+                tileType = Tile::Type::Grass;
+            } else if (base + baseNoise < 1.8) {
+                tileType = Tile::Type::Forest;
+            } else {
+                tileType = Tile::Type::Concrete;
+            }
+#endif
+#undef PERIOD
+#undef FREQ
+            tile.type = tileType;
+            tileCount++;
+        }
+    }
+
+    assert(tileCount == ARRAY_SIZE(chunk.tiles));
+
+    // TODO: Update minimap when player moves or chunk changes, without re-generating
+    // whole thing; and only the chunk is within the cull rect of the minimap.
+    //GenerateMinimap();
+    return chunk;
 }
 
 MapSystem::MapSystem(void)
@@ -176,119 +288,6 @@ MapSystem::~MapSystem(void)
     //mapsFree = 0;
 }
 
-Tilemap *MapSystem::GenerateLobby(void)
-{
-    Tilemap *map = Alloc();
-    if (!map) {
-        return 0;
-    }
-
-    map->width = TILE_W * CHUNK_W * 8;
-    map->height = TILE_W * CHUNK_W * 8;
-    map->tilesetId = TilesetID::TS_Overworld;
-
-    for (int y = 0; y < (int)map->height; y++) {
-        for (int x = 0; x < (int)map->width; x++) {
-            const Vector2 position = v2_init((float)x, (float)y);
-            Tile *tile = (Tile *)map->TileAtWorld((float)x * TILE_W, (float)y * TILE_W);
-            assert(tile);
-            if (tile) {
-                const int cx = x - (int)map->width / 2;
-                const int cy = y - (int)map->height / 2;
-                const int island_radius = 16;
-                if (cx*cx + cy*cy > island_radius*island_radius) {
-                //const int border_width = 26;
-                //if (y < border_width || x < border_width || y >= map->height - border_width || x >= map->width - border_width) {
-                    tile->type = Tile::Type::Water;
-                } else {
-                    tile->type = Tile::Type::Concrete;
-                }
-            }
-        }
-    }
-
-    map->GenerateMinimap();
-    return map;
-}
-
-Tilemap *MapSystem::Generate(dlb_rand32_t &rng, uint16_t chunkRadius)
-{
-    assert(chunkRadius);
-    Tilemap *map = Alloc();
-    if (!map) {
-        return 0;
-    }
-
-    map->chunks.clear();
-    map->chunksIndex.clear();
-
-    map->width = chunkRadius * 2 * CHUNK_W;
-    map->height = map->width;
-    map->tilesetId = TilesetID::TS_Overworld;
-
-    {
-        const int16_t chunksWide = chunkRadius * 2;
-        map->chunks.resize((size_t)chunksWide * chunksWide);
-        uint32_t idx = 0;
-        for (int16_t y = 0; y < chunksWide; y++) {
-            for (int16_t x = 0; x < chunksWide; x++) {
-                map->chunks[idx].x = x;
-                map->chunks[idx].y = y;
-                map->chunksIndex[Chunk::Hash(x, y)] = idx;
-                idx++;
-            }
-        }
-    }
-
-    // NOTE: These parameters are chosen somewhat arbitrarily at this point
-    const Vector2 middle = v2_init(0.5f, 0.5f);
-    const size_t rrtSamples = 512;
-    const float maxGrowthDistance = map->width * 0.25f;
-    BuildRRT(*map, rng, middle, rrtSamples, maxGrowthDistance);
-
-    const Vector2 tileCenterOffset = v2_init(0.5f / map->width, 0.5f / map->height);
-    for (int y = 0; y < (int)map->height; y++) {
-        for (int x = 0; x < (int)map->width; x++) {
-            const Vector2 position = v2_init((float)x / map->width, (float)y / map->height);
-            const Vector2 center = v2_add(position, tileCenterOffset);
-            const size_t nearestIdx = RRTNearestIndex(*map, center, map->rrt.vertexCount);
-
-            Tile *tile = (Tile *)map->TileAtWorld((float)x * TILE_W, (float)y * TILE_W);
-            assert(tile);
-            if (tile) {
-                assert(nearestIdx < map->rrt.vertexCount);
-                tile->type = map->rrt.vertices[nearestIdx].tileType;
-                assert(tile->type != Tile::Type::Void);
-            } else {
-                TraceLog(LOG_ERROR, "Failed to find tile at %f %f", x, y);
-            }
-        }
-    }
-
-    // Pass 2: Surround water with sand for @rusteel
-    for (int y = 0; y < (int)map->height; y++) {
-        for (int x = 0; x < (int)map->width; x++) {
-            const Tile *tile = map->TileAtWorld((float)x * TILE_W, (float)y * TILE_W);
-            assert(tile);
-            if (tile && tile->type == Tile::Type::Water) {
-                static const int beachWidth = 2;
-                for (int beachX = x-beachWidth; beachX <= x+beachWidth; beachX++) {
-                    for (int beachY = y-beachWidth; beachY <= y+beachWidth; beachY++) {
-                        if (beachX == 0 && beachY == 0) continue;  // this is the water tile
-                        Tile *tile = (Tile *)map->TileAtWorld((float)beachX * TILE_W, (float)beachY * TILE_W);
-                        if (tile && tile->type != Tile::Type::Water && tile->type != Tile::Type::Concrete) {
-                            tile->type = Tile::Type::Concrete;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    map->GenerateMinimap();
-    return map;
-}
-
 Tilemap *MapSystem::Alloc(void)
 {
     Tilemap *map = mapsFree;
@@ -301,70 +300,4 @@ Tilemap *MapSystem::Alloc(void)
     mapsActiveCount++;
 
     return map;
-}
-
-void MapSystem::BuildRRT(Tilemap &map, dlb_rand32_t &rng, Vector2 qinit, size_t numVertices, float maxGrowthDist)
-{
-    float maxGrowthDistSq = maxGrowthDist * maxGrowthDist;
-
-    map.rrt.vertexCount = numVertices;
-    map.rrt.vertices = (RRTVertex *)calloc(map.rrt.vertexCount, sizeof(*map.rrt.vertices));
-    assert(map.rrt.vertices);
-
-    const int tileMin = (int)Tile::Type::Void + 1;
-    const int tileMax = (int)Tile::Type::Count - 1;
-
-    RRTVertex *vertex = map.rrt.vertices;
-    vertex->tileType = (Tile::Type)dlb_rand32i_range_r(&rng, tileMin, tileMax);
-    vertex->position = qinit;
-    vertex++;
-
-    size_t randTiles = numVertices / 8;
-
-    Vector2 qrand = {};
-    for (size_t tileIdx = 1; tileIdx < map.rrt.vertexCount; tileIdx++) {
-        qrand.x = (float)dlb_rand32f_range_r(&rng, 0.0f, 1.0f);
-        qrand.y = (float)dlb_rand32f_range_r(&rng, 0.0f, 1.0f);
-
-        size_t nearestIdx = RRTNearestIndex(map, qrand, randTiles);
-        Vector2 qnear = map.rrt.vertices[nearestIdx].position;
-        Vector2 qnew = v2_sub(qrand, qnear);
-#if 0
-        bool constantIncrement = false;  // always increment by "maxGrowthDist"
-        bool clampIncrement = true;     // increment at most by maxGrowthDist
-        if (constantIncrement || (clampIncrement && Vector2::LengthSq(qnear) > maxGrowthDistSq)) {
-            qnew = Vector2::Normalize(qrand - qnear) * maxGrowthDist;
-        }
-#else
-        UNUSED(maxGrowthDistSq);
-#endif
-        qnew = v2_add(qnew, qnear);
-        if (tileIdx < randTiles) {
-            vertex->tileType = (Tile::Type)dlb_rand32i_range_r(&rng, tileMin, tileMax);
-            assert((int)vertex->tileType >= tileMin);
-            assert((int)vertex->tileType <= tileMax);
-        } else {
-            vertex->tileType = map.rrt.vertices[nearestIdx].tileType;
-            assert((int)vertex->tileType >= tileMin);
-            assert((int)vertex->tileType <= tileMax);
-        }
-        vertex->position = qnew;
-        vertex++;
-    }
-}
-
-size_t MapSystem::RRTNearestIndex(Tilemap &map, Vector2 p, size_t randTiles)
-{
-    assert(map.rrt.vertexCount);
-
-    float minDistSq = FLT_MAX;
-    size_t minIdx = 0;
-    for (size_t i = 0; i < randTiles && i < map.rrt.vertexCount; i++) {
-        float distSq = v2_distance_sq(p, map.rrt.vertices[i].position);
-        if (distSq < minDistSq) {
-            minDistSq = distSq;
-            minIdx = i;
-        }
-    }
-    return minIdx;
 }
