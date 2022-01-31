@@ -669,14 +669,13 @@ size_t World::DrawMap(const Spycam &spycam)
     }
 #endif
 
+    const int seed = 1234;
     thread_local OpenSimplexEnv *ose = 0;
     if (!ose) ose = initOpenSimplex();
     thread_local OpenSimplexGradients *osg = 0;
-    if (!osg) osg = newOpenSimplexGradients(ose, 1234);
-
-#define PERIOD 2000.0
-#define FREQ 1.0 / PERIOD
-#define PAD 8
+    if (!osg) osg = newOpenSimplexGradients(ose, seed);
+    thread_local OpenSimplexGradients *osg2 = 0;
+    if (!osg2) osg2 = newOpenSimplexGradients(ose, seed + 1);
 
     const Rectangle &cameraRect = spycam.GetRect();
     const float cx = cameraRect.x;
@@ -689,30 +688,52 @@ size_t World::DrawMap(const Spycam &spycam)
             float yy = cy + y * TILE_W;
             xx -= fmodf(xx, TILE_W);
             yy -= fmodf(yy, TILE_W);
-            const double noise = 0.5 + noise2(ose, osg, xx * FREQ, yy * FREQ) / 2.0;
-            uint8_t tileColor = (uint8_t)CLAMP(noise * 256, 0, 255.999); // tileColors[(int)tile.type];
-
             Tile::Type tileType{};
-            if (noise < 0.15) {
+#if 1
+#define FREQ_BASE_LAYER 1.0 / 8000
+#define FREQ_BASE_NOISE 1.0 / 600
+            const double base = 0.5 + noise2(ose, osg, xx * FREQ_BASE_LAYER, yy * FREQ_BASE_LAYER) / 2.0;
+            const double baseNoise = 0.5 + noise2(ose, osg2, xx * FREQ_BASE_NOISE, yy * FREQ_BASE_NOISE) / 2.0;
+            if (base < 0.15 || (base < 0.25 && baseNoise < 0.7) || (base < 0.35 && baseNoise < 0.3)) {
                 tileType = Tile::Type::Water;
-            } else if (noise < 0.2) {
+            } else if (base < 0.4 || (base < 0.5 && baseNoise < 0.7) || (base < 0.55 && baseNoise < 0.3)) {
                 tileType = Tile::Type::Concrete;
-            } else if (noise < 0.6) {
+            } else if (base < 0.6 || (base < 0.7 && baseNoise < 0.7) || (base < 0.8 && baseNoise < 0.3)) {
                 tileType = Tile::Type::Grass;
-            } else if (noise < 0.85) {
+            } else if (base < 0.9) {
+                tileType = Tile::Type::Forest;
+            } else {
+                tileType = Tile::Type::Concrete;
+                tileType = Tile::Type::Forest;
+            }
+#else
+#define FREQ_BASE_LAYER 1.0 / 10000
+#define FREQ_BASE_NOISE 1.0 / 3000
+            const double base = 0.5 + noise2(ose, osg, xx * FREQ_BASE_LAYER, yy * FREQ_BASE_LAYER) / 2.0;
+            const double baseNoise = 0.5 + noise2(ose, osg2, xx * FREQ_BASE_NOISE, yy * FREQ_BASE_NOISE) / 2.0;
+            if (base + baseNoise < 0.8) {
+                tileType = Tile::Type::Water;
+            } else if (base + baseNoise < 0.86) {
+                tileType = Tile::Type::Concrete;
+            } else if (base + baseNoise < 1.5) {
+                tileType = Tile::Type::Grass;
+            } else if (base + baseNoise < 1.8) {
                 tileType = Tile::Type::Forest;
             } else {
                 tileType = Tile::Type::Concrete;
             }
-
-            tileset_draw_tile(map->tilesetId, tileType, { xx, yy });
-            //DrawRectangle((int)xx + PAD, (int)yy + PAD, TILE_W - PAD*2, TILE_W - PAD*2, { tileColor, tileColor, tileColor, 255 });
-        }
-    }
-
+#endif
 #undef PERIOD
 #undef FREQ
+
+            tileset_draw_tile(map->tilesetId, tileType, { xx, yy });
+
+#define PAD 8
+            uint8_t tileColor = (uint8_t)CLAMP(baseNoise * 256, 0, 255.999); // tileColors[(int)tile.type];
+            //DrawRectangle((int)xx + PAD, (int)yy + PAD, TILE_W - PAD*2, TILE_W - PAD*2, { tileColor, tileColor, tileColor, 255 });
 #undef PAD
+        }
+    }
 
     return tilesDrawn;
 }
