@@ -50,12 +50,12 @@ void ItemWorld::Update(double dt)
 void ItemWorld::Draw(void) const
 {
     if (pickedUpAt) {
-        DrawCircleV(body.VisualPosition(), 20.0f, RED);
+        DrawCircleV(body.VisualPosition(), 5.0f, RED);
     } else {
         if (sprite.spriteDef) {
             sprite_draw_body(sprite, body, WHITE);
         } else {
-            DrawCircleV(body.VisualPosition(), 20.0f, PURPLE);
+            DrawCircleV(body.VisualPosition(), 10.0f, PURPLE);
         }
 
         Vector3 topCenter = WorldTopCenter();

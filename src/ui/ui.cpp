@@ -359,7 +359,7 @@ void UI::HUD(const Font &font, const Player &player, const DebugStats &debugStat
 
     text = TextFormat("%2i fps (%.02f ms)", GetFPS(), GetFrameTime() * 1000.0f);
     PUSH_TEXT(text, WHITE);
-    text = TextFormat("Coins: %d", player.inventory.slots[(int)PlayerInventorySlot::Coins].count);
+    text = TextFormat("Coins: %d", player.inventory.slots[(int)PlayerInventorySlot::Coin_Copper].count);
     PUSH_TEXT(text, YELLOW);
     text = TextFormat("Coins collected   %u", player.stats.coinsCollected);
     PUSH_TEXT(text, LIGHTGRAY);
@@ -482,16 +482,16 @@ void UI::QuickHUD(const Font &font, const Player &player)
 
     hudCursorY += pad;
 
-    const Spritesheet &coinSpritesheet = Catalog::g_spritesheets.FindById(Catalog::SpritesheetID::Coin);
-    const SpriteDef *coinSpriteDef = coinSpritesheet.FindSprite("coin");
+    const Spritesheet &gildedSpritesheet = Catalog::g_spritesheets.FindById(Catalog::SpritesheetID::Coin_Gilded);
+    const SpriteDef *gildedSpriteDef = gildedSpritesheet.FindSprite("coin");
     Rectangle frameRect{};
-    frameRect.x      = (float)coinSpriteDef->spritesheet->frames[3].x;
-    frameRect.y      = (float)coinSpriteDef->spritesheet->frames[3].y;
-    frameRect.width  = (float)coinSpriteDef->spritesheet->frames[3].width;
-    frameRect.height = (float)coinSpriteDef->spritesheet->frames[3].height;
-    DrawTextureRec(coinSpriteDef->spritesheet->texture, frameRect, { margin + pad, hudCursorY }, WHITE);
+    frameRect.x      = (float)gildedSpriteDef->spritesheet->frames[3].x;
+    frameRect.y      = (float)gildedSpriteDef->spritesheet->frames[3].y;
+    frameRect.width  = (float)gildedSpriteDef->spritesheet->frames[3].width;
+    frameRect.height = (float)gildedSpriteDef->spritesheet->frames[3].height;
+    DrawTextureRec(gildedSpriteDef->spritesheet->texture, frameRect, { margin + pad, hudCursorY }, WHITE);
 
-    text = TextFormat("%d", player.inventory.slots[(int)PlayerInventorySlot::Coins].count);
+    text = TextFormat("%d", player.inventory.slots[(int)PlayerInventorySlot::Coin_Copper].count);
 
     DrawTextFont(font, text, margin + pad + frameRect.width + pad, hudCursorY, 0, 0, font.baseSize, WHITE);
     hudCursorY += font.baseSize + pad;

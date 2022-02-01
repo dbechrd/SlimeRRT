@@ -8,7 +8,7 @@ namespace Catalog {
         Empty,
         Blood,
         Gem,
-        Gold,
+        Copper,
         GoldenChest,
         Goo,
         Count

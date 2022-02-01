@@ -4,7 +4,9 @@
 namespace Catalog {
     enum class ItemID {
         Empty,
-        Currency_Coin,
+        Currency_Copper,
+        Currency_Silver,
+        Currency_Gilded,
         Weapon_Sword,
         Count
     };

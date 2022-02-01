@@ -47,13 +47,16 @@ ItemWorld *ItemSystem::SpawnItem(Vector3 pos, Catalog::ItemID catalogId, uint32_
     item.body.restitution = 0.2f;
     item.body.friction = 0.2f;
 
-    static const SpriteDef *coinSpriteDef{};
-    if (!coinSpriteDef) {
-        const Spritesheet &coinSpritesheet = Catalog::g_spritesheets.FindById(Catalog::SpritesheetID::Coin);
-        coinSpriteDef = coinSpritesheet.FindSprite("coin");
-        //assert(coinSpriteDef);
+    Catalog::SpritesheetID spritesheetId = Catalog::SpritesheetID::Empty;
+    switch (catalogId) {
+        case Catalog::ItemID::Currency_Copper: spritesheetId = Catalog::SpritesheetID::Coin_Copper; break;
+        case Catalog::ItemID::Currency_Silver: spritesheetId = Catalog::SpritesheetID::Coin_Silver; break;
+        case Catalog::ItemID::Currency_Gilded: spritesheetId = Catalog::SpritesheetID::Coin_Gilded; break;
     }
-    item.sprite.spriteDef = coinSpriteDef;
+    if (spritesheetId != Catalog::SpritesheetID::Empty) {
+        const Spritesheet &spritesheet = Catalog::g_spritesheets.FindById(spritesheetId);
+        item.sprite.spriteDef =spritesheet.FindSprite("coin");
+    }
     item.sprite.scale = 1.0f;
     item.spawnedAt = glfwGetTime();
 

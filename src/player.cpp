@@ -27,7 +27,9 @@ void Player::Init(const SpriteDef *spriteDef)
 
     // TODO: Load inventory from save file / server
     inventory.slots[(int)PlayerInventorySlot::Slot_1] = { Catalog::ItemID::Weapon_Sword , 1 };
-    inventory.slots[(int)PlayerInventorySlot::Coins ] = { Catalog::ItemID::Currency_Coin, 0 };
+    inventory.slots[(int)PlayerInventorySlot::Coin_Copper] = { Catalog::ItemID::Currency_Copper, 0 };
+    inventory.slots[(int)PlayerInventorySlot::Coin_Silver] = { Catalog::ItemID::Currency_Silver, 0 };
+    inventory.slots[(int)PlayerInventorySlot::Coin_Gilded] = { Catalog::ItemID::Currency_Gilded, 0 };
 
     // TODO: Load stats from save file / server
     //stats.coinsCollected = 33;

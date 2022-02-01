@@ -287,7 +287,7 @@ void World::SV_SimSlimes(double dt)
             Vector3 itemPos = slime.WorldCenter();
             itemPos.x += dlb_rand32f_variance(METERS_TO_PIXELS(0.5f));
             itemPos.y += dlb_rand32f_variance(METERS_TO_PIXELS(0.5f));
-            itemSystem.SpawnItem(itemPos, Catalog::ItemID::Currency_Coin, coins);
+            itemSystem.SpawnItem(itemPos, Catalog::ItemID::Currency_Copper, coins);
 
             slime.combat.diedAt = glfwGetTime();
             continue;
@@ -391,9 +391,18 @@ void World::SV_SimItems(double dt)
             TraceLog(LOG_DEBUG, "Sim: Item picked up %u", item.id);
 
             switch (item.stack.id) {
-                case Catalog::ItemID::Currency_Coin: {
+                case Catalog::ItemID::Currency_Copper: {
                     // TODO(design): Convert coins to higher currency if stack fills up?
-                    closestPlayer->inventory.slots[(int)PlayerInventorySlot::Coins].count += item.stack.count;
+                    closestPlayer->inventory.slots[(int)PlayerInventorySlot::Coin_Copper].count += item.stack.count;
+                    closestPlayer->stats.coinsCollected += item.stack.count;
+                    break;
+                } case Catalog::ItemID::Currency_Silver: {
+                    // TODO(design): Convert coins to higher currency if stack fills up?
+                    closestPlayer->inventory.slots[(int)PlayerInventorySlot::Coin_Silver].count += item.stack.count;
+                    closestPlayer->stats.coinsCollected += item.stack.count;
+                    break;
+                } case Catalog::ItemID::Currency_Gilded: {
+                    closestPlayer->inventory.slots[(int)PlayerInventorySlot::Coin_Gilded].count += item.stack.count;
                     closestPlayer->stats.coinsCollected += item.stack.count;
                     break;
                 } case Catalog::ItemID::Weapon_Sword: {

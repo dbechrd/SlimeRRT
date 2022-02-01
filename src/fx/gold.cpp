@@ -1,9 +1,9 @@
-#include "particles.h"
+#include "../particles.h"
 #include "dlb_rand.h"
 #include <cassert>
 
 namespace FX {
-    void gold_init(Particle &particle, ParticleEffect &effect)
+    void copper_init(Particle &particle, ParticleEffect &effect)
     {
         // Spawn randomly during first 5% of duration
         particle.spawnAt = effect.duration * dlb_rand32f_variance(0.05f);
@@ -28,18 +28,18 @@ namespace FX {
         particle.color = WHITE;
         particle.sprite.scale = 1.0f;
 
-        static const SpriteDef *coinSpriteDef{};
-        if (!coinSpriteDef) {
-            const Spritesheet &coinSpritesheet = Catalog::g_spritesheets.FindById(Catalog::SpritesheetID::Coin);
-            coinSpriteDef = coinSpritesheet.FindSprite("coin");
+        static const SpriteDef *copperSpriteDef{};
+        if (!copperSpriteDef) {
+            const Spritesheet &copperSpritesheet = Catalog::g_spritesheets.FindById(Catalog::SpritesheetID::Coin_Copper);
+            copperSpriteDef = copperSpritesheet.FindSprite("coin");
 
             // TODO: Don't play particle effects on the server so that we can re-enable this assert on client side
             //assert(coinSpriteDef);
         }
-        particle.sprite.spriteDef = coinSpriteDef;
+        particle.sprite.spriteDef = copperSpriteDef;
     }
 
-    void gold_update(Particle &particle, float alpha)
+    void copper_update(Particle &particle, float alpha)
     {
         UNUSED(particle);
         UNUSED(alpha);

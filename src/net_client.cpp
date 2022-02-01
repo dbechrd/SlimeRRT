@@ -526,7 +526,12 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                     if (itemSnapshot.flags & ItemSnapshot::Flags::Despawn) {
                         continue;
                     }
-                    item = serverWorld->itemSystem.SpawnItem(serverWorld->GetWorldSpawn(), Catalog::ItemID::Weapon_Sword, 42, itemSnapshot.id);
+                    item = serverWorld->itemSystem.SpawnItem(
+                        itemSnapshot.position,
+                        itemSnapshot.catalogId,
+                        itemSnapshot.stackCount,
+                        itemSnapshot.id
+                    );
                     if (!item) {
                         TraceLog(LOG_ERROR, "Failed to spawn item.");
                         continue;
@@ -537,9 +542,36 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                     TraceLog(LOG_DEBUG, "Snapshot: item #%u", itemSnapshot.id);
                 }
 
-                if (itemSnapshot.flags & ItemSnapshot::Flags::Position) {
-                    item->body.Teleport(itemSnapshot.position);
+                const bool posChanged = itemSnapshot.flags & ItemSnapshot::Flags::Position;
+
+                if (posChanged) {
+                    const Vector3Snapshot *prevState{};
+                    if (item->body.positionHistory.Count()) {
+                        prevState = &item->body.positionHistory.Last();
+                    }
+
+                    Vector3Snapshot &state = item->body.positionHistory.Alloc();
+                    state.recvAt = worldSnapshot.recvAt;
+
+                    if (posChanged) {
+                        //TraceLog(LOG_DEBUG, "Snapshot: pos %f %f %f",
+                        //    itemSnapshot.position.x,
+                        //    itemSnapshot.position.y,
+                        //    itemSnapshot.position.z);
+                        state.v = itemSnapshot.position;
+                    } else {
+                        if (prevState) {
+                            state.v = prevState->v;
+                        } else {
+                            TraceLog(LOG_WARNING, "Received direction update but prevPosition is not known.");
+                            state.v = item->body.WorldPosition();
+                        }
+                    }
                 }
+
+                //if (itemSnapshot.flags & ItemSnapshot::Flags::Position) {
+                //    item->body.Teleport(itemSnapshot.position);
+                //}
                 if (itemSnapshot.flags & ItemSnapshot::Flags::CatalogId) {
                     item->stack.id = itemSnapshot.catalogId;
                 }

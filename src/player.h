@@ -17,7 +17,12 @@ enum class PlayerInventorySlot {
     Slot_4 = 4,
     Slot_5 = 5,
     Slot_6 = 6,
-    Coins = 7,
+    Slot_7 = 7,
+    Slot_8 = 8,
+    Slot_9 = 9,
+    Coin_Copper = 10,
+    Coin_Silver = 11,
+    Coin_Gilded = 12,
     Count
 };
 
