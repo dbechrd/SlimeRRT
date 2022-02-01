@@ -129,9 +129,8 @@ void Tilemap::GenerateMinimap(void)
 
 const int16_t Tilemap::CalcChunk(float world) const
 {
-    const float chunk = world / CHUNK_W / TILE_W;
-    const float chunkFixNeg = chunk < 0.0f ? ceilf(chunk) - 1 : floorf(chunk);
-    return (int16_t)chunkFixNeg;
+    float chunk = floorf(world / CHUNK_W / TILE_W);
+    return (int16_t)chunk;
 }
 
 const int16_t Tilemap::CalcChunkTile(float world) const
@@ -139,8 +138,12 @@ const int16_t Tilemap::CalcChunkTile(float world) const
     const float chunk = CalcChunk(world);
     const float chunkStart = chunk * CHUNK_W * TILE_W;
     const float chunkOffset = world - chunkStart;
-    const float tile = CLAMP(floorf(chunkOffset / TILE_W), 0, CHUNK_W - 1);
-    return (int16_t)tile;
+    const float tilef = CLAMP(floorf(chunkOffset / TILE_W), 0, CHUNK_W - 1);
+    //const float tilef = floorf(chunkOffset / TILE_W);
+    int16_t tile = (int16_t)tilef;
+    DLB_ASSERT(tile >= 0);
+    DLB_ASSERT(tile < CHUNK_W);
+    return tile;
 }
 
 const Tile *Tilemap::TileAtWorld(float x, float y) const
@@ -152,7 +155,8 @@ const Tile *Tilemap::TileAtWorld(float x, float y) const
 
     assert(CalcChunk(-1) == -1);
     assert(CalcChunk(-(CHUNK_W * TILE_W - 1)) == -1);
-    assert(CalcChunk(-CHUNK_W * TILE_W) == -2);
+    assert(CalcChunk(-(CHUNK_W * TILE_W)) == -1);
+    assert(CalcChunk(-(CHUNK_W * TILE_W + 1)) == -2);
 
     assert(CalcChunkTile(0) == 0);
     assert(CalcChunkTile(1) == 0);
@@ -161,16 +165,17 @@ const Tile *Tilemap::TileAtWorld(float x, float y) const
 
     assert(CalcChunkTile(-1) == CHUNK_W - 1);
     assert(CalcChunkTile(-(CHUNK_W * TILE_W - 1)) == 0);
-    assert(CalcChunkTile(-CHUNK_W * TILE_W) == CHUNK_W - 1);
+    assert(CalcChunkTile(-(CHUNK_W * TILE_W)) == 0);
+    assert(CalcChunkTile(-(CHUNK_W * TILE_W + 1)) == CHUNK_W - 1);
 
     const int chunkX = CalcChunk(x);
     const int chunkY = CalcChunk(y);
     const int tileX = CalcChunkTile(x);
     const int tileY = CalcChunkTile(y);
-    assert(tileX >= 0);
-    assert(tileY >= 0);
-    assert(tileX < CHUNK_W);
-    assert(tileY < CHUNK_W);
+    DLB_ASSERT(tileX >= 0);
+    DLB_ASSERT(tileY >= 0);
+    DLB_ASSERT(tileX < CHUNK_W);
+    DLB_ASSERT(tileY < CHUNK_H);
 
     auto iter = chunksIndex.find(Chunk::Hash(chunkX, chunkY));
     if (iter != chunksIndex.end()) {
@@ -181,11 +186,10 @@ const Tile *Tilemap::TileAtWorld(float x, float y) const
         assert(tileIdx < ARRAY_SIZE(chunk.tiles));
         return &chunk.tiles[tileY * CHUNK_W + tileX];
     }
-
     return 0;
 }
 
-Chunk &Tilemap::FindOrGenChunk(long seed, int16_t chunkX, int16_t chunkY)
+Chunk &Tilemap::FindOrGenChunk(int64_t seed, int16_t chunkX, int16_t chunkY)
 {
     thread_local OpenSimplexEnv *ose = 0;
     if (!ose) ose = initOpenSimplex();
@@ -202,6 +206,8 @@ Chunk &Tilemap::FindOrGenChunk(long seed, int16_t chunkX, int16_t chunkY)
         Chunk &chunk = chunks[chunkIdx];
         return chunk;
     }
+
+    TraceLog(LOG_INFO, "Generating world chunk [%hd, %hd]", chunkX, chunkY);
 
     Chunk &chunk = chunks.emplace_back();
     chunksIndex[chunkHash] = chunks.size() - 1;

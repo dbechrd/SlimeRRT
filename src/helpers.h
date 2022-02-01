@@ -42,7 +42,7 @@
 //------------------------------------------------------------------------------
 #define TILE_W 32
 #define TILE_H TILE_W
-#define CHUNK_W 32
+#define CHUNK_W 4 //32
 #define CHUNK_H CHUNK_W
 
 #define SV_HOSTNAME_LENGTH_MAX      256
@@ -102,10 +102,8 @@
 #define MOTD_LENGTH_MAX         64
 #define CHATMSG_LENGTH_MIN      0
 #define CHATMSG_LENGTH_MAX      512  // not including nil terminator, must be < CHATMSG_BUFFER_LEN
-#define WORLD_WIDTH_MIN         1
-#define WORLD_WIDTH_MAX         256
-#define WORLD_HEIGHT_MIN        1
-#define WORLD_HEIGHT_MAX        256
+#define WORLD_CHUNK_MIN         INT16_MIN
+#define WORLD_CHUNK_MAX         INT16_MAX
 #define WORLD_CHUNK_TILES       256
 #define ENTITY_POSITION_X_MIN   0
 #define ENTITY_POSITION_X_MAX   UINT32_MAX  // Actually a float, so we need to allow full range

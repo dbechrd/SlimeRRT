@@ -22,9 +22,9 @@ typedef uint32_t ChunkHash;
 struct Chunk {
     int16_t x{};  // chunk x offset
     int16_t y{};  // chunk y offset
-    Tile tiles[1024]{};  // 32x32 tiles per chunk
+    Tile tiles[CHUNK_W * CHUNK_W]{};  // 32x32 tiles per chunk
 
-    inline ChunkHash Hash(void) {
+    inline ChunkHash Hash(void) const {
         return ((uint16_t)x << 16) | (uint16_t)y;
     };
     static inline ChunkHash Hash(int16_t x, int16_t y) {
@@ -48,7 +48,7 @@ struct Tilemap {
     const int16_t CalcChunk     (float world) const;
     const int16_t CalcChunkTile (float world) const;
     const Tile *TileAtWorld     (float x, float y) const;  // Return tile at pixel position in world space, assert on failure
-    Chunk &FindOrGenChunk       (long seed, int16_t x, int16_t y);
+    Chunk &FindOrGenChunk       (int64_t seed, int16_t x, int16_t y);
 };
 
 #define MAX_TILEMAPS 8

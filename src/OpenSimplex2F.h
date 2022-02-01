@@ -48,7 +48,7 @@ typedef struct {
 } OpenSimplexEnv;
 
 OpenSimplexEnv *initOpenSimplex();
-OpenSimplexGradients *newOpenSimplexGradients(OpenSimplexEnv *ose, long seed);
+OpenSimplexGradients *newOpenSimplexGradients(OpenSimplexEnv *ose, long long seed);
 double noise2(OpenSimplexEnv *ose, OpenSimplexGradients *osg, double x, double y);
 double noise2_XBeforeY(OpenSimplexEnv *ose, OpenSimplexGradients *osg, double x, double y);
 double noise3_Classic(OpenSimplexEnv *ose, OpenSimplexGradients *osg, double x, double y, double z);

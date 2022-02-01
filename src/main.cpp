@@ -8,6 +8,23 @@
 #include "jail_win32_console.h"
 #include "../test/tests.h"
 
+DLB_ASSERT_HANDLER(handle_assert)
+{
+    TraceLog(LOG_FATAL,
+        "\n---[DLB_ASSERT_HANDLER]-----------------\n"
+        "Source file: %s:%d\n\n"
+        "%s\n"
+        "----------------------------------------\n",
+        filename, line, expr
+    );
+    fflush(stdout);
+    fflush(stderr);
+    __debugbreak();
+    assert(0);
+    exit(-1);
+}
+dlb_assert_handler_def *dlb_assert_handler = handle_assert;
+
 int main(int argc, char *argv[])
 {
     _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_CHECK_ALWAYS_DF | _CRTDBG_LEAK_CHECK_DF); //| _CRTDBG_CHECK_CRT_DF);

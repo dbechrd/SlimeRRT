@@ -643,6 +643,8 @@ size_t World::DrawMap(const Spycam &spycam)
         return 0;
     }
 
+    bool debugPrint = IsKeyPressed(KEY_F9);
+
     size_t tilesDrawn = 0;
     const Rectangle &camRect = spycam.GetRect();
     const float cx = camRect.x;
@@ -655,20 +657,38 @@ size_t World::DrawMap(const Spycam &spycam)
             float yy = cy + y * TILE_W;
             xx -= fmodf(xx, TILE_W);
             yy -= fmodf(yy, TILE_W);
-            const Vector2 tilePos = { xx, yy };
 
+            //float chx = map->CalcChunk(xx);
+            //float chy = map->CalcChunk(yy);
+            //float tix = map->CalcChunkTile(xx);
+            //float tiy = map->CalcChunkTile(yy);
+            //float rx = (chx * CHUNK_W + tix) * TILE_W;
+            //float ry = (chy * CHUNK_W + tiy) * TILE_W;
+            //rx -= fmodf(xx, TILE_W);
+            //rx -= fmodf(yy, TILE_W);
+
+            //float rx = xx - fmodf(xx, TILE_W);
+            //float ry = yy - fmodf(yy, TILE_W);
+#if 0
             // TODO(perf): Don't try to generate chunks EVERY SINGLE TIME we
             // draw a freaking tile!! Yikes!
             const int chunkX = map->CalcChunk(tilePos.x);
             const int chunkY = map->CalcChunk(tilePos.y);
             map->FindOrGenChunk(1234, chunkX, chunkY);
-
+#endif
             // Draw all tiles as textured rects (looks best, performs worst)
-            const Tile *tile = map->TileAtWorld(tilePos.x, tilePos.y);
-            assert(tile);
-            if (tile) {
-                tileset_draw_tile(map->tilesetId, tile->type, tilePos);
-            }
+            const Tile *tile = map->TileAtWorld(xx, yy);
+            tileset_draw_tile(map->tilesetId, tile ? tile->type : Tile::Type::Void, { xx, yy });
+
+            //if (tile) {
+            //    //tileset_draw_tile(map->tilesetId, tile ? tile->type : Tile::Type::Void, { rx, ry });
+            //    tileset_draw_tile(map->tilesetId, tile ? tile->type : Tile::Type::Void, { xx, yy });
+            //} else {
+            //    int xEven = (int)xx / TILE_W % 2;
+            //    int yEven = (int)yy / TILE_W % 2;
+            //    int black = (xEven + yEven) % 2 == 0;
+            //    DrawRectangle((int)xx, (int)yy, TILE_W, TILE_W, black ? DARKGRAY : LIGHTGRAY);
+            //}
             tilesDrawn++;
         }
     }

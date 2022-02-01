@@ -17,6 +17,15 @@ ErrorType GameServer::Run()
 
     World *world = new World;
     world->map = world->mapSystem.Alloc();
+
+    //world->map->FindOrGenChunk(world->rtt_seed, -1, 0);
+
+    for (short y = -2; y < 2; y++) {
+        for (short x = -2; x < 2; x++) {
+            world->map->FindOrGenChunk(world->rtt_seed, x, y);
+        }
+    }
+
     netServer.serverWorld = world;
 
     {
@@ -86,13 +95,15 @@ ErrorType GameServer::Run()
                     continue;
                 }
 
+                // Send nearby chunks to player if they haven't received them yet
+                netServer.SendNearbyChunks(client);
+
                 if (glfwGetTime() - client.lastSnapshotSentAt > 1.0 / SNAPSHOT_SEND_RATE) {
 #if SV_DEBUG_INPUT
                     printf("Sending snapshot for tick %u / input seq #%u, to player %u\n", world->tick, client.lastInputAck, client.playerId);
 #endif
                     // Send snapshot
                     E_ASSERT(netServer.SendWorldSnapshot(client), "Failed to send world snapshot");
-                    client.lastSnapshotSentAt = glfwGetTime();
                 } else {
                     //TraceLog(LOG_DEBUG, "Skipping shapshot for %u", client.playerId);
                 }

@@ -129,7 +129,7 @@ ErrorType NetServer::BroadcastMsg(NetMessage &message)
     return err_code;
 }
 
-ErrorType NetServer::SendWelcomeBasket(const NetServerClient &client)
+ErrorType NetServer::SendWelcomeBasket(NetServerClient &client)
 {
     // TODO: Send current state to new client
     // - world (seed + entities)
@@ -171,11 +171,9 @@ ErrorType NetServer::SendWelcomeBasket(const NetServerClient &client)
     memcpy(chatMsg.message, message, chatMsg.messageLength);
     E_ASSERT(BroadcastChatMessage(chatMsg), "Failed to broadcast player join chat msg");
 
-    for (const Chunk &chunk : serverWorld->map->chunks) {
-        SendWorldChunk(client, chunk);
-    }
+    SendNearbyChunks(client);
+    SendWorldSnapshot(client);
     //SendNearbyEvents(client);
-    //SendWorldSnapshot(client);
 
     return ErrorType::Success;
 }
@@ -221,12 +219,36 @@ ErrorType NetServer::BroadcastPlayerLeave(const Player &player)
 
 ErrorType NetServer::SendWorldChunk(const NetServerClient &client, const Chunk &chunk)
 {
+    TraceLog(LOG_DEBUG, "Sending world chunk [%hd, %hd] to player #%u", chunk.x, chunk.y, client.playerId);
+
     memset(&netMsg, 0, sizeof(netMsg));
     netMsg.type = NetMessage::Type::WorldChunk;
     NetMessage_WorldChunk &worldChunk = netMsg.data.worldChunk;
     worldChunk.chunk = chunk;
     E_ASSERT(SendMsg(client, netMsg), "Failed to send world chunk");
     return ErrorType::Success;
+}
+
+void NetServer::SendNearbyChunks(NetServerClient &client)
+{
+    // Send nearby chunks to player if they haven't received them yet
+    const Player *player = serverWorld->FindPlayer(client.playerId);
+    if (player) {
+        Vector2 playerBC = player->body.GroundPosition();
+        const int16_t chunkX = serverWorld->map->CalcChunk(playerBC.x);
+        const int16_t chunkY = serverWorld->map->CalcChunk(playerBC.y);
+
+        for (int y = chunkY - 2; y < chunkY + 2; y++) {
+            for (int x = chunkX - 2; x < chunkX + 2; x++) {
+                const ChunkHash chunkHash = Chunk::Hash(x, y);
+                if (!client.chunkHistory.contains(chunkHash)) {
+                    const Chunk &chunk = serverWorld->map->FindOrGenChunk(serverWorld->rtt_seed, x, y);
+                    SendWorldChunk(client, chunk);
+                    client.chunkHistory.insert(chunk.Hash());
+                }
+            }
+        }
+    }
 }
 
 ErrorType NetServer::SendWorldSnapshot(NetServerClient &client)
@@ -446,6 +468,7 @@ ErrorType NetServer::SendWorldSnapshot(NetServerClient &client)
     }
 
     E_ASSERT(SendMsg(client, netMsg), "Failed to send world snapshot");
+    client.lastSnapshotSentAt = glfwGetTime();
     return ErrorType::Success;
 }
 

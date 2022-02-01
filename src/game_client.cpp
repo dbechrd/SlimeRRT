@@ -712,7 +712,7 @@ ErrorType GameClient::Run(void)
         }
         //UI::HUD(fontSmall, player, debugStats);
         UI::QuickHUD(fontSdf24, player);
-        UI::Chat(fontSdf72, 20, *world, netClient, inputMode == INPUT_MODE_PLAY || inputMode == INPUT_MODE_CHAT, chatVisible, escape);
+        UI::Chat(fontSdf72, 16, *world, netClient, inputMode == INPUT_MODE_PLAY || inputMode == INPUT_MODE_CHAT, chatVisible, escape);
 
         rlDrawRenderBatchActive();
 

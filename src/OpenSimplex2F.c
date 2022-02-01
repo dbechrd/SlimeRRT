@@ -830,7 +830,7 @@ OpenSimplexEnv *initOpenSimplex(){
 	return ose;
 }
 
-OpenSimplexGradients *newOpenSimplexGradients(OpenSimplexEnv *ose, long seed){
+OpenSimplexGradients *newOpenSimplexGradients(OpenSimplexEnv *ose, long long seed){
     OpenSimplexGradients *osg = (OpenSimplexGradients *) malloc(sizeof(OpenSimplexGradients));
     osg->perm = _newShortArr(PSIZE);
     osg->permGrad2 = _newGrad2Arr(PSIZE);

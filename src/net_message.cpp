@@ -126,8 +126,8 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
         } case NetMessage::Type::WorldChunk: {
             NetMessage_WorldChunk &worldChunk = data.worldChunk;
 
-            stream.Process(worldChunk.chunk.x, 16, 0, WORLD_WIDTH_MAX);
-            stream.Process(worldChunk.chunk.y, 16, 0, WORLD_HEIGHT_MAX);
+            stream.Process(worldChunk.chunk.x, 16, WORLD_CHUNK_MIN, WORLD_CHUNK_MAX);
+            stream.Process(worldChunk.chunk.y, 16, WORLD_CHUNK_MIN, WORLD_CHUNK_MAX);
 
             // TODO(perf): RLE compression
             // https://moddingwiki.shikadi.net/wiki/RLE_Compression#Code
