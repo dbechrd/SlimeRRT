@@ -448,7 +448,7 @@ ErrorType GameClient::Run(void)
         }
 
         if (input.dbgChatMessage) {
-            netClient.SendChatMessage(CSTR("User pressed the C key."));
+            netClient.SendChatMessage(CSTR("teleport"));
         }
 
         if (world == lobby && input.dbgSpawnSam) {
@@ -711,7 +711,7 @@ ErrorType GameClient::Run(void)
             debugStats.bytes_recv = enet_peer_get_bytes_received(netClient.server);
         }
         //UI::HUD(fontSmall, player, debugStats);
-        UI::QuickHUD(fontSdf24, player);
+        UI::QuickHUD(fontSdf24, player, *world->map);
         UI::Chat(fontSdf72, 16, *world, netClient, inputMode == INPUT_MODE_PLAY || inputMode == INPUT_MODE_CHAT, chatVisible, escape);
 
         rlDrawRenderBatchActive();

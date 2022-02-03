@@ -293,6 +293,11 @@ ErrorType NetServer::SendWorldSnapshot(NetServerClient &client)
         if (prevState == client.playerHistory.end()) {
             flags = PlayerSnapshot::Flags::All;
             TraceLog(LOG_DEBUG, "Entered vicinity of player #%u", otherPlayer.id);
+        } else if (client.playerId == otherPlayer.id) {
+            // Always send player's entire state to to themselves
+            // This could be smarter, but if we don't do it, the ReconcilePlayer() can get
+            // desync'd from snapshot frequency and "miss" things like teleport events.
+            flags = PlayerSnapshot::Flags::All;
         } else {
             // "Despawn" notification already sent
             if (prevState->second.flags & PlayerSnapshot::Flags::Despawn) {
@@ -701,6 +706,16 @@ void NetServer::ProcessMsg(NetServerClient &client, ENetPacket &packet)
             // TODO(security): Detect someone sending packets with wrong source/id and PUNISH THEM (.. or wutevs)
             chatMsg.source = NetMessage_ChatMessage::Source::Client;
             chatMsg.id = client.playerId;
+
+            if (!strncmp(chatMsg.message, "teleport", chatMsg.messageLength)) {
+                Player *player = serverWorld->FindPlayer(client.playerId);
+                if (player) {
+                    Vector2 playerBC = player->body.GroundPosition();
+                    playerBC.x += dlb_rand32f_variance(10000.0f);
+                    playerBC.y += dlb_rand32f_variance(10000.0f);
+                    player->body.Teleport({playerBC.x, playerBC.y, 0.0f});
+                }
+            }
 
             // Store chat netMsg in chat history
             serverWorld->chatHistory.PushNetMessage(chatMsg);

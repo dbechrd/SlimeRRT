@@ -88,8 +88,8 @@ void ChatHistory::Render(const Font &font, int fontSize, World &world, float lef
         DrawRectangleLines((int)left, (int)(bottom - chatHeight), (int)chatWidth, (int)chatHeight, Fade(BLACK, 0.5f));
     }
 
-    for (int i = (int)chatMsgCount - 1; i >= 0; i--) {
-        const NetMessage_ChatMessage &chatMsg = buffer.At(i);
+    for (int i = 0; i < chatMsgCount && i < 20; i++) {
+        const NetMessage_ChatMessage &chatMsg = buffer.At(chatMsgCount - 1 - i);
         assert(chatMsg.messageLength);
 
         // Show messages for 10 seconds when chat window not active

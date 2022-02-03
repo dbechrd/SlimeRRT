@@ -188,12 +188,14 @@ void NetClient::ReconcilePlayer(double tickDt)
 {
     if (!serverWorld || !worldHistory.Count()) {
         // Not connected to server, or no snapshots received yet
+        //TraceLog(LOG_WARNING, "Can't reconcile player; no world");
         return;
     }
     Player *player = serverWorld->FindPlayer(serverWorld->playerId);
     assert(player);
     if (!player) {
         // playerId is invalid??
+        TraceLog(LOG_WARNING, "Can't reconcile player; no player found");
         return;
     }
 
@@ -217,6 +219,8 @@ void NetClient::ReconcilePlayer(double tickDt)
     if (playerSnapshot->flags & PlayerSnapshot::Flags::Position) {
         const Vector3 before = player->body.WorldPosition();
         player->body.Teleport(playerSnapshot->position);
+        //TraceLog(LOG_DEBUG, "Teleporting player to %0.2f %0.2f", playerSnapshot->position.x,
+        //    playerSnapshot->position.y);
 
         if (inputHistory.Count()) {
             const InputSample &oldestInput = inputHistory.At(0);
@@ -312,7 +316,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
             break;
         } case NetMessage::Type::WorldChunk: {
             NetMessage_WorldChunk &worldChunk = tempMsg.data.worldChunk;
-            TraceLog(LOG_DEBUG, "Received world chunk %u %u", worldChunk.chunk.x, worldChunk.chunk.y);
+            TraceLog(LOG_DEBUG, "Received world chunk %hd %hd", worldChunk.chunk.x, worldChunk.chunk.y);
             if (serverWorld->map) {
                 Tilemap &map = *serverWorld->map;
                 auto chunkIter = map.chunksIndex.find(worldChunk.chunk.Hash());

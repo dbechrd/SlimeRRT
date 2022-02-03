@@ -54,7 +54,7 @@ PlayerControllerState PlayerControllerState::Query(bool processMouse, bool proce
             if (IsKeyPressed(KEY_TWO)  ) { input.selectSlot = (uint32_t)PlayerInventorySlot::Slot_2; }
             if (IsKeyPressed(KEY_ONE)  ) { input.selectSlot = (uint32_t)PlayerInventorySlot::Slot_1; }
             input.dbgFindMouseTile = IsKeyDown(KEY_LEFT_ALT);
-            input.dbgChatMessage   = IsKeyPressed(KEY_C);
+            input.dbgChatMessage   = IsKeyDown(KEY_C);
             input.dbgSpawnSam      = IsKeyPressed(KEY_KP_ENTER);
             input.dbgToggleFreecam = IsKeyPressed(KEY_F);
             input.dbgNextRtreeRect = IsKeyDown(KEY_N) && !IsKeyDown(KEY_K);

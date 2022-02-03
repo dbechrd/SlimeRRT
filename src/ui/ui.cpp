@@ -468,7 +468,7 @@ void UI::HUD(const Font &font, const Player &player, const DebugStats &debugStat
 #undef PUSH_TEXT
 }
 
-void UI::QuickHUD(const Font &font, const Player &player)
+void UI::QuickHUD(const Font &font, const Player &player, const Tilemap &tilemap)
 {
     const char *text = 0;
 
@@ -492,7 +492,24 @@ void UI::QuickHUD(const Font &font, const Player &player)
     DrawTextureRec(gildedSpriteDef->spritesheet->texture, frameRect, { margin + pad, hudCursorY }, WHITE);
 
     text = TextFormat("%d", player.inventory.slots[(int)PlayerInventorySlot::Coin_Copper].count);
+    DrawTextFont(font, text, margin + pad + frameRect.width + pad, hudCursorY, 0, 0, font.baseSize, WHITE);
+    hudCursorY += font.baseSize + pad;
 
+    const Vector2 playerBC = player.body.GroundPosition();
+    const int16_t playerChunkX = tilemap.CalcChunk(playerBC.x);
+    const int16_t playerChunkY = tilemap.CalcChunk(playerBC.y);
+    const int16_t playerTileX = tilemap.CalcChunkTile(playerBC.x);
+    const int16_t playerTileY = tilemap.CalcChunkTile(playerBC.y);
+
+    text = TextFormat("world: %0.2f %0.2f", playerBC.x, playerBC.x);
+    DrawTextFont(font, text, margin + pad + frameRect.width + pad, hudCursorY, 0, 0, font.baseSize, WHITE);
+    hudCursorY += font.baseSize + pad;
+
+    text = TextFormat("chunk: %7d %7d", playerChunkX, playerChunkY);
+    DrawTextFont(font, text, margin + pad + frameRect.width + pad, hudCursorY, 0, 0, font.baseSize, WHITE);
+    hudCursorY += font.baseSize + pad;
+
+    text = TextFormat(" tile: %7d %7d", playerTileX, playerTileY);
     DrawTextFont(font, text, margin + pad + frameRect.width + pad, hudCursorY, 0, 0, font.baseSize, WHITE);
     hudCursorY += font.baseSize + pad;
 }
