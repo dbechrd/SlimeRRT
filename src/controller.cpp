@@ -40,6 +40,7 @@ PlayerControllerState PlayerControllerState::Query(bool processMouse, bool proce
     } else {
         if (processMouse) {
             input.attack = IsMouseButtonDown(MOUSE_LEFT_BUTTON);
+            input.cameraZoomDelta = GetMouseWheelMove();
         }
         if (processKeyboard) {
             input.walkNorth = IsKeyDown(KEY_W) && !IsKeyDown(KEY_S);
@@ -55,6 +56,7 @@ PlayerControllerState PlayerControllerState::Query(bool processMouse, bool proce
             if (IsKeyPressed(KEY_ONE)  ) { input.selectSlot = (uint32_t)PlayerInventorySlot::Slot_1; }
             input.dbgFindMouseTile = IsKeyDown(KEY_LEFT_ALT);
             input.dbgChatMessage   = IsKeyDown(KEY_C);
+            input.dbgTeleport      = IsKeyPressed(KEY_F5);
             input.dbgSpawnSam      = IsKeyPressed(KEY_KP_ENTER);
             input.dbgToggleFreecam = IsKeyPressed(KEY_F);
             input.dbgNextRtreeRect = IsKeyDown(KEY_N) && !IsKeyDown(KEY_K);

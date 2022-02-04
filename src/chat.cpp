@@ -73,7 +73,7 @@ void ChatHistory::Render(const Font &font, int fontSize, World &world, float lef
     }
 
     const float pad = 4.0f;
-    const float chatHeight = (int)chatMsgCount * (fontSize + pad) + pad;
+    const float chatHeight = MIN(CHAT_MAX_MSG_COUNT, (int)chatMsgCount) * (fontSize + pad) + pad;
     const Color chatBgColor = Fade(BLACK, 0.5f);
     const float chatBgAlpha = chatBgColor.a / 255.0f;
 
@@ -88,8 +88,8 @@ void ChatHistory::Render(const Font &font, int fontSize, World &world, float lef
         DrawRectangleLines((int)left, (int)(bottom - chatHeight), (int)chatWidth, (int)chatHeight, Fade(BLACK, 0.5f));
     }
 
-    for (int i = 0; i < chatMsgCount && i < 20; i++) {
-        const NetMessage_ChatMessage &chatMsg = buffer.At(chatMsgCount - 1 - i);
+    for (int i = 0; i < chatMsgCount && i < CHAT_MAX_MSG_COUNT; i++) {
+        const NetMessage_ChatMessage &chatMsg = buffer.At((size_t)chatMsgCount - 1 - i);
         assert(chatMsg.messageLength);
 
         // Show messages for 10 seconds when chat window not active

@@ -32,6 +32,7 @@ struct PlayerControllerState {
     // Debug
     bool dbgFindMouseTile {};
     bool dbgChatMessage   {};
+    bool dbgTeleport      {};
     bool dbgSpawnSam      {};
     bool dbgToggleFreecam {};
     bool dbgNextRtreeRect {};

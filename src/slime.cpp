@@ -28,7 +28,7 @@ void Slime::Init(void)
 
     combat.hitPointsMax = 30.0f;
     combat.hitPoints = combat.hitPointsMax;
-    combat.meleeDamage = 3.0f;
+    combat.meleeDamage = 10.0f;
     combat.lootTableId = LootTableID::LT_Slime;
     randJumpIdle = 0.0;
 }

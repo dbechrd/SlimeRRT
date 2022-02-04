@@ -16,6 +16,7 @@ namespace Catalog {
             case SoundID::Squish2:     return "Squish2";
             case SoundID::Whoosh:      return "Whoosh";
             case SoundID::GemBounce:   return "GemBounce";
+            case SoundID::Eughh:       return "Eughh";
         }
         return 0;
     }
@@ -31,6 +32,7 @@ namespace Catalog {
         byId[(size_t)SoundID::Squish2    ] = LoadSound("resources/squish2.ogg");
         byId[(size_t)SoundID::Whoosh     ] = LoadSound("resources/whoosh1.ogg");
         byId[(size_t)SoundID::GemBounce  ] = LoadSound("resources/gem_bounce.wav");
+        byId[(size_t)SoundID::Eughh      ] = LoadSound("resources/eughh.ogg");
 
         for (size_t i = 0; i < (size_t)SoundID::Count; i++) {
             if (!byId[i].frameCount) {

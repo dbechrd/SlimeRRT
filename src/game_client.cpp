@@ -127,9 +127,10 @@ ErrorType GameClient::Run(void)
     Catalog::g_tracks.Load();
     tileset_init();
 
-    Catalog::g_mixer.masterVolume = 0.0f;
+    Catalog::g_mixer.masterVolume = 1.0f;
     Catalog::g_mixer.musicVolume = 0.0f;
     Catalog::g_sounds.mixer.volumeLimit[(size_t)Catalog::SoundID::GemBounce] = 0.8f;
+    Catalog::g_sounds.mixer.volumeLimit[(size_t)Catalog::SoundID::Whoosh] = 0.6f;
 
     Image checkerboardImage = GenImageChecked(monitorWidth, monitorHeight, 32, 32, LIGHTGRAY, GRAY);
     Texture checkboardTexture = LoadTextureFromImage(checkerboardImage);
@@ -448,6 +449,10 @@ ErrorType GameClient::Run(void)
         }
 
         if (input.dbgChatMessage) {
+            world->chatHistory.PushDebug(CSTR("You pressed the send random chat message button. Congrats."));
+        }
+
+        if (input.dbgTeleport) {
             netClient.SendChatMessage(CSTR("teleport"));
         }
 
@@ -692,6 +697,8 @@ ErrorType GameClient::Run(void)
         //    { screenSize.x - 4 - 256, (float)4 + world->map->minimap.height + 4, 256, 256 },
         //    { 0, 0 }, 0, WHITE);
 
+        UI::Chat(fontSdf72, 16, *world, netClient, inputMode == INPUT_MODE_PLAY || inputMode == INPUT_MODE_CHAT, chatVisible, escape);
+
         // Render HUD
         UI::DebugStats debugStats{};
 #if SHOW_DEBUG_STATS
@@ -710,9 +717,8 @@ ErrorType GameClient::Run(void)
             debugStats.bytes_sent = enet_peer_get_bytes_sent(netClient.server);
             debugStats.bytes_recv = enet_peer_get_bytes_received(netClient.server);
         }
-        //UI::HUD(fontSmall, player, debugStats);
-        UI::QuickHUD(fontSdf24, player, *world->map);
-        UI::Chat(fontSdf72, 16, *world, netClient, inputMode == INPUT_MODE_PLAY || inputMode == INPUT_MODE_CHAT, chatVisible, escape);
+        UI::HUD(fontSmall, player, debugStats);
+        //UI::QuickHUD(fontSdf24, player, *world->map);
 
         rlDrawRenderBatchActive();
 

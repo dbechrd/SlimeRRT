@@ -42,7 +42,7 @@
 //------------------------------------------------------------------------------
 #define TILE_W 32
 #define TILE_H TILE_W
-#define CHUNK_W 4 //32
+#define CHUNK_W 32
 #define CHUNK_H CHUNK_W
 
 #define SV_HOSTNAME_LENGTH_MAX      256
@@ -88,8 +88,8 @@
 #define CL_PLAYER_FARAWAY_THRESHOLD (SV_PLAYER_NEARBY_THRESHOLD + CL_FARAWAY_BUFFER_RADIUS)
 #define CL_ENEMY_FARAWAY_THRESHOLD  (SV_ENEMY_NEARBY_THRESHOLD + CL_FARAWAY_BUFFER_RADIUS)
 
-#define PACKET_SIZE_MAX         1024
-//#define PACKET_SIZE_MAX         16384
+//#define PACKET_SIZE_MAX         1024
+#define PACKET_SIZE_MAX         16384
 // Min/max ASCII value for username/password/motd/message, etc.
 #define STRING_ASCII_MIN        32
 #define STRING_ASCII_MAX        126
@@ -109,6 +109,8 @@
 #define ENTITY_POSITION_X_MAX   UINT32_MAX  // Actually a float, so we need to allow full range
 #define ENTITY_POSITION_Y_MIN   0
 #define ENTITY_POSITION_Y_MAX   UINT32_MAX  // Actually a float, so we need to allow full range
+
+#define CHAT_MAX_MSG_COUNT      20
 
 //------------------------------------------------------------------------------
 // Helper functions

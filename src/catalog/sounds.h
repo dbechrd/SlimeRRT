@@ -12,6 +12,7 @@ namespace Catalog {
         Squish2,
         Whoosh,
         GemBounce,
+        Eughh,
         Count
     };
 

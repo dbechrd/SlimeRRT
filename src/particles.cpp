@@ -145,7 +145,9 @@ void ParticleSystem::Update(double dt)
         ParticleEffect &effect = *particle.effect;
         const float animTime = (float)(glfwGetTime() - effect.startedAt);
         const float alpha = (float)((animTime - particle.spawnAt) / (particle.dieAt - particle.spawnAt));
-        if (alpha >= 0.0f && alpha < 1.0f) {
+        if (alpha < 0.0f) {
+            particle.body.Teleport(effect.origin);
+        } else if (alpha >= 0.0f && alpha < 1.0f) {
             particle.body.Update(dt);
             sprite_update(particle.sprite, dt);
             assert(Catalog::g_particleFx.FindById(effect.id).update);

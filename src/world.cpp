@@ -168,11 +168,9 @@ Slime *World::SpawnSlime(uint32_t slimeId)
             slime.Init();
 
             // TODO: Implement a more general "place entity" solution for rocks, trees, monsters, etc.
-            const float maxX = 8192;
-            const float maxY = 8192;
             slime.body.Teleport({
-                dlb_rand32f_range(100, maxX),
-                dlb_rand32f_range(100, maxY),
+                dlb_rand32f_variance(5000),
+                dlb_rand32f_variance(5000),
                 0.0f
             });
 
@@ -211,15 +209,6 @@ void World::DespawnSlime(uint32_t slimeId)
     *slime = {};
 }
 
-void BloodParticlesFollowPlayer(ParticleEffect &effect, void *userData)
-{
-    assert(effect.id == Catalog::ParticleEffectID::Blood);
-    assert(userData);
-
-    Player *player = (Player *)userData;
-    effect.origin = player->GetAttachPoint(Player::AttachPoint::Gut);
-}
-
 void World::SV_Simulate(double dt)
 {
     SV_SimPlayers(dt);
@@ -230,8 +219,18 @@ void World::SV_Simulate(double dt)
 void World::SV_SimPlayers(double dt)
 {
     for (Player &player : players) {
-        if (!player.id || player.combat.diedAt) {
+        if (!player.id) {
             continue;
+        }
+
+        if (player.combat.diedAt) {
+            if (glfwGetTime() - player.combat.diedAt < 5.0) {
+                continue;
+            } else {
+                player.combat.diedAt = 0;
+                player.combat.hitPoints = player.combat.hitPointsMax;
+                player.body.Teleport(GetWorldSpawn());
+            }
         }
 
         //assert(map);
@@ -263,8 +262,6 @@ void World::SV_SimPlayers(double dt)
                     );
                     if (!slime.combat.hitPoints) {
                         player.stats.slimesSlain++;
-                    } else {
-                        Catalog::g_sounds.Play(Catalog::SoundID::Slime_Stab1, 1.0f + dlb_rand32f_variance(0.4f));
                     }
                 }
             }
@@ -284,10 +281,17 @@ void World::SV_SimSlimes(double dt)
             uint32_t coins = lootSystem.RollCoins(slime.combat.lootTableId, (int)slime.sprite.scale);
             assert(coins);
 
-            Vector3 itemPos = slime.WorldCenter();
-            itemPos.x += dlb_rand32f_variance(METERS_TO_PIXELS(0.5f));
-            itemPos.y += dlb_rand32f_variance(METERS_TO_PIXELS(0.5f));
-            itemSystem.SpawnItem(itemPos, Catalog::ItemID::Currency_Copper, coins);
+            Catalog::ItemID coinType{};
+            const float chance = dlb_rand32f_range(0, 1);
+            if (chance < 100.0f / 111.0f) {
+                coinType = Catalog::ItemID::Currency_Copper;
+            } else if (chance < 10.0f / 111.0f) {
+                coinType = Catalog::ItemID::Currency_Silver;
+            } else {
+                coinType = Catalog::ItemID::Currency_Gilded;
+            }
+
+            itemSystem.SpawnItem(slime.WorldCenter(), coinType, coins);
 
             slime.combat.diedAt = glfwGetTime();
             continue;
@@ -330,9 +334,7 @@ void World::SV_SimSlimes(double dt)
             }
 
             if (!willCollide && slime.Move(dt, slimeMove)) {
-                //Catalog::SoundID squish = dlb_rand32i_range(0, 1) ? Catalog::SoundID::Squish1 : Catalog::SoundID::Squish2;
-                Catalog::SoundID squish = Catalog::SoundID::Squish1;
-                Catalog::g_sounds.Play(squish, 1.0f + dlb_rand32f_variance(0.2f), true);
+                // TODO(cleanup): used to play sound effect, might do something else on server?
             }
         }
 
@@ -345,18 +347,8 @@ void World::SV_SimSlimes(double dt)
                     0.0f,
                     closestPlayer->combat.hitPointsMax
                 );
-
-                static double lastBleed = 0;
-                const double bleedDuration = 1.0;
-
-                if (glfwGetTime() - lastBleed > bleedDuration / 3.0) {
-                    Vector3 playerGut = closestPlayer->GetAttachPoint(Player::AttachPoint::Gut);
-                    ParticleEffect *bloodParticles = particleSystem.GenerateEffect(Catalog::ParticleEffectID::Blood, 32, playerGut, bleedDuration);
-                    if (bloodParticles) {
-                        bloodParticles->callbacks[(size_t)ParticleEffectEvent::BeforeUpdate].function = BloodParticlesFollowPlayer;
-                        bloodParticles->callbacks[(size_t)ParticleEffectEvent::BeforeUpdate].userData = closestPlayer;
-                    }
-                    lastBleed = glfwGetTime();
+                if (!closestPlayer->combat.hitPoints) {
+                    closestPlayer->combat.diedAt = glfwGetTime();
                 }
             }
         }
@@ -698,6 +690,7 @@ size_t World::DrawMap(const Spycam &spycam)
             //    int black = (xEven + yEven) % 2 == 0;
             //    DrawRectangle((int)xx, (int)yy, TILE_W, TILE_W, black ? DARKGRAY : LIGHTGRAY);
             //}
+
             tilesDrawn++;
         }
     }

@@ -39,7 +39,11 @@ ItemWorld *ItemSystem::SpawnItem(Vector3 pos, Catalog::ItemID catalogId, uint32_
 
     item.stack.id = catalogId;
     item.stack.count = count;
-    item.body.Teleport(pos);
+
+    Vector3 itemPos = pos;
+    itemPos.x += dlb_rand32f_variance(METERS_TO_PIXELS(0.5f));
+    itemPos.y += dlb_rand32f_variance(METERS_TO_PIXELS(0.5f));
+    item.body.Teleport(itemPos);
     float randX = dlb_rand32f_variance(METERS_TO_PIXELS(2.0f));
     float randY = dlb_rand32f_variance(METERS_TO_PIXELS(2.0f));
     float randZ = dlb_rand32f_range(3.0f, METERS_TO_PIXELS(4.0f));

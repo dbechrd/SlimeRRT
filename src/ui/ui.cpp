@@ -501,7 +501,7 @@ void UI::QuickHUD(const Font &font, const Player &player, const Tilemap &tilemap
     const int16_t playerTileX = tilemap.CalcChunkTile(playerBC.x);
     const int16_t playerTileY = tilemap.CalcChunkTile(playerBC.y);
 
-    text = TextFormat("world: %0.2f %0.2f", playerBC.x, playerBC.x);
+    text = TextFormat("world: %0.2f %0.2f", playerBC.x, playerBC.y);
     DrawTextFont(font, text, margin + pad + frameRect.width + pad, hudCursorY, 0, 0, font.baseSize, WHITE);
     hudCursorY += font.baseSize + pad;
 
@@ -535,12 +535,9 @@ void UI::Chat(const Font &font, int fontSize, World &world, NetClient &netClient
         if (GuiTextBoxAdvanced(&chatInputState, chatInputRect, chatInputText, &chatInputTextLen, CHATMSG_LENGTH_MAX, !processKeyboard)) {
             if (chatInputTextLen) {
                 ErrorType sendResult = netClient.SendChatMessage(chatInputText, chatInputTextLen);
-                switch (sendResult) {
-                    case ErrorType::NotConnected:
-                    {
-                        world.chatHistory.PushSam(CSTR("You're not connected to a server. Nobody is listening. :("));
-                        break;
-                    }
+                if (sendResult == ErrorType::NotConnected) {
+                    //world.chatHistory.PushSam(CSTR("You're not connected to a server. Nobody is listening. :("));
+                    world.chatHistory.PushPlayer(world.playerId, chatInputText, chatInputTextLen);
                 }
                 chatActive = false;
                 memset(chatInputText, 0, sizeof(chatInputText));

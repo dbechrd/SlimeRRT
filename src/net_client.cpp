@@ -272,6 +272,16 @@ void NetClient::ReconcilePlayer(double tickDt)
     }
 }
 
+// TODO: Move this somewhere less stupid (e.g. a library of particle updaters)
+void BloodParticlesFollowPlayer(ParticleEffect &effect, void *userData)
+{
+    assert(effect.id == Catalog::ParticleEffectID::Blood);
+    assert(userData);
+
+    Player *player = (Player *)userData;
+    effect.origin = player->GetAttachPoint(Player::AttachPoint::Gut);
+}
+
 void NetClient::ProcessMsg(ENetPacket &packet)
 {
     ENetBuffer packetBuffer{ packet.dataLength, packet.data };
@@ -429,10 +439,21 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                     //TraceLog(LOG_DEBUG, "Snapshot: health %f", playerSnapshot.hitPoints);
                     // TODO: Move this to DespawnStaleEntities or whatever
                     if (player->combat.hitPoints && !playerSnapshot.hitPoints) {
-                        //TraceLog(LOG_DEBUG, "Snapshot: Player died");
+                        // Died
                         player->combat.diedAt = worldSnapshot.recvAt;
-                        serverWorld->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Blood, 20, player->WorldCenter(), 2.0);
-                        Catalog::g_sounds.Play(Catalog::SoundID::Slime_Stab1, 0.5f + dlb_rand32f_variance(0.1f), true);
+                        serverWorld->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Blood, 128, player->WorldCenter(), 4.0);
+                        Catalog::g_sounds.Play(Catalog::SoundID::Eughh, 1.0f + dlb_rand32f_variance(0.1f));
+                    } else if (!player->combat.hitPoints && playerSnapshot.hitPoints) {
+                        // Respawn
+                    } else if (player->combat.hitPoints > playerSnapshot.hitPoints) {
+                        // Took damage
+                        const double bleedDuration = 1.0;
+                        Vector3 playerGut = player->GetAttachPoint(Player::AttachPoint::Gut);
+                        ParticleEffect *bloodParticles = serverWorld->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Blood, 32, playerGut, bleedDuration);
+                        if (bloodParticles) {
+                            bloodParticles->callbacks[(size_t)ParticleEffectEvent::BeforeUpdate].function = BloodParticlesFollowPlayer;
+                            bloodParticles->callbacks[(size_t)ParticleEffectEvent::BeforeUpdate].userData = player;
+                        }
                     }
                     player->combat.hitPoints = playerSnapshot.hitPoints;
                 }
@@ -478,6 +499,12 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                         //    enemySnapshot.position.y,
                         //    enemySnapshot.position.z);
                         state.v = enemySnapshot.position;
+
+                        if (prevState && prevState->v.z == 0.0f && state.v.z != 0.0f) {
+                            //Catalog::SoundID squish = dlb_rand32i_range(0, 1) ? Catalog::SoundID::Squish1 : Catalog::SoundID::Squish2;
+                            Catalog::SoundID squish = Catalog::SoundID::Squish1;
+                            Catalog::g_sounds.Play(squish, 1.0f + dlb_rand32f_variance(0.2f), true);
+                        }
                     } else {
                         if (prevState) {
                             state.v = prevState->v;
@@ -510,10 +537,14 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                     //TraceLog(LOG_DEBUG, "Snapshot: health %f", enemySnapshot.hitPoints);
                     // TODO: Move this to DespawnStaleEntities or whatever
                     if (slime->combat.hitPoints && !enemySnapshot.hitPoints) {
-                        //TraceLog(LOG_DEBUG, "Snapshot: Slime died");
+                        // Died
                         slime->combat.diedAt = worldSnapshot.recvAt;
                         serverWorld->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Goo, 20, slime->WorldCenter(), 2.0);
                         Catalog::g_sounds.Play(Catalog::SoundID::Squish2, 0.5f + dlb_rand32f_variance(0.1f), true);
+                    } else if (slime->combat.hitPoints > enemySnapshot.hitPoints) {
+                        // Took damage
+                        serverWorld->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Goo, 10, slime->WorldCenter(), 1.0);
+                        Catalog::g_sounds.Play(Catalog::SoundID::Slime_Stab1, 1.0f + dlb_rand32f_variance(0.4f));
                     }
                     slime->combat.hitPoints = enemySnapshot.hitPoints;
                 }

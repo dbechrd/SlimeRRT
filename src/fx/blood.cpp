@@ -16,8 +16,8 @@ namespace FX {
         Vector2 randXY = {};
         randXY.x = dlb_rand32f_variance(1.0f);
         randXY.y = dlb_rand32f_variance(1.0f);
-        randXY = v2_scale(v2_normalize(randXY), METERS_TO_PIXELS(1.0f) * dlb_rand32f_range(0.0f, 1.2f));
-        float randZ = dlb_rand32f_range(0.0f, METERS_TO_PIXELS(0.3f));
+        randXY = v2_scale(v2_normalize(randXY), METERS_TO_PIXELS(1.0f) * dlb_rand32f_range(0.0f, 3.0f));
+        float randZ = dlb_rand32f_range(0.6f, METERS_TO_PIXELS(0.9f));
         particle.body.velocity = { randXY.x, randXY.y, randZ };
         particle.body.friction = 0.5f;
     #else
@@ -34,7 +34,7 @@ namespace FX {
     {
         const float radius = 5.0f;
         // radius * 1.0 -> 0.2
-        particle.sprite.scale = radius * (1.0f - alpha * 0.8f);
+        particle.sprite.scale = radius * (1.0f - alpha);
         // 1.0 -> 0.0
         const unsigned char r = (unsigned char)((1.0f - alpha * 1.0f) * 255.0f);
         // 1.0 -> 0.6

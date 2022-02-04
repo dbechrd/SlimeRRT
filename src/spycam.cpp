@@ -56,7 +56,15 @@ void Spycam::Update(const PlayerControllerState &input, double dt)
     if (!freeRoam) {
         camera.rotation = 0.0f;
         cameraSpeed = CAMERA_SPEED_DEFAULT;
+
+#if 0
         SetZoom(1.0f);
+#else
+        // Camera zoom controls
+        float zoom = camera.zoom;
+        zoom += input.cameraZoomDelta * 0.1f * zoom;
+        SetZoom(zoom);
+#endif
     } else {
         cameraSpeed = CLAMP(cameraSpeed + input.cameraSpeedDelta * METERS_TO_PIXELS(0.5f), METERS_TO_PIXELS(0.5f), METERS_TO_PIXELS(20.0f));
 

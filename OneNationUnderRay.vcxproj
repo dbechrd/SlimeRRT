@@ -65,7 +65,7 @@
       <AdditionalIncludeDirectories>$(ProjectDir)include</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;_SILENCE_CXX17_OLD_ALLOCATOR_MEMBERS_DEPRECATION_WARNING;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <TreatWarningAsError>false</TreatWarningAsError>
-      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <LanguageStandard>stdcpplatest</LanguageStandard>
       <DisableSpecificWarnings>4505;6011;26451;26812;26819;33011</DisableSpecificWarnings>
