@@ -159,93 +159,95 @@ void Player::Update(double dt, InputSample &input, const Tilemap &map)
         inventory.selectedSlot = (PlayerInventorySlot)input.selectSlot;
     }
 
-    float playerSpeed = 4.0f;
-    Vector2 move{};
+    if (combat.hitPoints) {
+        float playerSpeed = 4.0f;
+        Vector2 move{};
 
-    if (input.walkNorth || input.walkEast || input.walkSouth || input.walkWest) {
-        move.y -= 1.0f * input.walkNorth;
-        move.x += 1.0f * input.walkEast;
-        move.y += 1.0f * input.walkSouth;
-        move.x -= 1.0f * input.walkWest;
-        if (input.run) {
-            moveState = Player::MoveState::Running;
-            playerSpeed += 2.0f;
+        if (input.walkNorth || input.walkEast || input.walkSouth || input.walkWest) {
+            move.y -= 1.0f * input.walkNorth;
+            move.x += 1.0f * input.walkEast;
+            move.y += 1.0f * input.walkSouth;
+            move.x -= 1.0f * input.walkWest;
+            if (input.run) {
+                moveState = Player::MoveState::Running;
+                playerSpeed += 2.0f;
+            } else {
+                moveState = Player::MoveState::Walking;
+            }
         } else {
-            moveState = Player::MoveState::Walking;
+            moveState = Player::MoveState::Idle;
         }
-    } else {
-        moveState = Player::MoveState::Idle;
-    }
 
-    const Vector2 pos = body.GroundPosition();
-    const Tile *tile = map.TileAtWorld(pos.x, pos.y);
-    if (tile && tile->type == Tile::Type::Water) {
-        playerSpeed *= 0.5f;
-        // TODO: moveState = Player::MoveState::Swimming;
-    }
+        const Vector2 pos = body.GroundPosition();
+        const Tile *tile = map.TileAtWorld(pos.x, pos.y);
+        if (tile && tile->type == Tile::Type::Water) {
+            playerSpeed *= 0.5f;
+            // TODO: moveState = Player::MoveState::Swimming;
+        }
 
-    Vector2 moveOffset = v2_scale(v2_normalize(move), METERS_TO_PIXELS(playerSpeed) * (float)dt);
-    moveBuffer = v2_add(moveBuffer, moveOffset);
+        Vector2 moveOffset = v2_scale(v2_normalize(move), METERS_TO_PIXELS(playerSpeed) * (float)dt);
+        moveBuffer = v2_add(moveBuffer, moveOffset);
 
-    if (!input.skipFx && input.attack && Attack()) {
-        Catalog::g_sounds.Play(Catalog::SoundID::Whoosh, 1.0f + dlb_rand32f_variance(0.1f));
-    }
+        if (!input.skipFx && input.attack && Attack()) {
+            Catalog::g_sounds.Play(Catalog::SoundID::Whoosh, 1.0f + dlb_rand32f_variance(0.1f));
+        }
 
-    if (!v2_is_zero(moveBuffer)) {
+        if (!v2_is_zero(moveBuffer)) {
 
-        const bool walkable = tile && tile->IsWalkable();
+            const bool walkable = tile && tile->IsWalkable();
 
-        Vector2 newPos = v2_add(pos, moveBuffer);
-        const Tile *newTile = map.TileAtWorld(newPos.x, newPos.y);
+            Vector2 newPos = v2_add(pos, moveBuffer);
+            const Tile *newTile = map.TileAtWorld(newPos.x, newPos.y);
 
-        // NOTE: This extra logic allows the player to slide when attempting to move diagonally against a wall
-        // NOTE: If current tile isn't walkable, allow player to walk off it. This may not be the best solution
-        // if the player can accidentally end up on unwalkable tiles through gameplay, but currently the only
-        // way to end up on an unwalkable tile is to spawn there.
-        // TODO: We should fix spawning to ensure player spawns on walkable tile (can probably just manually
-        // generate something interesting in the center of the world that overwrites procgen, like Don't
-        // Starve's fancy arrival portal.
-        if (walkable) {
-            if (!newTile || !newTile->IsWalkable()) {
-                // XY unwalkable, try only X offset
-                newPos = pos;
-                newPos.x += moveBuffer.x;
-                newTile = map.TileAtWorld(newPos.x, newPos.y);
+            // NOTE: This extra logic allows the player to slide when attempting to move diagonally against a wall
+            // NOTE: If current tile isn't walkable, allow player to walk off it. This may not be the best solution
+            // if the player can accidentally end up on unwalkable tiles through gameplay, but currently the only
+            // way to end up on an unwalkable tile is to spawn there.
+            // TODO: We should fix spawning to ensure player spawns on walkable tile (can probably just manually
+            // generate something interesting in the center of the world that overwrites procgen, like Don't
+            // Starve's fancy arrival portal.
+            if (walkable) {
                 if (!newTile || !newTile->IsWalkable()) {
-                    // X unwalkable, try only Y offset
+                    // XY unwalkable, try only X offset
                     newPos = pos;
-                    newPos.y += moveBuffer.y;
+                    newPos.x += moveBuffer.x;
                     newTile = map.TileAtWorld(newPos.x, newPos.y);
                     if (!newTile || !newTile->IsWalkable()) {
-                        // XY, and both slide directions are all unwalkable
-                        moveBuffer.x = 0.0f;
-                        moveBuffer.y = 0.0f;
+                        // X unwalkable, try only Y offset
+                        newPos = pos;
+                        newPos.y += moveBuffer.y;
+                        newTile = map.TileAtWorld(newPos.x, newPos.y);
+                        if (!newTile || !newTile->IsWalkable()) {
+                            // XY, and both slide directions are all unwalkable
+                            moveBuffer.x = 0.0f;
+                            moveBuffer.y = 0.0f;
 
-                        // TODO: Play wall bonk sound (or splash for water? heh)
-                        // TODO: Maybe bounce the player against the wall? This code doesn't do that nicely..
-                        //player_move(&charlie, v2_scale(v2_negate(moveBuffer), 10.0f));
+                            // TODO: Play wall bonk sound (or splash for water? heh)
+                            // TODO: Maybe bounce the player against the wall? This code doesn't do that nicely..
+                            //player_move(&charlie, v2_scale(v2_negate(moveBuffer), 10.0f));
+                        } else {
+                            // Y offset is walkable
+                            moveBuffer.x = 0.0f;
+                        }
                     } else {
-                        // Y offset is walkable
-                        moveBuffer.x = 0.0f;
+                        // X offset is walkable
+                        moveBuffer.y = 0.0f;
                     }
-                } else {
-                    // X offset is walkable
-                    moveBuffer.y = 0.0f;
                 }
             }
-        }
 
-        if (Move(moveBuffer)) {
-            static double lastFootstep = 0;
-            double timeSinceLastFootstep = glfwGetTime() - lastFootstep;
-            float distanceMoved = v2_length(moveBuffer);
-            if (!input.skipFx && timeSinceLastFootstep > 1.0f / distanceMoved) {
-                Catalog::g_sounds.Play(Catalog::SoundID::Footstep, 1.0f + dlb_rand32f_variance(0.5f));
-                lastFootstep = glfwGetTime();
+            if (Move(moveBuffer)) {
+                static double lastFootstep = 0;
+                double timeSinceLastFootstep = glfwGetTime() - lastFootstep;
+                float distanceMoved = v2_length(moveBuffer);
+                if (!input.skipFx && timeSinceLastFootstep > 1.0f / distanceMoved) {
+                    Catalog::g_sounds.Play(Catalog::SoundID::Footstep, 1.0f + dlb_rand32f_variance(0.5f));
+                    lastFootstep = glfwGetTime();
+                }
             }
-        }
 
-        moveBuffer = {};
+            moveBuffer = {};
+        }
     }
 
     switch (actionState) {
@@ -345,7 +347,7 @@ void Player::Draw(void) const
     }
 #endif
 
-    sprite_draw_body(sprite, body, WHITE);
+    sprite_draw_body(sprite, body, combat.hitPoints ? WHITE : GRAY);
     Vector3 topCenter = WorldTopCenter();
     HealthBar::Draw(10, { topCenter.x, topCenter.y - topCenter.z }, name, combat.hitPoints, combat.hitPointsMax);
 }

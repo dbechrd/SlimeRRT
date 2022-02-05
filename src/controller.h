@@ -16,6 +16,8 @@ struct PlayerControllerState {
     bool     run        {};
     bool     attack     {};
     uint32_t selectSlot {};  // PlayerInventorySlot
+    // Non-networked input
+    bool toggleInventory{};
 
     // Freecam
     bool  cameraNorth      {};

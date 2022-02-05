@@ -598,7 +598,7 @@ void UI::TileHoverTip(const Font &font, const Tilemap &map)
     lineOffset += font.baseSize;
 }
 
-int UI::Menu(const Font &font, bool &escape, bool &exiting, const char **items, size_t itemCount)
+int UI::Menu(const Font &font, const char **items, size_t itemCount)
 {
     // TODO: Better animations/audio
     // Animations: https://www.youtube.com/watch?v=WjyP7cvZ1Ns
@@ -670,6 +670,53 @@ int UI::Menu(const Font &font, bool &escape, bool &exiting, const char **items, 
         DrawTextFont(font, menuItems[i].text, itemPos.x, itemPos.y, offsetX, offsetY, size, hovered ? pressed ? RED : YELLOW : WHITE);
     }
 
-    escape = false;
     return itemPressed;
+}
+
+void UI::Inventory(const Player& player, bool &inventoryActive)
+{
+    const ImVec2 inventorySize{ 600.0, 400.0f };
+    const float pad = 10.0f;
+    const float left = screenSize.x - pad - inventorySize.x;
+    const float top = pad;
+    ImGui::SetNextWindowPos(ImVec2(left, top));
+    ImGui::SetNextWindowSize(inventorySize);
+
+    ImGui::Begin("##inventory", 0,
+        ImGuiWindowFlags_NoTitleBar |
+        ImGuiWindowFlags_NoMove |
+        ImGuiWindowFlags_NoResize |
+        ImGuiWindowFlags_NoCollapse |
+        ImGuiWindowFlags_NoBackground
+    );
+
+    ImGui::Text("Your stuffs:");
+
+    auto bgColor = DARKGRAY;
+    ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(bgColor.r, bgColor.g, bgColor.b, 0.7f * 255.0f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(0, 255, 0, 255));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32(0, 0, 255, 255));
+    ImGui::PushStyleColor(ImGuiCol_Border, IM_COL32_BLACK);
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4, 4));
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 5.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 3.0f);
+
+    const int rows = 6;
+    const int cols = 10;
+    int id = 0;
+    for (int row = 0; row < rows; row++) {
+        for (int col = 0; col < cols; col++) {
+            ImGui::PushID(row * cols + col);
+            if (ImGui::Button("##inv_slot", ImVec2(48, 48))) {
+                TraceLog(LOG_DEBUG, "%d, %d", col, row);
+                //inventoryActive = false;
+            }
+            ImGui::PopID();
+            if (col < cols - 1) ImGui::SameLine();
+        }
+    }
+    ImGui::PopStyleVar(3);
+    ImGui::PopStyleColor(4);
+
+    ImGui::End();
 }

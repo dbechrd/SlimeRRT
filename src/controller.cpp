@@ -25,14 +25,14 @@ PlayerControllerState PlayerControllerState::Query(bool processMouse, bool proce
             }
         }
         if (processKeyboard) {
-            input.cameraNorth = IsKeyDown(KEY_W) && !IsKeyDown(KEY_S);
-            input.cameraEast = IsKeyDown(KEY_D) && !IsKeyDown(KEY_A);
-            input.cameraSouth = IsKeyDown(KEY_S) && !IsKeyDown(KEY_W);
-            input.cameraWest = IsKeyDown(KEY_A) && !IsKeyDown(KEY_D);
-            input.cameraRotateCW = IsKeyDown(KEY_E) && !IsKeyDown(KEY_Q);
-            input.cameraRotateCCW = IsKeyDown(KEY_Q) && !IsKeyDown(KEY_E);
-            input.cameraZoomOut = IsKeyPressed(KEY_Z);
-            input.cameraReset = IsKeyPressed(KEY_R);
+            input.cameraNorth      = IsKeyDown(KEY_W) && !IsKeyDown(KEY_S);
+            input.cameraEast       = IsKeyDown(KEY_D) && !IsKeyDown(KEY_A);
+            input.cameraSouth      = IsKeyDown(KEY_S) && !IsKeyDown(KEY_W);
+            input.cameraWest       = IsKeyDown(KEY_A) && !IsKeyDown(KEY_D);
+            input.cameraRotateCW   = IsKeyDown(KEY_E) && !IsKeyDown(KEY_Q);
+            input.cameraRotateCCW  = IsKeyDown(KEY_Q) && !IsKeyDown(KEY_E);
+            input.cameraZoomOut    = IsKeyPressed(KEY_Z);
+            input.cameraReset      = IsKeyPressed(KEY_R);
             input.dbgToggleFreecam = IsKeyPressed(KEY_F);
         }
 
@@ -54,6 +54,7 @@ PlayerControllerState PlayerControllerState::Query(bool processMouse, bool proce
             if (IsKeyPressed(KEY_THREE)) { input.selectSlot = (uint32_t)PlayerInventorySlot::Slot_3; }
             if (IsKeyPressed(KEY_TWO)  ) { input.selectSlot = (uint32_t)PlayerInventorySlot::Slot_2; }
             if (IsKeyPressed(KEY_ONE)  ) { input.selectSlot = (uint32_t)PlayerInventorySlot::Slot_1; }
+            input.toggleInventory  = IsKeyPressed(KEY_I);
             input.dbgFindMouseTile = IsKeyDown(KEY_LEFT_ALT);
             input.dbgChatMessage   = IsKeyDown(KEY_C);
             input.dbgTeleport      = IsKeyPressed(KEY_F5);

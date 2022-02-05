@@ -50,7 +50,8 @@ struct UI {
     static void QuickHUD(const Font &font, const Player &player, const Tilemap &tilemap);
     static void Chat(const Font &font, int fontSize, World &world, NetClient &netClient, bool processKeyboard, bool &chatActive, bool &escape);
     static void TileHoverTip(const Font &font, const Tilemap &map);
-    static int Menu(const Font &font, bool &escape, bool &exiting, const char **items, size_t itemCount);
+    static int Menu(const Font &font, const char **items, size_t itemCount);
+    static void Inventory(const Player &player, bool &inventoryActive);
 
 private:
     static Vector2 mouseScreen;

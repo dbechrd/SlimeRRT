@@ -199,6 +199,7 @@ ErrorType GameClient::Run(void)
     bool chatVisible = false;
     bool menuActive = false;
     bool mixerActive = false;
+    bool inventoryActive = false;
     bool disconnectRequested = false;
     bool quit = false;
 
@@ -461,6 +462,10 @@ ErrorType GameClient::Run(void)
             samTreasureRoom = false;
         }
 
+        if (input.toggleInventory) {
+            inventoryActive = !inventoryActive;
+        }
+
 #if DEMO_VIEW_RTREE
             if (input.dbgNextRtreeRect) {
                 if (next_rect_to_add < RECT_COUNT && (GetTime() - lastRectAddedAt > 0.1)) {
@@ -719,6 +724,9 @@ ErrorType GameClient::Run(void)
         }
         UI::HUD(fontSmall, player, debugStats);
         //UI::QuickHUD(fontSdf24, player, *world->map);
+        if (inventoryActive) {
+            UI::Inventory(player, inventoryActive);
+        }
 
         rlDrawRenderBatchActive();
 
@@ -750,7 +758,7 @@ ErrorType GameClient::Run(void)
         if (menuActive) {
             if (connectedToServer) {
                 const char *menuItems[] = { "Resume", "Audio", "Log off" };
-                switch (UI::Menu(fontSdf72, escape, quit, menuItems, ARRAY_SIZE(menuItems))) {
+                switch (UI::Menu(fontSdf72, menuItems, ARRAY_SIZE(menuItems))) {
                     case 0: {    // Resume
                         menuActive = false;
                         break;
@@ -766,7 +774,7 @@ ErrorType GameClient::Run(void)
                 }
             } else {
                 const char *menuItems[] = { "Resume", "Audio", "Quit" };
-                switch (UI::Menu(fontSdf72, escape, quit, menuItems, ARRAY_SIZE(menuItems))) {
+                switch (UI::Menu(fontSdf72, menuItems, ARRAY_SIZE(menuItems))) {
                     case 0: {    // Resume
                         menuActive = false;
                         break;
