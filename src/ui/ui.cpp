@@ -675,19 +675,20 @@ int UI::Menu(const Font &font, const char **items, size_t itemCount)
 
 void UI::Inventory(const Player& player, bool &inventoryActive)
 {
-    const ImVec2 inventorySize{ 600.0, 400.0f };
-    const float pad = 10.0f;
+    const ImVec2 inventorySize{ 540.0, 360.0f };
+    const float pad = 80.0f;
     const float left = screenSize.x - pad - inventorySize.x;
     const float top = pad;
     ImGui::SetNextWindowPos(ImVec2(left, top));
-    ImGui::SetNextWindowSize(inventorySize);
+    //ImGui::SetNextWindowSize(inventorySize);
 
     ImGui::Begin("##inventory", 0,
         ImGuiWindowFlags_NoTitleBar |
-        ImGuiWindowFlags_NoMove |
         ImGuiWindowFlags_NoResize |
+        ImGuiWindowFlags_NoMove |
         ImGuiWindowFlags_NoCollapse |
-        ImGuiWindowFlags_NoBackground
+        //ImGuiWindowFlags_NoBackground |
+        ImGuiWindowFlags_NoSavedSettings
     );
 
     ImGui::Text("Your stuffs:");
@@ -700,6 +701,15 @@ void UI::Inventory(const Player& player, bool &inventoryActive)
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4, 4));
     ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 5.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 3.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8.0f, 8.0f));
+
+    static Texture2D invItems{};
+    if (!invItems.width) {
+        invItems = LoadTexture("resources/items.png");
+    }
+
+    dlb_rand32_t randInv{};
+    dlb_rand32_seed_r(&randInv, 42, 42);
 
     const int rows = 6;
     const int cols = 10;
@@ -707,15 +717,27 @@ void UI::Inventory(const Player& player, bool &inventoryActive)
     for (int row = 0; row < rows; row++) {
         for (int col = 0; col < cols; col++) {
             ImGui::PushID(row * cols + col);
-            if (ImGui::Button("##inv_slot", ImVec2(48, 48))) {
-                TraceLog(LOG_DEBUG, "%d, %d", col, row);
-                //inventoryActive = false;
+
+            const int idx = dlb_rand32i_range_r(&randInv, 0, 10);
+            if (idx < 7) {
+                if (ImGui::ImageButton((ImTextureID)(size_t)invItems.id,
+                    ImVec2(32.0f, 32.0f),
+                    ImVec2(idx * 32.0f / 320, 0),
+                    ImVec2((idx + 1) * 32.0f / 320, 1))
+                ) {
+                    TraceLog(LOG_DEBUG, "%d, %d", col, row);
+                }
+            } else {
+                if (ImGui::Button("##inv_slot", ImVec2(48, 48))) {
+                    TraceLog(LOG_DEBUG, "%d, %d", col, row);
+                }
             }
+
             ImGui::PopID();
             if (col < cols - 1) ImGui::SameLine();
         }
     }
-    ImGui::PopStyleVar(3);
+    ImGui::PopStyleVar(4);
     ImGui::PopStyleColor(4);
 
     ImGui::End();
