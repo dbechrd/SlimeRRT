@@ -43,7 +43,8 @@ struct UI {
 
     // Screen UI
     static void Minimap(const Font &font, const Spycam &spycam, const World &world);
-    static void LoginForm(NetClient &netClient, ImGuiIO& io, bool &escape);
+    static void Menubar(bool &loginActive, bool &mixerActive);
+    static void LoginForm(NetClient &netClient, ImGuiIO& io, bool &escape, bool &loginActive);
     static void Mixer(void);
     static void Netstat(NetClient &netClient, double renderAt);
     static void HUD(const Font &font, const Player &player, const DebugStats &debugStats);
@@ -51,7 +52,7 @@ struct UI {
     static void Chat(const Font &font, int fontSize, World &world, NetClient &netClient, bool processKeyboard, bool &chatActive, bool &escape);
     static void TileHoverTip(const Font &font, const Tilemap &map);
     static int Menu(const Font &font, const char **items, size_t itemCount);
-    static void Inventory(const Player &player, bool &inventoryActive);
+    static void Inventory(const Texture &invItems, Player &player, bool &inventoryActive);
 
 private:
     static Vector2 mouseScreen;

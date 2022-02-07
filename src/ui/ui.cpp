@@ -103,6 +103,75 @@ void UI::Minimap(const Font &font, const Spycam &spycam, const World &world)
     }
 }
 
+void UI::Menubar(bool &loginActive, bool &mixerActive)
+{
+    if (ImGui::BeginMainMenuBar()) {
+        if (ImGui::BeginMenu("Debug")) {
+            ImGui::MenuItem("Login", 0, &loginActive);
+            ImGui::MenuItem("Mixer", 0, &mixerActive);
+
+            if (ImGui::BeginMenu("Options")) {
+                static bool enabled = true;
+                ImGui::MenuItem("Enabled", "", &enabled);
+                ImGui::BeginChild("child", ImVec2(0, 60), true);
+                for (int i = 0; i < 10; i++)
+                    ImGui::Text("Scrolling Text %d", i);
+                ImGui::EndChild();
+                static float f = 0.5f;
+                static int n = 0;
+                ImGui::SliderFloat("Value", &f, 0.0f, 1.0f);
+                ImGui::InputFloat("Input", &f, 0.1f);
+                ImGui::Combo("Combo", &n, "Yes\0No\0Maybe\0\0");
+                ImGui::EndMenu();
+            }
+
+
+            if (ImGui::BeginMenu("Colors")) {
+                float sz = ImGui::GetTextLineHeight();
+                for (int i = 0; i < ImGuiCol_COUNT; i++) {
+                    const char *name = ImGui::GetStyleColorName((ImGuiCol)i);
+                    ImVec2 p = ImGui::GetCursorScreenPos();
+                    ImGui::GetWindowDrawList()->AddRectFilled(p, ImVec2(p.x + sz, p.y + sz), ImGui::GetColorU32((ImGuiCol)i));
+                    ImGui::Dummy(ImVec2(sz, sz));
+                    ImGui::SameLine();
+                    ImGui::MenuItem(name);
+                }
+                ImGui::EndMenu();
+            }
+
+            // Here we demonstrate appending again to the "Options" menu (which we already created above)
+            // Of course in this demo it is a little bit silly that this function calls BeginMenu("Options") twice.
+            // In a real code-base using it would make senses to use this feature from very different code locations.
+            if (ImGui::BeginMenu("Options")) // <-- Append!
+            {
+                static bool b = true;
+                ImGui::Checkbox("SomeOption", &b);
+                ImGui::EndMenu();
+            }
+
+            if (ImGui::BeginMenu("Disabled", false)) // Disabled
+            {
+                IM_ASSERT(0);
+            }
+            if (ImGui::MenuItem("Checked", NULL, true)) {
+            }
+            if (ImGui::MenuItem("Quit", "Alt+F4")) {
+            }
+
+            ImGui::EndMenu();
+        }
+        if (ImGui::BeginMenu("UI")) {
+            if (ImGui::MenuItem("Item 1")) {
+            }
+            //ImGui::Separator();
+            if (ImGui::MenuItem("Item 2")) {
+            }
+            ImGui::EndMenu();
+        }
+        ImGui::EndMainMenuBar();
+    }
+}
+
 void UI::CenteredText(const char *text)
 {
     float windowWidth = ImGui::GetWindowSize().x;
@@ -111,151 +180,148 @@ void UI::CenteredText(const char *text)
     ImGui::Text(text);
 }
 
-void UI::LoginForm(NetClient &netClient, ImGuiIO& io, bool &escape)
+void UI::LoginForm(NetClient &netClient, ImGuiIO& io, bool &escape, bool &loginActive)
 {
-    if (netClient.IsConnected()) {
-        ImGui::CloseCurrentPopup();
-    } else {
-        ImGui::SetNextWindowSize(ImVec2(240, 0));
-        ImGui::SetNextWindowPos(ImVec2(6, 340));
-        auto rayDarkBlue = DARKBLUE;
-        ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(rayDarkBlue.r, rayDarkBlue.g, rayDarkBlue.b, rayDarkBlue.a));
-        ImGui::PushStyleColor(ImGuiCol_Border, IM_COL32_BLACK);
-        ImGui::Begin("##mini_menu", 0,
-            ImGuiWindowFlags_NoTitleBar |
-            ImGuiWindowFlags_NoMove |
-            ImGuiWindowFlags_NoResize |
-            ImGuiWindowFlags_NoCollapse
-        );
-        ImGui::PopStyleColor(2);
-        ImGui::Text("Play with friends!");
-        if (ImGui::Button("Connect to myself", ImVec2(150, 0))) {
-            netClient.Connect(SV_SINGLEPLAYER_HOST, SV_SINGLEPLAYER_PORT, SV_SINGLEPLAYER_USER, SV_SINGLEPLAYER_PASS);
-        }
-        if (ImGui::Button("Connect to DandyNet", ImVec2(150, 0))) {
-            ImGui::OpenPopup("Connect to Server##login_window");
-        }
-
-        if (ImGui::BeginPopupModal("Connect to Server##login_window", 0, ImGuiWindowFlags_AlwaysAutoResize)) {
-            static char host[SV_HOSTNAME_LENGTH_MAX + 1]{ "slime.theprogrammingjunkie.com" };
-            static int  port = SV_DEFAULT_PORT;
-            static char username[USERNAME_LENGTH_MAX + 1]{ "guest" };
-            static char password[PASSWORD_LENGTH_MAX + 1]{ "pizza" };
-            static const char *message = 0;
-            bool formValid = true;
-
-            ImGui::Text("    Host:");
-            ImGui::SameLine();
-            ImGui::SetNextItemWidth(232);
-            ImGui::InputText("##host", host, sizeof(host)); //, ImGuiInputTextFlags_Password | ImGuiInputTextFlags_ReadOnly);
-
-            ImGui::Text("    Port:");
-            ImGui::SameLine();
-            ImGui::SetNextItemWidth(89);
-            ImGui::InputInt("##port", &port, 1, 100); //, ImGuiInputTextFlags_ReadOnly);
-            port = CLAMP(port, 0, USHRT_MAX);
-
-            ImGui::Text("Username:");
-            ImGui::SameLine();
-            // https://github.com/ocornut/imgui/issues/455#issuecomment-167440172
-            if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && !ImGui::IsAnyItemActive() && !ImGui::IsMouseClicked(0)) {
-                ImGui::SetKeyboardFocusHere();
-            }
-            ImGui::SetNextItemWidth(232);
-            ImGui::InputText("##username", username, sizeof(username));
-
-            ImGui::Text("Password:");
-            ImGui::SameLine();
-            ImGui::SetNextItemWidth(232);
-            ImGui::InputText("##password", password, sizeof(password), ImGuiInputTextFlags_Password);
-
-            static double connectingIdxLastUpdate = 0;
-            static size_t connectingIdx = 0;
-            static bool triedConnecting = false;
-            static double failedToConnectShownAt = 0;
-            if (netClient.IsConnecting()) {
-                const char *text[3]{
-                    "Attempting to connect.  ",
-                    "Attempting to connect.. ",
-                    "Attempting to connect...",
-                };
-                message = text[connectingIdx];
-                triedConnecting = true;
-                if (glfwGetTime() - connectingIdxLastUpdate > 0.2) {
-                    connectingIdx = (connectingIdx + 1) % ARRAY_SIZE(text);
-                    connectingIdxLastUpdate = glfwGetTime();
-                }
-            } else {
-                if (triedConnecting) {
-                    message = "DandyNet is offline. :(";
-                    if (!failedToConnectShownAt) {
-                        failedToConnectShownAt = glfwGetTime();
-                    } else if (glfwGetTime() - failedToConnectShownAt > 5.0) {
-                        triedConnecting = false;
-                        failedToConnectShownAt = 0;
-                    }
-                } else {
-                    message = 0;
-                    static char buf[64]{};
-                    size_t usernameLen = strnlen(username, sizeof(username));
-                    size_t passwordLen = strnlen(password, sizeof(password));
-                    if (usernameLen < USERNAME_LENGTH_MIN || usernameLen > USERNAME_LENGTH_MAX) {
-                        formValid = false;
-                        snprintf(buf, sizeof(buf), "Username must be between %d-%d characters", USERNAME_LENGTH_MIN, USERNAME_LENGTH_MAX);
-                        message = buf;
-                    } else if (passwordLen < PASSWORD_LENGTH_MIN || passwordLen > PASSWORD_LENGTH_MAX) {
-                        formValid = false;
-                        snprintf(buf, sizeof(buf), "Password must be between %d-%d characters", PASSWORD_LENGTH_MIN, PASSWORD_LENGTH_MAX);
-                        message = buf;
-                    }
-                }
-                connectingIdx = 0;
-            }
-
-            if (message) {
-                CenteredText(message);
-            } else {
-                ImGui::Text("");
-            }
-
-            ImGui::BeginDisabled(netClient.IsConnecting());
-
-            ImGui::SetCursorPosX(177.0f);
-
-            int stylesPushed = 1;
-            ImGui::PushStyleColor(ImGuiCol_Button, formValid ? 0xFFBF8346 : 0xFF666666);
-            if (!formValid) {
-                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, 0xFF666666);
-                ImGui::PushStyleColor(ImGuiCol_ButtonActive, 0xFF666666);
-                stylesPushed += 2;
-            }
-            bool login = ImGui::Button("Connect##login_window:connect", ImVec2(60, 0));
-            ImGui::PopStyleColor(stylesPushed);
-            if (formValid && (login ||
-                IsKeyPressed(io.KeyMap[ImGuiKey_Enter]) ||
-                IsKeyPressed(io.KeyMap[ImGuiKey_KeyPadEnter])))
-            {
-                netClient.Connect(host, (unsigned short)port, username, password);
-            }
-
-            ImGui::SameLine();
-            //ImGui::PushStyleColor(ImGuiCol_Button, 0xFF999999);
-            bool cancel = ImGui::Button("Cancel##login_window:cancel", ImVec2(60, 0));
-            //ImGui::PopStyleColor();
-
-            ImGui::EndDisabled();
-
-            if (cancel || escape) {
-                ImGui::CloseCurrentPopup();
-                memset(username, 0, sizeof(username));
-                memset(password, 0, sizeof(password));
-                escape = false;
-            }
-
-            ImGui::EndPopup();
-        }
-        ImGui::End();
+#if 1
+    ImGui::SetNextWindowPos(ImVec2(screenSize.x - 240 - 10, 10));
+    ImGui::SetNextWindowSize(ImVec2(240, 0));
+    auto rayDarkBlue = DARKBLUE;
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(rayDarkBlue.r, rayDarkBlue.g, rayDarkBlue.b, rayDarkBlue.a));
+    ImGui::PushStyleColor(ImGuiCol_Border, IM_COL32_BLACK);
+    ImGui::Begin("##mini_menu", 0,
+        ImGuiWindowFlags_NoTitleBar |
+        ImGuiWindowFlags_NoMove |
+        ImGuiWindowFlags_NoResize |
+        ImGuiWindowFlags_NoCollapse
+    );
+    ImGui::PopStyleColor(2);
+    ImGui::Text("Play with friends!");
+    //if (ImGui::Button("Connect to myself", ImVec2(150, 0))) {
+    //    netClient.Connect(SV_SINGLEPLAYER_HOST, SV_SINGLEPLAYER_PORT, SV_SINGLEPLAYER_USER, SV_SINGLEPLAYER_PASS);
+    //}
+    if (ImGui::Button("Connect to DandyNet", ImVec2(150, 0))) {
+        ImGui::OpenPopup("Connect to Server##login_window");
     }
+#endif
+
+    if (ImGui::BeginPopupModal("Connect to Server##login_window", 0, ImGuiWindowFlags_AlwaysAutoResize)) {
+        static char host[SV_HOSTNAME_LENGTH_MAX + 1]{ "slime.theprogrammingjunkie.com" };
+        static int  port = SV_DEFAULT_PORT;
+        static char username[USERNAME_LENGTH_MAX + 1]{ "guest" };
+        static char password[PASSWORD_LENGTH_MAX + 1]{ "pizza" };
+        static const char *message = 0;
+        bool formValid = true;
+
+        ImGui::Text("    Host:");
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(232);
+        ImGui::InputText("##host", host, sizeof(host)); //, ImGuiInputTextFlags_Password | ImGuiInputTextFlags_ReadOnly);
+
+        ImGui::Text("    Port:");
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(89);
+        ImGui::InputInt("##port", &port, 1, 100); //, ImGuiInputTextFlags_ReadOnly);
+        port = CLAMP(port, 0, USHRT_MAX);
+
+        ImGui::Text("Username:");
+        ImGui::SameLine();
+        // https://github.com/ocornut/imgui/issues/455#issuecomment-167440172
+        if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && !ImGui::IsAnyItemActive() && !ImGui::IsMouseClicked(0)) {
+            ImGui::SetKeyboardFocusHere();
+        }
+        ImGui::SetNextItemWidth(232);
+        ImGui::InputText("##username", username, sizeof(username));
+
+        ImGui::Text("Password:");
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(232);
+        ImGui::InputText("##password", password, sizeof(password), ImGuiInputTextFlags_Password);
+
+        static double connectingIdxLastUpdate = 0;
+        static size_t connectingIdx = 0;
+        static bool triedConnecting = false;
+        static double failedToConnectShownAt = 0;
+        if (netClient.IsConnecting()) {
+            const char *text[3]{
+                "Attempting to connect.  ",
+                "Attempting to connect.. ",
+                "Attempting to connect...",
+            };
+            message = text[connectingIdx];
+            triedConnecting = true;
+            if (glfwGetTime() - connectingIdxLastUpdate > 0.2) {
+                connectingIdx = (connectingIdx + 1) % ARRAY_SIZE(text);
+                connectingIdxLastUpdate = glfwGetTime();
+            }
+        } else {
+            if (triedConnecting) {
+                message = "DandyNet is offline. :(";
+                if (!failedToConnectShownAt) {
+                    failedToConnectShownAt = glfwGetTime();
+                } else if (glfwGetTime() - failedToConnectShownAt > 5.0) {
+                    triedConnecting = false;
+                    failedToConnectShownAt = 0;
+                }
+            } else {
+                message = 0;
+                static char buf[64]{};
+                size_t usernameLen = strnlen(username, sizeof(username));
+                size_t passwordLen = strnlen(password, sizeof(password));
+                if (usernameLen < USERNAME_LENGTH_MIN || usernameLen > USERNAME_LENGTH_MAX) {
+                    formValid = false;
+                    snprintf(buf, sizeof(buf), "Username must be between %d-%d characters", USERNAME_LENGTH_MIN, USERNAME_LENGTH_MAX);
+                    message = buf;
+                } else if (passwordLen < PASSWORD_LENGTH_MIN || passwordLen > PASSWORD_LENGTH_MAX) {
+                    formValid = false;
+                    snprintf(buf, sizeof(buf), "Password must be between %d-%d characters", PASSWORD_LENGTH_MIN, PASSWORD_LENGTH_MAX);
+                    message = buf;
+                }
+            }
+            connectingIdx = 0;
+        }
+
+        if (message) {
+            CenteredText(message);
+        } else {
+            ImGui::Text("");
+        }
+
+        ImGui::BeginDisabled(netClient.IsConnecting());
+
+        ImGui::SetCursorPosX(177.0f);
+
+        int stylesPushed = 1;
+        ImGui::PushStyleColor(ImGuiCol_Button, formValid ? 0xFFBF8346 : 0xFF666666);
+        if (!formValid) {
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, 0xFF666666);
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, 0xFF666666);
+            stylesPushed += 2;
+        }
+        bool login = ImGui::Button("Connect##login_window:connect", ImVec2(60, 0));
+        ImGui::PopStyleColor(stylesPushed);
+        if (formValid && (login ||
+            IsKeyPressed(io.KeyMap[ImGuiKey_Enter]) ||
+            IsKeyPressed(io.KeyMap[ImGuiKey_KeyPadEnter])))
+        {
+            netClient.Connect(host, (unsigned short)port, username, password);
+        }
+
+        ImGui::SameLine();
+        //ImGui::PushStyleColor(ImGuiCol_Button, 0xFF999999);
+        bool cancel = ImGui::Button("Cancel##login_window:cancel", ImVec2(60, 0));
+        //ImGui::PopStyleColor();
+
+        ImGui::EndDisabled();
+
+        if (cancel || escape) {
+            memset(username, 0, sizeof(username));
+            memset(password, 0, sizeof(password));
+            ImGui::CloseCurrentPopup();
+            escape = false;
+        }
+        ImGui::EndPopup();
+    }
+    ImGui::End();
 }
 
 void UI::Mixer(void)
@@ -673,7 +739,7 @@ int UI::Menu(const Font &font, const char **items, size_t itemCount)
     return itemPressed;
 }
 
-void UI::Inventory(const Player& player, bool &inventoryActive)
+void UI::Inventory(const Texture &invItems, Player& player, bool &inventoryActive)
 {
     const ImVec2 inventorySize{ 540.0, 360.0f };
     const float pad = 80.0f;
@@ -681,6 +747,13 @@ void UI::Inventory(const Player& player, bool &inventoryActive)
     const float top = pad;
     ImGui::SetNextWindowPos(ImVec2(left, top));
     //ImGui::SetNextWindowSize(inventorySize);
+
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 2.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 2.0f);
+
+    auto bgWindow = BLACK;
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(bgWindow.r, bgWindow.g, bgWindow.b, 0.7f * 255.0f));
+    ImGui::PushStyleColor(ImGuiCol_Border, IM_COL32_BLACK);
 
     ImGui::Begin("##inventory", 0,
         ImGuiWindowFlags_NoTitleBar |
@@ -693,52 +766,130 @@ void UI::Inventory(const Player& player, bool &inventoryActive)
 
     ImGui::Text("Your stuffs:");
 
-    auto bgColor = DARKGRAY;
+    auto bgColor = DARKBLUE;
     ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(bgColor.r, bgColor.g, bgColor.b, 0.7f * 255.0f));
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(0, 255, 0, 255));
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32(0, 0, 255, 255));
-    ImGui::PushStyleColor(ImGuiCol_Border, IM_COL32_BLACK);
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4, 4));
     ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 5.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 3.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8.0f, 8.0f));
 
-    static Texture2D invItems{};
-    if (!invItems.width) {
-        invItems = LoadTexture("resources/items.png");
-    }
-
-    dlb_rand32_t randInv{};
-    dlb_rand32_seed_r(&randInv, 42, 42);
-
-    const int rows = 6;
-    const int cols = 10;
     int id = 0;
-    for (int row = 0; row < rows; row++) {
-        for (int col = 0; col < cols; col++) {
-            ImGui::PushID(row * cols + col);
+    for (int row = 0; row < PLAYER_INV_ROWS; row++) {
+        ImGui::PushID(row);
+        for (int col = 0; col < PLAYER_INV_COLS; col++) {
+            ImGui::PushID(col);
 
-            const int idx = dlb_rand32i_range_r(&randInv, 0, 10);
-            if (idx < 7) {
+            int slot = row * PLAYER_INV_COLS + col;
+            ItemStack &invStack = player.inventory.GetInvStack(row, col);
+
+            int texIdx = -1;
+            switch (invStack.id) {
+                case Catalog::ItemID::Currency_Copper: texIdx = 0; break;
+                case Catalog::ItemID::Currency_Silver: texIdx = 1; break;
+                case Catalog::ItemID::Currency_Gilded: texIdx = 2; break;
+            }
+
+            if (texIdx >= 0 && texIdx < 7) {
                 if (ImGui::ImageButton((ImTextureID)(size_t)invItems.id,
                     ImVec2(32.0f, 32.0f),
-                    ImVec2(idx * 32.0f / 320, 0),
-                    ImVec2((idx + 1) * 32.0f / 320, 1))
+                    ImVec2(texIdx * 32.0f / 320, 0),
+                    ImVec2((texIdx + 1) * 32.0f / 320, 1))
                 ) {
-                    TraceLog(LOG_DEBUG, "%d, %d", col, row);
+#if CURSOR_ITEM_RELATIVE_DRAG
+                    if (!player.inventory.cursor.count) {
+                        const ImGuiStyle style = ImGui::GetStyle();
+                        const ImVec2 topLeft = ImGui::GetItemRectMin();
+                        player.inventory.cursorOffset = mouseScreen;
+                        player.inventory.cursorOffset.x -= (topLeft.x + style.FramePadding.x);
+                        player.inventory.cursorOffset.y -= (topLeft.y + style.FramePadding.y);
+                    }
+#endif
+                    player.inventory.SlotClick(row, col);
+                    //TraceLog(LOG_DEBUG, "%d, %d", col, row);
                 }
+
+                ItemStack &newInvStack = player.inventory.GetInvStack(row, col);
+                if (newInvStack.count) {
+                    const ImVec2 topLeft = ImGui::GetItemRectMin();
+                    ImDrawList *drawList = ImGui::GetWindowDrawList();
+
+                    char countBuf[16]{};
+                    snprintf(countBuf, sizeof(countBuf), "%d", newInvStack.count);
+                    drawList->AddText(
+                        {topLeft.x + 4, topLeft.y + 2},
+                        IM_COL32_WHITE,
+                        countBuf
+                    );
+                }
+
             } else {
                 if (ImGui::Button("##inv_slot", ImVec2(48, 48))) {
-                    TraceLog(LOG_DEBUG, "%d, %d", col, row);
+                    player.inventory.SlotClick(row, col);
+                    //TraceLog(LOG_DEBUG, "%d, %d", col, row);
                 }
             }
 
+            if (col < PLAYER_INV_COLS - 1)
+                ImGui::SameLine();
+
             ImGui::PopID();
-            if (col < cols - 1) ImGui::SameLine();
         }
+        ImGui::PopID();
     }
-    ImGui::PopStyleVar(4);
-    ImGui::PopStyleColor(4);
+    ImGui::PopStyleColor(5);
+    ImGui::PopStyleVar(6);
+
+    if (player.inventory.cursor.count) {
+        int texIdx = -1;
+        switch (player.inventory.cursor.id) {
+            case Catalog::ItemID::Currency_Copper: texIdx = 0; break;
+            case Catalog::ItemID::Currency_Silver: texIdx = 1; break;
+            case Catalog::ItemID::Currency_Gilded: texIdx = 2; break;
+        }
+
+        Rectangle cursorSrc{
+            texIdx * 32.0f,
+            32.0f,
+            32.0f,
+            32.0f
+        };
+        Rectangle cursorDst{
+            mouseScreen.x - player.inventory.cursorOffset.x,
+            mouseScreen.y - player.inventory.cursorOffset.y,
+            32.0f,
+            32.0f
+        };
+
+        ImDrawList *drawList = ImGui::GetWindowDrawList();
+        drawList->PushClipRect({0, 0}, {screenSize.x, screenSize.y});
+
+        if (cursorSrc.x >= 0.0f && cursorSrc.x < invItems.width) {
+            drawList->AddImage(
+                (ImTextureID)(size_t)invItems.id,
+                ImVec2(cursorDst.x, cursorDst.y),
+                ImVec2(cursorDst.x + 32.0f, cursorDst.y + 32.0f),
+                ImVec2(texIdx * 32.0f / 320, 0),
+                ImVec2((texIdx + 1) * 32.0f / 320, 1)
+            );
+
+            //ImGui::Image((ImTextureID)(size_t)invItems.id,
+            //    ImVec2(32.0f, 32.0f),
+            //    ImVec2(texIdx * 32.0f / 320, 0),
+            //    ImVec2((texIdx + 1) * 32.0f / 320, 1)
+            //);
+            //DrawTextureRec(invItems, cursorSrc, mouseScreen, WHITE);
+        } else {
+            //DrawRectangleRec(cursorDst, PINK);
+            drawList->AddRectFilled(
+                ImVec2(cursorDst.x, cursorDst.y),
+                ImVec2(cursorDst.x + 32.0f, cursorDst.y + 32.0f),
+                IM_COL32(PINK.r, PINK.g, PINK.b, PINK.a)
+            );
+        }
+        drawList->PopClipRect();
+    }
 
     ImGui::End();
 }

@@ -23,10 +23,10 @@ void Player::Init(const SpriteDef *spriteDef)
     sprite.spriteDef = spriteDef;
 
     // TODO: Load selected slot from save file / server
-    inventory.selectedSlot = PlayerInventorySlot::Slot_1;
+    inventory.selectedSlot = PlayerInventorySlot::Hotbar_1;
 
     // TODO: Load inventory from save file / server
-    inventory.slots[(int)PlayerInventorySlot::Slot_1] = { Catalog::ItemID::Weapon_Sword , 1 };
+    inventory.slots[(int)PlayerInventorySlot::Hotbar_1] = { Catalog::ItemID::Weapon_Sword , 1 };
     inventory.slots[(int)PlayerInventorySlot::Coin_Copper] = { Catalog::ItemID::Currency_Copper, 0 };
     inventory.slots[(int)PlayerInventorySlot::Coin_Silver] = { Catalog::ItemID::Currency_Silver, 0 };
     inventory.slots[(int)PlayerInventorySlot::Coin_Gilded] = { Catalog::ItemID::Currency_Gilded, 0 };

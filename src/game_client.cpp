@@ -55,9 +55,10 @@ ErrorType GameClient::Run(void)
         TraceLog(LOG_ERROR, "Failed to connect to local server");
     }
 
-    const char *fontName = "C:/Windows/Fonts/consola.ttf";
+    //const char *fontName = "C:/Windows/Fonts/consola.ttf";
     //const char *fontName = "resources/UbuntuMono-Regular.ttf";
-    Font fontSmall = LoadFontEx(fontName, 14, 0, 0);
+    const char *fontName = "resources/Hack-Bold.ttf";
+    Font fontSmall = LoadFontEx(fontName, 16, 0, 0);
     //Font fontBig = LoadFontEx(fontName, 72, 0, 0);
     assert(fontSmall.texture.id);
     //assert(fontBig.texture.id);
@@ -136,6 +137,8 @@ ErrorType GameClient::Run(void)
     Texture checkboardTexture = LoadTextureFromImage(checkerboardImage);
     UnloadImage(checkerboardImage);
 
+    Texture2D invItems = LoadTexture("resources/items.png");
+
     World *lobby = new World;
     lobby->tick = 1;
     lobby->map = lobby->mapSystem.Alloc();
@@ -156,6 +159,18 @@ ErrorType GameClient::Run(void)
 
         // 1610 x 910
         //player->body.position.x = 1457.83557f;
+
+        for (int row = 0; row < PLAYER_INV_ROWS; row++) {
+            for (int col = 0; col < PLAYER_INV_COLS; col++) {
+                int slot = row * PLAYER_INV_COLS + col;
+                ItemStack &stack = player->inventory.slots[(int)PlayerInventorySlot::Count + slot];
+                stack.id = (Catalog::ItemID)dlb_rand32i_range(
+                    (int)Catalog::ItemID::Empty,
+                    (int)Catalog::ItemID::Currency_Gilded
+                );
+                stack.count = (int)stack.id != 0;
+            }
+        }
     }
 
 #if DEMO_VIEW_RTREE
@@ -200,11 +215,13 @@ ErrorType GameClient::Run(void)
     bool menuActive = false;
     bool mixerActive = false;
     bool inventoryActive = false;
+    bool loginActive = false;
     bool disconnectRequested = false;
     bool quit = false;
 
     InputMode inputMode = INPUT_MODE_PLAY;
 
+    bool show_menubar = false;
     bool show_demo_window = false;
     //---------------------------------------------------------------------------------------
 
@@ -411,7 +428,8 @@ ErrorType GameClient::Run(void)
         }
 
         if (input.dbgImgui) {
-            show_demo_window = !show_demo_window;
+            show_menubar = !show_menubar;
+            show_demo_window = show_menubar && IsKeyDown(KEY_LEFT_SHIFT);
         }
 
         if (IsWindowResized() || input.toggleFullscreen) {
@@ -725,16 +743,23 @@ ErrorType GameClient::Run(void)
         UI::HUD(fontSmall, player, debugStats);
         //UI::QuickHUD(fontSdf24, player, *world->map);
         if (inventoryActive) {
-            UI::Inventory(player, inventoryActive);
+            UI::Inventory(invItems, player, inventoryActive);
         }
 
         rlDrawRenderBatchActive();
 
+        if (show_menubar) {
+            UI::Menubar(loginActive, mixerActive);
+        }
         if (show_demo_window) {
             ImGui::ShowDemoWindow(&show_demo_window);
         }
 
-        UI::LoginForm(netClient, io, escape);
+        if (netClient.IsConnected()) {
+            loginActive = !netClient.IsConnected();
+        }
+        UI::LoginForm(netClient, io, escape, loginActive);
+
         if (mixerActive) {
             UI::Mixer();
         }

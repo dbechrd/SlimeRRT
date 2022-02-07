@@ -9,26 +9,55 @@
 
 struct Tilemap;
 
+#define PLAYER_INV_ROWS 6
+#define PLAYER_INV_COLS 10
+
 enum class PlayerInventorySlot {
-    None = 0,
-    Slot_1 = 1,
-    Slot_2 = 2,
-    Slot_3 = 3,
-    Slot_4 = 4,
-    Slot_5 = 5,
-    Slot_6 = 6,
-    Slot_7 = 7,
-    Slot_8 = 8,
-    Slot_9 = 9,
-    Coin_Copper = 10,
-    Coin_Silver = 11,
-    Coin_Gilded = 12,
+    None,
+    Coin_Copper,
+    Coin_Silver,
+    Coin_Gilded,
+    Hotbar_1,
+    Hotbar_2,
+    Hotbar_3,
+    Hotbar_4,
+    Hotbar_5,
+    Hotbar_6,
+    Hotbar_7,
+    Hotbar_8,
     Count
 };
 
 struct PlayerInventory {
-    PlayerInventorySlot selectedSlot{};
-    ItemStack slots[(int)PlayerInventorySlot::Count]{};
+    PlayerInventorySlot selectedSlot{};  // NOTE: for hotbar, needs rework
+    ItemStack cursor{};
+    Vector2 cursorOffset{};
+    ItemStack slots[(int)PlayerInventorySlot::Count + (PLAYER_INV_ROWS * PLAYER_INV_COLS)]{};
+
+    ItemStack &GetInvStack(int row, int col)
+    {
+        assert(row >= 0);
+        assert(col >= 0);
+        assert(row < PLAYER_INV_ROWS);
+        assert(row < PLAYER_INV_COLS);
+        const int slot = row * PLAYER_INV_COLS + col;
+        ItemStack &stack = slots[(int)PlayerInventorySlot::Count + slot];
+        return stack;
+    }
+
+    void SlotClick(int row, int col)
+    {
+        ItemStack &invStack = GetInvStack(row, col);
+
+        if (cursor.count && cursor.id == invStack.id) {
+            invStack.count += cursor.count;
+            cursor = {};
+        } else {
+            ItemStack tmp = cursor;
+            cursor = invStack;
+            invStack = tmp;
+        }
+    }
 };
 
 struct Player : Drawable {

@@ -117,7 +117,8 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                     stream.Process(sample.walkWest);
                     stream.Process(sample.run);
                     stream.Process(sample.attack);
-                    stream.Process(sample.selectSlot, 4, (uint32_t)PlayerInventorySlot::None, (uint32_t)PlayerInventorySlot::Slot_6);
+                    assert((int)PlayerInventorySlot::Count > 0);
+                    stream.Process(sample.selectSlot, 4, (uint32_t)PlayerInventorySlot::None, (uint32_t)PlayerInventorySlot::Count - 1);
                 }
             }
             stream.Align();
