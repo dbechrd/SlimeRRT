@@ -784,56 +784,63 @@ void UI::Inventory(const Texture &invItems, Player& player, bool &inventoryActiv
             int slot = row * PLAYER_INV_COLS + col;
             ItemStack &invStack = player.inventory.GetInvStack(row, col);
 
-            int texIdx = -1;
+            int texIdx = 0;
             switch (invStack.id) {
-                case Catalog::ItemID::Currency_Copper: texIdx = 0; break;
-                case Catalog::ItemID::Currency_Silver: texIdx = 1; break;
-                case Catalog::ItemID::Currency_Gilded: texIdx = 2; break;
+                case Catalog::ItemID::Currency_Copper: texIdx = 2; break;
+                case Catalog::ItemID::Currency_Silver: texIdx = 3; break;
+                case Catalog::ItemID::Currency_Gilded: texIdx = 4; break;
+                default: texIdx = invStack.count ? 1 : 0;
             }
 
-            if (texIdx >= 0 && texIdx < 7) {
-                if (ImGui::ImageButton((ImTextureID)(size_t)invItems.id,
+            if (invStack.count) {
+                ImGui::ImageButton((ImTextureID)(size_t)invItems.id,
                     ImVec2(32.0f, 32.0f),
                     ImVec2(texIdx * 32.0f / 320, 0),
-                    ImVec2((texIdx + 1) * 32.0f / 320, 1))
-                ) {
-#if CURSOR_ITEM_RELATIVE_DRAG
-                    if (!player.inventory.cursor.count) {
-                        const ImGuiStyle style = ImGui::GetStyle();
-                        const ImVec2 topLeft = ImGui::GetItemRectMin();
-                        player.inventory.cursorOffset = mouseScreen;
-                        player.inventory.cursorOffset.x -= (topLeft.x + style.FramePadding.x);
-                        player.inventory.cursorOffset.y -= (topLeft.y + style.FramePadding.y);
-                    }
-#endif
-                    player.inventory.SlotClick(row, col);
-                    //TraceLog(LOG_DEBUG, "%d, %d", col, row);
-                }
+                    ImVec2((texIdx + 1) * 32.0f / 320, 1));
 
-                ItemStack &newInvStack = player.inventory.GetInvStack(row, col);
-                if (newInvStack.count) {
+                //ItemStack &newInvStack = player.inventory.GetInvStack(row, col);
+                //if (newInvStack.count) {
                     const ImVec2 topLeft = ImGui::GetItemRectMin();
                     ImDrawList *drawList = ImGui::GetWindowDrawList();
 
                     char countBuf[16]{};
-                    snprintf(countBuf, sizeof(countBuf), "%d", newInvStack.count);
+                    snprintf(countBuf, sizeof(countBuf), "%d", invStack.count);
+                    //snprintf(countBuf, sizeof(countBuf), "%d", newInvStack.count);
                     drawList->AddText(
-                        {topLeft.x + 4, topLeft.y + 2},
+                        { topLeft.x + 4, topLeft.y + 2 },
                         IM_COL32_WHITE,
                         countBuf
                     );
-                }
-
+                //}
             } else {
-                if (ImGui::Button("##inv_slot", ImVec2(48, 48))) {
-                    player.inventory.SlotClick(row, col);
-                    //TraceLog(LOG_DEBUG, "%d, %d", col, row);
-                }
+                //ImGui::Button("##inv_slot", ImVec2(48, 48));
+
+                ImGui::ImageButton((ImTextureID)(size_t)invItems.id,
+                    ImVec2(32.0f, 32.0f),
+                    ImVec2(texIdx * 32.0f / 320, 0),
+                    ImVec2((texIdx + 1) * 32.0f / 320, 1),
+                    -1,
+                    ImVec4(0, 0, 0, 0),
+                    ImVec4(1, 1, 1, 0.5f));
             }
 
-            if (col < PLAYER_INV_COLS - 1)
-                ImGui::SameLine();
+            const float scrollY = GetMouseWheelMove();
+            if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
+                const bool doubleClick = ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left);
+                player.inventory.SlotClick(row, col, doubleClick);
+            } else if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
+                //player.inventory.SlotClick(row, col);
+            } else if (ImGui::IsItemHovered() && scrollY) {
+                // TODO(dlb): This will break if the window has any scrolling controls
+                player.inventory.SlotScroll(row, col, scrollY);
+            } else if (ImGui::IsItemHovered() && invStack.count && !player.inventory.cursor.count) {
+                const char *invName = Catalog::g_items.Name(invStack.id, invStack.count > 1);
+                ImGui::SetTooltip("%u %s", invStack.count, invName);
+            }
 
+            if (col < PLAYER_INV_COLS - 1) {
+                ImGui::SameLine();
+            }
             ImGui::PopID();
         }
         ImGui::PopID();
@@ -842,11 +849,11 @@ void UI::Inventory(const Texture &invItems, Player& player, bool &inventoryActiv
     ImGui::PopStyleVar(6);
 
     if (player.inventory.cursor.count) {
-        int texIdx = -1;
+        int texIdx = 1;
         switch (player.inventory.cursor.id) {
-            case Catalog::ItemID::Currency_Copper: texIdx = 0; break;
-            case Catalog::ItemID::Currency_Silver: texIdx = 1; break;
-            case Catalog::ItemID::Currency_Gilded: texIdx = 2; break;
+            case Catalog::ItemID::Currency_Copper: texIdx = 2; break;
+            case Catalog::ItemID::Currency_Silver: texIdx = 3; break;
+            case Catalog::ItemID::Currency_Gilded: texIdx = 4; break;
         }
 
         Rectangle cursorSrc{
@@ -868,8 +875,34 @@ void UI::Inventory(const Texture &invItems, Player& player, bool &inventoryActiv
         if (cursorSrc.x >= 0.0f && cursorSrc.x < invItems.width) {
             drawList->AddImage(
                 (ImTextureID)(size_t)invItems.id,
-                ImVec2(cursorDst.x, cursorDst.y),
-                ImVec2(cursorDst.x + 32.0f, cursorDst.y + 32.0f),
+#if CURSOR_ITEM_RELATIVE_TERRARIA
+                // Terraria:
+                //   on mouse down
+                //   always bottom right of cursor
+                //   left mouse down = take/swap/combine/drop stack
+                //   right mouse down = if stack is same (or cursor empty), take 1 item immediately, then repeat with acceleration
+                //   sin wave scale bobbing
+                //   can use held item as if equipped
+                ImVec2(cursorDst.x + 8.0f, cursorDst.y + 8.0f),
+                ImVec2(cursorDst.x + 40.0f, cursorDst.y + 40.0f),
+#else
+                // D2R:
+                //   Always centers item on cursor
+                //   empty cursor:
+                //     left mouse down = take/swap/drop stack (or combine for rare cases like keys)
+
+                // Minecraft:
+                //   empty cursor:
+                //     left mouse down = pick up stack
+                //   filled cursor:
+                //     left mouse down + drag split stack evenly
+                //     right mouse down + drag 1 item piles
+                //     mouse up = keep remainder on cursor
+                //   Always centers item on cursor
+                //   squish (less width, more height) animation on pick-up
+                ImVec2(cursorDst.x - 16.0f, cursorDst.y - 16.0f),
+                ImVec2(cursorDst.x + 16.0f, cursorDst.y + 16.0f),
+#endif
                 ImVec2(texIdx * 32.0f / 320, 0),
                 ImVec2((texIdx + 1) * 32.0f / 320, 1)
             );
@@ -888,6 +921,16 @@ void UI::Inventory(const Texture &invItems, Player& player, bool &inventoryActiv
                 IM_COL32(PINK.r, PINK.g, PINK.b, PINK.a)
             );
         }
+
+        char countBuf[16]{};
+        snprintf(countBuf, sizeof(countBuf), "%d", player.inventory.cursor.count);
+        //snprintf(countBuf, sizeof(countBuf), "%d", newInvStack.count);
+        drawList->AddText(
+            { cursorDst.x - 16 - 4, cursorDst.y - 16 - 6 },
+            IM_COL32_WHITE,
+            countBuf
+        );
+
         drawList->PopClipRect();
     }
 

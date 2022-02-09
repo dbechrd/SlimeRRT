@@ -45,17 +45,76 @@ struct PlayerInventory {
         return stack;
     }
 
-    void SlotClick(int row, int col)
+    void SwapStack(ItemStack &a, ItemStack &b)
     {
-        ItemStack &invStack = GetInvStack(row, col);
+        ItemStack tmp = a;
+        a = b;
+        b = tmp;
+    }
 
-        if (cursor.count && cursor.id == invStack.id) {
-            invStack.count += cursor.count;
-            cursor = {};
+    // Transfer as many items as possible from cursor to inv stack
+    bool TransferStack(ItemStack &src, ItemStack &dst, bool skipFull = false, uint32_t transferLimit = UINT32_MAX)
+    {
+        if (!dst.count || src.id == dst.id) {
+            const Catalog::Item &item = Catalog::g_items.FindById(src.id);
+
+            // Don't transfer full stacks (e.g. when collecting items on double-click)
+            if (skipFull && src.count == item.stackLimit) {
+                return false;
+            }
+
+            assert(dst.count <= item.stackLimit);
+            uint32_t transferCount = MIN(MIN(src.count, item.stackLimit - dst.count), transferLimit);
+            dst.count += transferCount;
+            if (dst.count) {
+                dst.id = src.id;
+            }
+            src.count -= transferCount;
+            if (!src.count) {
+                src.id = Catalog::ItemID::Empty;
+            }
+            return dst.count == item.stackLimit;
+        }
+        return false;
+    }
+
+    void SlotScroll(int slotRow, int slotCol, float scroll)
+    {
+        const int transferAmount = (int)scroll;
+        if (transferAmount) {
+            ItemStack &invStack = GetInvStack(slotRow, slotCol);
+
+            if (transferAmount > 0) {
+                TransferStack(cursor, invStack, false, (uint32_t)transferAmount);
+            } else {
+                TransferStack(invStack, cursor, false, (uint32_t)-transferAmount);
+            }
+        }
+    }
+
+    void SlotClick(int slotRow, int slotCol, bool doubleClicked = false)
+    {
+        ItemStack &invStack = GetInvStack(slotRow, slotCol);
+
+        if (doubleClicked) {
+            if (!cursor.count) {
+                SwapStack(cursor, invStack);
+            }
+            if (!invStack.count || (invStack.id == cursor.id)) {
+                bool done = false;
+                for (int row = PLAYER_INV_ROWS - 1; row >= 0 && !done; row--) {
+                    for (int col = PLAYER_INV_COLS - 1; col >= 0 && !done; col--) {
+                        ItemStack &srcStack = GetInvStack(row, col);
+                        done = TransferStack(srcStack, cursor, true);
+                    }
+                }
+            }
         } else {
-            ItemStack tmp = cursor;
-            cursor = invStack;
-            invStack = tmp;
+            if (cursor.count && cursor.id == invStack.id) {
+                TransferStack(cursor, invStack);
+            } else {
+                SwapStack(cursor, invStack);
+            }
         }
     }
 };

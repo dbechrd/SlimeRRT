@@ -41,6 +41,8 @@ ErrorType GameClient::Run(void)
     //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
     //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
 
+    io.FontDefault = io.Fonts->AddFontFromFileTTF("resources/Hack-Bold.ttf", 16.0f);
+
     // Setup Dear ImGui style
     ImGui::StyleColorsDark();
 
@@ -163,7 +165,7 @@ ErrorType GameClient::Run(void)
         for (int row = 0; row < PLAYER_INV_ROWS; row++) {
             for (int col = 0; col < PLAYER_INV_COLS; col++) {
                 int slot = row * PLAYER_INV_COLS + col;
-                ItemStack &stack = player->inventory.slots[(int)PlayerInventorySlot::Count + slot];
+                ItemStack &stack = player->inventory.GetInvStack(row, col);
                 stack.id = (Catalog::ItemID)dlb_rand32i_range(
                     (int)Catalog::ItemID::Empty,
                     (int)Catalog::ItemID::Currency_Gilded
@@ -171,6 +173,9 @@ ErrorType GameClient::Run(void)
                 stack.count = (int)stack.id != 0;
             }
         }
+        ItemStack &stack = player->inventory.GetInvStack(0, 0);
+        stack.count = 1;
+        stack.id = Catalog::ItemID::Weapon_Sword;
     }
 
 #if DEMO_VIEW_RTREE

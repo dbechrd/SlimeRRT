@@ -3,31 +3,34 @@ spritesheet 4 4 4 resources/items.png
 
 # frame <name> <x> <y> <width> <height>
 # row 1 (gems)
-frame item_copper         0 0 32 32
-frame item_silver        32 0 32 32
-frame item_gilded        64 0 32 32
-frame item_ruby          96 0 32 32
-frame item_emerald      128 0 32 32
-frame item_saphire      160 0 32 32
-frame item_diamond      192 0 32 32
-frame item_golden_chest 224 0 32 32
+frame item_unknown        0 0 32 32
+frame item_copper        32 0 32 32
+frame item_silver        64 0 32 32
+frame item_gilded        96 0 32 32
+frame item_ruby         128 0 32 32
+frame item_emerald      160 0 32 32
+frame item_saphire      192 0 32 32
+frame item_diamond      224 0 32 32
+frame item_golden_chest 256 0 32 32
 
 # animation <name> <frame0> [frame1] ... [frame15]
-animation item_copper       0
-animation item_silver       1
-animation item_gilded       2
-animation item_ruby         3
-animation item_emerald      4
-animation item_saphire      5
-animation item_diamond      6
-animation item_golden_chest 7
+animation item_unknown      0
+animation item_copper       1
+animation item_silver       2
+animation item_gilded       3
+animation item_ruby         4
+animation item_emerald      5
+animation item_saphire      6
+animation item_diamond      7
+animation item_golden_chest 8
 
 # sprite <name> <anim_n> <anim_ne> <anim_e> <anim_se> <anim_s> <anim_sw> <anim_w> <anim_nw>
-sprite item_copper       0 - - - - - - -
-sprite item_silver       1 - - - - - - -
-sprite item_gilded       2 - - - - - - -
-sprite item_ruby         3 - - - - - - -
-sprite item_emerald      4 - - - - - - -
-sprite item_saphire      5 - - - - - - -
-sprite item_diamond      6 - - - - - - -
-sprite item_golden_chest 7 - - - - - - -
+sprite item_unknown      0 - - - - - - -
+sprite item_copper       1 - - - - - - -
+sprite item_silver       2 - - - - - - -
+sprite item_gilded       3 - - - - - - -
+sprite item_ruby         4 - - - - - - -
+sprite item_emerald      5 - - - - - - -
+sprite item_saphire      6 - - - - - - -
+sprite item_diamond      7 - - - - - - -
+sprite item_golden_chest 8 - - - - - - -
