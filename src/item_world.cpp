@@ -40,7 +40,7 @@ bool ItemWorld::Cull(const Rectangle& cullRect) const
 void ItemWorld::Update(double dt)
 {
     if (stack.id != namedStack.id || stack.count != namedStack.count) {
-        const char *itemName = Catalog::g_items.Name(stack.id);
+        const char *itemName = stack.Name();
         snprintf(name, sizeof(name), "%s (%u)", itemName, stack.count);
         namedStack.id = stack.id;
         namedStack.count = stack.count;

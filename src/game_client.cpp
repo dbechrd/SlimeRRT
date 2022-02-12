@@ -130,7 +130,7 @@ ErrorType GameClient::Run(void)
     Catalog::g_tracks.Load();
     tileset_init();
 
-    Catalog::g_mixer.masterVolume = 1.0f;
+    Catalog::g_mixer.masterVolume = 0.1f;
     Catalog::g_mixer.musicVolume = 0.0f;
     Catalog::g_sounds.mixer.volumeLimit[(size_t)Catalog::SoundID::GemBounce] = 0.8f;
     Catalog::g_sounds.mixer.volumeLimit[(size_t)Catalog::SoundID::Whoosh] = 0.6f;
@@ -139,7 +139,7 @@ ErrorType GameClient::Run(void)
     Texture checkboardTexture = LoadTextureFromImage(checkerboardImage);
     UnloadImage(checkerboardImage);
 
-    Texture2D invItems = LoadTexture("resources/items.png");
+    Texture2D invItems = LoadTexture("resources/joecreates.png");
 
     World *lobby = new World;
     lobby->tick = 1;
@@ -175,7 +175,7 @@ ErrorType GameClient::Run(void)
         }
         ItemStack &stack = player->inventory.GetInvStack(0, 0);
         stack.count = 1;
-        stack.id = Catalog::ItemID::Weapon_Sword;
+        stack.id = Catalog::ItemID::Weapon_Long_Sword;
     }
 
 #if DEMO_VIEW_RTREE
@@ -804,6 +804,7 @@ ErrorType GameClient::Run(void)
                 }
             } else {
                 const char *menuItems[] = { "Resume", "Audio", "Quit" };
+                //const char *menuItems[] = { "Be", "Right", "Back" };
                 switch (UI::Menu(fontSdf72, menuItems, ARRAY_SIZE(menuItems))) {
                     case 0: {    // Resume
                         menuActive = false;

@@ -397,7 +397,7 @@ void World::SV_SimItems(double dt)
                     closestPlayer->inventory.slots[(int)PlayerInventorySlot::Coin_Gilded].count += item.stack.count;
                     closestPlayer->stats.coinsCollected += item.stack.count;
                     break;
-                } case Catalog::ItemID::Weapon_Sword: {
+                } case Catalog::ItemID::Weapon_Long_Sword: {
                     break;
                 }
             }

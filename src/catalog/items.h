@@ -4,10 +4,216 @@
 namespace Catalog {
     enum class ItemID {
         Empty,
+        System_InvSlotBackground,
         Currency_Copper,
         Currency_Silver,
         Currency_Gilded,
-        Weapon_Sword,
+        Orig_Gem_Ruby,
+        Orig_Gem_Emerald,
+        Orig_Gem_Saphire,
+        Orig_Gem_Diamond,
+        Orig_Gem_GoldenChest,
+        Orig_Unused_10,
+        Orig_Unused_11,
+        Orig_Unused_12,
+
+        // TODO: Better names: https://5.imimg.com/data5/TX/SL/MY-2530321/gemstones-1000x1000.jpg
+        Ring_Stone,
+        Ring_Bone,
+        Ring_Obsidian,
+        Ring_Zebra,
+        Ring_Rust,
+        Ring_BlueSteel,
+        Ring_Jade,
+        Amulet_Silver_Topaz,
+        Amulet_Silver_Saphire,
+        Amulet_Silver_Emerald,
+        Amulet_Silver_Ruby,
+        Amulet_Silver_Amethyst,
+        Amulet_Silver_Diamond,
+
+        Ring_Silver_Topaz,
+        Ring_Silver_Saphire,
+        Ring_Silver_Emerald,
+        Ring_Silver_Ruby,
+        Ring_Silver_Amethyst,
+        Ring_Silver_Diamond,
+        Ring_Silver_Plain,
+        Amulet_Gold_Topaz,
+        Amulet_Gold_Saphire,
+        Amulet_Gold_Emerald,
+        Amulet_Gold_Ruby,
+        Amulet_Gold_Amethyst,
+        Amulet_Gold_Diamond,
+
+        Ring_Gold_Topaz,
+        Ring_Gold_Saphire,
+        Ring_Gold_Emerald,
+        Ring_Gold_Ruby,
+        Ring_Gold_Amethyst,
+        Ring_Gold_Diamond,
+        Ring_Gold_Plain,
+        Crown_Gold_Spitz,
+        Crown_Gold_Spitz_Ruby,
+        Crown_Gold_Spitz_Velvet,
+        Crown_Silver_Circlet,
+        Crown_Gold_Circlet,
+        Key_Horrendously_Awful,
+
+        Coin_Copper,
+        Gem_Saphire,
+        Gem_Emerald,  // Olivine? search other "minerals"
+        Gem_Ruby,
+        Gem_Amethyst,
+        Gem_Diamond,
+        Gem_Pink_Himalayan_Salt,
+        Coin_Gold_Stack,
+        Ore_Gold,
+        Item_Scroll,
+        Item_Red_Cape,
+        Key_Gold,
+        Key_Less_Awful,
+
+        Ore_Limonite,
+        Ore_Copper,
+        Ore_Silver,
+        Ore_Virilium,
+        Ore_Steel,
+        Ore_Cerulean,
+        Ore_Tungsten,
+        Potion_White,
+        Potion_Black,
+        Potion_Purple,
+        Potion_Green,
+        Potion_Red,
+        Potion_Blue,
+
+        Ingot_Limonite,
+        Ingot_Copper,
+        Ingot_Silver,
+        Ingot_Virilium,
+        Ingot_Steel,
+        Ingot_Cerulean,
+        Ingot_Tungsten,
+        Potion_Brown,
+        Potion_Turquoise,
+        Potion_Yellow,
+        Potion_Orange,
+        Potion_Pink,
+        Potion_Ornament, // or change color into mystery potion? idk.. has no outline
+
+        Nugget_Silver,
+        Nugget_Gold,
+        Item_Logs,
+        Item_Rope,
+        Tool_Shovel,
+        Tool_Pickaxe,
+        Tool_Mallet,
+        Item_Log,
+        Weapon_Great_Axe,
+        Tool_Hatchet,
+        Weapon_Winged_Axe,
+        Weapon_Labrys,
+        Tool_Scythe,
+
+        Weapon_Dagger,
+        Weapon_Long_Sword,
+        Weapon_Jagged_Long_Sword,
+        Weapon_Short_Sword,
+        Weapon_Double_Axe,
+        Weapon_Spear,
+        Weapon_Mace,
+        Weapon_Machete,
+        Weapon_Slicer,
+        Weapon_Great_Blade,
+        Weapon_Great_Slicer,
+        Weapon_Great_Tungsten_Sword,
+        Weapon_Excalibur,
+
+        Weapon_Lightsabre,
+        Weapon_Serated_Edge,
+        Weapon_Noble_Serated_Edge,
+        Weapon_Gemmed_Long_Sword,
+        Weapon_Gemmed_Double_Blade,
+        Weapon_Tungsten_Spear,
+        Weapon_Bludgeoner,
+        Weapon_Hammer,
+        Weapon_Round_Hammer,
+        Weapon_Conic_Hammer,
+        Weapon_Short_Slicer,
+        Weapon_Tungsten_Sword,
+        Weapon_Tungsten_Dagger,
+
+        Armor_Helmet_Plain,
+        Armor_Helmet_Neck,
+        Armor_Helmet_Short,
+        Armor_Helmet_Grill,
+        Armor_Helmet_Galea,
+        Armor_Helmet_Cerulean,
+        Armor_Helmet_Winged,
+        Armor_Helmet_Galea_Angled,
+        Armor_Helmet_Leather,
+        Armor_Shirt,
+        Armor_Glove,
+        Weapon_Bow,
+        Item_Skull_And_Crossbones,
+
+        Armor_Tungsten_Helmet_Winged,
+        Armor_Tungsten_Chestplate,
+        Armor_Tungsten_Boots,
+        Armor_Tungsten_Helmet_Spiked,
+        Armor_Tungsten_Helmet_BigBoy,
+        Armor_Leather_Boots,
+        Armor_Leather_Booties,
+        Armor_Leather_Sandals,
+        Armor_Black_Leather_Boots,
+        Armor_Black_Leather_Booties,
+        Armor_Tungsten_Gloves,
+        Item_Rock,
+        Item_Paper,
+
+        Weapon_Staff_Wooden,
+        Weapon_Staff_Scepter,
+        Weapon_Staff_Orb,
+        Weapon_Staff_Noble,
+        Weapon_Staff_Enchanted,
+        Armor_Shield,
+        Armor_Shield_Round_Reinforced,
+        Armor_Shield_Round,
+        Armor_Shield_Royal,
+        Armor_Shield_Holy,
+        Item_Empty_Space,
+        Item_Worm,
+        Item_Dice,
+
+        Plant_TreeBush,
+        Plant_LeafLarge,
+        Plant_Lily,
+        Plant_Seaweed,
+        Plant_Mushroom,
+        Plant_Seagrass,
+        Plant_Berries,
+        Book_Green,
+        Book_Red,
+        Book_Blue,
+        Book_White,
+        Book_Brown,
+        Book_RedHeart,
+
+        Plant_FishEggs,
+        Plant_LeafSmall,
+        Plant_Leaves,
+        Plant_BlueFlower,
+        Plant_SpottedMushroom,
+        Plant_Rose,
+        Plant_Geranium,
+        Book_Purple,
+        Book_Yellow,
+        Book_Turquoise,
+        Book_Black,
+        Book_BlackSkull,
+        Book_BlueShield,
+
         Count
     };
 
@@ -19,17 +225,18 @@ namespace Catalog {
     };
 
     struct Item {
-        ItemID   id         {};
-        ItemType type       {};
-        uint32_t stackLimit {};
-        float    value      {};
-        float    damage     {};
+        ItemID      id           {};
+        ItemType    type         {};
+        uint32_t    stackLimit   {};
+        float       value        {};
+        float       damage       {};
+        const char *nameSingular {};
+        const char *namePlural   {};
     };
 
     struct Items {
         void Load(void);
         const Item &FindById(ItemID id) const;
-        const char *Name(ItemID id, bool plural = false) const;
 
     private:
         std::array<Item, (size_t)ItemID::Count> byId {};

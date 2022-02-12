@@ -741,6 +741,10 @@ int UI::Menu(const Font &font, const char **items, size_t itemCount)
 
 void UI::Inventory(const Texture &invItems, Player& player, bool &inventoryActive)
 {
+
+    const int texItemsWide = invItems.width / 32;
+    const int texItemsHigh = invItems.height / 32;
+
     const ImVec2 inventorySize{ 540.0, 360.0f };
     const float pad = 80.0f;
     const float left = screenSize.x - pad - inventorySize.x;
@@ -775,6 +779,9 @@ void UI::Inventory(const Texture &invItems, Player& player, bool &inventoryActiv
     ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 3.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8.0f, 8.0f));
 
+    dlb_rand32_t invRand{};
+    dlb_rand32_seed_r(&invRand, 2, 2);
+
     int id = 0;
     for (int row = 0; row < PLAYER_INV_ROWS; row++) {
         ImGui::PushID(row);
@@ -792,11 +799,16 @@ void UI::Inventory(const Texture &invItems, Player& player, bool &inventoryActiv
                 default: texIdx = invStack.count ? 1 : 0;
             }
 
+            texIdx = dlb_rand32i_range_r(&invRand, 0, 13 * 14);
+
+            const ImVec2 size = ImVec2(32.0f, 32.0f);
+            const float u0 = (texIdx % texItemsWide) * size.x;
+            const float v0 = (texIdx / texItemsWide) * size.y;
+            const ImVec2 uv0 = ImVec2((u0)          / invItems.width, (v0)          / invItems.height);
+            const ImVec2 uv1 = ImVec2((u0 + size.x) / invItems.width, (v0 + size.y) / invItems.height);
+
             if (invStack.count) {
-                ImGui::ImageButton((ImTextureID)(size_t)invItems.id,
-                    ImVec2(32.0f, 32.0f),
-                    ImVec2(texIdx * 32.0f / 320, 0),
-                    ImVec2((texIdx + 1) * 32.0f / 320, 1));
+                ImGui::ImageButton((ImTextureID)(size_t)invItems.id, size, uv0, uv1);
 
                 //ItemStack &newInvStack = player.inventory.GetInvStack(row, col);
                 //if (newInvStack.count) {
@@ -813,15 +825,11 @@ void UI::Inventory(const Texture &invItems, Player& player, bool &inventoryActiv
                     );
                 //}
             } else {
-                //ImGui::Button("##inv_slot", ImVec2(48, 48));
+                ImGui::Button("##inv_slot", ImVec2(48, 48));
 
-                ImGui::ImageButton((ImTextureID)(size_t)invItems.id,
-                    ImVec2(32.0f, 32.0f),
-                    ImVec2(texIdx * 32.0f / 320, 0),
-                    ImVec2((texIdx + 1) * 32.0f / 320, 1),
-                    -1,
-                    ImVec4(0, 0, 0, 0),
-                    ImVec4(1, 1, 1, 0.5f));
+                // TODO: Add inv placeholder icon (was grayed out sword in items.png)
+                //ImGui::ImageButton((ImTextureID)(size_t)invItems.id, size, uv0, uv1, -1,
+                //    ImVec4(0, 0, 0, 0), ImVec4(1, 1, 1, 0.5f));
             }
 
             const float scrollY = GetMouseWheelMove();
@@ -834,7 +842,7 @@ void UI::Inventory(const Texture &invItems, Player& player, bool &inventoryActiv
                 // TODO(dlb): This will break if the window has any scrolling controls
                 player.inventory.SlotScroll(row, col, scrollY);
             } else if (ImGui::IsItemHovered() && invStack.count && !player.inventory.cursor.count) {
-                const char *invName = Catalog::g_items.Name(invStack.id, invStack.count > 1);
+                const char *invName = invStack.Name();
                 ImGui::SetTooltip("%u %s", invStack.count, invName);
             }
 
@@ -872,6 +880,12 @@ void UI::Inventory(const Texture &invItems, Player& player, bool &inventoryActiv
         ImDrawList *drawList = ImGui::GetWindowDrawList();
         drawList->PushClipRect({0, 0}, {screenSize.x, screenSize.y});
 
+        const ImVec2 size = ImVec2(32.0f, 32.0f);
+        const float u0 = (texIdx % texItemsWide) * size.x;
+        const float v0 = (texIdx / texItemsWide) * size.y;
+        const ImVec2 uv0 = ImVec2((u0)          / invItems.width, (v0)          / invItems.height);
+        const ImVec2 uv1 = ImVec2((u0 + size.x) / invItems.width, (v0 + size.y) / invItems.height);
+
         if (cursorSrc.x >= 0.0f && cursorSrc.x < invItems.width) {
             drawList->AddImage(
                 (ImTextureID)(size_t)invItems.id,
@@ -900,11 +914,11 @@ void UI::Inventory(const Texture &invItems, Player& player, bool &inventoryActiv
                 //     mouse up = keep remainder on cursor
                 //   Always centers item on cursor
                 //   squish (less width, more height) animation on pick-up
-                ImVec2(cursorDst.x - 16.0f, cursorDst.y - 16.0f),
-                ImVec2(cursorDst.x + 16.0f, cursorDst.y + 16.0f),
+                ImVec2(cursorDst.x - (size.x / 2), cursorDst.y - (size.y / 2)),
+                ImVec2(cursorDst.x + (size.x / 2), cursorDst.y + (size.y / 2)),
 #endif
-                ImVec2(texIdx * 32.0f / 320, 0),
-                ImVec2((texIdx + 1) * 32.0f / 320, 1)
+                uv0,
+                uv1
             );
 
             //ImGui::Image((ImTextureID)(size_t)invItems.id,
@@ -917,7 +931,7 @@ void UI::Inventory(const Texture &invItems, Player& player, bool &inventoryActiv
             //DrawRectangleRec(cursorDst, PINK);
             drawList->AddRectFilled(
                 ImVec2(cursorDst.x, cursorDst.y),
-                ImVec2(cursorDst.x + 32.0f, cursorDst.y + 32.0f),
+                ImVec2(cursorDst.x + size.x, cursorDst.y + size.y),
                 IM_COL32(PINK.r, PINK.g, PINK.b, PINK.a)
             );
         }

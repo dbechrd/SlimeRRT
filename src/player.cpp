@@ -26,7 +26,7 @@ void Player::Init(const SpriteDef *spriteDef)
     inventory.selectedSlot = PlayerInventorySlot::Hotbar_1;
 
     // TODO: Load inventory from save file / server
-    inventory.slots[(int)PlayerInventorySlot::Hotbar_1] = { Catalog::ItemID::Weapon_Sword , 1 };
+    inventory.slots[(int)PlayerInventorySlot::Hotbar_1] = { Catalog::ItemID::Weapon_Long_Sword , 1 };
     inventory.slots[(int)PlayerInventorySlot::Coin_Copper] = { Catalog::ItemID::Currency_Copper, 0 };
     inventory.slots[(int)PlayerInventorySlot::Coin_Silver] = { Catalog::ItemID::Currency_Silver, 0 };
     inventory.slots[(int)PlayerInventorySlot::Coin_Gilded] = { Catalog::ItemID::Currency_Gilded, 0 };
@@ -136,7 +136,7 @@ bool Player::Attack(void)
 
         const ItemStack &selectedStack = GetSelectedItem();
         switch (selectedStack.id) {
-            case Catalog::ItemID::Weapon_Sword: {
+            case Catalog::ItemID::Weapon_Long_Sword: {
                 stats.timesSwordSwung++;
                 break;
             } default: {
@@ -271,7 +271,7 @@ void Player::Update(double dt, InputSample &input, const Tilemap &map)
         assert(sheet->sprites.size() == 5);
 
         const ItemStack &selectedStack = GetSelectedItem();
-        if (selectedStack.id == Catalog::ItemID::Weapon_Sword) {
+        if (selectedStack.id == Catalog::ItemID::Weapon_Long_Sword) {
             switch (actionState) {
                 case ActionState::None: {
                     switch ((int)body.Idle()) {
