@@ -4,7 +4,7 @@
 namespace Catalog {
     enum class ItemID {
         Empty,
-        System_InvSlotBackground,
+        Unknown,
         Currency_Copper,
         Currency_Silver,
         Currency_Gilded,

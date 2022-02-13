@@ -4,16 +4,9 @@ namespace Catalog {
     void Items::Load(void)
     {
         // TODO: Load from file (.csv?)
-
-        byId[(size_t)ItemID::Empty            ] = { ItemID::Empty,             ItemType::Empty,      0,     0.0f, 0.0f, "Empty",         "Empty"          };
-        byId[(size_t)ItemID::Currency_Copper  ] = { ItemID::Currency_Copper,   ItemType::Currency,  99,     1.0f, 0.0f, "Alloyed Piece", "Alloyed Pieces" };
-        byId[(size_t)ItemID::Currency_Silver  ] = { ItemID::Currency_Silver,   ItemType::Currency,  99,   100.0f, 0.0f, "Plated Piece",  "Plated Pieces"  };
-        byId[(size_t)ItemID::Currency_Gilded  ] = { ItemID::Currency_Gilded,   ItemType::Currency,  99, 10000.0f, 0.0f, "Gilded Piece",  "Gilded Pieces"  };
-        byId[(size_t)ItemID::Weapon_Long_Sword] = { ItemID::Weapon_Long_Sword, ItemType::Weapon,     1,    10.0f, 5.0f, "Long Sword",    "Long Swords"    };
-
         // Row 1
         byId[(size_t)ItemID::Empty                        ] = { ItemID::Empty                        , ItemType::Empty    ,  1, 0.00f, 0.0f, "Empty"                     , "Empty"                      };
-        byId[(size_t)ItemID::System_InvSlotBackground     ] = { ItemID::System_InvSlotBackground     , ItemType::System   ,  1, 0.00f, 0.0f, "_Sys_Inv_BG_"              , "_Sys_Inv_BG_"               };
+        byId[(size_t)ItemID::Unknown                      ] = { ItemID::Unknown                      , ItemType::System   ,  1, 0.00f, 0.0f, "_Sys_Unknown_"             , "_Sys_Unknown_"              };
         byId[(size_t)ItemID::Currency_Copper              ] = { ItemID::Currency_Copper              , ItemType::Currency ,  9, 0.01f, 0.0f, "Alloyed Piece"             , "Alloyed Pieces"             };
         byId[(size_t)ItemID::Currency_Silver              ] = { ItemID::Currency_Silver              , ItemType::Currency ,  9, 0.10f, 0.0f, "Plated Piece"              , "Plated Pieces"              };
         byId[(size_t)ItemID::Currency_Gilded              ] = { ItemID::Currency_Gilded              , ItemType::Currency ,  9, 1.00f, 0.0f, "Gilded Piece"              , "Gilded Pieces"              };
@@ -22,9 +15,9 @@ namespace Catalog {
         byId[(size_t)ItemID::Orig_Gem_Saphire             ] = { ItemID::Orig_Gem_Saphire             , ItemType::Gem      , 50, 0.00f, 0.0f, "Saphire"                   , "Saphires"                   };
         byId[(size_t)ItemID::Orig_Gem_Diamond             ] = { ItemID::Orig_Gem_Diamond             , ItemType::Gem      , 50, 0.00f, 0.0f, "Diamond"                   , "Diamonds"                   };
         byId[(size_t)ItemID::Orig_Gem_GoldenChest         ] = { ItemID::Orig_Gem_GoldenChest         , ItemType::Gem      , 50, 0.00f, 0.0f, "Golden Chest"              , "Golden Chests"              };
-        byId[(size_t)ItemID::Orig_Unused_10               ] = { ItemID::Orig_Unused_10               , ItemType::Empty    ,  1, 0.00f, 0.0f, "_unused_10_"               , "_unused_10_"                };
-        byId[(size_t)ItemID::Orig_Unused_11               ] = { ItemID::Orig_Unused_11               , ItemType::Empty    ,  1, 0.00f, 0.0f, "_unused_11_"               , "_unused_11_"                };
-        byId[(size_t)ItemID::Orig_Unused_12               ] = { ItemID::Orig_Unused_12               , ItemType::Empty    ,  1, 0.00f, 0.0f, "_unused_12_"               , "_unused_12_"                };
+        byId[(size_t)ItemID::Orig_Unused_10               ] = { ItemID::Orig_Unused_10               , ItemType::System   ,  1, 0.00f, 0.0f, "_unused_10_"               , "_unused_10_"                };
+        byId[(size_t)ItemID::Orig_Unused_11               ] = { ItemID::Orig_Unused_11               , ItemType::System   ,  1, 0.00f, 0.0f, "_unused_11_"               , "_unused_11_"                };
+        byId[(size_t)ItemID::Orig_Unused_12               ] = { ItemID::Orig_Unused_12               , ItemType::System   ,  1, 0.00f, 0.0f, "_unused_12_"               , "_unused_12_"                };
         // Row 2
         byId[(size_t)ItemID::Ring_Stone                   ] = { ItemID::Ring_Stone                   , ItemType::Ring     ,  1, 0.00f, 0.0f, "Tungsten Ring"             , "Tungsten Rings"             };
         byId[(size_t)ItemID::Ring_Bone                    ] = { ItemID::Ring_Bone                    , ItemType::Ring     ,  1, 0.00f, 0.0f, "Bone Ring"                 , "Bone Rings"                 };
@@ -125,7 +118,7 @@ namespace Catalog {
         byId[(size_t)ItemID::Tool_Scythe                  ] = { ItemID::Tool_Scythe                  , ItemType::Tool     ,  1, 0.00f, 0.0f, "Scythe"                    , "Scythes"                    };
         // Row 9
         byId[(size_t)ItemID::Weapon_Dagger                ] = { ItemID::Weapon_Dagger                , ItemType::Weapon   ,  1, 0.00f, 0.0f, "Dagger"                    , "Daggers"                    };
-        byId[(size_t)ItemID::Weapon_Long_Sword            ] = { ItemID::Weapon_Long_Sword            , ItemType::Weapon   ,  1, 0.00f, 0.0f, "Long Sword"                , "Long Swords"                };
+        byId[(size_t)ItemID::Weapon_Long_Sword            ] = { ItemID::Weapon_Long_Sword            , ItemType::Weapon   ,  1, 0.00f, 5.0f, "Long Sword"                , "Long Swords"                };
         byId[(size_t)ItemID::Weapon_Jagged_Long_Sword     ] = { ItemID::Weapon_Jagged_Long_Sword     , ItemType::Weapon   ,  1, 0.00f, 0.0f, "Jagged Long Sword"         , "Jagged Long Swords"         };
         byId[(size_t)ItemID::Weapon_Short_Sword           ] = { ItemID::Weapon_Short_Sword           , ItemType::Weapon   ,  1, 0.00f, 0.0f, "Short Sword"               , "Short Sword"                };
         byId[(size_t)ItemID::Weapon_Double_Axe            ] = { ItemID::Weapon_Double_Axe            , ItemType::Weapon   ,  1, 0.00f, 0.0f, "Double Axe"                , "Double Axes"                };
@@ -221,11 +214,6 @@ namespace Catalog {
         byId[(size_t)ItemID::Book_Black                   ] = { ItemID::Book_Black                   , ItemType::Book     ,  5, 0.00f, 0.0f, "Black Book"                , "Black Books"                };
         byId[(size_t)ItemID::Book_BlackSkull              ] = { ItemID::Book_BlackSkull              , ItemType::Book     ,  5, 0.00f, 0.0f, "Black Book of Death"       , "Black Books of Death"       };
         byId[(size_t)ItemID::Book_BlueShield              ] = { ItemID::Book_BlueShield              , ItemType::Book     ,  5, 0.00f, 0.0f, "Blue Book of Defense"      , "Blue Books of Defense"      };
-
-        // TODO(debug): Delete this after testing item stacking schtuff!
-        byId[(size_t)ItemID::Currency_Copper].stackLimit = 9;
-        byId[(size_t)ItemID::Currency_Silver].stackLimit = 9;
-        byId[(size_t)ItemID::Currency_Gilded].stackLimit = 9;
     }
 
     const Item &Items::FindById(ItemID id) const

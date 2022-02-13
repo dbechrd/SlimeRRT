@@ -161,21 +161,6 @@ ErrorType GameClient::Run(void)
 
         // 1610 x 910
         //player->body.position.x = 1457.83557f;
-
-        for (int row = 0; row < PLAYER_INV_ROWS; row++) {
-            for (int col = 0; col < PLAYER_INV_COLS; col++) {
-                int slot = row * PLAYER_INV_COLS + col;
-                ItemStack &stack = player->inventory.GetInvStack(row, col);
-                stack.id = (Catalog::ItemID)dlb_rand32i_range(
-                    (int)Catalog::ItemID::Empty,
-                    (int)Catalog::ItemID::Currency_Gilded
-                );
-                stack.count = (int)stack.id != 0;
-            }
-        }
-        ItemStack &stack = player->inventory.GetInvStack(0, 0);
-        stack.count = 1;
-        stack.id = Catalog::ItemID::Weapon_Long_Sword;
     }
 
 #if DEMO_VIEW_RTREE

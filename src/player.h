@@ -6,6 +6,7 @@
 #include "item_stack.h"
 #include "ring_buffer.h"
 #include "sprite.h"
+#include "dlb_rand.h"
 
 struct Tilemap;
 
@@ -39,7 +40,7 @@ struct PlayerInventory {
         assert(row >= 0);
         assert(col >= 0);
         assert(row < PLAYER_INV_ROWS);
-        assert(row < PLAYER_INV_COLS);
+        assert(col < PLAYER_INV_COLS);
         const int slot = row * PLAYER_INV_COLS + col;
         ItemStack &stack = slots[(int)PlayerInventorySlot::Count + slot];
         return stack;
@@ -117,6 +118,126 @@ struct PlayerInventory {
             }
         }
     }
+
+    static int Compare(ItemStack &a, ItemStack &b, bool ignoreEmpty = false)
+    {
+        if (a.id == b.id) {
+            return 0;
+        } else if (a.id == Catalog::ItemID::Empty) {
+            return ignoreEmpty ? 0 : 1;
+        } else if (b.id == Catalog::ItemID::Empty) {
+            return ignoreEmpty ? 0 : -1;
+        //} else if (onlySameType && a.Type() != b.Type()) {
+        //    return 0;
+        } else {
+            return (int)a.id < (int)b.id ? -1 : 1;
+        }
+    }
+
+    void Sort(bool ignoreEmpty = false)
+    {
+        for (int row = 0; row < PLAYER_INV_ROWS; row++) {
+            for (int col = 0; col < PLAYER_INV_COLS; col++) {
+                ItemStack &invStack = GetInvStack(row, col);
+
+                for (int row2 = row; row2 < PLAYER_INV_ROWS; row2++) {
+                    for (int col2 = ((row2 == row) ? col + 1 : 0); col2 < PLAYER_INV_COLS; col2++) {
+                        ItemStack &invStack2 = GetInvStack(row2, col2);
+
+                        if (Compare(invStack, invStack2, ignoreEmpty) > 0) {
+                            SwapStack(invStack2, invStack);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    void Combine(bool ignoreEmpty = false)
+    {
+#if 0
+        for (int row = 0; row < PLAYER_INV_ROWS; row++) {
+            for (int col = 0; col < PLAYER_INV_COLS; col++) {
+                ItemStack &a = GetInvStack(row, col);
+                const Catalog::ItemType typeA = a.Type();
+                if (ignoreEmpty && a.id == Catalog::ItemID::Empty) continue;
+
+                for (int row2 = PLAYER_INV_ROWS - 1; row2 >= row; row2--) {
+                    for (int col2 = PLAYER_INV_COLS - 1; col2 >= ((row2 == row) ? col + 1 : 0); col2--) {
+                        ItemStack &b = GetInvStack(row2, col2);
+                        const Catalog::ItemType typeB = b.Type();
+                        if (ignoreEmpty && b.id == Catalog::ItemID::Empty) continue;
+                        //if (onlySameType && typeA != typeB) continue;
+
+                        TransferStack(b, a);
+                    }
+                }
+            }
+        }
+#else
+        for (int row = 0; row < PLAYER_INV_ROWS; row++) {
+            for (int col = 0; col < PLAYER_INV_COLS; col++) {
+                ItemStack &a = GetInvStack(row, col);
+                const Catalog::ItemType typeA = a.Type();
+                if (ignoreEmpty && a.id == Catalog::ItemID::Empty) continue;
+
+                for (int row2 = row; row2 < PLAYER_INV_ROWS; row2++) {
+                    for (int col2 = ((row2 == row) ? col + 1 : 0); col2 < PLAYER_INV_COLS; col2++) {
+                        ItemStack &b = GetInvStack(row2, col2);
+                        const Catalog::ItemType typeB = b.Type();
+                        if (ignoreEmpty && b.id == Catalog::ItemID::Empty) continue;
+                        //if (onlySameType && typeA != typeB) continue;
+
+                        TransferStack(b, a);
+                    }
+                }
+            }
+        }
+        /*for (int row = 0; row < PLAYER_INV_ROWS; row++) {
+            for (int col = 0; col < PLAYER_INV_COLS; col++) {
+                ItemStack &invStack = GetInvStack(row, col);
+
+                for (int row2 = row; row2 < PLAYER_INV_ROWS; row2++) {
+                    for (int col2 = ((row2 == row) ? col + 1 : 0); col2 < PLAYER_INV_COLS; col2++) {
+                        ItemStack &invStack2 = GetInvStack(row2, col2);
+                        TransferStack(invStack2, invStack);
+                    }
+                }
+            }
+        }*/
+#endif
+    }
+
+    void SortAndCombine(bool ignoreEmpty = false)
+    {
+        Sort(ignoreEmpty);
+        Combine(ignoreEmpty);
+    }
+
+#if _DEBUG
+    void Randomize()
+    {
+        for (int row = 0; row < PLAYER_INV_ROWS; row++) {
+            for (int col = 0; col < PLAYER_INV_COLS; col++) {
+                int slot = row * PLAYER_INV_COLS + col;
+                ItemStack &stack = GetInvStack(row, col);
+                stack.id = (Catalog::ItemID)dlb_rand32i_range(
+                    0, 12
+                    //(int)Catalog::ItemID::Empty,
+                    //(int)Catalog::ItemID::Count - 1
+                );
+                const Catalog::ItemType type = stack.Type();
+                if (type == Catalog::ItemType::System) {
+                    stack.id = Catalog::ItemID::Empty;
+                }
+                stack.count = (int)stack.id != 0;
+            }
+        }
+        //ItemStack &stack = GetInvStack(0, 0);
+        //stack.count = 1;
+        //stack.id = Catalog::ItemID::Weapon_Long_Sword;
+    }
+#endif
 };
 
 struct Player : Drawable {

@@ -749,8 +749,8 @@ void UI::Inventory(const Texture &invItems, Player& player, bool &inventoryActiv
     const float pad = 80.0f;
     const float left = screenSize.x - pad - inventorySize.x;
     const float top = pad;
-    ImGui::SetNextWindowPos(ImVec2(left, top));
-    //ImGui::SetNextWindowSize(inventorySize);
+    ImGui::SetNextWindowPos(ImVec2(left, top), ImGuiCond_Once);
+    ImGui::SetNextWindowSize(inventorySize);
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 2.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 2.0f);
@@ -768,7 +768,23 @@ void UI::Inventory(const Texture &invItems, Player& player, bool &inventoryActiv
         ImGuiWindowFlags_NoSavedSettings
     );
 
+    static bool ignoreEmpty = false;
     ImGui::Text("Your stuffs:");
+    ImGui::SameLine();
+    if (ImGui::Button("Sort")) player.inventory.Sort(ignoreEmpty);
+    ImGui::SameLine();
+    if (ImGui::Button("Sort & Combine")) player.inventory.SortAndCombine(ignoreEmpty);
+#if _DEBUG
+    auto dbgColor = PINK;
+    ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(dbgColor.r, dbgColor.g, dbgColor.b, 0.7f * 255.0f));
+    ImGui::SameLine();
+    if (ImGui::Button("Combine")) player.inventory.Combine(ignoreEmpty);
+    ImGui::SameLine();
+    if (ImGui::Button("Randomize")) player.inventory.Randomize();
+    ImGui::SameLine();
+    ImGui::Checkbox("Ignore empty", &ignoreEmpty);
+    ImGui::PopStyleColor();
+#endif
 
     auto bgColor = DARKBLUE;
     ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(bgColor.r, bgColor.g, bgColor.b, 0.7f * 255.0f));
@@ -791,15 +807,7 @@ void UI::Inventory(const Texture &invItems, Player& player, bool &inventoryActiv
             int slot = row * PLAYER_INV_COLS + col;
             ItemStack &invStack = player.inventory.GetInvStack(row, col);
 
-            int texIdx = 0;
-            switch (invStack.id) {
-                case Catalog::ItemID::Currency_Copper: texIdx = 2; break;
-                case Catalog::ItemID::Currency_Silver: texIdx = 3; break;
-                case Catalog::ItemID::Currency_Gilded: texIdx = 4; break;
-                default: texIdx = invStack.count ? 1 : 0;
-            }
-
-            texIdx = dlb_rand32i_range_r(&invRand, 0, 13 * 14);
+            int texIdx = (int)invStack.id;
 
             const ImVec2 size = ImVec2(32.0f, 32.0f);
             const float u0 = (texIdx % texItemsWide) * size.x;
@@ -810,20 +818,17 @@ void UI::Inventory(const Texture &invItems, Player& player, bool &inventoryActiv
             if (invStack.count) {
                 ImGui::ImageButton((ImTextureID)(size_t)invItems.id, size, uv0, uv1);
 
-                //ItemStack &newInvStack = player.inventory.GetInvStack(row, col);
-                //if (newInvStack.count) {
-                    const ImVec2 topLeft = ImGui::GetItemRectMin();
-                    ImDrawList *drawList = ImGui::GetWindowDrawList();
+                const ImVec2 topLeft = ImGui::GetItemRectMin();
+                ImDrawList *drawList = ImGui::GetWindowDrawList();
 
-                    char countBuf[16]{};
-                    snprintf(countBuf, sizeof(countBuf), "%d", invStack.count);
-                    //snprintf(countBuf, sizeof(countBuf), "%d", newInvStack.count);
-                    drawList->AddText(
-                        { topLeft.x + 4, topLeft.y + 2 },
-                        IM_COL32_WHITE,
-                        countBuf
-                    );
-                //}
+                char countBuf[16]{};
+                snprintf(countBuf, sizeof(countBuf), "%d", invStack.count);
+                //snprintf(countBuf, sizeof(countBuf), "%d", newInvStack.count);
+                drawList->AddText(
+                    { topLeft.x + 4, topLeft.y + 2 },
+                    IM_COL32_WHITE,
+                    countBuf
+                );
             } else {
                 ImGui::Button("##inv_slot", ImVec2(48, 48));
 
@@ -857,36 +862,29 @@ void UI::Inventory(const Texture &invItems, Player& player, bool &inventoryActiv
     ImGui::PopStyleVar(6);
 
     if (player.inventory.cursor.count) {
-        int texIdx = 1;
-        switch (player.inventory.cursor.id) {
-            case Catalog::ItemID::Currency_Copper: texIdx = 2; break;
-            case Catalog::ItemID::Currency_Silver: texIdx = 3; break;
-            case Catalog::ItemID::Currency_Gilded: texIdx = 4; break;
-        }
-
-        Rectangle cursorSrc{
-            texIdx * 32.0f,
-            32.0f,
-            32.0f,
-            32.0f
-        };
-        Rectangle cursorDst{
-            mouseScreen.x - player.inventory.cursorOffset.x,
-            mouseScreen.y - player.inventory.cursorOffset.y,
-            32.0f,
-            32.0f
-        };
 
         ImDrawList *drawList = ImGui::GetWindowDrawList();
         drawList->PushClipRect({0, 0}, {screenSize.x, screenSize.y});
 
+        const int texIdx = (int)player.inventory.cursor.id;
         const ImVec2 size = ImVec2(32.0f, 32.0f);
         const float u0 = (texIdx % texItemsWide) * size.x;
         const float v0 = (texIdx / texItemsWide) * size.y;
         const ImVec2 uv0 = ImVec2((u0)          / invItems.width, (v0)          / invItems.height);
         const ImVec2 uv1 = ImVec2((u0 + size.x) / invItems.width, (v0 + size.y) / invItems.height);
 
-        if (cursorSrc.x >= 0.0f && cursorSrc.x < invItems.width) {
+        const Rectangle cursorDst{
+           mouseScreen.x - player.inventory.cursorOffset.x,
+           mouseScreen.y - player.inventory.cursorOffset.y,
+           32.0f,
+           32.0f
+        };
+
+        if (uv0.x >= 0.0f && uv0.x < invItems.width &&
+            uv0.y >= 0.0f && uv0.y < invItems.height &&
+            uv1.x >= 0.0f && uv1.x < invItems.width &&
+            uv1.y >= 0.0f && uv1.y < invItems.height)
+        {
             drawList->AddImage(
                 (ImTextureID)(size_t)invItems.id,
 #if CURSOR_ITEM_RELATIVE_TERRARIA
@@ -920,18 +918,10 @@ void UI::Inventory(const Texture &invItems, Player& player, bool &inventoryActiv
                 uv0,
                 uv1
             );
-
-            //ImGui::Image((ImTextureID)(size_t)invItems.id,
-            //    ImVec2(32.0f, 32.0f),
-            //    ImVec2(texIdx * 32.0f / 320, 0),
-            //    ImVec2((texIdx + 1) * 32.0f / 320, 1)
-            //);
-            //DrawTextureRec(invItems, cursorSrc, mouseScreen, WHITE);
         } else {
-            //DrawRectangleRec(cursorDst, PINK);
             drawList->AddRectFilled(
-                ImVec2(cursorDst.x, cursorDst.y),
-                ImVec2(cursorDst.x + size.x, cursorDst.y + size.y),
+                ImVec2(cursorDst.x - (size.x / 2), cursorDst.y - (size.y / 2)),
+                ImVec2(cursorDst.x + (size.x / 2), cursorDst.y + (size.y / 2)),
                 IM_COL32(PINK.r, PINK.g, PINK.b, PINK.a)
             );
         }
