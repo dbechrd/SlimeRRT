@@ -130,16 +130,14 @@ ErrorType GameClient::Run(void)
     Catalog::g_tracks.Load();
     tileset_init();
 
-    Catalog::g_mixer.masterVolume = 0.1f;
-    Catalog::g_mixer.musicVolume = 0.0f;
+    Catalog::g_mixer.masterVolume = 1.0f;
+    Catalog::g_mixer.musicVolume = 0.2f;
     Catalog::g_sounds.mixer.volumeLimit[(size_t)Catalog::SoundID::GemBounce] = 0.8f;
     Catalog::g_sounds.mixer.volumeLimit[(size_t)Catalog::SoundID::Whoosh] = 0.6f;
 
     Image checkerboardImage = GenImageChecked(monitorWidth, monitorHeight, 32, 32, LIGHTGRAY, GRAY);
     Texture checkboardTexture = LoadTextureFromImage(checkerboardImage);
     UnloadImage(checkerboardImage);
-
-    Texture2D invItems = LoadTexture("resources/joecreates.png");
 
     World *lobby = new World;
     lobby->tick = 1;
@@ -205,7 +203,7 @@ ErrorType GameClient::Run(void)
     bool menuActive = false;
     bool mixerActive = false;
     bool inventoryActive = false;
-    bool loginActive = false;
+    bool loginActive = true;
     bool disconnectRequested = false;
     bool quit = false;
 
@@ -733,7 +731,7 @@ ErrorType GameClient::Run(void)
         UI::HUD(fontSmall, player, debugStats);
         //UI::QuickHUD(fontSdf24, player, *world->map);
         if (inventoryActive) {
-            UI::Inventory(invItems, player, inventoryActive);
+            UI::Inventory(Catalog::g_items.Tex(), player, inventoryActive);
         }
 
         rlDrawRenderBatchActive();
@@ -745,10 +743,10 @@ ErrorType GameClient::Run(void)
             ImGui::ShowDemoWindow(&show_demo_window);
         }
 
-        if (netClient.IsConnected()) {
-            loginActive = !netClient.IsConnected();
+        loginActive = !netClient.IsConnected();
+        if (loginActive) {
+            UI::LoginForm(netClient, io, escape, loginActive);
         }
-        UI::LoginForm(netClient, io, escape, loginActive);
 
         if (mixerActive) {
             UI::Mixer();

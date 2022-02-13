@@ -210,7 +210,7 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                     stream.Process(item.position.z);
                 }
                 if (item.flags & ItemSnapshot::Flags::CatalogId) {
-                    stream.Process((uint32_t &)item.catalogId, 3, (uint32_t)Catalog::ItemID::Empty + 1, (uint32_t)Catalog::ItemID::Count - 1);
+                    stream.Process((uint32_t &)item.catalogId, 8, (uint32_t)Catalog::ItemID::Empty + 1, (uint32_t)Catalog::ItemID::Count - 1);
                 }
                 if (item.flags & ItemSnapshot::Flags::StackCount) {
                     stream.Process(item.stackCount, 32, 1, UINT_MAX);

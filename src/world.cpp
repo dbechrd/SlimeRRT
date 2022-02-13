@@ -291,6 +291,7 @@ void World::SV_SimSlimes(double dt)
                 coinType = Catalog::ItemID::Currency_Gilded;
             }
 
+            itemSystem.SpawnItem(slime.WorldCenter(), Catalog::ItemID::Item_Skull_And_Crossbones, 1);
             itemSystem.SpawnItem(slime.WorldCenter(), coinType, coins);
 
             slime.combat.diedAt = glfwGetTime();
@@ -361,7 +362,7 @@ void World::SV_SimItems(double dt)
 {
     // TODO: Move these to somewhere
     const float playerItemPickupReach = METERS_TO_PIXELS(1.5f);
-    const float playerItemPickupDist = METERS_TO_PIXELS(0.1f);
+    const float playerItemPickupDist = METERS_TO_PIXELS(0.4f);
 
     for (ItemWorld &item : itemSystem.items) {
         if (!item.id || item.pickedUpAt) {
@@ -402,12 +403,22 @@ void World::SV_SimItems(double dt)
                 }
             }
         } else {
-            const Vector2 itemToPlayerDir = v2_normalize(itemToPlayer);
-            const float speed = MAX(0, 1.0f / PIXELS_TO_METERS(sqrtf(itemToPlayerDistSq)));
-            const Vector2 itemVel = v2_scale(itemToPlayerDir, METERS_TO_PIXELS(speed));
-            item.body.velocity.x = itemVel.x;
-            item.body.velocity.y = itemVel.y;
-            //item.body.velocity.z = MAX(item.body.velocity.z, itemVel.z);
+             switch (item.stack.id) {
+                case Catalog::ItemID::Currency_Copper:
+                case Catalog::ItemID::Currency_Silver:
+                case Catalog::ItemID::Currency_Gilded:
+                {
+                    const Vector2 itemToPlayerDir = v2_normalize(itemToPlayer);
+                    const float speed = MAX(0, 1.0f / PIXELS_TO_METERS(sqrtf(itemToPlayerDistSq)));
+                    const Vector2 itemVel = v2_scale(itemToPlayerDir, METERS_TO_PIXELS(speed));
+                    item.body.velocity.x = itemVel.x;
+                    item.body.velocity.y = itemVel.y;
+                    //item.body.velocity.z = MAX(item.body.velocity.z, itemVel.z);
+                    break;
+                } default: {
+                    break;
+                }
+            }
         }
     }
 

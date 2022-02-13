@@ -3,6 +3,10 @@
 namespace Catalog {
     void Items::Load(void)
     {
+        if (IsWindowReady()) {
+            tex = LoadTexture("resources/joecreates.png");
+        }
+
         // TODO: Load from file (.csv?)
         // Row 1
         byId[(size_t)ItemID::Empty                        ] = { ItemID::Empty                        , ItemType::Empty    ,  1, 0.00f, 0.0f, "Empty"                     , "Empty"                      };
@@ -219,5 +223,10 @@ namespace Catalog {
     const Item &Items::FindById(ItemID id) const
     {
         return byId[(size_t)id];
+    }
+
+    const Texture Items::Tex(void) const
+    {
+        return tex;
     }
 }

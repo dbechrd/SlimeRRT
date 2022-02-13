@@ -55,7 +55,20 @@ void ItemWorld::Draw(void) const
         if (sprite.spriteDef) {
             sprite_draw_body(sprite, body, WHITE);
         } else {
-            DrawCircleV(body.VisualPosition(), 10.0f, PURPLE);
+            const Texture tex = Catalog::g_items.Tex();
+            const int texItemsWide = tex.width / 32;
+
+            const int texIdx = (int)stack.id;
+            const ImVec2 size = ImVec2(32.0f, 32.0f);
+            const float texX = (texIdx % texItemsWide) * size.x;
+            const float texY = (texIdx / texItemsWide) * size.y;
+
+            const Rectangle srcRect{ texX, texY, 32.0f, 32.0f };
+            const Vector2 pos = body.VisualPosition();
+            const Vector2 dstPos = { pos.x - 16.0f, pos.y - 16.0f };
+            DrawTextureRec(tex, srcRect, dstPos, WHITE);
+
+            //DrawCircleV(body.VisualPosition(), 10.0f, PURPLE);
         }
 
         Vector3 topCenter = WorldTopCenter();

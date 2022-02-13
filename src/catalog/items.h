@@ -1,4 +1,5 @@
 #pragma once
+#include <raylib/raylib.h>
 #include <array>
 
 namespace Catalog {
@@ -254,8 +255,10 @@ namespace Catalog {
     struct Items {
         void Load(void);
         const Item &FindById(ItemID id) const;
+        const Texture Tex(void) const;
 
     private:
+        Texture tex {};
         std::array<Item, (size_t)ItemID::Count> byId {};
     } g_items;
 }

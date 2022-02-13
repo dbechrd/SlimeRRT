@@ -59,7 +59,7 @@ ItemWorld *ItemSystem::SpawnItem(Vector3 pos, Catalog::ItemID catalogId, uint32_
     }
     if (spritesheetId != Catalog::SpritesheetID::Empty) {
         const Spritesheet &spritesheet = Catalog::g_spritesheets.FindById(spritesheetId);
-        item.sprite.spriteDef =spritesheet.FindSprite("coin");
+        item.sprite.spriteDef = spritesheet.FindSprite("coin");
     }
     item.sprite.scale = 1.0f;
     item.spawnedAt = glfwGetTime();
