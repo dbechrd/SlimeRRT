@@ -9,7 +9,7 @@ void HealthBar::SetFont(const Font font)
     HealthBar::s_font = font;
 }
 
-void HealthBar::Draw(int fontSize, const Vector2 &topCenter, const char *name, float hitPoints, float maxHitPoints)
+void HealthBar::Draw(int fontSize, const Vector2 &topCenter, const char *name, const Combat &combat)
 {
     assert(HealthBar::s_font.baseSize);
 
@@ -19,7 +19,13 @@ void HealthBar::Draw(int fontSize, const Vector2 &topCenter, const char *name, f
     //float y = topCenter.y - 10.0f;
 
     //const char *hpText = TextFormat("HP: %.02f / %.02f", hitPoints, hitPointsMax);
-    const char *hpText = TextFormat("HP: %.f / %.f", hitPoints, maxHitPoints);
+    const char *hpText = 0;
+    if (combat.diedAt) {
+        assert(!combat.hitPoints);
+        hpText = TextFormat("Respawning in %0.1f ...", SV_RESPAWN_TIMER - (glfwGetTime() - combat.diedAt));
+    } else {
+        hpText = TextFormat("HP: %.f / %.f", combat.hitPoints, combat.hitPointsMax);
+    }
     const char *nameText = name ? TextFormat(name) : nullptr;
 
     Rectangle hpRect{};
@@ -34,7 +40,7 @@ void HealthBar::Draw(int fontSize, const Vector2 &topCenter, const char *name, f
         nameRect.height = (float)fontSize;
         nameRect.x = x - ceilf(nameRect.width / 2.0f);
         nameRect.y = y - fontSize;
-        if (maxHitPoints) {
+        if (combat.hitPointsMax) {
             nameRect.y -= 4.0f + fontSize;
         }
     } else {
@@ -52,9 +58,9 @@ void HealthBar::Draw(int fontSize, const Vector2 &topCenter, const char *name, f
     DrawRectangleRec(bgRect, DARKGRAY);
 
     // Draw hitpoint indicators
-    if (maxHitPoints) {
+    if (combat.hitPointsMax) {
         Rectangle indicatorRect = bgRect;
-        indicatorRect.width *= hitPoints / maxHitPoints;
+        indicatorRect.width *= combat.hitPoints / combat.hitPointsMax;
 
         DrawRectangleRec(indicatorRect, RED);
         DrawTextFont(s_font, hpText, hpRect.x, hpRect.y, 0, 0, fontSize, WHITE);

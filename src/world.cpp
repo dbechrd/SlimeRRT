@@ -224,7 +224,7 @@ void World::SV_SimPlayers(double dt)
         }
 
         if (player.combat.diedAt) {
-            if (glfwGetTime() - player.combat.diedAt < 5.0) {
+            if (glfwGetTime() - player.combat.diedAt < SV_RESPAWN_TIMER) {
                 continue;
             } else {
                 player.combat.diedAt = 0;
@@ -254,12 +254,7 @@ void World::SV_SimPlayers(double dt)
 
                 Vector3 playerToSlime = v3_sub(slime.body.WorldPosition(), player.body.WorldPosition());
                 if (v3_length_sq(playerToSlime) <= playerAttackReach * playerAttackReach) {
-                    player.stats.damageDealt += CLAMP(playerDamage, 0.0f, slime.combat.hitPoints);
-                    slime.combat.hitPoints = CLAMP(
-                        slime.combat.hitPoints - playerDamage,
-                        0.0f,
-                        slime.combat.hitPointsMax
-                    );
+                    player.stats.damageDealt += slime.combat.DealDamage(playerDamage);
                     if (!slime.combat.hitPoints) {
                         player.stats.slimesSlain++;
                     }
@@ -343,14 +338,7 @@ void World::SV_SimSlimes(double dt)
         slimeToPlayer = v2_sub(closestPlayer->body.GroundPosition(), slime.body.GroundPosition());
         if (v2_length_sq(slimeToPlayer) <= SQUARED(SV_SLIME_ATTACK_REACH)) {
             if (slime.Attack(dt)) {
-                closestPlayer->combat.hitPoints = CLAMP(
-                    closestPlayer->combat.hitPoints - (slime.combat.meleeDamage * slime.sprite.scale),
-                    0.0f,
-                    closestPlayer->combat.hitPointsMax
-                );
-                if (!closestPlayer->combat.hitPoints) {
-                    closestPlayer->combat.diedAt = glfwGetTime();
-                }
+                closestPlayer->combat.DealDamage(slime.combat.meleeDamage * slime.sprite.scale);
             }
         }
 

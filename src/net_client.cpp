@@ -445,14 +445,17 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                         Catalog::g_sounds.Play(Catalog::SoundID::Eughh, 1.0f + dlb_rand32f_variance(0.1f));
                     } else if (!player->combat.hitPoints && playerSnapshot.hitPoints) {
                         // Respawn
+                        player->combat.diedAt = 0;
                     } else if (player->combat.hitPoints > playerSnapshot.hitPoints) {
                         // Took damage
                         const double bleedDuration = 1.0;
                         Vector3 playerGut = player->GetAttachPoint(Player::AttachPoint::Gut);
                         ParticleEffect *bloodParticles = serverWorld->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Blood, 32, playerGut, bleedDuration);
                         if (bloodParticles) {
-                            bloodParticles->callbacks[(size_t)ParticleEffectEvent::BeforeUpdate].function = BloodParticlesFollowPlayer;
-                            bloodParticles->callbacks[(size_t)ParticleEffectEvent::BeforeUpdate].userData = player;
+                            bloodParticles->effectCallbacks[(size_t)ParticleEffect_Event::BeforeUpdate] = {
+                                BloodParticlesFollowPlayer,
+                                player
+                            };
                         }
                     }
                     player->combat.hitPoints = playerSnapshot.hitPoints;

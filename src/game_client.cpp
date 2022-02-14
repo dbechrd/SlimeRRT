@@ -29,6 +29,20 @@
 
 const char *GameClient::LOG_SRC = "GameClient";
 
+// TODO: Move this somewhere less stupid (e.g. a library of particle updaters)
+inline void RainbowParticlesDamagePlayer(Particle &particle, void *userData)
+{
+    assert(userData);
+
+    Player *player = (Player *)userData;
+    const Vector3 particleWorld = v3_add(particle.effect->origin, particle.body.WorldPosition());
+    const Vector3 gut = player->GetAttachPoint(Player::AttachPoint::Gut);
+    const float particleToGut = v3_length_sq(v3_sub(gut, particleWorld));
+    if (particleToGut < SQUARED(METERS_TO_PIXELS(0.2f))) {
+        player->combat.DealDamage(0.1f);
+    }
+}
+
 ErrorType GameClient::Run(void)
 {
     SetWindowState(FLAG_WINDOW_RESIZABLE);
@@ -457,7 +471,8 @@ ErrorType GameClient::Run(void)
         }
 
         if (input.dbgChatMessage) {
-            auto foo = world->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Rainbow, 256, player.body.WorldPosition(), 2.0f);
+            auto foo = world->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Rainbow, 256, player.body.WorldPosition(), 3.0f);
+            foo->particleCallbacks[(size_t)ParticleEffect_ParticleEvent::AfterUpdate] = { RainbowParticlesDamagePlayer, &player };
             //world->chatHistory.PushDebug(CSTR("You pressed the send random chat message button. Congrats."));
         }
 

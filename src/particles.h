@@ -23,17 +23,25 @@ struct Particle : Drawable {
 
 //-----------------------------------------------------------------------------
 
-enum class ParticleEffectEvent {
+enum class ParticleEffect_Event {
     BeforeUpdate,
     Dying,
     Count
 };
 
-typedef void (*ParticeEffect_FnEventCallback)(struct ParticleEffect &effect, void *userData);
+enum class ParticleEffect_ParticleEvent {
+    AfterUpdate,
+    Count
+};
 
-struct ParticleEffectEvent_Callback {
-    ParticeEffect_FnEventCallback function {};
-    void *userData {};
+struct ParticleEffect_Callback {
+    void (*callback)(struct ParticleEffect &effect, void *userData);
+    void *userData{};
+};
+
+struct ParticleEffect_ParticleCallback {
+    void (*callback)(struct Particle &particle, void *userData);
+    void *userData{};
 };
 
 struct ParticleEffect {
@@ -45,7 +53,8 @@ struct ParticleEffect {
     Sprite           sprite        {};  // sprite to be used for all particles.. for now
     ParticleEffect  *next          {};  // when dead, intrusive free list
 
-    ParticleEffectEvent_Callback callbacks[(size_t)ParticleEffectEvent::Count]{};
+    ParticleEffect_Callback effectCallbacks[(size_t)ParticleEffect_Event::Count]{};
+    ParticleEffect_ParticleCallback particleCallbacks[(size_t)ParticleEffect_Event::Count]{};
 };
 
 //-----------------------------------------------------------------------------
@@ -59,6 +68,8 @@ struct ParticleSystem {
 
     size_t ParticlesActive (void);
     size_t EffectsActive   (void);
+
+    Particle *ParticlePool(void);
 
     ParticleEffect *GenerateEffect(Catalog::ParticleEffectID id, size_t particleCount, Vector3 origin, double duration);
     void Update  (double dt);

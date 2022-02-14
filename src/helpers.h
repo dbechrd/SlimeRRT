@@ -67,6 +67,7 @@
 #define SV_STALE_RADIUS             50.0f
 #define SV_PLAYER_CORPSE_LIFETIME   8.0
 #define SV_ENEMY_CORPSE_LIFETIME    4.0
+#define SV_RESPAWN_TIMER            5.0
 
 #define SV_SLIME_MOVE_SPEED         METERS_TO_PIXELS(2.0f)
 #define SV_SLIME_ATTACK_TRACK       METERS_TO_PIXELS(5.0f)

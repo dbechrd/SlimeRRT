@@ -115,6 +115,11 @@ size_t ParticleSystem::EffectsActive(void)
     return effectsActiveCount;
 }
 
+Particle *ParticleSystem::ParticlePool(void)
+{
+    return particles;
+}
+
 void ParticleSystem::Update(double dt)
 {
     assert(particlesActiveCount <= MAX_PARTICLES);
@@ -126,10 +131,9 @@ void ParticleSystem::Update(double dt)
         if (effect.id == Catalog::ParticleEffectID::Empty)
             continue;
 
-        if (effect.callbacks[(size_t)ParticleEffectEvent::BeforeUpdate].function) {
-            effect.callbacks[(size_t)ParticleEffectEvent::BeforeUpdate].function(
-                effect, effect.callbacks[(size_t)ParticleEffectEvent::BeforeUpdate].userData
-            );
+        const ParticleEffect_Callback &beforeUpdate = effect.effectCallbacks[(size_t)ParticleEffect_Event::BeforeUpdate];
+        if (beforeUpdate.callback) {
+            beforeUpdate.callback(effect, beforeUpdate.userData);
         }
         effectsCounted++;
     }
@@ -148,6 +152,11 @@ void ParticleSystem::Update(double dt)
             sprite_update(particle.sprite, dt);
             assert(Catalog::g_particleFx.FindById(effect.id).update);
             Catalog::g_particleFx.FindById(effect.id).update(particle, alpha);
+
+            const ParticleEffect_ParticleCallback &afterUpdate = effect.particleCallbacks[(size_t)ParticleEffect_ParticleEvent::AfterUpdate];
+            if (afterUpdate.callback) {
+                afterUpdate.callback(particle, afterUpdate.userData);
+            }
         } else if (alpha >= 1.0f) {
             effect.particlesLeft--;
 
@@ -169,10 +178,9 @@ void ParticleSystem::Update(double dt)
         // note: ParticleEffectEvent_AfterUpdate would go here if I ever care about that..
 
         if (!effect.particlesLeft) {
-            if (effect.callbacks[(size_t)ParticleEffectEvent::Dying].function) {
-                effect.callbacks[(size_t)ParticleEffectEvent::Dying].function(
-                    effect, effect.callbacks[(size_t)ParticleEffectEvent::Dying].userData
-                );
+            const ParticleEffect_Callback &dying = effect.effectCallbacks[(size_t)ParticleEffect_Event::Dying];
+            if (dying.callback) {
+                dying.callback(effect, dying.userData);
             }
 
             // Return effect to free list
@@ -236,6 +244,6 @@ void Particle::Draw(void) const
     } else {
         const Vector3 pos = v3_add(body.WorldPosition(), offset);
         DrawCircleSector({ pos.x, pos.y - pos.z }, sprite.scale, 0.0f, 360.0f, 12, color);
-        DrawCircleSectorLines({ pos.x, pos.y - pos.z }, sprite.scale, 0.0f, 360.0f, 12, BLACK);
+        //DrawCircleSectorLines({ pos.x, pos.y - pos.z }, sprite.scale, 0.0f, 360.0f, 12, BLACK);
     }
 }
