@@ -9,6 +9,7 @@ namespace Catalog {
         byId[(size_t)ParticleEffectID::Copper     ] = { FX::copper_init,       FX::copper_update       };
         byId[(size_t)ParticleEffectID::GoldenChest] = { FX::golden_chest_init, FX::golden_chest_update };
         byId[(size_t)ParticleEffectID::Goo        ] = { FX::goo_init,          FX::goo_update          };
+        byId[(size_t)ParticleEffectID::Rainbow    ] = { FX::rainbow_init,      FX::rainbow_update      };
     }
 
     const ParticleEffectDef &ParticleFX::FindById(ParticleEffectID id) const

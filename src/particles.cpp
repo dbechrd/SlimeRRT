@@ -95,10 +95,8 @@ ParticleEffect *ParticleSystem::GenerateEffect(Catalog::ParticleEffectID type, s
         }
 
         particle->effect = effect;
-        particle->body.Teleport(effect->origin);
-
         assert(pfx.init);
-        pfx.init(*particle, *effect);
+        pfx.init(*particle);
         effect->particlesLeft++;
 
         prev = particle;
@@ -145,9 +143,7 @@ void ParticleSystem::Update(double dt)
         ParticleEffect &effect = *particle.effect;
         const float animTime = (float)(glfwGetTime() - effect.startedAt);
         const float alpha = (float)((animTime - particle.spawnAt) / (particle.dieAt - particle.spawnAt));
-        if (alpha < 0.0f) {
-            particle.body.Teleport(effect.origin);
-        } else if (alpha >= 0.0f && alpha < 1.0f) {
+        if (alpha >= 0.0f && alpha < 1.0f) {
             particle.body.Update(dt);
             sprite_update(particle.sprite, dt);
             assert(Catalog::g_particleFx.FindById(effect.id).update);
@@ -193,14 +189,18 @@ void ParticleSystem::PushAll(DrawList &drawList)
 {
     assert(particlesActiveCount <= MAX_PARTICLES);
 
-    size_t particlesPushed = 0;
-    for (size_t i = 0; particlesPushed < particlesActiveCount; i++) {
+    size_t particlesChecked = 0;
+    for (size_t i = 0; particlesChecked < particlesActiveCount; i++) {
         const Particle &particle = particles[i];
         if (!particle.effect)
             continue;  // particle is dead
 
-        drawList.Push(particle);
-        particlesPushed++;
+        const float animTime = (float)(glfwGetTime() - particle.effect->startedAt);
+        const float alpha = (float)((animTime - particle.spawnAt) / (particle.dieAt - particle.spawnAt));
+        if (alpha >= 0.0f && alpha < 1.0f) {
+            drawList.Push(particle);
+        }
+        particlesChecked++;
     }
 }
 
@@ -214,11 +214,15 @@ bool Particle::Cull(const Rectangle &cullRect) const
 {
     bool cull = false;
 
+    const Vector3 &offset = effect->origin;
     if (sprite.spriteDef) {
-        cull = sprite_cull_body(sprite, body, cullRect);
+        cull = sprite_cull_body(sprite, body, cullRect, offset);
     } else {
         const Vector2 bodyBC = body.VisualPosition();
-        cull = !CheckCollisionCircleRec(bodyBC, sprite.scale, cullRect);
+        Vector2 pos{};
+        pos.x = bodyBC.x + offset.x;
+        pos.y = bodyBC.y + offset.y - offset.z;
+        cull = !CheckCollisionCircleRec(pos, sprite.scale, cullRect);
     }
 
     return cull;
@@ -226,9 +230,12 @@ bool Particle::Cull(const Rectangle &cullRect) const
 
 void Particle::Draw(void) const
 {
+    const Vector3 &offset = effect->origin;
     if (sprite.spriteDef) {
-        sprite_draw_body(sprite, body, color);
+        sprite_draw_body(sprite, body, color, offset);
     } else {
-        DrawCircleV(body.VisualPosition(), sprite.scale, color);
+        const Vector3 pos = v3_add(body.WorldPosition(), offset);
+        DrawCircleSector({ pos.x, pos.y - pos.z }, sprite.scale, 0.0f, 360.0f, 12, color);
+        DrawCircleSectorLines({ pos.x, pos.y - pos.z }, sprite.scale, 0.0f, 360.0f, 12, BLACK);
     }
 }

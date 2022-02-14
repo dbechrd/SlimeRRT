@@ -3,6 +3,7 @@
 #include "catalog/spritesheets.h"
 #include "catalog/tracks.h"
 #include "draw_command.h"
+#include "fx/fx.h"
 #include "game_client.h"
 #include "healthbar.h"
 #include "input_mode.h"
@@ -456,7 +457,8 @@ ErrorType GameClient::Run(void)
         }
 
         if (input.dbgChatMessage) {
-            world->chatHistory.PushDebug(CSTR("You pressed the send random chat message button. Congrats."));
+            auto foo = world->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Rainbow, 256, player.body.WorldPosition(), 2.0f);
+            //world->chatHistory.PushDebug(CSTR("You pressed the send random chat message button. Congrats."));
         }
 
         if (input.dbgTeleport) {

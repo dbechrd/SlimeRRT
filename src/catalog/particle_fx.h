@@ -11,10 +11,11 @@ namespace Catalog {
         Copper,
         GoldenChest,
         Goo,
+        Rainbow,
         Count
     };
 
-    typedef void (*ParticleEffect_FnInit)(Particle &particle, ParticleEffect &effect);
+    typedef void (*ParticleEffect_FnInit)(Particle &particle);
     typedef void (*ParticleEffect_FnUpdate)(Particle &particle, float alpha);
 
     struct ParticleEffectDef {

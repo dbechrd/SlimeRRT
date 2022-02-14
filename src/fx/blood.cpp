@@ -1,10 +1,13 @@
-#include "particles.h"
+#include "../particles.h"
 #include "dlb_rand.h"
 #include <cassert>
 
 namespace FX {
-    void blood_init(Particle &particle, ParticleEffect &effect)
+    void blood_init(Particle &particle)
     {
+        assert(particle.effect);
+        const ParticleEffect &effect = *particle.effect;
+
         // Spawn randomly during first 25% of duration
         particle.spawnAt = effect.duration * dlb_rand32f_range(0.0f, 0.45f);
 

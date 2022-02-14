@@ -1,10 +1,13 @@
-#include "particles.h"
+#include "../particles.h"
 #include "dlb_rand.h"
 #include <cassert>
 
 namespace FX {
-    void goo_init(Particle &particle, ParticleEffect &effect)
+    void goo_init(Particle &particle)
     {
+        assert(particle.effect);
+        const ParticleEffect &effect = *particle.effect;
+
         // Spawn randomly during first 25% of duration
         particle.spawnAt = 0; //effect.duration * dlb_rand32f_variance(0.25f);
 

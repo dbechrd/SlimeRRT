@@ -6,26 +6,31 @@
 #include <cassert>
 #include <cmath>
 
-#define IDLE_THRESHOLD_SECONDS 6.0
+#define IDLE_THRESHOLD_SECONDS 60.0
 
-inline Vector3 Body3D::WorldPosition() const
+Body3D::Body3D(void)
+{
+    gravityScale = 1.0f;
+}
+
+inline Vector3 Body3D::WorldPosition(void) const
 {
     return position;
 }
 
-inline Vector2 Body3D::GroundPosition() const
+inline Vector2 Body3D::GroundPosition(void) const
 {
     Vector2 groundPosition = { position.x, position.y };
     return groundPosition;
 }
 
-inline Vector2 Body3D::PrevGroundPosition() const
+inline Vector2 Body3D::PrevGroundPosition(void) const
 {
     Vector2 prevGroundPosition = { prevPosition.x, prevPosition.y };
     return prevGroundPosition;
 }
 
-inline Vector2 Body3D::VisualPosition() const
+inline Vector2 Body3D::VisualPosition(void) const
 {
     Vector2 result = GroundPosition();
     result.y -= position.z;
@@ -49,12 +54,21 @@ inline void Body3D::Move(const Vector2 &offset)
     lastMoved = glfwGetTime();
 }
 
-inline bool Body3D::Bounced() const
+inline void Body3D::Move3D(const Vector3 &offset)
+{
+    prevPosition = position;
+    position.x += offset.x;
+    position.y += offset.y;
+    position.z += offset.z;
+    lastMoved = glfwGetTime();
+}
+
+inline bool Body3D::Bounced(void) const
 {
     return bounced;
 }
 
-inline bool Body3D::OnGround() const
+inline bool Body3D::OnGround(void) const
 {
     return position.z == 0.0f;
 }
@@ -64,17 +78,17 @@ inline bool Body3D::JustLanded(void) const
     return landed;
 }
 
-inline bool Body3D::Resting() const
+inline bool Body3D::Resting(void) const
 {
     return v3_is_zero(velocity) && OnGround();
 }
 
-inline bool Body3D::Idle() const
+inline bool Body3D::Idle(void) const
 {
     return idle;
 }
 
-inline double Body3D::TimeSinceLastMove() const
+inline double Body3D::TimeSinceLastMove(void) const
 {
     return glfwGetTime() - lastMoved;
 }
@@ -93,7 +107,7 @@ void Body3D::Update(double dt)
     // Simulate physics if body not resting
     if (!Resting()) {
         const float gravity = METERS_TO_PIXELS(10.0f);
-        velocity.z -= gravity * (float)dt; // * drag_coef;
+        velocity.z -= gravity * gravityScale * (float)dt; // * drag_coef;
 
         position.x += velocity.x * (float)dt;
         position.y += velocity.y * (float)dt;

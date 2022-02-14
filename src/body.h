@@ -18,19 +18,22 @@ struct Body3D {
     float   restitution  {};  // 0 = no bounce    1 = 100% bounce
     float   drag         {};  // 0 = no drag      1 = 100% drag
     float   friction     {};  // 0 = no friction  1 = 100% friction (when touching ground, i.e. z == 0.0f)
+    float   gravityScale {};  // 1 = normal gravity
 
-    Vector3 WorldPosition() const;
-    Vector2 GroundPosition() const;
-    Vector2 PrevGroundPosition() const;
-    Vector2 VisualPosition() const;
+    Body3D(void);
+    Vector3 WorldPosition(void) const;
+    Vector2 GroundPosition(void) const;
+    Vector2 PrevGroundPosition(void) const;
+    Vector2 VisualPosition(void) const;
     void Teleport(const Vector3 &pos);
     void Move(const Vector2 &offset);
-    bool Bounced() const;
-    bool OnGround() const;
-    bool JustLanded() const;
-    bool Resting() const;
-    bool Idle() const;
-    double TimeSinceLastMove() const;
+    void Move3D(const Vector3 &offset);
+    bool Bounced(void) const;
+    bool OnGround(void) const;
+    bool JustLanded(void) const;
+    bool Resting(void) const;
+    bool Idle(void) const;
+    double TimeSinceLastMove(void) const;
     void ApplyForce(const Vector3 &force);
     void Update(double dt);
 

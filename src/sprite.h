@@ -19,5 +19,5 @@ Rectangle          sprite_world_rect (const Sprite &sprite, const Vector3 &pos);
 Vector3            sprite_top_center (const Sprite &sprite);
 Vector3            sprite_center     (const Sprite &sprite);
 void               sprite_update     (      Sprite &sprite, double dt);
-bool               sprite_cull_body  (const Sprite &sprite, const struct Body3D &body, Rectangle cullRect);
-void               sprite_draw_body  (const Sprite &sprite, const struct Body3D &body, const Color &color);
+bool               sprite_cull_body  (const Sprite &sprite, const struct Body3D &body, Rectangle cullRect, const Vector3 &offset = {});
+void               sprite_draw_body  (const Sprite &sprite, const struct Body3D &body, const Color &color, const Vector3 &offset = {});

@@ -56,7 +56,7 @@ PlayerControllerState PlayerControllerState::Query(bool processMouse, bool proce
             if (IsKeyPressed(KEY_SIX)  ) { input.selectSlot = (uint32_t)PlayerInventorySlot::Hotbar_6; }
             input.toggleInventory  = IsKeyPressed(KEY_I);
             input.dbgFindMouseTile = IsKeyDown(KEY_LEFT_ALT);
-            input.dbgChatMessage   = IsKeyDown(KEY_C);
+            input.dbgChatMessage   = IsKeyPressed(KEY_C);
             input.dbgTeleport      = IsKeyPressed(KEY_F5);
             input.dbgSpawnSam      = IsKeyPressed(KEY_KP_ENTER);
             input.dbgToggleFreecam = IsKeyPressed(KEY_F);

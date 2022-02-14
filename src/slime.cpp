@@ -15,7 +15,6 @@ void Slime::Init(void)
 {
     assert(!sprite.spriteDef);
 
-    body.restitution = 0.0f;
     body.drag = 0.95f;
     body.friction = 0.95f;
 

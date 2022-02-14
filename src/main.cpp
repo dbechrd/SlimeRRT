@@ -148,6 +148,7 @@ int main(int argc, char *argv[])
 #include "fx/gold.cpp"
 #include "fx/golden_chest.cpp"
 #include "fx/goo.cpp"
+#include "fx/rainbow.cpp"
 #include "game_client.cpp"
 #include "game_server.cpp"
 #include "healthbar.cpp"
