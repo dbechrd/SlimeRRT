@@ -8,31 +8,33 @@ namespace Catalog {
     const char *SoundIDString(SoundID id)
     {
         switch (id) {
-            case SoundID::Footstep:    return "Footstep";
-            case SoundID::Gold:        return "Gold";
-            case SoundID::Slime_Stab1: return "Slime_Stab1";
-            case SoundID::Squeak:      return "Squeak";
-            case SoundID::Squish1:     return "Squish1";
-            case SoundID::Squish2:     return "Squish2";
-            case SoundID::Whoosh:      return "Whoosh";
-            case SoundID::GemBounce:   return "GemBounce";
-            case SoundID::Eughh:       return "Eughh";
+            case SoundID::Footstep:        return "Footstep";
+            case SoundID::Gold:            return "Gold";
+            case SoundID::Slime_Stab1:     return "Slime_Stab1";
+            case SoundID::Squeak:          return "Squeak";
+            case SoundID::Squish1:         return "Squish1";
+            case SoundID::Squish2:         return "Squish2";
+            case SoundID::Whoosh:          return "Whoosh";
+            case SoundID::GemBounce:       return "GemBounce";
+            case SoundID::Eughh:           return "Eughh";
+            case SoundID::RainbowSparkles: return "RainbowSparkles";
         }
         return 0;
     }
 
     void Sounds::Load(void)
     {
-        byId[(size_t)SoundID::Empty      ] = MissingOggSound();
-        byId[(size_t)SoundID::Footstep   ] = LoadSound("resources/footstep1.ogg");
-        byId[(size_t)SoundID::Gold       ] = LoadSound("resources/gold1.ogg");
-        byId[(size_t)SoundID::Slime_Stab1] = LoadSound("resources/slime_stab1.ogg");
-        byId[(size_t)SoundID::Squeak     ] = LoadSound("resources/squeak1.ogg");
-        byId[(size_t)SoundID::Squish1    ] = LoadSound("resources/squish1.ogg");
-        byId[(size_t)SoundID::Squish2    ] = LoadSound("resources/squish2.ogg");
-        byId[(size_t)SoundID::Whoosh     ] = LoadSound("resources/whoosh1.ogg");
-        byId[(size_t)SoundID::GemBounce  ] = LoadSound("resources/gem_bounce.wav");
-        byId[(size_t)SoundID::Eughh      ] = LoadSound("resources/eughh.ogg");
+        byId[(size_t)SoundID::Empty          ] = MissingOggSound();
+        byId[(size_t)SoundID::Footstep       ] = LoadSound("resources/footstep1.ogg");
+        byId[(size_t)SoundID::Gold           ] = LoadSound("resources/gold1.ogg");
+        byId[(size_t)SoundID::Slime_Stab1    ] = LoadSound("resources/slime_stab1.ogg");
+        byId[(size_t)SoundID::Squeak         ] = LoadSound("resources/squeak1.ogg");
+        byId[(size_t)SoundID::Squish1        ] = LoadSound("resources/squish1.ogg");
+        byId[(size_t)SoundID::Squish2        ] = LoadSound("resources/squish2.ogg");
+        byId[(size_t)SoundID::Whoosh         ] = LoadSound("resources/whoosh1.ogg");
+        byId[(size_t)SoundID::GemBounce      ] = LoadSound("resources/gem_bounce.wav");
+        byId[(size_t)SoundID::Eughh          ] = LoadSound("resources/eughh.ogg");
+        byId[(size_t)SoundID::RainbowSparkles] = LoadSound("resources/rainbow_sparkles.ogg");
 
         for (size_t i = 0; i < (size_t)SoundID::Count; i++) {
             if (!byId[i].frameCount) {

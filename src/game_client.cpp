@@ -56,7 +56,9 @@ ErrorType GameClient::Run(void)
     //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
     //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
 
-    io.FontDefault = io.Fonts->AddFontFromFileTTF("resources/Hack-Bold.ttf", 16.0f);
+    ImFont *imFontHack16 = io.Fonts->AddFontFromFileTTF("resources/Hack-Bold.ttf", 16.0f);
+    ImFont *imFontHack48 = io.Fonts->AddFontFromFileTTF("resources/Hack-Bold.ttf", 48.0f);
+    io.FontDefault = imFontHack16;
 
     // Setup Dear ImGui style
     ImGui::StyleColorsDark();
@@ -215,8 +217,6 @@ ErrorType GameClient::Run(void)
     SetWindowState(FLAG_VSYNC_HINT);
     bool gifRecording = false;
     bool chatVisible = false;
-    bool menuActive = false;
-    bool mixerActive = false;
     bool inventoryActive = false;
     bool loginActive = true;
     bool disconnectRequested = false;
@@ -252,9 +252,7 @@ ErrorType GameClient::Run(void)
         //----------------------------------------------------------------------
         // Input
         //----------------------------------------------------------------------
-        if (menuActive) {
-            inputMode = INPUT_MODE_MENU;
-        } else if (io.WantCaptureKeyboard) {
+        if (io.WantCaptureKeyboard) {
             inputMode = INPUT_MODE_IMGUI;
         } else if (chatVisible) {
             inputMode = INPUT_MODE_CHAT;
@@ -262,11 +260,11 @@ ErrorType GameClient::Run(void)
             inputMode = INPUT_MODE_PLAY;
         }
 
-        if (inputMode == INPUT_MODE_MENU) {
-            io.ConfigFlags |= ImGuiConfigFlags_NoMouse | ImGuiConfigFlags_NavNoCaptureKeyboard;
-        } else {
-            io.ConfigFlags &= ~ImGuiConfigFlags_NoMouse & ~ImGuiConfigFlags_NavNoCaptureKeyboard;
-        }
+        //if (inputMode == INPUT_MODE_MENU) {
+        //    io.ConfigFlags |= ImGuiConfigFlags_NoMouse | ImGuiConfigFlags_NavNoCaptureKeyboard;
+        //} else {
+        //    io.ConfigFlags &= ~ImGuiConfigFlags_NoMouse & ~ImGuiConfigFlags_NavNoCaptureKeyboard;
+        //}
 
         const bool processMouse = inputMode == INPUT_MODE_PLAY && !io.WantCaptureMouse;
         const bool processKeyboard = inputMode == INPUT_MODE_PLAY;
@@ -474,6 +472,7 @@ ErrorType GameClient::Run(void)
             auto foo = world->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Rainbow, 256, player.body.WorldPosition(), 3.0f);
             foo->particleCallbacks[(size_t)ParticleEffect_ParticleEvent::AfterUpdate] = { RainbowParticlesDamagePlayer, &player };
             //world->chatHistory.PushDebug(CSTR("You pressed the send random chat message button. Congrats."));
+            Catalog::g_sounds.Play(Catalog::SoundID::RainbowSparkles, 1.0f);
         }
 
         if (input.dbgTeleport) {
@@ -754,7 +753,7 @@ ErrorType GameClient::Run(void)
         rlDrawRenderBatchActive();
 
         if (show_menubar) {
-            UI::Menubar(loginActive, mixerActive);
+            UI::Menubar(loginActive);
         }
         if (show_demo_window) {
             ImGui::ShowDemoWindow(&show_demo_window);
@@ -765,13 +764,10 @@ ErrorType GameClient::Run(void)
             UI::LoginForm(netClient, io, escape, loginActive);
         }
 
-        if (mixerActive) {
-            UI::Mixer();
-        }
+        //if (mixerActive) {
+        //    UI::Mixer();
+        //}
         //UI::Netstat(netClient, renderAt);
-
-        ImGui::Render();
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
         // Render mouse tile tooltip
         if (input.dbgFindMouseTile) {
@@ -781,47 +777,10 @@ ErrorType GameClient::Run(void)
         //----------------------------------------------------------------------
         // Menu
         //----------------------------------------------------------------------
-        if (escape) {
-            menuActive = !menuActive;
-        }
+        UI::DearMenu(imFontHack48, escape, connectedToServer, disconnectRequested, quit);
 
-        if (menuActive) {
-            if (connectedToServer) {
-                const char *menuItems[] = { "Resume", "Audio", "Log off" };
-                switch (UI::Menu(fontSdf72, menuItems, ARRAY_SIZE(menuItems))) {
-                    case 0: {    // Resume
-                        menuActive = false;
-                        break;
-                    } case 1: {  // Audio
-                        mixerActive = !mixerActive;
-                        menuActive = false;
-                        break;
-                    } case 2: {  // Log off
-                        disconnectRequested = true;
-                        menuActive = false;
-                        break;
-                    }
-                }
-            } else {
-                const char *menuItems[] = { "Resume", "Audio", "Quit" };
-                //const char *menuItems[] = { "Be", "Right", "Back" };
-                switch (UI::Menu(fontSdf72, menuItems, ARRAY_SIZE(menuItems))) {
-                    case 0: {    // Resume
-                        menuActive = false;
-                        break;
-                    } case 1: {  // Audio
-                        mixerActive = !mixerActive;
-                        menuActive = false;
-                        break;
-                    } case 2: {  // Quit
-                        menuActive = false;
-                        quit = true;
-                        break;
-                    }
-                }
-            }
-        }
-
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         EndDrawing();
         //----------------------------------------------------------------------------------
 

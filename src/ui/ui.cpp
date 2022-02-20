@@ -103,12 +103,11 @@ void UI::Minimap(const Font &font, const Spycam &spycam, const World &world)
     }
 }
 
-void UI::Menubar(bool &loginActive, bool &mixerActive)
+void UI::Menubar(bool &loginActive)
 {
     if (ImGui::BeginMainMenuBar()) {
         if (ImGui::BeginMenu("Debug")) {
             ImGui::MenuItem("Login", 0, &loginActive);
-            ImGui::MenuItem("Mixer", 0, &mixerActive);
 
             if (ImGui::BeginMenu("Options")) {
                 static bool enabled = true;
@@ -124,7 +123,6 @@ void UI::Menubar(bool &loginActive, bool &mixerActive)
                 ImGui::Combo("Combo", &n, "Yes\0No\0Maybe\0\0");
                 ImGui::EndMenu();
             }
-
 
             if (ImGui::BeginMenu("Colors")) {
                 float sz = ImGui::GetTextLineHeight();
@@ -178,6 +176,31 @@ void UI::CenteredText(const char *text)
     float textWidth = ImGui::CalcTextSize(text).x;
     ImGui::SetCursorPosX((windowWidth - textWidth) * 0.5f);
     ImGui::Text(text);
+}
+
+void UI::SliderFloatLeft(const char *label, float *v, float min, float max)
+{
+    assert(label[0] == '#');
+    assert(label[1] == '#');
+    ImGui::Text(label + 2);
+    ImGui::SameLine();
+    ImGui::SliderFloat(label, v, min, max, "%.03f");
+}
+
+void UI::CenteredSliderFloatLeft(const char *label, float *v, float min, float max)
+{
+    assert(label[0] == '#');
+    assert(label[1] == '#');
+    ImGui::Text(label + 2);
+    ImGui::SameLine();
+    float windowWidth = ImGui::GetWindowSize().x;
+    float widthAvail = ImGui::GetContentRegionAvail().x;
+    float widthUsed = windowWidth - widthAvail;
+    float sliderWidth = windowWidth - widthUsed * 2.0f;
+    ImGui::SetCursorPosX((windowWidth - sliderWidth) * 0.5f);
+    ImGui::PushItemWidth(sliderWidth);
+    ImGui::SliderFloat(label, v, min, max, "%.03f");
+    ImGui::PopItemWidth();
 }
 
 void UI::LoginForm(NetClient &netClient, ImGuiIO& io, bool &escape, bool &loginActive)
@@ -739,6 +762,123 @@ int UI::Menu(const Font &font, const char **items, size_t itemCount)
     return itemPressed;
 }
 
+void UI::DearMenu(ImFont *bigFont, bool &escape, bool connectedToServer, bool &disconnectRequested, bool &quit)
+{
+    const char *menuId = "EscMenu";
+    if (!ImGui::IsPopupOpen(menuId) && escape) {
+        ImGui::OpenPopup(menuId);
+        escape = false;
+    }
+
+    ImVec2 menuCenter {
+        screenSize.x / 2.0f,
+        screenSize.y / 2.0f
+    };
+    ImGui::SetNextWindowPos(menuCenter, 0, ImVec2(0.5f, 0.5f));
+    ImGui::SetNextWindowSize(ImVec2(600, 400));
+
+    static enum class Menu {
+        Main,
+        Audio
+    } currentMenu = Menu::Main;
+
+    bool menuOpen = ImGui::BeginPopupModal(menuId, 0,
+        //ImGuiWindowFlags_NoTitleBar |
+        //ImGuiWindowFlags_NoResize |
+        //ImGuiWindowFlags_NoCollapse |
+        ImGuiWindowFlags_NoDecoration |
+        ImGuiWindowFlags_NoMove |
+        //ImGuiWindowFlags_NoBackground |
+        ImGuiWindowFlags_NoSavedSettings
+    );
+
+    if (menuOpen) {
+        switch (currentMenu) {
+            case Menu::Main: {
+                if (menuOpen && escape) {
+                    ImGui::CloseCurrentPopup();
+                    escape = false;
+                    break;
+                }
+
+                ImGui::PushFont(bigFont);
+                CenteredText("Main Menu");
+                ImGui::MenuItem("Resume");
+                if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
+                    ImGui::CloseCurrentPopup();
+                }
+                ImGui::MenuItem("Audio");
+                if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
+                    currentMenu = Menu::Audio;
+                }
+                if (connectedToServer) {
+                    ImGui::MenuItem("Log Off");
+                    if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
+                        disconnectRequested = true;
+                        ImGui::CloseCurrentPopup();
+                    }
+                } else {
+                    ImGui::MenuItem("Quit");
+                    if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
+                        quit = true;
+                        ImGui::CloseCurrentPopup();
+                    }
+                }
+                ImGui::PopFont();
+                break;
+            } case Menu::Audio: {
+                if ((menuOpen && escape) || ImGui::Button("< Back")) {
+                    currentMenu = Menu::Main;
+                    escape = false;
+                    break;
+                }
+
+                ImGui::SameLine();
+                ImGui::SetCursorPosX(ImGui::GetContentRegionMax().x - 100);
+                static bool audioAdvanced = false;
+                if (ImGui::Button(audioAdvanced ? "Show Less" : "Show More", ImVec2(100, 0))) {
+                    audioAdvanced = !audioAdvanced;
+                }
+                ImGui::SameLine();
+                ImGui::SetCursorPosY(5);  // idk how to calculate this properly
+                ImGui::PushFont(bigFont);
+                CenteredText("Audio");
+                ImGui::PopFont();
+
+                CenteredSliderFloatLeft("##Master", &Catalog::g_mixer.masterVolume, 0.0f, 1.0f);
+                CenteredSliderFloatLeft("##Music ", &Catalog::g_mixer.musicVolume, 0.0f, 1.0f);
+                CenteredSliderFloatLeft("##Sfx   ", &Catalog::g_mixer.sfxVolume, 0.0f, 1.0f);
+
+                if (audioAdvanced) {
+                    if (ImGui::TreeNode("Tracks")) {
+                        for (size_t i = 1; i < (size_t)Catalog::TrackID::Count; i++) {
+                            if (ImGui::TreeNode(Catalog::TrackIDString((Catalog::TrackID)i))) {
+                                SliderFloatLeft("##vLimit  ", &Catalog::g_tracks.mixer.volumeLimit[i], 0.0f, 1.0f);
+                                SliderFloatLeft("##vVolume ", &Catalog::g_tracks.mixer.volume[i], 0.0f, 1.0f);
+                                SliderFloatLeft("##vSpeed  ", &Catalog::g_tracks.mixer.volumeSpeed[i], 0.0f, 2.0f);
+                                SliderFloatLeft("##vTarget ", &Catalog::g_tracks.mixer.volumeTarget[i], 0.0f, 1.0f);
+                                ImGui::TreePop();
+                            }
+                        }
+                        ImGui::TreePop();
+                    }
+                    if (ImGui::TreeNode("Sound FX")) {
+                        for (size_t i = 1; i < (size_t)Catalog::SoundID::Count; i++) {
+                            if (ImGui::TreeNode(Catalog::SoundIDString((Catalog::SoundID)i))) {
+                                SliderFloatLeft("##vLimit  ", &Catalog::g_sounds.mixer.volumeLimit[i], 0.0f, 1.0f);
+                                ImGui::TreePop();
+                            }
+                        }
+                        ImGui::TreePop();
+                    }
+                }
+                break;
+            }
+        }
+        ImGui::EndPopup();
+    }
+}
+
 void UI::Inventory(const Texture &invItems, Player& player, bool &inventoryActive)
 {
 
@@ -760,10 +900,8 @@ void UI::Inventory(const Texture &invItems, Player& player, bool &inventoryActiv
     ImGui::PushStyleColor(ImGuiCol_Border, IM_COL32_BLACK);
 
     ImGui::Begin("##inventory", 0,
-        ImGuiWindowFlags_NoTitleBar |
-        ImGuiWindowFlags_NoResize |
+        ImGuiWindowFlags_NoDecoration |
         ImGuiWindowFlags_NoMove |
-        ImGuiWindowFlags_NoCollapse |
         //ImGuiWindowFlags_NoBackground |
         ImGuiWindowFlags_NoSavedSettings
     );
@@ -862,8 +1000,9 @@ void UI::Inventory(const Texture &invItems, Player& player, bool &inventoryActiv
     ImGui::PopStyleVar(6);
 
     if (player.inventory.cursor.count) {
+        HideCursor();
 
-        ImDrawList *drawList = ImGui::GetWindowDrawList();
+        ImDrawList *drawList = ImGui::GetForegroundDrawList();
         drawList->PushClipRect({0, 0}, {screenSize.x, screenSize.y});
 
         const int texIdx = (int)player.inventory.cursor.id;
@@ -936,6 +1075,8 @@ void UI::Inventory(const Texture &invItems, Player& player, bool &inventoryActiv
         );
 
         drawList->PopClipRect();
+    } else {
+        ShowCursor();
     }
 
     ImGui::End();

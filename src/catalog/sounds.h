@@ -13,6 +13,7 @@ namespace Catalog {
         Whoosh,
         GemBounce,
         Eughh,
+        RainbowSparkles,
         Count
     };
 

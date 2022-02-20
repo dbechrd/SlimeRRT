@@ -43,10 +43,29 @@ typedef r64     real64;
 #endif
 
 // Enums generators
-#define ENUM(e, ...) e,
-#define ENUM_INT(e, val) e = val,
-#define ENUM_STRING(e, ...) #e,
-#define ENUM_META(e, str) str,
+//
+//   #define MENU_ITEMS(f) \
+//       f(Main,  "Main Menu") \
+//       f(Audio, "Audio")
+//   DLB_ENUM_DECL(Menu, MENU_ITEMS);
+//   DLB_ENUM_DEFS(Menu, MENU_ITEMS);
+//   STRING(Menu::Main);
+//
+#define DLB_ENUM(e, ...) e,
+#define DLB_ENUM_INT(e, val) e = val,
+#define DLB_ENUM_STRINGIFY(e, ...) #e,
+#define DLB_ENUM_DESCIFY(e, desc) desc,
+#define DLB_ENUM_DECL(t, items_macro) \
+    enum t { \
+        items_macro(DLB_ENUM) \
+    }; \
+    extern const char *t##Str[]; \
+    extern const char *t##Desc[];
+#define DLB_ENUM_DEFS(t, items_macro) \
+    const char *t##Str[] = { items_macro(DLB_ENUM_STRINGIFY) }; \
+    const char *t##Desc[] = { items_macro(DLB_ENUM_DESCIFY) };
+#define DLB_ENUM_STR(t, e) t##Str[(int)t::e]
+#define DLB_ENUM_DESC(t, e) t##Desc[(int)t::e]
 
 // Useful macros
 #define UNUSED(x) ((void)(x))
