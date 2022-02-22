@@ -644,6 +644,7 @@ size_t World::DrawMap(const Spycam &spycam)
     }
 
     bool debugPrint = IsKeyPressed(KEY_F9);
+    ImDrawList *bgDrawList = ImGui::GetBackgroundDrawList();
 
     size_t tilesDrawn = 0;
     const Rectangle &camRect = spycam.GetRect();
@@ -655,8 +656,8 @@ size_t World::DrawMap(const Spycam &spycam)
         for (float x = -1; x < tilesW + 2; x += zoomMipLevel) {
             float xx = cx + x * TILE_W;
             float yy = cy + y * TILE_W;
-            xx -= fmodf(xx, TILE_W);
-            yy -= fmodf(yy, TILE_W);
+            //xx -= fmodf(xx, TILE_W);
+            //yy -= fmodf(yy, TILE_W);
 
             //float chx = map->CalcChunk(xx);
             //float chy = map->CalcChunk(yy);
@@ -676,9 +677,27 @@ size_t World::DrawMap(const Spycam &spycam)
             const int chunkY = map->CalcChunk(tilePos.y);
             map->FindOrGenChunk(1234, chunkX, chunkY);
 #endif
+
             // Draw all tiles as textured rects (looks best, performs worst)
             const Tile *tile = map->TileAtWorld(xx, yy);
             tileset_draw_tile(map->tilesetId, tile ? tile->type : Tile::Type::Void, { xx, yy });
+#if 0
+            if (xx > 20 && yy > 20) {
+                char buf[16]{};
+                char *bufPtr = buf + sizeof(buf) - 1;
+                int xxp = xx;
+                int rem;
+                while (xxp) {
+                    rem = xxp % 10;
+                    *(--bufPtr) = '0' + rem;
+                    xxp /= 10;
+                }
+                //snprintf(buf, sizeof(buf), "%d,\n%d", (int)xx, (int)yy);
+                bgDrawList->AddText({ xx - cx, yy - cy }, IM_COL32_WHITE, bufPtr);
+            }
+#endif
+
+            //DrawText(buf, xx, yy, 16, WHITE);
 
             //if (tile) {
             //    //tileset_draw_tile(map->tilesetId, tile ? tile->type : Tile::Type::Void, { rx, ry });

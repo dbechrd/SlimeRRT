@@ -95,12 +95,11 @@ int main(int argc, char *argv[])
     return 0;
 }
 
-#pragma warning(push)
 #pragma warning(disable:26819)
 #define DLB_MURMUR3_IMPLEMENTATION
 #include "dlb_murmur3.h"
 #undef DLB_MURMUR3_IMPLEMENTATION
-#pragma warning(pop)
+#pragma warning(default:26819)
 
 #define DLB_RAND_IMPLEMENTATION
 #define DLB_RAND_TEST

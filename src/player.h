@@ -35,6 +35,17 @@ struct PlayerInventory {
     Vector2 cursorOffset{};
     ItemStack slots[(int)PlayerInventorySlot::Count + (PLAYER_INV_ROWS * PLAYER_INV_COLS)]{};
 
+    void TexRect(const Texture &invItems, Catalog::ItemID itemId, Vector2 &min, Vector2 &max)
+    {
+        const int texIdx = (int)itemId;
+        const int texItemsWide = invItems.width / ITEM_W;
+        const int texItemsHigh = invItems.height / ITEM_H;
+        const float u0 = (float)((texIdx % texItemsWide) * ITEM_W);
+        const float v0 = (float)((texIdx / texItemsWide) * ITEM_H);
+        min = Vector2{ (u0) / invItems.width, (v0) / invItems.height };
+        max = Vector2{ (u0 + ITEM_W) / invItems.width, (v0 + ITEM_H) / invItems.height };
+    }
+
     ItemStack &GetInvStack(int row, int col)
     {
         assert(row >= 0);
@@ -222,7 +233,7 @@ struct PlayerInventory {
                 int slot = row * PLAYER_INV_COLS + col;
                 ItemStack &stack = GetInvStack(row, col);
                 stack.id = (Catalog::ItemID)dlb_rand32i_range(
-                    0, 12
+                    0, 6
                     //(int)Catalog::ItemID::Empty,
                     //(int)Catalog::ItemID::Count - 1
                 );

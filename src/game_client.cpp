@@ -170,12 +170,18 @@ ErrorType GameClient::Run(void)
         player->nameLength = (uint32_t)strlen(player->name);
         player->combat.hitPoints = MAX(0, player->combat.hitPointsMax - 25);
         //player->body.position.x = 1373.49854f;
-
         // 1600 x 900
         //player->body.position.x = 1373.498f;
-
         // 1610 x 910
         //player->body.position.x = 1457.83557f;
+
+#if CURSOR_ITEM_RELATIVE_TERRARIA
+        player->inventory.cursorOffset.x = 8;
+        player->inventory.cursorOffset.y = 8;
+#else
+        player->inventory.cursorOffset.x = -(ITEM_W / 2);
+        player->inventory.cursorOffset.y = -(ITEM_H / 2);
+#endif
     }
 
 #if DEMO_VIEW_RTREE

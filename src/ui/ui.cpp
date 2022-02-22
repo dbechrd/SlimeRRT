@@ -881,10 +881,6 @@ void UI::DearMenu(ImFont *bigFont, bool &escape, bool connectedToServer, bool &d
 
 void UI::Inventory(const Texture &invItems, Player& player, bool &inventoryActive)
 {
-
-    const int texItemsWide = invItems.width / 32;
-    const int texItemsHigh = invItems.height / 32;
-
     const ImVec2 inventorySize{ 540.0, 360.0f };
     const float pad = 80.0f;
     const float left = screenSize.x - pad - inventorySize.x;
@@ -945,16 +941,12 @@ void UI::Inventory(const Texture &invItems, Player& player, bool &inventoryActiv
             int slot = row * PLAYER_INV_COLS + col;
             ItemStack &invStack = player.inventory.GetInvStack(row, col);
 
-            int texIdx = (int)invStack.id;
-
-            const ImVec2 size = ImVec2(32.0f, 32.0f);
-            const float u0 = (texIdx % texItemsWide) * size.x;
-            const float v0 = (texIdx / texItemsWide) * size.y;
-            const ImVec2 uv0 = ImVec2((u0)          / invItems.width, (v0)          / invItems.height);
-            const ImVec2 uv1 = ImVec2((u0 + size.x) / invItems.width, (v0 + size.y) / invItems.height);
-
             if (invStack.count) {
-                ImGui::ImageButton((ImTextureID)(size_t)invItems.id, size, uv0, uv1);
+                Vector2 uv0{};
+                Vector2 uv1{};
+                player.inventory.TexRect(invItems, invStack.id, uv0, uv1);
+                ImGui::ImageButton((ImTextureID)(size_t)invItems.id, ImVec2(ITEM_W, ITEM_H),
+                    ImVec2{ uv0.x, uv0.y }, ImVec2{ uv1.x, uv1.y });
 
                 const ImVec2 topLeft = ImGui::GetItemRectMin();
                 ImDrawList *drawList = ImGui::GetWindowDrawList();
@@ -975,12 +967,32 @@ void UI::Inventory(const Texture &invItems, Player& player, bool &inventoryActiv
                 //    ImVec4(0, 0, 0, 0), ImVec4(1, 1, 1, 0.5f));
             }
 
+            // Terraria:
+            //   on mouse down
+            //   always bottom right of cursor
+            //   left mouse down = take/swap/combine/drop stack
+            //   right mouse down = if stack is same (or cursor empty), take 1 item immediately, then repeat with acceleration
+            //   sin wave scale bobbing
+            //   can use held item as if equipped
+            // D2R:
+            //   Always centers item on cursor
+            //   empty cursor:
+            //     left mouse down = take/swap/drop stack (or combine for rare cases like keys)
+            // Minecraft:
+            //   empty cursor:
+            //     left mouse down = pick up stack
+            //   filled cursor:
+            //     left mouse down + drag split stack evenly
+            //     right mouse down + drag 1 item piles
+            //     mouse up = keep remainder on cursor
+            //   Always centers item on cursor
+            //   squish (less width, more height) animation on pick-up
             const float scrollY = GetMouseWheelMove();
             if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
                 const bool doubleClick = ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left);
                 player.inventory.SlotClick(row, col, doubleClick);
-            } else if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
-                //player.inventory.SlotClick(row, col);
+            //} else if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
+            //    player.inventory.SlotClick(row, col);
             } else if (ImGui::IsItemHovered() && scrollY) {
                 // TODO(dlb): This will break if the window has any scrolling controls
                 player.inventory.SlotScroll(row, col, scrollY);
@@ -1005,74 +1017,38 @@ void UI::Inventory(const Texture &invItems, Player& player, bool &inventoryActiv
         ImDrawList *drawList = ImGui::GetForegroundDrawList();
         drawList->PushClipRect({0, 0}, {screenSize.x, screenSize.y});
 
-        const int texIdx = (int)player.inventory.cursor.id;
-        const ImVec2 size = ImVec2(32.0f, 32.0f);
-        const float u0 = (texIdx % texItemsWide) * size.x;
-        const float v0 = (texIdx / texItemsWide) * size.y;
-        const ImVec2 uv0 = ImVec2((u0)          / invItems.width, (v0)          / invItems.height);
-        const ImVec2 uv1 = ImVec2((u0 + size.x) / invItems.width, (v0 + size.y) / invItems.height);
+        Vector2 uv0{};
+        Vector2 uv1{};
+        player.inventory.TexRect(invItems, player.inventory.cursor.id, uv0, uv1);
 
-        const Rectangle cursorDst{
-           mouseScreen.x - player.inventory.cursorOffset.x,
-           mouseScreen.y - player.inventory.cursorOffset.y,
+        const Rectangle dstRect{
+           mouseScreen.x + player.inventory.cursorOffset.x,
+           mouseScreen.y + player.inventory.cursorOffset.y,
            32.0f,
            32.0f
         };
 
-        if (uv0.x >= 0.0f && uv0.x < invItems.width &&
-            uv0.y >= 0.0f && uv0.y < invItems.height &&
-            uv1.x >= 0.0f && uv1.x < invItems.width &&
-            uv1.y >= 0.0f && uv1.y < invItems.height)
+        if (uv0.x >= 0.0f && uv0.x < 1.0f && uv0.y >= 0.0f && uv0.y < 1.0f &&
+            uv1.x >= 0.0f && uv1.x < 1.0f && uv1.y >= 0.0f && uv1.y < 1.0f)
         {
+            printf("%.01f %.01f\n", uv0.x, uv1.x);
             drawList->AddImage(
                 (ImTextureID)(size_t)invItems.id,
-#if CURSOR_ITEM_RELATIVE_TERRARIA
-                // Terraria:
-                //   on mouse down
-                //   always bottom right of cursor
-                //   left mouse down = take/swap/combine/drop stack
-                //   right mouse down = if stack is same (or cursor empty), take 1 item immediately, then repeat with acceleration
-                //   sin wave scale bobbing
-                //   can use held item as if equipped
-                ImVec2(cursorDst.x + 8.0f, cursorDst.y + 8.0f),
-                ImVec2(cursorDst.x + 40.0f, cursorDst.y + 40.0f),
-#else
-                // D2R:
-                //   Always centers item on cursor
-                //   empty cursor:
-                //     left mouse down = take/swap/drop stack (or combine for rare cases like keys)
-
-                // Minecraft:
-                //   empty cursor:
-                //     left mouse down = pick up stack
-                //   filled cursor:
-                //     left mouse down + drag split stack evenly
-                //     right mouse down + drag 1 item piles
-                //     mouse up = keep remainder on cursor
-                //   Always centers item on cursor
-                //   squish (less width, more height) animation on pick-up
-                ImVec2(cursorDst.x - (size.x / 2), cursorDst.y - (size.y / 2)),
-                ImVec2(cursorDst.x + (size.x / 2), cursorDst.y + (size.y / 2)),
-#endif
-                uv0,
-                uv1
+                ImVec2(dstRect.x, dstRect.y),
+                ImVec2(dstRect.x + dstRect.width, dstRect.y + dstRect.height),
+                ImVec2{ uv0.x, uv0.y }, ImVec2{ uv1.x, uv1.y }
             );
         } else {
             drawList->AddRectFilled(
-                ImVec2(cursorDst.x - (size.x / 2), cursorDst.y - (size.y / 2)),
-                ImVec2(cursorDst.x + (size.x / 2), cursorDst.y + (size.y / 2)),
+                ImVec2(dstRect.x - (ITEM_W / 2), dstRect.y - (ITEM_H / 2)),
+                ImVec2(dstRect.x + (ITEM_W / 2), dstRect.y + (ITEM_H / 2)),
                 IM_COL32(PINK.r, PINK.g, PINK.b, PINK.a)
             );
         }
 
         char countBuf[16]{};
         snprintf(countBuf, sizeof(countBuf), "%d", player.inventory.cursor.count);
-        //snprintf(countBuf, sizeof(countBuf), "%d", newInvStack.count);
-        drawList->AddText(
-            { cursorDst.x - 16 - 4, cursorDst.y - 16 - 6 },
-            IM_COL32_WHITE,
-            countBuf
-        );
+        drawList->AddText({ dstRect.x - 4, dstRect.y - 6 }, IM_COL32_WHITE, countBuf);
 
         drawList->PopClipRect();
     } else {

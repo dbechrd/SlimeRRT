@@ -160,7 +160,7 @@ void Player::Update(double dt, InputSample &input, const Tilemap &map)
     }
 
     if (combat.hitPoints) {
-        float playerSpeed = 5.0f;
+        float playerSpeed = 1.0f; //5.0f;
         Vector2 move{};
 
         if (input.walkNorth || input.walkEast || input.walkSouth || input.walkWest) {
