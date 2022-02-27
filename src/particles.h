@@ -13,8 +13,9 @@ struct Particle : Drawable {
     Body3D          body    {};  // physics body
     Sprite          sprite  {};
     Color           color   {};  // particle color (tint if particle also has sprite)
-    double          spawnAt {};  // time to spawn (relative to effect->startedAt)
-    double          dieAt   {};  // time to die   (relative to effect->startedAt)
+    double          spawnAt {};  // time to spawn
+    bool            alive   {};  // currently alive
+    double          dieAt   {};  // time to die
 
     float Depth(void) const;
     bool  Cull(const Rectangle& cullRect) const;
@@ -86,3 +87,7 @@ private:
     Particle *particlesFree            {};
     size_t    particlesActiveCount     {};
 };
+
+//-----------------------------------------------------------------------------
+
+void ParticlesFollowPlayerGut(ParticleEffect &effect, void *userData);

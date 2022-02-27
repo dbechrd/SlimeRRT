@@ -145,9 +145,14 @@ void ParticleSystem::Update(double dt)
             continue;  // particle is dead
 
         ParticleEffect &effect = *particle.effect;
-        const float animTime = (float)(glfwGetTime() - effect.startedAt);
-        const float alpha = (float)((animTime - particle.spawnAt) / (particle.dieAt - particle.spawnAt));
+        const float alpha = (float)((glfwGetTime() - particle.spawnAt) / (particle.dieAt - particle.spawnAt));
         if (alpha >= 0.0f && alpha < 1.0f) {
+            if (!particle.alive) {
+                Vector3 pos = particle.body.WorldPosition();
+                particle.body.Teleport(effect.origin);
+                particle.body.Move3D(pos);
+                particle.alive = true;
+            }
             particle.body.Update(dt);
             sprite_update(particle.sprite, dt);
             assert(Catalog::g_particleFx.FindById(effect.id).update);
@@ -197,18 +202,15 @@ void ParticleSystem::PushAll(DrawList &drawList)
 {
     assert(particlesActiveCount <= MAX_PARTICLES);
 
-    size_t particlesChecked = 0;
-    for (size_t i = 0; particlesChecked < particlesActiveCount; i++) {
+    for (size_t i = 0; i < MAX_PARTICLES; i++) {
         const Particle &particle = particles[i];
-        if (!particle.effect)
+        if (!particle.alive)
             continue;  // particle is dead
 
-        const float animTime = (float)(glfwGetTime() - particle.effect->startedAt);
-        const float alpha = (float)((animTime - particle.spawnAt) / (particle.dieAt - particle.spawnAt));
-        if (alpha >= 0.0f && alpha < 1.0f) {
-            drawList.Push(particle);
-        }
-        particlesChecked++;
+        //const float animTime = (float)(glfwGetTime() - particle.effect->startedAt);
+        //const float alpha = (float)((animTime - particle.spawnAt) / (particle.dieAt - particle.spawnAt));
+        //if (alpha >= 0.0f && alpha < 1.0f) {
+        drawList.Push(particle);
     }
 }
 
@@ -240,10 +242,18 @@ void Particle::Draw(void) const
 {
     const Vector3 &offset = effect->origin;
     if (sprite.spriteDef) {
-        sprite_draw_body(sprite, body, color, offset);
+        sprite_draw_body(sprite, body, color); //, offset);
     } else {
-        const Vector3 pos = v3_add(body.WorldPosition(), offset);
+        //const Vector3 pos = v3_add(body.WorldPosition(), offset);
+        const Vector3 pos = body.WorldPosition();
         DrawCircleSector({ pos.x, pos.y - pos.z }, sprite.scale, 0.0f, 360.0f, 12, color);
         //DrawCircleSectorLines({ pos.x, pos.y - pos.z }, sprite.scale, 0.0f, 360.0f, 12, BLACK);
     }
+}
+
+void ParticlesFollowPlayerGut(ParticleEffect &effect, void *userData)
+{
+    assert(userData);
+    Player *player = (Player *)userData;
+    effect.origin = player->GetAttachPoint(Player::AttachPoint::Gut);
 }

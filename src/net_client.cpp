@@ -272,16 +272,6 @@ void NetClient::ReconcilePlayer(double tickDt)
     }
 }
 
-// TODO: Move this somewhere less stupid (e.g. a library of particle updaters)
-void BloodParticlesFollowPlayer(ParticleEffect &effect, void *userData)
-{
-    assert(effect.id == Catalog::ParticleEffectID::Blood);
-    assert(userData);
-
-    Player *player = (Player *)userData;
-    effect.origin = player->GetAttachPoint(Player::AttachPoint::Gut);
-}
-
 void NetClient::ProcessMsg(ENetPacket &packet)
 {
     ENetBuffer packetBuffer{ packet.dataLength, packet.data };
@@ -453,7 +443,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                         ParticleEffect *bloodParticles = serverWorld->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Blood, 32, playerGut, bleedDuration);
                         if (bloodParticles) {
                             bloodParticles->effectCallbacks[(size_t)ParticleEffect_Event::BeforeUpdate] = {
-                                BloodParticlesFollowPlayer,
+                                ParticlesFollowPlayerGut,
                                 player
                             };
                         }

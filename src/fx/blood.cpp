@@ -9,17 +9,17 @@ namespace FX {
         const ParticleEffect &effect = *particle.effect;
 
         // Spawn randomly during first 25% of duration
-        particle.spawnAt = effect.duration * dlb_rand32f_range(0.0f, 0.45f);
+        particle.spawnAt = effect.startedAt + effect.duration * dlb_rand32f_range(0.0f, 0.45f);
 
         // Die randomly during last 15% of animation
-        particle.dieAt = effect.duration * dlb_rand32f_range(0.85f, 1.0f);
+        particle.dieAt = effect.startedAt + effect.duration * dlb_rand32f_range(0.85f, 1.0f);
         assert(particle.dieAt > particle.spawnAt);
 
     #if 1
         Vector2 randXY = {};
         randXY.x = dlb_rand32f_variance(1.0f);
         randXY.y = dlb_rand32f_variance(1.0f);
-        randXY = v2_scale(v2_normalize(randXY), METERS_TO_PIXELS(1.0f) * dlb_rand32f_range(0.0f, 3.0f));
+        randXY = v2_scale(v2_normalize(randXY), METERS_TO_PIXELS(1.0f) * dlb_rand32f_range(0.05f, 0.95f));
         float randZ = dlb_rand32f_range(0.6f, METERS_TO_PIXELS(0.9f));
         particle.body.velocity = { randXY.x, randXY.y, randZ };
         particle.body.friction = 0.5f;

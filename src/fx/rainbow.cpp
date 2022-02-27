@@ -14,7 +14,7 @@ namespace FX {
         offset.z = sinf(angleRad);
 
         // Spawn during first 50% of duration
-        particle.spawnAt = (angleRad / PI) * (effect.duration * 0.5f);
+        particle.spawnAt = effect.startedAt + (angleRad / PI) * (effect.duration * 0.5f);
 
         // Die randomly during last 15% of animation
         particle.dieAt = particle.spawnAt + (effect.duration * 0.4f);
