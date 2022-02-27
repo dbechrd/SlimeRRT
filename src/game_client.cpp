@@ -480,7 +480,7 @@ ErrorType GameClient::Run(void)
             //world->chatHistory.PushDebug(CSTR("You pressed the send random chat message button. Congrats."));
             Catalog::g_sounds.Play(Catalog::SoundID::RainbowSparkles, 1.0f);
 
-            auto blood = world->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Blood, 64, v3_add(player.body.WorldPosition(), { 0, 0, 40 }), 3.0f);
+            auto blood = world->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Blood, 256, v3_add(player.body.WorldPosition(), { 0, 0, 40 }), 10.0f);
             blood->effectCallbacks[(size_t)ParticleEffect_Event::BeforeUpdate] = { ParticlesFollowPlayerGut, &player };
         }
 

@@ -656,8 +656,8 @@ size_t World::DrawMap(const Spycam &spycam)
         for (float x = -1; x < tilesW + 2; x += zoomMipLevel) {
             float xx = cx + x * TILE_W;
             float yy = cy + y * TILE_W;
-            //xx -= fmodf(xx, TILE_W);
-            //yy -= fmodf(yy, TILE_W);
+            xx -= fmodf(xx, TILE_W);
+            yy -= fmodf(yy, TILE_W);
 
             //float chx = map->CalcChunk(xx);
             //float chy = map->CalcChunk(yy);

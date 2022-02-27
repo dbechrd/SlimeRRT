@@ -223,31 +223,23 @@ float Particle::Depth(void) const
 bool Particle::Cull(const Rectangle &cullRect) const
 {
     bool cull = false;
-
-    const Vector3 &offset = effect->origin;
     if (sprite.spriteDef) {
-        cull = sprite_cull_body(sprite, body, cullRect, offset);
+        cull = sprite_cull_body(sprite, body, cullRect);
     } else {
         const Vector2 bodyBC = body.VisualPosition();
-        Vector2 pos{};
-        pos.x = bodyBC.x + offset.x;
-        pos.y = bodyBC.y + offset.y - offset.z;
-        cull = !CheckCollisionCircleRec(pos, sprite.scale, cullRect);
+        cull = !CheckCollisionCircleRec(bodyBC, sprite.scale, cullRect);
     }
-
     return cull;
 }
 
 void Particle::Draw(void) const
 {
-    const Vector3 &offset = effect->origin;
     if (sprite.spriteDef) {
-        sprite_draw_body(sprite, body, color); //, offset);
+        sprite_draw_body(sprite, body, color);
     } else {
-        //const Vector3 pos = v3_add(body.WorldPosition(), offset);
         const Vector3 pos = body.WorldPosition();
         DrawCircleSector({ pos.x, pos.y - pos.z }, sprite.scale, 0.0f, 360.0f, 12, color);
-        //DrawCircleSectorLines({ pos.x, pos.y - pos.z }, sprite.scale, 0.0f, 360.0f, 12, BLACK);
+        //DrawCircleSectorLines({ pos.x, pos.y - pos.z }, sprite.scale, 0.0f, 360.0f, 12, Fade(BLACK, color.a / 255.0f));
     }
 }
 

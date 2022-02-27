@@ -9,7 +9,8 @@ namespace FX {
         const ParticleEffect &effect = *particle.effect;
 
         // Spawn randomly during first 25% of duration
-        particle.spawnAt = effect.startedAt + effect.duration * dlb_rand32f_range(0.0f, 0.45f);
+        const float endSpawnAt = 0.45f;
+        particle.spawnAt = effect.startedAt + effect.duration * dlb_rand32f_range(0.0f, endSpawnAt);
 
         // Die randomly during last 15% of animation
         particle.dieAt = effect.startedAt + effect.duration * dlb_rand32f_range(0.85f, 1.0f);
@@ -30,18 +31,19 @@ namespace FX {
     #endif
         //particle.position = (Vector2){ 0.0f, 0.0f };
         particle.color = RED;
-        particle.sprite.scale = 1.0f;
+        const double alpha = (particle.spawnAt - effect.startedAt) / effect.duration;
+        particle.sprite.scale = MAX(1.0f, dlb_rand32f_range(1.0f, 8.0f) * (1.0f - ((float)alpha / endSpawnAt)));
     }
 
     void blood_update(Particle &particle, float alpha)
     {
         const float radius = 5.0f;
         // radius * 1.0 -> 0.2
-        particle.sprite.scale = radius * (1.0f - alpha);
+        //particle.sprite.scale = radius * (1.0f - alpha);
         // 1.0 -> 0.0
         const unsigned char r = (unsigned char)((1.0f - alpha * 1.0f) * 255.0f);
-        // 1.0 -> 0.6
-        const unsigned char a = (unsigned char)((1.0f - alpha * 0.4f) * 255.0f);
+        // 1.0 -> 0.1
+        const unsigned char a = (unsigned char)((1.0f - alpha * 0.9f) * 255.0f);
         particle.color = { r, 0, 0, a };
     }
 }
