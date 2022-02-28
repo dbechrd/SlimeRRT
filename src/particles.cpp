@@ -52,13 +52,14 @@ Particle *ParticleSystem::Alloc(void)
     return particle;
 }
 
-ParticleEffect *ParticleSystem::GenerateEffect(Catalog::ParticleEffectID type, size_t particleCount, Vector3 origin, double duration)
+ParticleEffect *ParticleSystem::GenerateEffect(Catalog::ParticleEffectID type, Vector3 origin, const ParticleEffectParams &par)
 {
     assert((size_t)type > 0);
     assert((size_t)type < (size_t)Catalog::ParticleEffectID::Count);
-    assert(particleCount);
-    assert(duration);
-    assert(duration > 0.0);
+    assert(par.particleCountMin > 0);
+    assert(par.particleCountMax >= par.particleCountMax);
+    assert(par.durationMin > 0.0f);
+    assert(par.durationMax >= par.durationMin);
 
     const Catalog::ParticleEffectDef &pfx = Catalog::g_particleFx.FindById(type);
     if (!pfx.init) {
@@ -81,11 +82,14 @@ ParticleEffect *ParticleSystem::GenerateEffect(Catalog::ParticleEffectID type, s
 
     effect->id = type;
     effect->origin = origin;
-    effect->duration = duration;
+    effect->duration = dlb_rand32f_range(par.durationMin, par.durationMax);
     effect->startedAt = glfwGetTime();
+    effect->params = par;
+
+    const int particleCount = dlb_rand32i_range(par.particleCountMin, par.particleCountMax);
 
     Particle *prev = 0;
-    for (size_t i = 0; i < particleCount; i++) {
+    for (int i = 0; i < particleCount; i++) {
         Particle *particle = Alloc();
         if (!particle) {
             break;

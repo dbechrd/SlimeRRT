@@ -475,13 +475,15 @@ ErrorType GameClient::Run(void)
         }
 
         if (input.dbgChatMessage) {
-            auto foo = world->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Rainbow, 256, player.body.WorldPosition(), 3.0f);
-            foo->particleCallbacks[(size_t)ParticleEffect_ParticleEvent::AfterUpdate] = { RainbowParticlesDamagePlayer, &player };
+            ParticleEffectParams rainbowParams{};
+            rainbowParams.durationMin = 3.0f;
+            rainbowParams.durationMax = rainbowParams.durationMin;
+            rainbowParams.particleCountMin = 256;
+            rainbowParams.particleCountMax = rainbowParams.particleCountMin;
+            auto rainbowFx = world->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Rainbow, player.body.WorldPosition(), rainbowParams);
+            rainbowFx->particleCallbacks[(size_t)ParticleEffect_ParticleEvent::AfterUpdate] = { RainbowParticlesDamagePlayer, &player };
             //world->chatHistory.PushDebug(CSTR("You pressed the send random chat message button. Congrats."));
             Catalog::g_sounds.Play(Catalog::SoundID::RainbowSparkles, 1.0f);
-
-            auto blood = world->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Blood, 256, v3_add(player.body.WorldPosition(), { 0, 0, 40 }), 10.0f);
-            blood->effectCallbacks[(size_t)ParticleEffect_Event::BeforeUpdate] = { ParticlesFollowPlayerGut, &player };
         }
 
         if (input.dbgTeleport) {
@@ -782,6 +784,9 @@ ErrorType GameClient::Run(void)
         if (input.dbgFindMouseTile) {
             UI::TileHoverTip(fontSmall, *world->map);
         }
+
+        static ParticleEffectParams bloodParams{};
+        UI::ParticleConfig(*world, player, bloodParams);
 
         //----------------------------------------------------------------------
         // Menu

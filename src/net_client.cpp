@@ -431,16 +431,25 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                     if (player->combat.hitPoints && !playerSnapshot.hitPoints) {
                         // Died
                         player->combat.diedAt = worldSnapshot.recvAt;
-                        serverWorld->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Blood, 128, player->WorldCenter(), 4.0);
+                        ParticleEffectParams bloodParams{};
+                        bloodParams.particleCountMin = 128;
+                        bloodParams.particleCountMax = bloodParams.particleCountMin;
+                        bloodParams.durationMin = 4.0f;
+                        bloodParams.durationMax = bloodParams.durationMin;
+                        serverWorld->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Blood, player->WorldCenter(), bloodParams);
                         Catalog::g_sounds.Play(Catalog::SoundID::Eughh, 1.0f + dlb_rand32f_variance(0.1f));
                     } else if (!player->combat.hitPoints && playerSnapshot.hitPoints) {
                         // Respawn
                         player->combat.diedAt = 0;
                     } else if (player->combat.hitPoints > playerSnapshot.hitPoints) {
                         // Took damage
-                        const double bleedDuration = 1.0;
                         Vector3 playerGut = player->GetAttachPoint(Player::AttachPoint::Gut);
-                        ParticleEffect *bloodParticles = serverWorld->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Blood, 32, playerGut, bleedDuration);
+                        ParticleEffectParams bloodParams{};
+                        bloodParams.particleCountMin = 32;
+                        bloodParams.particleCountMax = bloodParams.particleCountMin;
+                        bloodParams.durationMin = 1.0f;
+                        bloodParams.durationMax = bloodParams.durationMin;
+                        ParticleEffect *bloodParticles = serverWorld->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Blood, playerGut, bloodParams);
                         if (bloodParticles) {
                             bloodParticles->effectCallbacks[(size_t)ParticleEffect_Event::BeforeUpdate] = {
                                 ParticlesFollowPlayerGut,
@@ -532,11 +541,21 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                     if (slime->combat.hitPoints && !enemySnapshot.hitPoints) {
                         // Died
                         slime->combat.diedAt = worldSnapshot.recvAt;
-                        serverWorld->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Goo, 20, slime->WorldCenter(), 2.0);
+                        ParticleEffectParams gooParams{};
+                        gooParams.particleCountMin = 20;
+                        gooParams.particleCountMax = gooParams.particleCountMin;
+                        gooParams.durationMin = 2.0f;
+                        gooParams.durationMax = gooParams.durationMin;
+                        serverWorld->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Goo, slime->WorldCenter(), gooParams);
                         Catalog::g_sounds.Play(Catalog::SoundID::Squish2, 0.5f + dlb_rand32f_variance(0.1f), true);
                     } else if (slime->combat.hitPoints > enemySnapshot.hitPoints) {
                         // Took damage
-                        serverWorld->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Goo, 10, slime->WorldCenter(), 1.0);
+                        ParticleEffectParams gooParams{};
+                        gooParams.particleCountMin = 5;
+                        gooParams.particleCountMax = gooParams.particleCountMin;
+                        gooParams.durationMin = 0.5f;
+                        gooParams.durationMax = gooParams.durationMin;
+                        serverWorld->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Goo, slime->WorldCenter(), gooParams);
                         Catalog::g_sounds.Play(Catalog::SoundID::Slime_Stab1, 1.0f + dlb_rand32f_variance(0.4f));
                     }
                     slime->combat.hitPoints = enemySnapshot.hitPoints;

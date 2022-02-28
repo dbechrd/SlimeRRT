@@ -46,6 +46,7 @@ struct UI {
     static void Menubar(bool &loginActive);
     static void LoginForm(NetClient &netClient, ImGuiIO& io, bool &escape, bool &loginActive);
     static void Mixer(void);
+    static void ParticleConfig(World &world, Player &player, ParticleEffectParams &par);
     static void Netstat(NetClient &netClient, double renderAt);
     static void HUD(const Font &font, const Player &player, const DebugStats &debugStats);
     static void QuickHUD(const Font &font, const Player &player, const Tilemap &tilemap);
@@ -63,5 +64,6 @@ private:
 
     static void CenteredText(const char *text);
     static void SliderFloatLeft(const char *label, float *v, float min, float max);
+    static void SliderIntLeft(const char *label, int *v, int min, int max);
     static void CenteredSliderFloatLeft(const char *label, float *v, float min, float max);
 };

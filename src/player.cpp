@@ -60,7 +60,7 @@ Vector3 Player::GetAttachPoint(AttachPoint attachPoint) const
     Vector3 attach = {};
     switch (attachPoint) {
         case AttachPoint::Gut: {
-            attach = v3_add(WorldCenter(), { 0.0f, 0.0f, -10.0f });
+            attach = v3_add(WorldCenter(), { 0.0f, 0.0f, -16.0f });
             break;
         } default: {
             assert(!"That's not a valid attachment point identifier");

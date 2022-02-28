@@ -184,7 +184,16 @@ void UI::SliderFloatLeft(const char *label, float *v, float min, float max)
     assert(label[1] == '#');
     ImGui::Text(label + 2);
     ImGui::SameLine();
-    ImGui::SliderFloat(label, v, min, max, "%.03f");
+    ImGui::SliderFloat(label, v, min, max, "%.01f");
+}
+
+void UI::SliderIntLeft(const char *label, int *v, int min, int max)
+{
+    assert(label[0] == '#');
+    assert(label[1] == '#');
+    ImGui::Text(label + 2);
+    ImGui::SameLine();
+    ImGui::SliderInt(label, v, min, max);
 }
 
 void UI::CenteredSliderFloatLeft(const char *label, float *v, float min, float max)
@@ -382,6 +391,62 @@ void UI::Mixer(void)
             ImGui::TreePop();
         }
     }
+    ImGui::End();
+}
+
+void UI::ParticleConfig(World &world, Player &player, ParticleEffectParams &par)
+{
+    const ImVec2 inventorySize{ 540.0, 500.0f };
+    const float pad = 80.0f;
+    const float left = screenSize.x - pad - inventorySize.x;
+    const float top = pad;
+    ImGui::SetNextWindowPos(ImVec2(left, top), ImGuiCond_Once);
+    ImGui::SetNextWindowSize(inventorySize);
+
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 2.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 2.0f);
+
+    auto bgWindow = BLACK;
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(bgWindow.r, bgWindow.g, bgWindow.b, 0.7f * 255.0f));
+    ImGui::PushStyleColor(ImGuiCol_Border, IM_COL32_BLACK);
+
+    ImGui::Begin("##particle_config", 0,
+        ImGuiWindowFlags_NoDecoration |
+        ImGuiWindowFlags_NoMove |
+        //ImGuiWindowFlags_NoBackground |
+        ImGuiWindowFlags_NoSavedSettings
+    );
+
+    static bool ignoreEmpty = false;
+    ImGui::Text("Particle Effect");
+    SliderIntLeft(  "##particleCountMin ", &par.particleCountMin, 1, 256);
+    SliderIntLeft(  "##particleCountMax ", &par.particleCountMax, 1, 256);
+    SliderFloatLeft("##durationMin      ", &par.durationMin, 0.1f, 10.0f);
+    SliderFloatLeft("##durationMax      ", &par.durationMax, 0.1f, 10.0f);
+    SliderFloatLeft("##spawnDelayMin    ", &par.spawnDelayMin, 0.0f, 10.0f);
+    SliderFloatLeft("##spawnDelayMax    ", &par.spawnDelayMax, 0.0f, 10.0f);
+    SliderFloatLeft("##lifespanMin      ", &par.lifespanMin, 0.1f, 10.0f);
+    SliderFloatLeft("##lifespanMax      ", &par.lifespanMax, 0.1f, 10.0f);
+    SliderFloatLeft("##spawnScaleFirst  ", &par.spawnScaleFirst, 0.1f, 10.0f);
+    SliderFloatLeft("##spawnScaleLast   ", &par.spawnScaleLast, 0.1f, 10.0f);
+    SliderFloatLeft("##velocityXMin     ", &par.velocityXMin, -10.0f, 10.0f);
+    SliderFloatLeft("##velocityXMax     ", &par.velocityXMax, -10.0f, 10.0f);
+    SliderFloatLeft("##velocityYMin     ", &par.velocityYMin, -10.0f, 10.0f);
+    SliderFloatLeft("##velocityYMax     ", &par.velocityYMax, -10.0f, 10.0f);
+    SliderFloatLeft("##velocityZMin     ", &par.velocityZMin, -10.0f, 10.0f);
+    SliderFloatLeft("##velocityZMax     ", &par.velocityZMax, -10.0f, 10.0f);
+    SliderFloatLeft("##friction         ", &par.friction, 0.0f, 10.0f);
+    if (ImGui::Button("Generate")) {
+        auto blood = world.particleSystem.GenerateEffect(
+            Catalog::ParticleEffectID::Blood,
+            v3_add(player.body.WorldPosition(), { 0, 0, 40 }),
+            par
+        );
+        blood->effectCallbacks[(size_t)ParticleEffect_Event::BeforeUpdate] = { ParticlesFollowPlayerGut, &player };
+    }
+
+    ImGui::PopStyleColor(2);
+    ImGui::PopStyleVar(2);
     ImGui::End();
 }
 

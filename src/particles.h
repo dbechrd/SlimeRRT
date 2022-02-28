@@ -45,14 +45,35 @@ struct ParticleEffect_ParticleCallback {
     void *userData{};
 };
 
+struct ParticleEffectParams {
+    int particleCountMin  = 64;
+    int particleCountMax  = 64;
+    float durationMin     = 10.0f;
+    float durationMax     = 10.0f;
+    float spawnDelayMin   = 0.0f;
+    float spawnDelayMax   = 5.0f;
+    float lifespanMin     = 1.0f;
+    float lifespanMax     = 5.0f;
+    float spawnScaleFirst = 8.0f;  // scale that first particle spawns at
+    float spawnScaleLast  = 1.0f;  // scale that last particle spawns at
+    float velocityXMin    = -1.0f;
+    float velocityXMax    = 1.0f;
+    float velocityYMin    = -1.0f;
+    float velocityYMax    = 1.0f;
+    float velocityZMin    = 2.0f;
+    float velocityZMax    = 2.0f;
+    float friction        = 0.5f;
+};
+
 struct ParticleEffect {
-    Catalog::ParticleEffectID id   {};  // type of particle effect
-    size_t           particlesLeft {};  // number of particles that are pending or alive (i.e. not dead)
-    Vector3          origin        {};  // origin of particle effect
-    double           duration      {};  // time to play effect for
-    double           startedAt     {};  // time started
-    Sprite           sprite        {};  // sprite to be used for all particles.. for now
-    ParticleEffect  *next          {};  // when dead, intrusive free list
+    Catalog::ParticleEffectID id            {};  // type of particle effect
+    size_t                    particlesLeft {};  // number of particles that are pending or alive (i.e. not dead)
+    Vector3                   origin        {};  // origin of particle effect
+    double                    duration      {};  // time to play effect for
+    double                    startedAt     {};  // time started
+    Sprite                    sprite        {};  // sprite to be used for all particles.. for now
+    ParticleEffectParams      params        {};  // parameters
+    ParticleEffect            *next         {};  // when dead, intrusive free list
 
     ParticleEffect_Callback effectCallbacks[(size_t)ParticleEffect_Event::Count]{};
     ParticleEffect_ParticleCallback particleCallbacks[(size_t)ParticleEffect_Event::Count]{};
@@ -72,7 +93,7 @@ struct ParticleSystem {
 
     Particle *ParticlePool(void);
 
-    ParticleEffect *GenerateEffect(Catalog::ParticleEffectID id, size_t particleCount, Vector3 origin, double duration);
+    ParticleEffect *GenerateEffect(Catalog::ParticleEffectID type, Vector3 origin, const ParticleEffectParams &par);
     void Update  (double dt);
     void PushAll (DrawList &drawList);
 
