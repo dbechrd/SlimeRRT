@@ -16,17 +16,27 @@ namespace Catalog {
 
         class Reader {
         public:
-            CSV ReadFromFile(const char *filename)
+            CSV ReadFromMemory(u8 *data, u32 length)
             {
-                filename = "data/items.csv";
-                data = LoadFileData(filename, &length);
                 CSV csv{};
-                Parse(csv);
+                Parse(csv, data, length);
                 return csv;
             }
 
+            // NOTE: LoadFileData depends on Raylib. Use ReadFromMemory if you're not using Raylib.
+            CSV ReadFromFile(const char *filename)
+            {
+                u32 fileBytes = 0;
+                u8 *fileData = LoadFileData(filename, &fileBytes);
+                fromFile = true;
+                return ReadFromMemory(fileData, fileBytes);
+            }
+
+            // NOTE: UnloadFileData depends on Raylib. Use ReadFromMemory if you're not using Raylib.
             ~Reader() {
-                UnloadFileData(data);
+                if (fromFile) {
+                    UnloadFileData(data);
+                }
             }
 
             u32 Columns() { return columns; }
@@ -39,31 +49,34 @@ namespace Catalog {
 
             const char *StatusMsg()
             {
-                static char errMsg[2048];
-                switch (err) {
-                    case Error::SUCCESS: {
-                        snprintf(errMsg, sizeof(errMsg), "SUCCESS: Successfully parsed %u rows with %u columns each.\n", row, columns);
-                        break;
-                    }
-                    case Error::ERR_COLUMN_MISTMATCH: {
-                        snprintf(errMsg, sizeof(errMsg), "ERR_COLUMN_MISMATCH: Row %u has %u columns, expected %u.\n", row, column, columns);
-                        break;
-                    }
-                    default: {
-                        snprintf(errMsg, sizeof(errMsg), "ERR_UNKNOWN: Unexpected error code %d.\n", err);
-                        break;
+                if (!msg[0]) {
+                    switch (err) {
+                        case Error::SUCCESS: {
+                            snprintf(msg, sizeof(msg), "SUCCESS: Successfully parsed %u rows with %u columns each.\n", row, columns);
+                            break;
+                        }
+                        case Error::ERR_COLUMN_MISTMATCH: {
+                            snprintf(msg, sizeof(msg), "ERR_COLUMN_MISMATCH: Row %u has %u columns, expected %u.\n", row, column, columns);
+                            break;
+                        }
+                        default: {
+                            snprintf(msg, sizeof(msg), "ERR_UNKNOWN: Unexpected error code %d.\n", err);
+                            break;
+                        }
                     }
                 }
-                return errMsg;
+                return msg;
             }
         private:
+            bool  fromFile {};  // If true, we own the data pointer and need to free it in the destructor
             u8    *data    {};  // Raw bytes of CSV data
             u32   length   {};  // Length of data in bytes
             u32   cursor   {};  // Current byte being read (as offset into data array)
             u32   columns  {};  // Number of columns expected per row (based on first row's column count)
             u32   row      {};  // Index of row being parsed (for generating error messages)
             u32   column   {};  // Index of column being parsed (unused for now)
-            Error err      {};  // Error code, if parse fails
+            Error err      {};  // Error code (SUCCESS if no error)
+            char  msg[128] {};  // Status message (error msg if fails, otherwise a success msg w/ statistics)
 
             void ParseCell(CSV &csv)
             {
@@ -99,8 +112,10 @@ namespace Catalog {
                 }
             }
 
-            void Parse(CSV csv)
+            void Parse(CSV csv, u8 *data, u32 length)
             {
+                this->data = data;
+                this->length = length;
                 cursor = 0;
                 columns = 0;
                 row = 0;
