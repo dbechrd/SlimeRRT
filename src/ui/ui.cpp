@@ -412,7 +412,7 @@ void UI::ParticleConfig(World &world, Player &player, ParticleEffectParams &par)
 
     ImGui::Begin("##particle_config", 0,
         ImGuiWindowFlags_NoDecoration |
-        ImGuiWindowFlags_NoMove |
+        //ImGuiWindowFlags_NoMove |
         //ImGuiWindowFlags_NoBackground |
         ImGuiWindowFlags_NoSavedSettings
     );

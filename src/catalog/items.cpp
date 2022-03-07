@@ -1,11 +1,141 @@
 #include "items.h"
 
 namespace Catalog {
+    struct CSV {
+        enum Error {
+            SUCCESS = 0,
+            ERR_COLUMN_MISTMATCH = -1,
+        };
+
+        struct Value {
+            u32 offset;
+            u32 length;
+        };
+
+        std::vector<Value> values{};
+
+        class Reader {
+        public:
+            CSV ReadFromFile(const char *filename)
+            {
+                filename = "data/items.csv";
+                data = LoadFileData(filename, &length);
+                CSV csv{};
+                Parse(csv);
+                return csv;
+            }
+
+            ~Reader() {
+                UnloadFileData(data);
+            }
+
+            u32 Columns() { return columns; }
+            u32 Rows() { return row; }
+
+            Error StatusCode()
+            {
+                return err;
+            }
+
+            const char *StatusMsg()
+            {
+                static char errMsg[2048];
+                switch (err) {
+                    case Error::SUCCESS: {
+                        snprintf(errMsg, sizeof(errMsg), "SUCCESS: Successfully parsed %u rows with %u columns each.\n", row, columns);
+                        break;
+                    }
+                    case Error::ERR_COLUMN_MISTMATCH: {
+                        snprintf(errMsg, sizeof(errMsg), "ERR_COLUMN_MISMATCH: Row %u has %u columns, expected %u.\n", row, column, columns);
+                        break;
+                    }
+                    default: {
+                        snprintf(errMsg, sizeof(errMsg), "ERR_UNKNOWN: Unexpected error code %d.\n", err);
+                        break;
+                    }
+                }
+                return errMsg;
+            }
+        private:
+            u8    *data    {};  // Raw bytes of CSV data
+            u32   length   {};  // Length of data in bytes
+            u32   cursor   {};  // Current byte being read (as offset into data array)
+            u32   columns  {};  // Number of columns expected per row (based on first row's column count)
+            u32   row      {};  // Index of row being parsed (for generating error messages)
+            u32   column   {};  // Index of column being parsed (unused for now)
+            Error err      {};  // Error code, if parse fails
+
+            void ParseCell(CSV &csv)
+            {
+                CSV::Value &value = csv.values.emplace_back();
+                value.offset = cursor;
+                while (cursor < length && data[cursor] != ',' && data[cursor] != '\n') {
+                    value.length++;
+                    cursor++;
+                }
+            }
+
+            void ParseRow(CSV &csv)
+            {
+                column = 0;
+                while (cursor < length && data[cursor] != '\n') {
+                    switch (data[cursor]) {
+                        case ',': {
+                            cursor++;
+                            break;
+                        }
+                        default: {
+                            ParseCell(csv);
+                            column++;
+                            break;
+                        }
+                    }
+                }
+                if (!columns) {
+                    columns = column;
+                } else if (column != columns) {
+                    err = ERR_COLUMN_MISTMATCH;
+                    return;
+                }
+            }
+
+            void Parse(CSV csv)
+            {
+                cursor = 0;
+                columns = 0;
+                row = 0;
+                column = 0;
+                while (cursor < length) {
+                    switch (data[cursor]) {
+                        case '\n': {
+                            cursor++;
+                            break;
+                        }
+                        default: {
+                            ParseRow(csv);
+                            if (err) return;
+                            row++;
+                            break;
+                        }
+                    }
+                }
+            }
+        };
+    };
+
     void Items::Load(void)
     {
         if (IsWindowReady()) {
             tex = LoadTexture("resources/joecreates.png");
         }
+
+        const char *csvFilename = "data/items.csv";
+        CSV::Reader reader{};
+        CSV csv = reader.ReadFromFile(csvFilename);
+        printf("Reading CSV [%s]: %s\n", csvFilename, reader.StatusMsg());
+        //if (reader.StatusCode() != CSV::SUCCESS) {
+        //    printf(reader.StatusMsg());
+        //}
 
         // TODO: Load from file (.csv?)
         // Row 1
