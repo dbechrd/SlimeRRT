@@ -8,11 +8,13 @@ namespace Catalog {
         };
 
         struct Value {
-            u32 offset;
+            u8  *data;
             u32 length;
         };
 
-        std::vector<Value> values{};
+        u32 columns {};  // Number of columns in CSV
+        u32 rows    {};  // Number of columns expected per row (based on first row's column count)
+        std::vector<Value> values{};  // Contiguous list of cells
 
         class Reader {
         public:
@@ -38,9 +40,6 @@ namespace Catalog {
                     UnloadFileData(data);
                 }
             }
-
-            u32 Columns() { return columns; }
-            u32 Rows() { return row; }
 
             Error StatusCode()
             {
@@ -81,7 +80,7 @@ namespace Catalog {
             void ParseCell(CSV &csv)
             {
                 CSV::Value &value = csv.values.emplace_back();
-                value.offset = cursor;
+                value.data = data;
                 while (cursor < length && data[cursor] != ',' && data[cursor] != '\n') {
                     value.length++;
                     cursor++;
@@ -106,7 +105,7 @@ namespace Catalog {
                 }
                 if (!columns) {
                     columns = column;
-                } else if (column != columns) {
+                } else if (column != csv.columns) {
                     err = ERR_COLUMN_MISTMATCH;
                     return;
                 }
@@ -117,7 +116,6 @@ namespace Catalog {
                 this->data = data;
                 this->length = length;
                 cursor = 0;
-                columns = 0;
                 row = 0;
                 column = 0;
                 while (cursor < length) {
@@ -134,6 +132,8 @@ namespace Catalog {
                         }
                     }
                 }
+                csv.rows = row;
+                csv.columns = columns;
             }
         };
     };
@@ -148,9 +148,14 @@ namespace Catalog {
         CSV::Reader reader{};
         CSV csv = reader.ReadFromFile(csvFilename);
         printf("Reading CSV [%s]: %s\n", csvFilename, reader.StatusMsg());
-        //if (reader.StatusCode() != CSV::SUCCESS) {
-        //    printf(reader.StatusMsg());
-        //}
+        if (reader.StatusCode() != CSV::SUCCESS) {
+            printf(reader.StatusMsg());
+            return;
+        }
+
+        for (CSV::Value &value : csv.values) {
+            assert(csv.columns == 7);
+        }
 
         // TODO: Load from file (.csv?)
         // Row 1
