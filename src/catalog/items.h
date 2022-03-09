@@ -1,6 +1,8 @@
 #pragma once
+#include <dlb_murmur3.h>
 #include <raylib/raylib.h>
 #include <array>
+#include <unordered_map>
 
 namespace Catalog {
     enum class ItemID {
@@ -241,6 +243,41 @@ namespace Catalog {
         Book,
         Count
     };
+
+    ItemType ItemTypeFromString(const char *str, size_t length)
+    {
+        static std::unordered_map<u32, ItemType> itemTypeByName{};
+        if (!itemTypeByName.size()) {
+            itemTypeByName[dlb_murmur3(CSTR("Empty"   ))] = ItemType::Empty;
+            itemTypeByName[dlb_murmur3(CSTR("System"  ))] = ItemType::System;
+            itemTypeByName[dlb_murmur3(CSTR("Currency"))] = ItemType::Currency;
+            itemTypeByName[dlb_murmur3(CSTR("Gem"     ))] = ItemType::Gem;
+            itemTypeByName[dlb_murmur3(CSTR("Ring"    ))] = ItemType::Ring;
+            itemTypeByName[dlb_murmur3(CSTR("Amulet"  ))] = ItemType::Amulet;
+            itemTypeByName[dlb_murmur3(CSTR("Crown"   ))] = ItemType::Crown;
+            itemTypeByName[dlb_murmur3(CSTR("Key"     ))] = ItemType::Key;
+            itemTypeByName[dlb_murmur3(CSTR("Coin"    ))] = ItemType::Coin;
+            itemTypeByName[dlb_murmur3(CSTR("Ore"     ))] = ItemType::Ore;
+            itemTypeByName[dlb_murmur3(CSTR("Item"    ))] = ItemType::Item;
+            itemTypeByName[dlb_murmur3(CSTR("Potion"  ))] = ItemType::Potion;
+            itemTypeByName[dlb_murmur3(CSTR("Ingot"   ))] = ItemType::Ingot;
+            itemTypeByName[dlb_murmur3(CSTR("Nugget"  ))] = ItemType::Nugget;
+            itemTypeByName[dlb_murmur3(CSTR("Tool"    ))] = ItemType::Tool;
+            itemTypeByName[dlb_murmur3(CSTR("Weapon"  ))] = ItemType::Weapon;
+            itemTypeByName[dlb_murmur3(CSTR("Armor"   ))] = ItemType::Armor;
+            itemTypeByName[dlb_murmur3(CSTR("Shield"  ))] = ItemType::Shield;
+            itemTypeByName[dlb_murmur3(CSTR("Plant"   ))] = ItemType::Plant;
+            itemTypeByName[dlb_murmur3(CSTR("Book"    ))] = ItemType::Book;
+        }
+
+        Catalog::ItemType type = ItemType::Empty;
+        u32 hashCode = dlb_murmur3(str, length);
+        auto kv = itemTypeByName.find(hashCode);
+        if (kv != itemTypeByName.end()) {
+            type = kv->second;
+        }
+        return type;
+    }
 
     struct Item {
         ItemID      id           {};

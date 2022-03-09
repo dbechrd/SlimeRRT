@@ -1,4 +1,5 @@
 #include "items.h"
+#include <stdlib.h>
 
 namespace Catalog {
     struct CSV {
@@ -10,6 +11,17 @@ namespace Catalog {
         struct Value {
             u8  *data;
             u32 length;
+
+            int toInt()
+            {
+                int i = strtol((char *)data, 0, 10);
+                return i;
+            }
+
+            float toFloat() {
+                float f = strtof((char *)data, 0);
+                return f;
+            }
         };
 
         u32 columns {};  // Number of columns in CSV
@@ -20,8 +32,13 @@ namespace Catalog {
         public:
             CSV ReadFromMemory(u8 *data, u32 length)
             {
+                // Make copy of data that we can modify (we nil teriminate all the values for easier parsing)
+                u8 *dataWithNil = (u8 *)malloc(length + 1);
+                memcpy(dataWithNil, data, length);
+                dataWithNil[length] = 0;
+
                 CSV csv{};
-                Parse(csv, data, length);
+                Parse(csv, dataWithNil, length);
                 return csv;
             }
 
@@ -30,15 +47,14 @@ namespace Catalog {
             {
                 u32 fileBytes = 0;
                 u8 *fileData = LoadFileData(filename, &fileBytes);
-                fromFile = true;
-                return ReadFromMemory(fileData, fileBytes);
+                CSV csv = ReadFromMemory(fileData, fileBytes);
+                UnloadFileData(fileData);
+                return csv;
             }
 
             // NOTE: UnloadFileData depends on Raylib. Use ReadFromMemory if you're not using Raylib.
             ~Reader() {
-                if (fromFile) {
-                    UnloadFileData(data);
-                }
+                free(data);
             }
 
             Error StatusCode()
@@ -67,7 +83,6 @@ namespace Catalog {
                 return msg;
             }
         private:
-            bool  fromFile {};  // If true, we own the data pointer and need to free it in the destructor
             u8    *data    {};  // Raw bytes of CSV data
             u32   length   {};  // Length of data in bytes
             u32   cursor   {};  // Current byte being read (as offset into data array)
@@ -80,7 +95,7 @@ namespace Catalog {
             void ParseCell(CSV &csv)
             {
                 CSV::Value &value = csv.values.emplace_back();
-                value.data = data;
+                value.data = data + cursor;
                 while (cursor < length && data[cursor] != ',' && data[cursor] != '\n') {
                     value.length++;
                     cursor++;
@@ -93,6 +108,7 @@ namespace Catalog {
                 while (cursor < length && data[cursor] != '\n') {
                     switch (data[cursor]) {
                         case ',': {
+                            data[cursor] = 0;  // nil terminate cell
                             cursor++;
                             break;
                         }
@@ -105,13 +121,13 @@ namespace Catalog {
                 }
                 if (!columns) {
                     columns = column;
-                } else if (column != csv.columns) {
+                } else if (column != columns) {
                     err = ERR_COLUMN_MISTMATCH;
                     return;
                 }
             }
 
-            void Parse(CSV csv, u8 *data, u32 length)
+            void Parse(CSV &csv, u8 *data, u32 length)
             {
                 this->data = data;
                 this->length = length;
@@ -121,6 +137,7 @@ namespace Catalog {
                 while (cursor < length) {
                     switch (data[cursor]) {
                         case '\n': {
+                            data[cursor] = 0;  // nil terminate cell
                             cursor++;
                             break;
                         }
@@ -152,9 +169,53 @@ namespace Catalog {
             printf(reader.StatusMsg());
             return;
         }
+        if (csv.columns != 7) {
+            printf("%s: Wrong # of columns.\n", csvFilename);
+            return;
+        }
 
-        for (CSV::Value &value : csv.values) {
-            assert(csv.columns == 7);
+        DLB_ASSERT(csv.rows % csv.columns == 0);
+
+        printf("%s, %s, %s, %s, %s, %s, %s\n",
+            csv.values[0].data,
+            csv.values[1].data,
+            csv.values[2].data,
+            csv.values[3].data,
+            csv.values[4].data,
+            csv.values[5].data,
+            csv.values[6].data
+        );
+
+        for (u32 i = 1; i < csv.rows; i += 1) {
+            Catalog::Item item{};
+            CSV::Value vId         = csv.values[i * csv.columns];
+            CSV::Value vCategory   = csv.values[i * csv.columns + 1];
+            CSV::Value vStackLimit = csv.values[i * csv.columns + 2];
+            CSV::Value vValue      = csv.values[i * csv.columns + 3];
+            CSV::Value vDamage     = csv.values[i * csv.columns + 4];
+            CSV::Value vName       = csv.values[i * csv.columns + 5];
+            CSV::Value vPlural     = csv.values[i * csv.columns + 6];
+
+            item.id = (ItemID)vId.toInt();
+            item.type = ItemTypeFromString((char *)vCategory.data, vCategory.length);
+            item.stackLimit = vStackLimit.toInt();
+            item.value = vValue.toFloat();
+            item.damage = vDamage.toFloat();
+            item.nameSingular = (char *)vName.data;
+            item.namePlural = (char *)vPlural.data;
+
+            DLB_ASSERT(vName.data[vName.length] == 0);
+            DLB_ASSERT(vPlural.data[vPlural.length] == 0);
+
+            printf("%d, %d, %u, %f, %f, %s, %s\n",
+                item.id          ,
+                item.type        ,
+                item.stackLimit  ,
+                item.value       ,
+                item.damage      ,
+                item.nameSingular,
+                item.namePlural
+            );
         }
 
         // TODO: Load from file (.csv?)
