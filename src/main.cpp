@@ -30,6 +30,8 @@ int main(int argc, char *argv[])
     _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_CHECK_ALWAYS_DF | _CRTDBG_LEAK_CHECK_DF); //| _CRTDBG_CHECK_CRT_DF);
     //_CrtSetBreakAlloc(3569);
 
+    glfwInit();
+
 #if _DEBUG
     run_tests();
 #endif
@@ -40,38 +42,24 @@ int main(int argc, char *argv[])
     //--------------------------------------------------------------------------------------
     // Initialization
     //--------------------------------------------------------------------------------------
-    InitConsole();
-    error_init(args.standalone ? "server.log" : "game.log");
+    std::thread &serverThread = GameServer::StartThread(args);
 
-    int enet_code = enet_initialize();
-    if (enet_code < 0) {
-        TraceLog(LOG_FATAL, "Failed to initialize network utilities (enet). Error code: %d\n", enet_code);
-    }
+    // TODO: Make CLI not be an entire client/player. Makes no sense for the CLI to show up in the world LUL.
+    //const char *title = "[SLIMY SERVER]";
+    //ServerCLI serverCli{ args };
+    //serverCli.Run("localhost", SV_DEFAULT_PORT);
 
-    if (args.standalone) {
+    if (!args.standalone) {
+        int enet_code = enet_initialize();
+        if (enet_code < 0) {
+            TraceLog(LOG_FATAL, "Failed to initialize network utilities (enet). Error code: %d\n", enet_code);
+        }
+
 #ifdef _DEBUG
-        // Dock right side of right monitor
-        // { l:2873 t : 1 r : 3847 b : 1048 }
-        SetConsolePosition(2873, 1, 3847 - 2873, 1048 - 1);
-#endif
-
-        //const char *title = "[SLIMY SERVER]";
-        error_init("server.log");
-
-        //std::thread serverThread([&args] {
-            GameServer *gameServer = new GameServer(args);
-            gameServer->Run();
-            delete gameServer;
-        //});
-
-        // TODO: Make CLI not be an entire client/player. Makes no sense for the CLI to show up in the world LUL.
-        //ServerCLI serverCli{ args };
-        //serverCli.Run("localhost", SV_DEFAULT_PORT);
-    } else {
-#ifdef _DEBUG
+        InitConsole();
         // Dock left side of right monitor
         // { l:1913 t : 1 r : 2887 b : 1048 }
-        SetConsolePosition(1913, 1, 2887 - 1913, 1048 - 1);
+        //SetConsolePosition(1913, 1, 2887 - 1913, 1048 - 1);
 #endif
 
         error_init("game.log");
@@ -89,6 +77,7 @@ int main(int argc, char *argv[])
     //--------------------------------
     // Clean up
     //--------------------------------
+    serverThread.join();
     error_free();
     CloseWindow();
     enet_deinitialize();

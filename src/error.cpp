@@ -6,7 +6,7 @@
 #include <thread>
 #include <mutex>
 
-static thread_local FILE *logFile;
+thread_local FILE *logFile;
 
 static void traceLogCallback(int logType, const char *text, va_list args)
 {
@@ -20,7 +20,7 @@ static void traceLogCallback(int logType, const char *text, va_list args)
         case LOG_FATAL  : logTypeStr = "[FATAL]"; break;
     }
 
-    static std::mutex mutex;
+    thread_local std::mutex mutex;
     std::lock_guard<std::mutex> lock(mutex);
 
 

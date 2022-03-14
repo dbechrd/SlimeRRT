@@ -127,10 +127,29 @@ void Tilemap::GenerateMinimap(void)
     free(minimapImg.data);
 }
 
+//const int16_t Tilemap::CalcChunk(float world) const
+//{
+//    const float chunk = world / CHUNK_W / TILE_W;
+//    const float chunkFixNeg = chunk < 0.0f ? ceilf(chunk) - 1 : floorf(chunk);
+//    return (int16_t)chunkFixNeg;
+//}
+//
+//const int16_t Tilemap::CalcChunkTile(float world) const
+//{
+//    const float chunk = CalcChunk(world);
+//    const float chunkStart = chunk * CHUNK_W * TILE_W;
+//    const float chunkOffset = world - chunkStart;
+//    const float tilef = CLAMP(floorf(chunkOffset / TILE_W), 0, CHUNK_W - 1);
+//    int16_t tile = (int16_t)tilef;
+//    DLB_ASSERT(tile >= 0);
+//    DLB_ASSERT(tile < CHUNK_W);
+//    return tile;
+//}
+
 const int16_t Tilemap::CalcChunk(float world) const
 {
-    float chunk = floorf(world / CHUNK_W / TILE_W);
-    return (int16_t)chunk;
+    int16_t chunk = (int16_t)floorf(world / (CHUNK_W * TILE_W));
+    return chunk;
 }
 
 const int16_t Tilemap::CalcChunkTile(float world) const
@@ -138,52 +157,61 @@ const int16_t Tilemap::CalcChunkTile(float world) const
     const float chunk = CalcChunk(world);
     const float chunkStart = chunk * CHUNK_W * TILE_W;
     const float chunkOffset = world - chunkStart;
-    const float tilef = CLAMP(floorf(chunkOffset / TILE_W), 0, CHUNK_W - 1);
-    //const float tilef = floorf(chunkOffset / TILE_W);
+
+    //const float tilef = CLAMP(floorf(chunkOffset / TILE_W), 0, CHUNK_W - 1);
+    const float tilef = floorf(chunkOffset / TILE_W);
+
     int16_t tile = (int16_t)tilef;
+    // Sometimes for very small floats precision loss causes tile == CHUNK_W, which is out of range
+    if (tile == CHUNK_W) {
+        tile--;
+    }
     DLB_ASSERT(tile >= 0);
     DLB_ASSERT(tile < CHUNK_W);
-    return tile;
+    return (int16_t)tile;
 }
 
 const Tile *Tilemap::TileAtWorld(float x, float y) const
 {
-    assert(CalcChunk(0) == 0);
-    assert(CalcChunk(1) == 0);
-    assert(CalcChunk(CHUNK_W * TILE_W - 1) == 0);
-    assert(CalcChunk(CHUNK_W * TILE_W) == 1);
-
-    assert(CalcChunk(-1) == -1);
-    assert(CalcChunk(-(CHUNK_W * TILE_W - 1)) == -1);
-    assert(CalcChunk(-(CHUNK_W * TILE_W)) == -1);
-    assert(CalcChunk(-(CHUNK_W * TILE_W + 1)) == -2);
-
-    assert(CalcChunkTile(0) == 0);
-    assert(CalcChunkTile(1) == 0);
-    assert(CalcChunkTile(TILE_W - 1) == 0);
-    assert(CalcChunkTile(TILE_W) == 1);
-
-    assert(CalcChunkTile(-1) == CHUNK_W - 1);
-    assert(CalcChunkTile(-(CHUNK_W * TILE_W - 1)) == 0);
-    assert(CalcChunkTile(-(CHUNK_W * TILE_W)) == 0);
-    assert(CalcChunkTile(-(CHUNK_W * TILE_W + 1)) == CHUNK_W - 1);
-
     const int chunkX = CalcChunk(x);
     const int chunkY = CalcChunk(y);
     const int tileX = CalcChunkTile(x);
     const int tileY = CalcChunkTile(y);
+
+#if 0
+    DLB_ASSERT(CalcChunk(-(CHUNK_W * TILE_W + 1)) == -2);
+    DLB_ASSERT(CalcChunk(-(CHUNK_W * TILE_W)) == -1);
+    DLB_ASSERT(CalcChunk(-(CHUNK_W * TILE_W - 1)) == -1);
+    DLB_ASSERT(CalcChunk(-1) == -1);
+    DLB_ASSERT(CalcChunk(-0.001f) == -1);
+    DLB_ASSERT(CalcChunk(0) == 0);
+    DLB_ASSERT(CalcChunk(1) == 0);
+    DLB_ASSERT(CalcChunk(CHUNK_W * TILE_W - 1) == 0);
+    DLB_ASSERT(CalcChunk(CHUNK_W * TILE_W)        == 1);
+
+    DLB_ASSERT(CalcChunkTile(-(CHUNK_W * TILE_W + 1)) == CHUNK_W - 1);
+    DLB_ASSERT(CalcChunkTile(-(CHUNK_W * TILE_W)) == 0);
+    DLB_ASSERT(CalcChunkTile(-(CHUNK_W * TILE_W - 1)) == 0);
+    DLB_ASSERT(CalcChunkTile(-1) == CHUNK_W - 1);
+    DLB_ASSERT(CalcChunkTile(-0.000000003f) == CHUNK_W - 1);
+    DLB_ASSERT(CalcChunkTile(0) == 0);
+    DLB_ASSERT(CalcChunkTile(1) == 0);
+    DLB_ASSERT(CalcChunkTile(TILE_W - 1) == 0);
+    DLB_ASSERT(CalcChunkTile(TILE_W) == 1);
+
     DLB_ASSERT(tileX >= 0);
     DLB_ASSERT(tileY >= 0);
     DLB_ASSERT(tileX < CHUNK_W);
     DLB_ASSERT(tileY < CHUNK_H);
+#endif
 
     auto iter = chunksIndex.find(Chunk::Hash(chunkX, chunkY));
     if (iter != chunksIndex.end()) {
         size_t chunkIdx = iter->second;
-        assert(chunkIdx < chunks.size());
+        DLB_ASSERT(chunkIdx < chunks.size());
         const Chunk &chunk = chunks[chunkIdx];
         size_t tileIdx = tileY * CHUNK_W + tileX;
-        assert(tileIdx < ARRAY_SIZE(chunk.tiles));
+        DLB_ASSERT(tileIdx < ARRAY_SIZE(chunk.tiles));
         return &chunk.tiles[tileY * CHUNK_W + tileX];
     }
     return 0;

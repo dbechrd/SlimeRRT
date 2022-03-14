@@ -7,11 +7,31 @@ using namespace std::chrono_literals;
 
 const char *GameServer::LOG_SRC = "GameServer";
 
-ErrorType GameServer::Run()
+std::thread &GameServer::StartThread(const Args &args)
 {
-    if (args.standalone) {
-        glfwInit();
+    std::thread *serverThread = new std::thread([&args] {
+        GameServer *gameServer = new GameServer();
+        gameServer->Run(args);
+        delete gameServer;
+    });
+    return *serverThread;
+}
+
+ErrorType GameServer::Run(const Args &args)
+{
+#ifdef _DEBUG
+    InitConsole();
+    // Dock right side of right monitor
+    // { l:2873 t : 1 r : 3847 b : 1048 }
+    //SetConsolePosition(2873, 1, 3847 - 2873, 1048 - 1);
+#endif
+
+    int enet_code = enet_initialize();
+    if (enet_code < 0) {
+        TraceLog(LOG_FATAL, "Failed to initialize network utilities (enet). Error code: %d\n", enet_code);
     }
+
+    error_init("server.log");
 
     Catalog::g_items.Load();
 
@@ -123,5 +143,6 @@ ErrorType GameServer::Run()
     if (args.standalone) {
         glfwTerminate();
     }
+
     return ErrorType::Success;
 }

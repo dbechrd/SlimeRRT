@@ -147,7 +147,7 @@ ErrorType GameClient::Run(void)
     Catalog::g_tracks.Load();
     tileset_init();
 
-    Catalog::g_mixer.masterVolume = 1.0f;
+    Catalog::g_mixer.masterVolume = 0.0f;
     Catalog::g_mixer.musicVolume = 0.2f;
     Catalog::g_sounds.mixer.volumeLimit[(size_t)Catalog::SoundID::GemBounce] = 0.8f;
     Catalog::g_sounds.mixer.volumeLimit[(size_t)Catalog::SoundID::Whoosh] = 0.6f;
@@ -480,8 +480,10 @@ ErrorType GameClient::Run(void)
             rainbowParams.durationMax = rainbowParams.durationMin;
             rainbowParams.particleCountMin = 256;
             rainbowParams.particleCountMax = rainbowParams.particleCountMin;
-            auto rainbowFx = world->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Rainbow, player.body.WorldPosition(), rainbowParams);
-            rainbowFx->particleCallbacks[(size_t)ParticleEffect_ParticleEvent::AfterUpdate] = { RainbowParticlesDamagePlayer, &player };
+            ParticleEffect *rainbowFx = world->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Rainbow, player.body.WorldPosition(), rainbowParams);
+            if (rainbowFx) {
+                rainbowFx->particleCallbacks[(size_t)ParticleEffect_ParticleEvent::AfterUpdate] = { RainbowParticlesDamagePlayer, &player };
+            }
             //world->chatHistory.PushDebug(CSTR("You pressed the send random chat message button. Congrats."));
             Catalog::g_sounds.Play(Catalog::SoundID::RainbowSparkles, 1.0f);
         }

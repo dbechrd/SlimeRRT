@@ -437,12 +437,13 @@ void UI::ParticleConfig(World &world, Player &player, ParticleEffectParams &par)
     SliderFloatLeft("##velocityZMax     ", &par.velocityZMax, -10.0f, 10.0f);
     SliderFloatLeft("##friction         ", &par.friction, 0.0f, 10.0f);
     if (ImGui::Button("Generate")) {
-        auto blood = world.particleSystem.GenerateEffect(
+        ParticleEffect *blood = world.particleSystem.GenerateEffect(
             Catalog::ParticleEffectID::Blood,
             v3_add(player.body.WorldPosition(), { 0, 0, 40 }),
-            par
-        );
-        blood->effectCallbacks[(size_t)ParticleEffect_Event::BeforeUpdate] = { ParticlesFollowPlayerGut, &player };
+            par);
+        if (blood) {
+            blood->effectCallbacks[(size_t)ParticleEffect_Event::BeforeUpdate] = { ParticlesFollowPlayerGut, &player };
+        }
     }
 
     ImGui::PopStyleColor(2);
