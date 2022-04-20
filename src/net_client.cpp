@@ -463,6 +463,13 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                     //TraceLog(LOG_DEBUG, "Snapshot: healthMax %f", playerSnapshot.hitPointsMax);
                     player->combat.hitPointsMax = playerSnapshot.hitPointsMax;
                 }
+                if (playerSnapshot.flags & PlayerSnapshot::Flags::Inventory) {
+                    player->inventory = playerSnapshot.inventory;
+                    //player->inventory.selectedSlot = playerSnapshot.inventory.selectedSlot;
+                    //for (size_t i = 0; i < ARRAY_SIZE(playerSnapshot.inventory.slots); i++) {
+                    //    player->inventory.slots[i] = playerSnapshot.inventory.slots[i];
+                    //}
+                }
             }
 #endif
             for (size_t i = 0; i < worldSnapshot.enemyCount; i++) {
@@ -624,13 +631,11 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                 }
                 if (itemSnapshot.flags & ItemSnapshot::Flags::StackCount) {
                     item->stack.count = itemSnapshot.stackCount;
-                }
-                if (itemSnapshot.flags & ItemSnapshot::Flags::PickedUp) {
-                    if (!item->pickedUpAt && itemSnapshot.pickedUp) {
-                        Catalog::g_sounds.Play(Catalog::SoundID::Gold, 1.0f + dlb_rand32f_variance(0.2f), true);
+                    if (!item->stack.count && !item->pickedUpAt) {
                         item->pickedUpAt = worldSnapshot.recvAt;
+                        Catalog::g_sounds.Play(Catalog::SoundID::Gold, 1.0f + dlb_rand32f_variance(0.2f), true);
                     }
-                    TraceLog(LOG_DEBUG, "Snapshot: item #%u picked up = %s", item->id, item->pickedUpAt ? "true" : "false");
+                    TraceLog(LOG_DEBUG, "Snapshot: item #%u stack count = %u", item->id, item->stack.count);
                 }
             }
             break;
@@ -836,18 +841,18 @@ ErrorType NetClient::Receive(void)
     return ErrorType::Success;
 }
 
-bool NetClient::IsConnecting(void)
+bool NetClient::IsConnecting(void) const
 {
     return server &&
         (server->state >= ENET_PEER_STATE_CONNECTING && server->state < ENET_PEER_STATE_CONNECTED);
 }
 
-bool NetClient::IsConnected(void)
+bool NetClient::IsConnected(void) const
 {
     return server && server->state == ENET_PEER_STATE_CONNECTED;
 }
 
-bool NetClient::IsDisconnected(void)
+bool NetClient::IsDisconnected(void) const
 {
     return !server || server->state == ENET_PEER_STATE_DISCONNECTED;
 }

@@ -42,7 +42,14 @@ int main(int argc, char *argv[])
     //--------------------------------------------------------------------------------------
     // Initialization
     //--------------------------------------------------------------------------------------
-    std::thread &serverThread = GameServer::StartThread(args);
+    std::thread *serverThread = 0;
+#if 0
+    if (args.standalone) {
+        serverThread = &GameServer::StartThread(args);
+    }
+#else
+    serverThread = &GameServer::StartThread(args);
+#endif
 
     // TODO: Make CLI not be an entire client/player. Makes no sense for the CLI to show up in the world LUL.
     //const char *title = "[SLIMY SERVER]";
@@ -59,7 +66,7 @@ int main(int argc, char *argv[])
         InitConsole();
         // Dock left side of right monitor
         // { l:1913 t : 1 r : 2887 b : 1048 }
-        //SetConsolePosition(1913, 1, 2887 - 1913, 1048 - 1);
+        SetConsolePosition(1913, 1, 2887 - 1913, 1048 - 1);
 #endif
 
         error_init("game.log");
@@ -77,7 +84,9 @@ int main(int argc, char *argv[])
     //--------------------------------
     // Clean up
     //--------------------------------
-    serverThread.join();
+    if (serverThread) {
+        serverThread->join();
+    }
     error_free();
     CloseWindow();
     enet_deinitialize();

@@ -186,6 +186,16 @@ struct NetMessage_NearbyEvent {
     } data{};
 };
 
+struct NetMessage_InventoryUpdate {
+    struct SlotUpdate {
+        uint8_t   slotId {};
+        ItemStack stack  {};
+    };
+
+    uint8_t    slotCount {};
+    SlotUpdate slots     [CL_INVENTORY_UPDATE_SLOTS_MAX]{};
+};
+
 struct NetMessage {
     enum class Type : uint32_t {
         Unknown,
@@ -197,20 +207,22 @@ struct NetMessage {
         WorldSnapshot,
         GlobalEvent,
         NearbyEvent,
+        InventoryUpdate,
         Count
     };
     static const char *TypeString(Type type)
     {
         switch (type) {
-            case Type::Unknown       : return "Unknown";
-            case Type::Identify      : return "Identify";
-            case Type::ChatMessage   : return "ChatMessage";
-            case Type::Welcome       : return "Welcome";
-            case Type::Input         : return "Input";
-            case Type::WorldChunk    : return "WorldChunk";
-            case Type::WorldSnapshot : return "WorldSnapshot";
-            case Type::GlobalEvent   : return "GlobalEvent";
-            case Type::NearbyEvent   : return "NearbyEvent";
+            case Type::Unknown         : return "Unknown";
+            case Type::Identify        : return "Identify";
+            case Type::ChatMessage     : return "ChatMessage";
+            case Type::Welcome         : return "Welcome";
+            case Type::Input           : return "Input";
+            case Type::WorldChunk      : return "WorldChunk";
+            case Type::WorldSnapshot   : return "WorldSnapshot";
+            case Type::GlobalEvent     : return "GlobalEvent";
+            case Type::NearbyEvent     : return "NearbyEvent";
+            case Type::InventoryUpdate : return "InventoryUpdate";
             default: return "NetMessage::Type::???";
         }
     }
@@ -223,14 +235,15 @@ struct NetMessage {
     Type type = Type::Unknown;
 
     union {
-        NetMessage_Identify    identify;
-        NetMessage_ChatMessage chatMsg;
-        NetMessage_Welcome     welcome;
-        NetMessage_Input       input;
-        NetMessage_WorldChunk  worldChunk;
-        WorldSnapshot          worldSnapshot;
-        NetMessage_GlobalEvent globalEvent;
-        NetMessage_NearbyEvent nearbyEvent;
+        NetMessage_Identify        identify;
+        NetMessage_ChatMessage     chatMsg;
+        NetMessage_Welcome         welcome;
+        NetMessage_Input           input;
+        NetMessage_WorldChunk      worldChunk;
+        WorldSnapshot              worldSnapshot;
+        NetMessage_GlobalEvent     globalEvent;
+        NetMessage_NearbyEvent     nearbyEvent;
+        NetMessage_InventoryUpdate inventoryUpdate;
     } data{};
 
     void Serialize(const World &world, ENetBuffer &buffer);

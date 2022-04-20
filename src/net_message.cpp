@@ -118,7 +118,7 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                     stream.Process(sample.run);
                     stream.Process(sample.attack);
                     assert((int)PlayerInventorySlot::Count > 0);
-                    stream.Process(sample.selectSlot, 4, (uint32_t)PlayerInventorySlot::None, (uint32_t)PlayerInventorySlot::Count - 1);
+                    stream.Process(sample.selectSlot, 4, 0, (uint32_t)PlayerInventorySlot::Count - 1);
                 }
             }
             stream.Align();
@@ -172,6 +172,25 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                 if (player.flags & PlayerSnapshot::Flags::HealthMax) {
                     stream.Process(player.hitPointsMax);
                 }
+                if (player.flags & PlayerSnapshot::Flags::Inventory) {
+                    stream.Process((uint8_t &)player.inventory.selectedSlot, 8, 0, (uint8_t)PlayerInventorySlot::Count - 1);
+                    const size_t slotCount = ARRAY_SIZE(player.inventory.slots);
+                    bool slotMap[slotCount]{};
+                    for (size_t i = 0; i < slotCount; i++) {
+                        ItemStack &invStack = player.inventory.slots[i];
+                        slotMap[i] = invStack.count > 0;
+                        stream.Process(slotMap[i]);
+                    }
+                    stream.Align();
+                    for (size_t i = 0; i < slotCount; i++) {
+                        if (slotMap[i]) {
+                            ItemStack &invStack = player.inventory.slots[i];
+                            stream.Process((uint16_t &)invStack.id, 8, 0, (uint16_t)Catalog::ItemID::Count - 1);
+                            stream.Process(invStack.count);
+                            assert(invStack.id != Catalog::ItemID::Empty);  // ensure stack with count > 0 has valid item ID
+                        }
+                    }
+                }
             }
 
             for (size_t i = 0; i < worldSnapshot.enemyCount; i++) {
@@ -210,14 +229,10 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                     stream.Process(item.position.z);
                 }
                 if (item.flags & ItemSnapshot::Flags::CatalogId) {
-                    stream.Process((uint32_t &)item.catalogId, 8, (uint32_t)Catalog::ItemID::Empty + 1, (uint32_t)Catalog::ItemID::Count - 1);
+                    stream.Process((uint32_t &)item.catalogId, 8, (uint32_t)Catalog::ItemID::Empty, (uint32_t)Catalog::ItemID::Count - 1);
                 }
                 if (item.flags & ItemSnapshot::Flags::StackCount) {
-                    stream.Process(item.stackCount, 32, 1, UINT_MAX);
-                }
-                if (item.flags & ItemSnapshot::Flags::PickedUp) {
-                    stream.Process(item.pickedUp);
-                    stream.Align();
+                    stream.Process(item.stackCount);
                 }
             }
 
@@ -295,7 +310,7 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                     TraceLog(LOG_FATAL, "Unexpected message");
                     break;
                 } case NetMessage_NearbyEvent::Type::EnemyState: {
-#if 1
+#if 0
                     NetMessage_NearbyEvent::EnemyState &state = nearbyEvent.data.enemyState;
                     stream.Process(state.id, 32, 1, UINT32_MAX);
                     stream.Process(state.nearby);

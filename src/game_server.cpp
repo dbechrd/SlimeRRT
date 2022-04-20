@@ -23,7 +23,7 @@ ErrorType GameServer::Run(const Args &args)
     InitConsole();
     // Dock right side of right monitor
     // { l:2873 t : 1 r : 3847 b : 1048 }
-    //SetConsolePosition(2873, 1, 3847 - 2873, 1048 - 1);
+    SetConsolePosition(2873, 1, 3847 - 2873, 1048 - 1);
 #endif
 
     int enet_code = enet_initialize();

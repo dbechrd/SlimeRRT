@@ -28,9 +28,9 @@ struct NetClient {
     void      PredictPlayer   (void);
     void      ReconcilePlayer (double tickDt);
     ErrorType Receive         (void);
-    bool      IsConnecting    (void);
-    bool      IsConnected     (void);
-    bool      IsDisconnected  (void);
+    bool      IsConnecting    (void) const;
+    bool      IsConnected     (void) const;
+    bool      IsDisconnected  (void) const;
     void      Disconnect      (void);
     void      CloseSocket     (void);
 

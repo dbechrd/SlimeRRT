@@ -14,8 +14,7 @@ struct Tilemap;
 #define PLAYER_INV_COLS 10
 
 enum class PlayerInventorySlot {
-    None,
-    Coin_Copper,
+    Coin_Copper = (PLAYER_INV_ROWS * PLAYER_INV_COLS),
     Coin_Silver,
     Coin_Gilded,
     Hotbar_1,
@@ -26,14 +25,13 @@ enum class PlayerInventorySlot {
     Hotbar_6,
     Hotbar_7,
     Hotbar_8,
+    Cursor,
     Count
 };
 
 struct PlayerInventory {
     PlayerInventorySlot selectedSlot{};  // NOTE: for hotbar, needs rework
-    ItemStack cursor{};
-    Vector2 cursorOffset{};
-    ItemStack slots[(int)PlayerInventorySlot::Count + (PLAYER_INV_ROWS * PLAYER_INV_COLS)]{};
+    ItemStack slots[(int)PlayerInventorySlot::Count]{};
 
     void TexRect(const Texture &invItems, Catalog::ItemID itemId, Vector2 &min, Vector2 &max)
     {
@@ -46,6 +44,29 @@ struct PlayerInventory {
         max = Vector2{ (u0 + ITEM_W) / invItems.width, (v0 + ITEM_H) / invItems.height };
     }
 
+    // Returns true if something was picked up by player
+    bool PickUp(ItemStack &srcStack)
+    {
+        uint32_t origCount = srcStack.count;
+        for (int row = 0; row < PLAYER_INV_ROWS; row++) {
+            for (int col = 0; col < PLAYER_INV_COLS; col++) {
+                int slot = row * PLAYER_INV_COLS + col;
+                ItemStack &invStack = GetInvStack(row, col);
+                TransferStack(srcStack, invStack);
+                if (!srcStack.count) {
+                    break;
+                }
+            }
+        }
+        return srcStack.count < origCount;
+    }
+
+    ItemStack &CursorStack()
+    {
+        ItemStack &cursor = slots[(int)PlayerInventorySlot::Cursor];
+        return cursor;
+    }
+
     ItemStack &GetInvStack(int row, int col)
     {
         assert(row >= 0);
@@ -53,7 +74,7 @@ struct PlayerInventory {
         assert(row < PLAYER_INV_ROWS);
         assert(col < PLAYER_INV_COLS);
         const int slot = row * PLAYER_INV_COLS + col;
-        ItemStack &stack = slots[(int)PlayerInventorySlot::Count + slot];
+        ItemStack &stack = slots[slot];
         return stack;
     }
 
@@ -95,6 +116,7 @@ struct PlayerInventory {
         const int transferAmount = (int)scroll;
         if (transferAmount) {
             ItemStack &invStack = GetInvStack(slotRow, slotCol);
+            ItemStack &cursor = CursorStack();
 
             if (transferAmount > 0) {
                 TransferStack(cursor, invStack, false, (uint32_t)transferAmount);
@@ -106,6 +128,7 @@ struct PlayerInventory {
 
     void SlotClick(int slotRow, int slotCol, bool doubleClicked = false)
     {
+        ItemStack &cursor = CursorStack();
         ItemStack &invStack = GetInvStack(slotRow, slotCol);
 
         if (doubleClicked) {

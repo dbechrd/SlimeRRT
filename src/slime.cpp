@@ -29,7 +29,9 @@ void Slime::Init(void)
     combat.hitPoints = combat.hitPointsMax;
     combat.meleeDamage = 10.0f;
     combat.lootTableId = LootTableID::LT_Slime;
-    randJumpIdle = 0.0;
+    //combat.droppedHitLoot = false;
+    //combat.droppedDeathLoot = false;
+    //randJumpIdle = 0.0;
 }
 
 void Slime::SetName(const char *slimeName, uint32_t slimeNameLength)

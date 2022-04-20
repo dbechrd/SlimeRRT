@@ -123,7 +123,7 @@ bool ItemSystem::Remove(uint32_t itemId)
 void ItemSystem::Update(double dt)
 {
     for (ItemWorld &item : items) {
-        assert(item.stack.id != Catalog::ItemID::Empty);
+        if (item.stack.id == Catalog::ItemID::Empty) continue;
 
         item.body.Update(dt);
         sprite_update(item.sprite, dt);
@@ -141,14 +141,16 @@ void ItemSystem::DespawnDeadEntities(double pickupDespawnDelay)
     size_t i = 0;
     while (i < items.size()) {
         ItemWorld &item = items[i];
-        assert(item.stack.id != Catalog::ItemID::Empty);
 
         // NOTE: Server adds extra pickupDespawnDelay to ensure all clients receive a snapshot
         // containing the pickup flag before despawning the item. This may not be necessary
         // one nearby_events are implemented and send item pickup notifications.
-        if ((item.pickedUpAt && ((now - item.pickedUpAt) > pickupDespawnDelay)) ||
-            (item.spawnedAt && ((now - item.spawnedAt) > SV_WORLD_ITEM_LIFETIME)))
-        {
+        if (item.stack.id != Catalog::ItemID::Empty &&
+            (
+                (item.pickedUpAt && ((now - item.pickedUpAt) > pickupDespawnDelay)) ||
+                (item.spawnedAt && ((now - item.spawnedAt) > SV_WORLD_ITEM_LIFETIME))
+            )
+        ) {
             // NOTE: If remove succeeds, don't increment index, next element to check is in the
             // same slot now.
             i += !Remove(item.id);
@@ -172,10 +174,8 @@ void ItemSystem::DespawnDeadEntities(double pickupDespawnDelay)
 void ItemSystem::PushAll(DrawList &drawList)
 {
     for (const ItemWorld &item : items) {
-        if (item.stack.id != Catalog::ItemID::Empty) {
-            drawList.Push(item);
-        } else {
-            assert(!"Empty item id");
-        }
+        if (item.stack.id == Catalog::ItemID::Empty) continue;
+
+        drawList.Push(item);
     }
 }

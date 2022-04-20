@@ -12,6 +12,35 @@ Vector2 UI::mouseWorld;
 Vector2 UI::screenSize;
 Spycam  *UI::spycam;
 
+bool UI::showMenubar = false;
+bool UI::showDemoWindow = false;
+bool UI::showLoginWindow = false;
+bool UI::showParticleConfig = false;
+
+bool UI::disconnectRequested = false;
+bool UI::quitRequested = false;
+
+void UI::HandleInput(PlayerControllerState &input)
+{
+    if (input.dbgImgui) {
+        UI::showMenubar = !UI::showMenubar;
+        UI::showDemoWindow = showMenubar && IsKeyDown(KEY_LEFT_SHIFT);
+    }
+}
+
+bool UI::DisconnectRequested(bool connectedToServer)
+{
+    if (!connectedToServer) {
+        disconnectRequested = false;
+    }
+    return disconnectRequested;
+}
+
+bool UI::QuitRequested()
+{
+    return quitRequested;
+}
+
 void UI::TileHoverOutline(const Tilemap &map)
 {
     assert(spycam);
@@ -103,71 +132,35 @@ void UI::Minimap(const Font &font, const Spycam &spycam, const World &world)
     }
 }
 
-void UI::Menubar(bool &loginActive)
+void UI::Menubar(const NetClient &netClient)
 {
+    if (!showMenubar) return;
+
     if (ImGui::BeginMainMenuBar()) {
         if (ImGui::BeginMenu("Debug")) {
-            ImGui::MenuItem("Login", 0, &loginActive);
+            if (netClient.IsConnected()) {
+                ImGui::MenuItem("Log Off", 0, &disconnectRequested);
+            } else {
+                ImGui::MenuItem("Log On", 0, &showLoginWindow);
+            }
+            ImGui::MenuItem("Demo Window", 0, &showDemoWindow);
+            ImGui::MenuItem("Particle Config", 0, &showParticleConfig);
 
-            if (ImGui::BeginMenu("Options")) {
-                static bool enabled = true;
-                ImGui::MenuItem("Enabled", "", &enabled);
-                ImGui::BeginChild("child", ImVec2(0, 60), true);
-                for (int i = 0; i < 10; i++)
-                    ImGui::Text("Scrolling Text %d", i);
-                ImGui::EndChild();
-                static float f = 0.5f;
-                static int n = 0;
-                ImGui::SliderFloat("Value", &f, 0.0f, 1.0f);
-                ImGui::InputFloat("Input", &f, 0.1f);
-                ImGui::Combo("Combo", &n, "Yes\0No\0Maybe\0\0");
-                ImGui::EndMenu();
-            }
-
-            if (ImGui::BeginMenu("Colors")) {
-                float sz = ImGui::GetTextLineHeight();
-                for (int i = 0; i < ImGuiCol_COUNT; i++) {
-                    const char *name = ImGui::GetStyleColorName((ImGuiCol)i);
-                    ImVec2 p = ImGui::GetCursorScreenPos();
-                    ImGui::GetWindowDrawList()->AddRectFilled(p, ImVec2(p.x + sz, p.y + sz), ImGui::GetColorU32((ImGuiCol)i));
-                    ImGui::Dummy(ImVec2(sz, sz));
-                    ImGui::SameLine();
-                    ImGui::MenuItem(name);
-                }
-                ImGui::EndMenu();
-            }
-
-            // Here we demonstrate appending again to the "Options" menu (which we already created above)
-            // Of course in this demo it is a little bit silly that this function calls BeginMenu("Options") twice.
-            // In a real code-base using it would make senses to use this feature from very different code locations.
-            if (ImGui::BeginMenu("Options")) // <-- Append!
-            {
-                static bool b = true;
-                ImGui::Checkbox("SomeOption", &b);
-                ImGui::EndMenu();
-            }
-
-            if (ImGui::BeginMenu("Disabled", false)) // Disabled
-            {
-                IM_ASSERT(0);
-            }
-            if (ImGui::MenuItem("Checked", NULL, true)) {
-            }
             if (ImGui::MenuItem("Quit", "Alt+F4")) {
+                quitRequested = true;
             }
 
-            ImGui::EndMenu();
-        }
-        if (ImGui::BeginMenu("UI")) {
-            if (ImGui::MenuItem("Item 1")) {
-            }
-            //ImGui::Separator();
-            if (ImGui::MenuItem("Item 2")) {
-            }
             ImGui::EndMenu();
         }
         ImGui::EndMainMenuBar();
     }
+}
+
+void UI::ShowDemoWindow()
+{
+    if (!showDemoWindow) return;
+
+    ImGui::ShowDemoWindow(&showDemoWindow);
 }
 
 void UI::CenteredText(const char *text)
@@ -212,18 +205,23 @@ void UI::CenteredSliderFloatLeft(const char *label, float *v, float min, float m
     ImGui::PopItemWidth();
 }
 
-void UI::LoginForm(NetClient &netClient, ImGuiIO& io, bool &escape, bool &loginActive)
+void UI::LoginForm(NetClient &netClient, ImGuiIO& io, bool &escape)
 {
+    if (netClient.IsConnected()) {
+        showLoginWindow = false;
+    }
+    if (!showLoginWindow) return;
+
 #if 1
-    ImGui::SetNextWindowPos(ImVec2(screenSize.x - 240 - 10, 10));
-    ImGui::SetNextWindowSize(ImVec2(240, 0));
+    //ImGui::SetNextWindowPos(ImVec2(screenSize.x - 240 - 10, 10));
+    //ImGui::SetNextWindowSize(ImVec2(240, 0));
     auto rayDarkBlue = DARKBLUE;
     ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(rayDarkBlue.r, rayDarkBlue.g, rayDarkBlue.b, rayDarkBlue.a));
     ImGui::PushStyleColor(ImGuiCol_Border, IM_COL32_BLACK);
-    ImGui::Begin("##mini_menu", 0,
-        ImGuiWindowFlags_NoTitleBar |
-        ImGuiWindowFlags_NoMove |
-        ImGuiWindowFlags_NoResize |
+    ImGui::Begin("Quick Menu##mini_menu", 0,
+        //ImGuiWindowFlags_NoTitleBar |
+        //ImGuiWindowFlags_NoMove |
+        //ImGuiWindowFlags_NoResize |
         ImGuiWindowFlags_NoCollapse
     );
     ImGui::PopStyleColor(2);
@@ -231,12 +229,12 @@ void UI::LoginForm(NetClient &netClient, ImGuiIO& io, bool &escape, bool &loginA
     //if (ImGui::Button("Connect to myself", ImVec2(150, 0))) {
     //    netClient.Connect(SV_SINGLEPLAYER_HOST, SV_SINGLEPLAYER_PORT, SV_SINGLEPLAYER_USER, SV_SINGLEPLAYER_PASS);
     //}
-    if (ImGui::Button("Connect to DandyNet", ImVec2(150, 0))) {
+    if (ImGui::Button("Connect to DandyNet")) {
         ImGui::OpenPopup("Connect to Server##login_window");
     }
 #endif
 
-    if (ImGui::BeginPopupModal("Connect to Server##login_window", 0, ImGuiWindowFlags_AlwaysAutoResize)) {
+    if (ImGui::BeginPopupModal("Connect to Server##login_window", &showLoginWindow, ImGuiWindowFlags_AlwaysAutoResize)) {
         static char host[SV_HOSTNAME_LENGTH_MAX + 1]{ "slime.theprogrammingjunkie.com" };
         static int  port = SV_DEFAULT_PORT;
         static char username[USERNAME_LENGTH_MAX + 1]{ "guest" };
@@ -394,8 +392,14 @@ void UI::Mixer(void)
     ImGui::End();
 }
 
-void UI::ParticleConfig(World &world, Player &player, ParticleEffectParams &par)
+void UI::ParticleConfig(World &world, Player &player)
 {
+    static ParticleEffectParams params{};
+
+    if (!showParticleConfig) {
+        return;
+    }
+
     const ImVec2 inventorySize{ 540.0, 500.0f };
     const float pad = 80.0f;
     const float left = screenSize.x - pad - inventorySize.x;
@@ -410,8 +414,8 @@ void UI::ParticleConfig(World &world, Player &player, ParticleEffectParams &par)
     ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(bgWindow.r, bgWindow.g, bgWindow.b, 0.7f * 255.0f));
     ImGui::PushStyleColor(ImGuiCol_Border, IM_COL32_BLACK);
 
-    ImGui::Begin("##particle_config", 0,
-        ImGuiWindowFlags_NoDecoration |
+    ImGui::Begin("##particle_config", &showParticleConfig,
+        //ImGuiWindowFlags_NoDecoration |
         //ImGuiWindowFlags_NoMove |
         //ImGuiWindowFlags_NoBackground |
         ImGuiWindowFlags_NoSavedSettings
@@ -419,28 +423,28 @@ void UI::ParticleConfig(World &world, Player &player, ParticleEffectParams &par)
 
     static bool ignoreEmpty = false;
     ImGui::Text("Particle Effect");
-    SliderIntLeft(  "##particleCountMin ", &par.particleCountMin, 1, 256);
-    SliderIntLeft(  "##particleCountMax ", &par.particleCountMax, 1, 256);
-    SliderFloatLeft("##durationMin      ", &par.durationMin, 0.1f, 10.0f);
-    SliderFloatLeft("##durationMax      ", &par.durationMax, 0.1f, 10.0f);
-    SliderFloatLeft("##spawnDelayMin    ", &par.spawnDelayMin, 0.0f, 10.0f);
-    SliderFloatLeft("##spawnDelayMax    ", &par.spawnDelayMax, 0.0f, 10.0f);
-    SliderFloatLeft("##lifespanMin      ", &par.lifespanMin, 0.1f, 10.0f);
-    SliderFloatLeft("##lifespanMax      ", &par.lifespanMax, 0.1f, 10.0f);
-    SliderFloatLeft("##spawnScaleFirst  ", &par.spawnScaleFirst, 0.1f, 10.0f);
-    SliderFloatLeft("##spawnScaleLast   ", &par.spawnScaleLast, 0.1f, 10.0f);
-    SliderFloatLeft("##velocityXMin     ", &par.velocityXMin, -10.0f, 10.0f);
-    SliderFloatLeft("##velocityXMax     ", &par.velocityXMax, -10.0f, 10.0f);
-    SliderFloatLeft("##velocityYMin     ", &par.velocityYMin, -10.0f, 10.0f);
-    SliderFloatLeft("##velocityYMax     ", &par.velocityYMax, -10.0f, 10.0f);
-    SliderFloatLeft("##velocityZMin     ", &par.velocityZMin, -10.0f, 10.0f);
-    SliderFloatLeft("##velocityZMax     ", &par.velocityZMax, -10.0f, 10.0f);
-    SliderFloatLeft("##friction         ", &par.friction, 0.0f, 10.0f);
+    SliderIntLeft(  "##particleCountMin ", &params.particleCountMin, 1, 256);
+    SliderIntLeft(  "##particleCountMax ", &params.particleCountMax, 1, 256);
+    SliderFloatLeft("##durationMin      ", &params.durationMin, 0.1f, 10.0f);
+    SliderFloatLeft("##durationMax      ", &params.durationMax, 0.1f, 10.0f);
+    SliderFloatLeft("##spawnDelayMin    ", &params.spawnDelayMin, 0.0f, 10.0f);
+    SliderFloatLeft("##spawnDelayMax    ", &params.spawnDelayMax, 0.0f, 10.0f);
+    SliderFloatLeft("##lifespanMin      ", &params.lifespanMin, 0.1f, 10.0f);
+    SliderFloatLeft("##lifespanMax      ", &params.lifespanMax, 0.1f, 10.0f);
+    SliderFloatLeft("##spawnScaleFirst  ", &params.spawnScaleFirst, 0.1f, 10.0f);
+    SliderFloatLeft("##spawnScaleLast   ", &params.spawnScaleLast, 0.1f, 10.0f);
+    SliderFloatLeft("##velocityXMin     ", &params.velocityXMin, -10.0f, 10.0f);
+    SliderFloatLeft("##velocityXMax     ", &params.velocityXMax, -10.0f, 10.0f);
+    SliderFloatLeft("##velocityYMin     ", &params.velocityYMin, -10.0f, 10.0f);
+    SliderFloatLeft("##velocityYMax     ", &params.velocityYMax, -10.0f, 10.0f);
+    SliderFloatLeft("##velocityZMin     ", &params.velocityZMin, -10.0f, 10.0f);
+    SliderFloatLeft("##velocityZMax     ", &params.velocityZMax, -10.0f, 10.0f);
+    SliderFloatLeft("##friction         ", &params.friction, 0.0f, 10.0f);
     if (ImGui::Button("Generate")) {
         ParticleEffect *blood = world.particleSystem.GenerateEffect(
             Catalog::ParticleEffectID::Blood,
             v3_add(player.body.WorldPosition(), { 0, 0, 40 }),
-            par);
+            params);
         if (blood) {
             blood->effectCallbacks[(size_t)ParticleEffect_Event::BeforeUpdate] = { ParticlesFollowPlayerGut, &player };
         }
@@ -828,7 +832,7 @@ int UI::Menu(const Font &font, const char **items, size_t itemCount)
     return itemPressed;
 }
 
-void UI::DearMenu(ImFont *bigFont, bool &escape, bool connectedToServer, bool &disconnectRequested, bool &quit)
+void UI::DearMenu(ImFont *bigFont, bool &escape, bool connectedToServer)
 {
     const char *menuId = "EscMenu";
     if (!ImGui::IsPopupOpen(menuId) && escape) {
@@ -886,7 +890,7 @@ void UI::DearMenu(ImFont *bigFont, bool &escape, bool connectedToServer, bool &d
                 } else {
                     ImGui::MenuItem("Quit");
                     if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
-                        quit = true;
+                        quitRequested = true;
                         ImGui::CloseCurrentPopup();
                     }
                 }
@@ -998,6 +1002,8 @@ void UI::Inventory(const Texture &invItems, Player& player, bool &inventoryActiv
     dlb_rand32_t invRand{};
     dlb_rand32_seed_r(&invRand, 2, 2);
 
+    ItemStack &cursorStack = player.inventory.CursorStack();
+
     int id = 0;
     for (int row = 0; row < PLAYER_INV_ROWS; row++) {
         ImGui::PushID(row);
@@ -1062,7 +1068,7 @@ void UI::Inventory(const Texture &invItems, Player& player, bool &inventoryActiv
             } else if (ImGui::IsItemHovered() && scrollY) {
                 // TODO(dlb): This will break if the window has any scrolling controls
                 player.inventory.SlotScroll(row, col, scrollY);
-            } else if (ImGui::IsItemHovered() && invStack.count && !player.inventory.cursor.count) {
+            } else if (ImGui::IsItemHovered() && invStack.count && !cursorStack.count) {
                 const char *invName = invStack.Name();
                 ImGui::SetTooltip("%u %s", invStack.count, invName);
             }
@@ -1077,7 +1083,7 @@ void UI::Inventory(const Texture &invItems, Player& player, bool &inventoryActiv
     ImGui::PopStyleColor(5);
     ImGui::PopStyleVar(6);
 
-    if (player.inventory.cursor.count) {
+    if (cursorStack.count) {
         HideCursor();
 
         ImDrawList *drawList = ImGui::GetForegroundDrawList();
@@ -1085,11 +1091,20 @@ void UI::Inventory(const Texture &invItems, Player& player, bool &inventoryActiv
 
         Vector2 uv0{};
         Vector2 uv1{};
-        player.inventory.TexRect(invItems, player.inventory.cursor.id, uv0, uv1);
+        player.inventory.TexRect(invItems, cursorStack.id, uv0, uv1);
+
+        Vector2 cursorOffset{};
+#if CURSOR_ITEM_RELATIVE_TERRARIA
+        cursorOffset.x = 8;
+        cursorOffset.y = 8;
+#else
+        cursorOffset.x = -(ITEM_W / 2);
+        cursorOffset.y = -(ITEM_H / 2);
+#endif
 
         const Rectangle dstRect{
-           mouseScreen.x + player.inventory.cursorOffset.x,
-           mouseScreen.y + player.inventory.cursorOffset.y,
+           mouseScreen.x + cursorOffset.x,
+           mouseScreen.y + cursorOffset.y,
            32.0f,
            32.0f
         };
@@ -1113,7 +1128,7 @@ void UI::Inventory(const Texture &invItems, Player& player, bool &inventoryActiv
         }
 
         char countBuf[16]{};
-        snprintf(countBuf, sizeof(countBuf), "%d", player.inventory.cursor.count);
+        snprintf(countBuf, sizeof(countBuf), "%d", cursorStack.count);
         drawList->AddText({ dstRect.x - 4, dstRect.y - 6 }, IM_COL32_WHITE, countBuf);
 
         drawList->PopClipRect();

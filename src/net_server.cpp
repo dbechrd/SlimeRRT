@@ -290,15 +290,17 @@ ErrorType NetServer::SendWorldSnapshot(NetServerClient &client)
 
         auto prevState = client.playerHistory.find(otherPlayer.id);
         PlayerSnapshot::Flags flags = PlayerSnapshot::Flags::None;
-        if (prevState == client.playerHistory.end()) {
-            flags = PlayerSnapshot::Flags::All;
-            TraceLog(LOG_DEBUG, "Entered vicinity of player #%u", otherPlayer.id);
-        } else if (client.playerId == otherPlayer.id) {
+        if (client.playerId == otherPlayer.id) {
             // Always send player's entire state to to themselves
-            // This could be smarter, but if we don't do it, the ReconcilePlayer() can get
+            // This could be smarter, but if we don't do it, then ReconcilePlayer() can get
             // desync'd from snapshot frequency and "miss" things like teleport events.
-            flags = PlayerSnapshot::Flags::All;
+            flags = PlayerSnapshot::Flags::Owner;
+        } else if (prevState == client.playerHistory.end()) {
+            flags = PlayerSnapshot::Flags::PuppetSpawn;
+            TraceLog(LOG_DEBUG, "Entered vicinity of player #%u", otherPlayer.id);
         } else {
+            // Send delta updates for puppets that the client already knows about
+
             // "Despawn" notification already sent
             if (prevState->second.flags & PlayerSnapshot::Flags::Despawn) {
                 continue;
@@ -324,7 +326,7 @@ ErrorType NetServer::SendWorldSnapshot(NetServerClient &client)
             continue;
         }
 
-        // TODO: Let Player serialize itself by storing a reference in the Snapshot, then
+        // TODO: Let Player class serialize itself by storing a reference in the Snapshot, then
         // having NetMessage::Process call a serialize method and forwarding the BitStream
         // and state flags to it.
         PlayerSnapshot &state = client.playerHistory[otherPlayer.id];
@@ -334,6 +336,7 @@ ErrorType NetServer::SendWorldSnapshot(NetServerClient &client)
         state.direction = otherPlayer.sprite.direction;
         state.hitPoints = otherPlayer.combat.hitPoints;
         state.hitPointsMax = otherPlayer.combat.hitPointsMax;
+        state.inventory = otherPlayer.inventory;
 
         worldSnapshot.players[worldSnapshot.playerCount] = state;
         worldSnapshot.playerCount++;
@@ -444,9 +447,6 @@ ErrorType NetServer::SendWorldSnapshot(NetServerClient &client)
             if (item.stack.count != prevState->second.stackCount) {
                 flags |= ItemSnapshot::Flags::StackCount;
             }
-            if (!!item.pickedUpAt != prevState->second.pickedUp) {
-                flags |= ItemSnapshot::Flags::PickedUp;
-            }
         }
 
         if (flags == ItemSnapshot::Flags::None) {
@@ -462,7 +462,6 @@ ErrorType NetServer::SendWorldSnapshot(NetServerClient &client)
         state.position = item.body.WorldPosition();
         state.catalogId = item.stack.id;
         state.stackCount = item.stack.count;
-        state.pickedUp = !!item.pickedUpAt;
 
         // DEBUG(cleanup): FPSDfasdf
         const Vector3 worldPos = item.body.WorldPosition();
@@ -477,6 +476,7 @@ ErrorType NetServer::SendWorldSnapshot(NetServerClient &client)
     return ErrorType::Success;
 }
 
+#if 0
 ErrorType NetServer::SendNearbyEvents(const NetServerClient &client)
 {
     Player *player = serverWorld->FindPlayer(client.playerId);
@@ -620,6 +620,7 @@ ErrorType NetServer::SendItemState(const NetServerClient &client, const ItemWorl
     assert(!"Not yet implemented");
     return ErrorType::PeerSendFailed;
 }
+#endif
 
 NetServerClient *NetServer::FindClient(uint32_t playerId)
 {

@@ -174,14 +174,6 @@ ErrorType GameClient::Run(void)
         //player->body.position.x = 1373.498f;
         // 1610 x 910
         //player->body.position.x = 1457.83557f;
-
-#if CURSOR_ITEM_RELATIVE_TERRARIA
-        player->inventory.cursorOffset.x = 8;
-        player->inventory.cursorOffset.y = 8;
-#else
-        player->inventory.cursorOffset.x = -(ITEM_W / 2);
-        player->inventory.cursorOffset.y = -(ITEM_H / 2);
-#endif
     }
 
 #if DEMO_VIEW_RTREE
@@ -224,14 +216,8 @@ ErrorType GameClient::Run(void)
     bool gifRecording = false;
     bool chatVisible = false;
     bool inventoryActive = false;
-    bool loginActive = true;
-    bool disconnectRequested = false;
-    bool quit = false;
 
     InputMode inputMode = INPUT_MODE_PLAY;
-
-    bool show_menubar = false;
-    bool show_demo_window = false;
     //---------------------------------------------------------------------------------------
 
     // TODO(cleanup): Noise test
@@ -241,7 +227,7 @@ ErrorType GameClient::Run(void)
 #define KEY_DOWN(key)
 
     // Main game loop
-    while (!quit && !WindowShouldClose()) {
+    while (!WindowShouldClose() && !UI::QuitRequested()) {
         double now = glfwGetTime();
         double frameDt = now - frameStart;
         // Limit delta time to prevent spiraling for after long hitches (e.g. hitting a breakpoint)
@@ -434,10 +420,7 @@ ErrorType GameClient::Run(void)
             TakeScreenshot(screenshotName);
         }
 
-        if (input.dbgImgui) {
-            show_menubar = !show_menubar;
-            show_demo_window = show_menubar && IsKeyDown(KEY_LEFT_SHIFT);
-        }
+        UI::HandleInput(input);
 
         if (IsWindowResized() || input.toggleFullscreen) {
             if (IsWindowResized()) {
@@ -765,17 +748,9 @@ ErrorType GameClient::Run(void)
 
         rlDrawRenderBatchActive();
 
-        if (show_menubar) {
-            UI::Menubar(loginActive);
-        }
-        if (show_demo_window) {
-            ImGui::ShowDemoWindow(&show_demo_window);
-        }
-
-        loginActive = !netClient.IsConnected();
-        if (loginActive) {
-            UI::LoginForm(netClient, io, escape, loginActive);
-        }
+        UI::Menubar(netClient);
+        UI::ShowDemoWindow();
+        UI::LoginForm(netClient, io, escape);
 
         //if (mixerActive) {
         //    UI::Mixer();
@@ -787,23 +762,21 @@ ErrorType GameClient::Run(void)
             UI::TileHoverTip(fontSmall, *world->map);
         }
 
-        static ParticleEffectParams bloodParams{};
-        UI::ParticleConfig(*world, player, bloodParams);
+        UI::ParticleConfig(*world, player);
 
         //----------------------------------------------------------------------
         // Menu
         //----------------------------------------------------------------------
-        UI::DearMenu(imFontHack48, escape, connectedToServer, disconnectRequested, quit);
+        UI::DearMenu(imFontHack48, escape, connectedToServer);
 
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         EndDrawing();
         //----------------------------------------------------------------------------------
 
-        if (disconnectRequested && connectedToServer) {
+        if (UI::DisconnectRequested(connectedToServer)) {
             netClient.Disconnect();
             world = lobby;
-            disconnectRequested = false;
         }
     }
 

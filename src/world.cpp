@@ -268,32 +268,32 @@ void World::SV_SimSlimes(double dt)
 {
     for (size_t slimeIdx = 0; slimeIdx < SV_MAX_SLIMES; slimeIdx++) {
         Slime &slime = slimes[slimeIdx];
-        if (!slime.id || slime.combat.diedAt) {
+        if (!slime.id) {
             continue;
         }
 
-        if (!slime.combat.hitPoints) {
-            uint32_t coins = lootSystem.RollCoins(slime.combat.lootTableId, (int)slime.sprite.scale);
-            assert(coins);
+        if (slime.combat.diedAt) {
+            if (!slime.combat.droppedDeathLoot) {
+                uint32_t coins = lootSystem.RollCoins(slime.combat.lootTableId, (int)slime.sprite.scale);
+                assert(coins);
 
-            Catalog::ItemID coinType{};
-            const float chance = dlb_rand32f_range(0, 1);
-            if (chance < 100.0f / 111.0f) {
-                coinType = Catalog::ItemID::Currency_Copper;
-            } else if (chance < 10.0f / 111.0f) {
-                coinType = Catalog::ItemID::Currency_Silver;
-            } else {
-                coinType = Catalog::ItemID::Currency_Gilded;
+                Catalog::ItemID coinType{};
+                const float chance = dlb_rand32f_range(0, 1);
+                if (chance < 100.0f / 111.0f) {
+                    coinType = Catalog::ItemID::Currency_Copper;
+                } else if (chance < 10.0f / 111.0f) {
+                    coinType = Catalog::ItemID::Currency_Silver;
+                } else {
+                    coinType = Catalog::ItemID::Currency_Gilded;
+                }
+
+                itemSystem.SpawnItem(slime.WorldCenter(), Catalog::ItemID::Item_Skull_And_Crossbones, 1);
+                itemSystem.SpawnItem(slime.WorldCenter(), coinType, coins);
+                slime.combat.droppedDeathLoot = true;
             }
-
-            itemSystem.SpawnItem(slime.WorldCenter(), Catalog::ItemID::Item_Skull_And_Crossbones, 1);
-            itemSystem.SpawnItem(slime.WorldCenter(), coinType, coins);
-
-            slime.combat.diedAt = glfwGetTime();
             continue;
         }
 
-        // TODO: Actually find closest alive player via RTree
         Player *closestPlayer = FindClosestPlayer(slime.body.GroundPosition(), SV_SLIME_ATTACK_TRACK);
         if (!closestPlayer || !closestPlayer->id) {
             slime.Update(dt);
@@ -359,7 +359,6 @@ void World::SV_SimItems(double dt)
 
         assert(item.stack.id != Catalog::ItemID::Empty);
 
-        // TODO: Actually find closest alive player via RTree
         Player *closestPlayer = FindClosestPlayer(item.body.GroundPosition(), playerItemPickupReach);
         if (!closestPlayer || !closestPlayer->id) {
             continue;
@@ -368,26 +367,36 @@ void World::SV_SimItems(double dt)
         Vector2 itemToPlayer = v2_sub(closestPlayer->body.GroundPosition(), item.body.GroundPosition());
         const float itemToPlayerDistSq = v2_length_sq(itemToPlayer);
         if (itemToPlayerDistSq < SQUARED(playerItemPickupDist)) {
-            item.pickedUpAt = glfwGetTime();
-            TraceLog(LOG_DEBUG, "Sim: Item picked up %u", item.id);
-
+            bool pickedUpSomething = false;
             switch (item.stack.id) {
-                case Catalog::ItemID::Currency_Copper: {
-                    // TODO(design): Convert coins to higher currency if stack fills up?
-                    closestPlayer->inventory.slots[(int)PlayerInventorySlot::Coin_Copper].count += item.stack.count;
-                    closestPlayer->stats.coinsCollected += item.stack.count;
+                //case Catalog::ItemID::Currency_Copper: {
+                //    // TODO(design): Convert coins to higher currency if stack fills up?
+                //    closestPlayer->inventory.slots[(int)PlayerInventorySlot::Coin_Copper].count += item.stack.count;
+                //    closestPlayer->stats.coinsCollected += item.stack.count;
+                //    break;
+                //} case Catalog::ItemID::Currency_Silver: {
+                //    // TODO(design): Convert coins to higher currency if stack fills up?
+                //    closestPlayer->inventory.slots[(int)PlayerInventorySlot::Coin_Silver].count += item.stack.count;
+                //    closestPlayer->stats.coinsCollected += item.stack.count;
+                //    break;
+                //} case Catalog::ItemID::Currency_Gilded: {
+                //    closestPlayer->inventory.slots[(int)PlayerInventorySlot::Coin_Gilded].count += item.stack.count;
+                //    closestPlayer->stats.coinsCollected += item.stack.count;
+                //    break;
+                //}
+                default: {
+                    pickedUpSomething = closestPlayer->inventory.PickUp(item.stack);
                     break;
-                } case Catalog::ItemID::Currency_Silver: {
-                    // TODO(design): Convert coins to higher currency if stack fills up?
-                    closestPlayer->inventory.slots[(int)PlayerInventorySlot::Coin_Silver].count += item.stack.count;
-                    closestPlayer->stats.coinsCollected += item.stack.count;
-                    break;
-                } case Catalog::ItemID::Currency_Gilded: {
-                    closestPlayer->inventory.slots[(int)PlayerInventorySlot::Coin_Gilded].count += item.stack.count;
-                    closestPlayer->stats.coinsCollected += item.stack.count;
-                    break;
-                } case Catalog::ItemID::Weapon_Long_Sword: {
-                    break;
+                }
+            }
+
+            if (pickedUpSomething) {
+                if (!item.stack.count) {
+                    item.pickedUpAt = glfwGetTime();
+                    TraceLog(LOG_DEBUG, "Sim: Item picked up %u", item.id);
+                } else {
+                    // TODO: Send item update message so other players know stack was partially picked up
+                    // to update their label.
                 }
             }
         } else {

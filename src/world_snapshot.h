@@ -43,15 +43,28 @@ struct WorldSnapshot {
 struct PlayerSnapshot {
     enum class Flags : char {
         None      = 0,
-        Despawn   = 0x01,  // ??
-        Position  = 0x02,  // world position
-        Direction = 0x04,  // facing direction
-        Health    = 0x08,  // current health, e.g. heal/damage
-        HealthMax = 0x10,  // max health
-        All = Position
-            | Direction
-            | Health
-            | HealthMax
+        Despawn   = 1 << 0,  // sent when client should despawn a puppet
+        Position  = 1 << 1,  // world position
+        Direction = 1 << 2,  // facing direction
+        Health    = 1 << 3,  // current health, e.g. heal/damage
+        HealthMax = 1 << 4,  // max health
+        // TODO: PublicInventory and PrivateInventory to share visible gear without showing inv contents to other players
+        Inventory = 1 << 5,  // player inventory state
+
+        // Fields to always send for puppets (players the client doesn't control) when entering their vicinity
+        PuppetSpawn =
+            Position
+          | Direction
+          | Health
+          | HealthMax,
+
+        // Fields to always send to the owner (the player that the client is controlling)
+        Owner =
+            Position
+          | Direction
+          | Health
+          | HealthMax
+          | Inventory
     };
 
     Flags     flags        {};
@@ -60,6 +73,7 @@ struct PlayerSnapshot {
     Direction direction    {};  // teleport, move
     float     hitPoints    {};  // heal, damage, die
     float     hitPointsMax {};  // <no events>
+    PlayerInventory inventory {};  // join, inventory update
 };
 
 static inline PlayerSnapshot::Flags operator|(PlayerSnapshot::Flags lhs, PlayerSnapshot::Flags rhs)
@@ -125,20 +139,17 @@ struct ItemSnapshot {
         Despawn    = 0x01,  // picked up / stale
         Position   = 0x02,  // world position
         CatalogId  = 0x04,  // type of item
-        StackCount = 0x08,  // size of item stack
-        PickedUp   = 0x10,  // item gone
+        StackCount = 0x08,  // size of item stack (if 0, item is picked up entirely)
         All = Position
             | CatalogId
             | StackCount
-            | PickedUp
     };
 
     Flags           flags      {};
     uint32_t        id         {};
     Vector3         position   {};  // spawn, move
     Catalog::ItemID catalogId  {};  // spawn
-    uint32_t        stackCount {};  // spawn, combine (future)
-    bool            pickedUp   {};  // item is gone
+    uint32_t        stackCount {};  // spawn, partial pickup, combine nearby stacks (future)
 };
 
 static inline ItemSnapshot::Flags operator|(ItemSnapshot::Flags lhs, ItemSnapshot::Flags rhs)

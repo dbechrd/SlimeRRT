@@ -33,7 +33,7 @@ struct NetServer {
     ErrorType        SendWorldChunk    (const NetServerClient &client, const Chunk &chunk);
     void             SendNearbyChunks  (NetServerClient &client);
     ErrorType        SendWorldSnapshot (NetServerClient &client);
-    ErrorType        SendNearbyEvents  (const NetServerClient &client);
+    //ErrorType        SendNearbyEvents  (const NetServerClient &client);
     NetServerClient *FindClient        (uint32_t playerId);
     ErrorType        Listen            (void);
     void             CloseSocket       (void);

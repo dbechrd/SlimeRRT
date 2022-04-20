@@ -37,23 +37,28 @@ struct UI {
         UI::spycam      = spycam;
     };
 
+    static void HandleInput(PlayerControllerState &input);
+    static bool DisconnectRequested(bool connectedToServer);
+    static bool QuitRequested();
+
     // World UI
     static void TileHoverOutline(const Tilemap &map);
     static void WorldGrid(const Spycam &spycam);
 
     // Screen UI
     static void Minimap(const Font &font, const Spycam &spycam, const World &world);
-    static void Menubar(bool &loginActive);
-    static void LoginForm(NetClient &netClient, ImGuiIO& io, bool &escape, bool &loginActive);
+    static void Menubar(const NetClient &netClient);
+    static void ShowDemoWindow();
+    static void LoginForm(NetClient &netClient, ImGuiIO& io, bool &escape);
     static void Mixer(void);
-    static void ParticleConfig(World &world, Player &player, ParticleEffectParams &par);
+    static void ParticleConfig(World &world, Player &player);
     static void Netstat(NetClient &netClient, double renderAt);
     static void HUD(const Font &font, const Player &player, const DebugStats &debugStats);
     static void QuickHUD(const Font &font, const Player &player, const Tilemap &tilemap);
     static void Chat(const Font &font, int fontSize, World &world, NetClient &netClient, bool processKeyboard, bool &chatActive, bool &escape);
     static void TileHoverTip(const Font &font, const Tilemap &map);
     static int  Menu(const Font &font, const char **items, size_t itemCount);
-    static void DearMenu(struct ImFont *bigFont, bool &escape, bool connectedToServer, bool &disconnectRequested, bool &quit);
+    static void DearMenu(struct ImFont *bigFont, bool &escape, bool connectedToServer);
     static void Inventory(const Texture &invItems, Player &player, bool &inventoryActive);
 
 private:
@@ -61,6 +66,14 @@ private:
     static Vector2 mouseWorld;
     static Vector2 screenSize;
     static Spycam  *spycam;
+
+    static bool showMenubar;
+    static bool showDemoWindow;
+    static bool showLoginWindow;
+    static bool showParticleConfig;
+
+    static bool disconnectRequested;
+    static bool quitRequested;
 
     static void CenteredText(const char *text);
     static void SliderFloatLeft(const char *label, float *v, float min, float max);
