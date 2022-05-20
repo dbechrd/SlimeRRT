@@ -375,6 +375,12 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
             stream.Align();
             stream.Process(slotScroll.scrollY);
             break;
+        } case NetMessage::Type::SlotDrop: {
+            NetMessage_SlotDrop &slotDrop = data.slotDrop;
+            stream.Process((uint8_t &)slotDrop.slotId, 8, 0, (uint32_t)PlayerInventorySlot::Count - 1);
+            stream.Align();
+            stream.Process(slotDrop.count);
+            break;
         } default: {
             assert(!"Unrecognized NetMessageType");
         }

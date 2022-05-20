@@ -465,7 +465,7 @@ ErrorType NetServer::SendWorldSnapshot(NetServerClient &client)
 
         // DEBUG(cleanup): FPSDfasdf
         const Vector3 worldPos = item.body.WorldPosition();
-        TraceLog(LOG_DEBUG, "Sending snapshot for Item %u pos: %f %f %f", item.id, worldPos.x, worldPos.y, worldPos.z);
+        TraceLog(LOG_DEBUG, "Sending snapshot for Item #%u: itemId: %u count: %u pos: %f %f %f", item.id, item.stack.id, item.stack.count, worldPos.x, worldPos.y, worldPos.z);
 
         worldSnapshot.items[worldSnapshot.itemCount] = state;
         worldSnapshot.itemCount++;
@@ -756,6 +756,17 @@ void NetServer::ProcessMsg(NetServerClient &client, ENetPacket &packet)
             if (player) {
                 // TODO(security): Validate params, discard if invalid
                 player->inventory.SlotScroll(slotScroll.slotId, slotScroll.scrollY);
+            }
+            break;
+        } case NetMessage::Type::SlotDrop: {
+            NetMessage_SlotDrop &slotDrop = netMsg.data.slotDrop;
+            Player *player = serverWorld->FindPlayer(client.playerId);
+            if (player) {
+                // TODO(security): Validate params, discard if invalid
+                TraceLog(LOG_DEBUG, "[SRV] SlotDrop  slotId: %u, count: %u", slotDrop.slotId, slotDrop.count);
+                ItemStack dropStack = player->inventory.SlotDrop(slotDrop.slotId, slotDrop.count);
+                TraceLog(LOG_DEBUG, "[SRV] SpawnItem itemId: %u, count: %u", dropStack.id, dropStack.count);
+                serverWorld->itemSystem.SpawnItem(player->body.WorldPosition(), dropStack.id, dropStack.count);
             }
             break;
         } default: {

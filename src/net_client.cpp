@@ -171,6 +171,20 @@ ErrorType NetClient::SendSlotScroll(int slot, int scrollY)
     return result;
 }
 
+
+ErrorType NetClient::SendSlotDrop(int slot, uint32_t count)
+{
+    assert(slot >= 0);
+    assert(slot < (int)PlayerInventorySlot::Count);
+
+    memset(&tempMsg, 0, sizeof(tempMsg));
+    tempMsg.type = NetMessage::Type::SlotDrop;
+    tempMsg.data.slotDrop.slotId = slot;
+    tempMsg.data.slotDrop.count = count;
+    ErrorType result = SendMsg(tempMsg);
+    return result;
+}
+
 ErrorType NetClient::SendPlayerInput(void)
 {
     if (!worldHistory.Count() || !inputHistory.Count()) {
@@ -600,6 +614,10 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                     if (itemSnapshot.flags & ItemSnapshot::Flags::Despawn) {
                         continue;
                     }
+                    TraceLog(LOG_DEBUG, "Trying to spawn item: item #%u, catalog #%u, count %u",
+                        itemSnapshot.id,
+                        itemSnapshot.catalogId,
+                        itemSnapshot.stackCount);
                     item = serverWorld->itemSystem.SpawnItem(
                         itemSnapshot.position,
                         itemSnapshot.catalogId,

@@ -145,6 +145,13 @@ struct PlayerInventory {
         }
     }
 
+    ItemStack SlotDrop(int slot, uint32_t count)
+    {
+        ItemStack dropStack{};
+        TransferStack(GetInvStack(slot), dropStack, false, count);
+        return dropStack;
+    }
+
     static int Compare(ItemStack &a, ItemStack &b, bool ignoreEmpty = false)
     {
         if (a.id == b.id) {

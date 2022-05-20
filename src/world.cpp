@@ -353,7 +353,7 @@ void World::SV_SimItems(double dt)
     const float playerItemPickupDist = METERS_TO_PIXELS(0.4f);
 
     for (ItemWorld &item : itemSystem.items) {
-        if (!item.id || item.pickedUpAt) {
+        if (!item.id || item.pickedUpAt || glfwGetTime() < item.spawnedAt + SV_ITEM_PICKUP_DELAY) {
             continue;
         }
 

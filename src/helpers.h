@@ -63,12 +63,13 @@
 #define SV_INPUT_HISTORY            (SV_TICK_RATE * SV_MAX_PLAYERS)
 #define SV_WORLD_HISTORY            SV_TICK_RATE
 // NOTE: max diagonal distance at 1080p is 1100 + radius units. 1200px allows for a ~50px wide entity
-#define SV_PLAYER_NEARBY_THRESHOLD  1200.0f
-#define SV_ENEMY_NEARBY_THRESHOLD   1200.0f
-#define SV_ITEM_NEARBY_THRESHOLD    1200.0f
+#define SV_PLAYER_NEARBY_THRESHOLD  1200.0f  // how close a player has to be to receive a snapshot
+#define SV_ENEMY_NEARBY_THRESHOLD   1200.0f  // how close an enemy has to be to receive a snapshot
+#define SV_ITEM_NEARBY_THRESHOLD    1200.0f  // how close an item has to be to receive a snapshot
+#define SV_ITEM_PICKUP_DELAY        0.5      // how long after an item is spawned before it can be picked up by a player
 #define SV_STALE_RADIUS             50.0f
-#define SV_PLAYER_CORPSE_LIFETIME   8.0
-#define SV_ENEMY_CORPSE_LIFETIME    4.0
+#define SV_PLAYER_CORPSE_LIFETIME   8.0      // how long to wait after a player dies to despawn their corpse
+#define SV_ENEMY_CORPSE_LIFETIME    4.0      // how long to wait after an enemy dies to despawn their corpse
 #define SV_RESPAWN_TIMER            5.0
 
 #define SV_SLIME_MOVE_SPEED         METERS_TO_PIXELS(2.0f)

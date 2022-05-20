@@ -26,6 +26,7 @@ struct NetClient {
     ErrorType SendChatMessage (const char *message, size_t messageLength);
     ErrorType SendSlotClick   (int slot, bool doubleClicked);
     ErrorType SendSlotScroll  (int slot, int scrollY);
+    ErrorType SendSlotDrop    (int slot, uint32_t count);
     ErrorType SendPlayerInput (void);
     void      PredictPlayer   (void);
     void      ReconcilePlayer (double tickDt);

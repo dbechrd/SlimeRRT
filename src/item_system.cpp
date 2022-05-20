@@ -16,6 +16,13 @@
 
 ItemWorld *ItemSystem::SpawnItem(Vector3 pos, Catalog::ItemID catalogId, uint32_t count, uint32_t id)
 {
+    assert(count >= 0);
+
+    if (!count) {
+        TraceLog(LOG_WARNING, "Not spawning item stack with count 0.");
+        return 0;
+    }
+
     if (items.size() == SV_MAX_ITEMS) {
         // TODO: Delete oldest item instead of dropping new one
         TraceLog(LOG_ERROR, "Item pool is full; discarding item.");

@@ -206,6 +206,11 @@ struct NetMessage_SlotScroll {
     int8_t  scrollY {};
 };
 
+struct NetMessage_SlotDrop {
+    uint8_t  slotId {};
+    uint32_t count  {};
+};
+
 struct NetMessage {
     enum class Type : uint32_t {
         Unknown,
@@ -220,6 +225,7 @@ struct NetMessage {
         InventoryUpdate,
         SlotClick,
         SlotScroll,
+        SlotDrop,
         Count
     };
     static const char *TypeString(Type type)
@@ -237,6 +243,7 @@ struct NetMessage {
             case Type::InventoryUpdate : return "InventoryUpdate";
             case Type::SlotClick       : return "SlotClick";
             case Type::SlotScroll      : return "SlotScroll";
+            case Type::SlotDrop        : return "SlotDrop";
             default: return "NetMessage::Type::???";
         }
     }
@@ -260,6 +267,7 @@ struct NetMessage {
         NetMessage_InventoryUpdate inventoryUpdate;
         NetMessage_SlotClick       slotClick;
         NetMessage_SlotScroll      slotScroll;
+        NetMessage_SlotDrop        slotDrop;
     } data{};
 
     void Serialize(const World &world, ENetBuffer &buffer);

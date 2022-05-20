@@ -1058,26 +1058,32 @@ void UI::Inventory(const Texture &invItems, Player& player, NetClient &netClient
             // Minecraft:
             //   empty cursor:
             //     left mouse down = pick up stack
+            //     right mouse down = pick up bigger half of stack [(int)ceilf(count / 2.0f)]
             //   filled cursor:
             //     left mouse down + drag split stack evenly
             //     right mouse down + drag 1 item piles
             //     mouse up = keep remainder on cursor
             //   Always centers item on cursor
             //   squish (less width, more height) animation on pick-up
-            const int scrollY = (int)GetMouseWheelMove();
-            if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
-                const bool doubleClick = ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left);
-                netClient.SendSlotClick(slot, doubleClick);
-                //player.inventory.SlotClick(slot, doubleClick);
-            //} else if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
-            //    player.inventory.SlotClick(row, col);
-            } else if (ImGui::IsItemHovered() && scrollY) {
-                // TODO(dlb): This will break if the window has any scrolling controls
-                netClient.SendSlotScroll(slot, scrollY);
-                //player.inventory.SlotScroll(slot, scrollY);
-            } else if (ImGui::IsItemHovered() && invStack.count && !cursorStack.count) {
-                const char *invName = invStack.Name();
-                ImGui::SetTooltip("%u %s", invStack.count, invName);
+            if (ImGui::IsItemHovered()) {
+                const int scrollY = (int)GetMouseWheelMove();
+                if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
+                    const bool doubleClick = ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left);
+                    netClient.SendSlotClick(slot, doubleClick);
+                } else if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
+                    // if cursor empty, pick up half (or 1 like terraria? hmm..)
+                    // else, pick up 1 more (repeat w/ acceleration)
+                } else if (scrollY) {
+                    // TODO(dlb): This will break if the window has any scrolling controls
+                    netClient.SendSlotScroll(slot, scrollY);
+                } else if (IsKeyPressed(KEY_Q)) {
+                    netClient.SendSlotDrop(slot, 1);
+                }
+
+                if (invStack.count && !cursorStack.count) {
+                    const char *invName = invStack.Name();
+                    ImGui::SetTooltip("%u %s", invStack.count, invName);
+                }
             }
 
             if (col < PLAYER_INV_COLS - 1) {
