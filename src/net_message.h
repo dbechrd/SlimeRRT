@@ -17,6 +17,18 @@ struct NetMessage_Identify {
     char     password       [PASSWORD_LENGTH_MAX]{};
 };
 
+struct NetMessage_Welcome {
+    uint32_t motdLength  {};
+    char     motd        [MOTD_LENGTH_MAX]{};  // message of the day
+    uint32_t playerId    {};                   // client's assigned playerId
+    uint32_t playerCount {};                   // players in game
+    struct NetMessage_Welcome_Player {
+        uint32_t  id           {};
+        uint32_t  nameLength   {};
+        char      name         [USERNAME_LENGTH_MAX]{};
+    } players[SV_MAX_PLAYERS]{};  // player info
+};
+
 struct NetMessage_ChatMessage {
     enum class Source {
         Unknown,
@@ -33,18 +45,6 @@ struct NetMessage_ChatMessage {
     uint32_t id             {};
     uint32_t messageLength  {};
     char     message        [CHATMSG_LENGTH_MAX]{};
-};
-
-struct NetMessage_Welcome {
-    uint32_t motdLength  {};
-    char     motd        [MOTD_LENGTH_MAX]{};  // message of the day
-    uint32_t playerId    {};                   // client's assigned playerId
-    uint32_t playerCount {};                   // players in game
-    struct NetMessage_Welcome_Player {
-        uint32_t  id           {};
-        uint32_t  nameLength   {};
-        char      name         [USERNAME_LENGTH_MAX]{};
-    } players[SV_MAX_PLAYERS]{};  // player info
 };
 
 struct NetMessage_Input {
@@ -196,6 +196,16 @@ struct NetMessage_InventoryUpdate {
     SlotUpdate slots     [CL_INVENTORY_UPDATE_SLOTS_MAX]{};
 };
 
+struct NetMessage_SlotClick {
+    uint8_t slotId      {};
+    uint8_t doubleClick {};
+};
+
+struct NetMessage_SlotScroll {
+    uint8_t slotId  {};
+    int8_t  scrollY {};
+};
+
 struct NetMessage {
     enum class Type : uint32_t {
         Unknown,
@@ -208,6 +218,8 @@ struct NetMessage {
         GlobalEvent,
         NearbyEvent,
         InventoryUpdate,
+        SlotClick,
+        SlotScroll,
         Count
     };
     static const char *TypeString(Type type)
@@ -223,6 +235,8 @@ struct NetMessage {
             case Type::GlobalEvent     : return "GlobalEvent";
             case Type::NearbyEvent     : return "NearbyEvent";
             case Type::InventoryUpdate : return "InventoryUpdate";
+            case Type::SlotClick       : return "SlotClick";
+            case Type::SlotScroll      : return "SlotScroll";
             default: return "NetMessage::Type::???";
         }
     }
@@ -244,6 +258,8 @@ struct NetMessage {
         NetMessage_GlobalEvent     globalEvent;
         NetMessage_NearbyEvent     nearbyEvent;
         NetMessage_InventoryUpdate inventoryUpdate;
+        NetMessage_SlotClick       slotClick;
+        NetMessage_SlotScroll      slotScroll;
     } data{};
 
     void Serialize(const World &world, ENetBuffer &buffer);

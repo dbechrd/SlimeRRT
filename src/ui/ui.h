@@ -59,7 +59,7 @@ struct UI {
     static void TileHoverTip(const Font &font, const Tilemap &map);
     static int  Menu(const Font &font, const char **items, size_t itemCount);
     static void DearMenu(struct ImFont *bigFont, bool &escape, bool connectedToServer);
-    static void Inventory(const Texture &invItems, Player &player, bool &inventoryActive);
+    static void Inventory(const Texture &invItems, Player &player, NetClient &netClient, bool &escape, bool &inventoryActive);
 
 private:
     static Vector2 mouseScreen;

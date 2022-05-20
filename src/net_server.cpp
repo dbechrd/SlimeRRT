@@ -742,8 +742,24 @@ void NetServer::ProcessMsg(NetServerClient &client, ENetPacket &packet)
                 // Invalid message format, disconnect naughty user?
             }
             break;
+        } case NetMessage::Type::SlotClick: {
+            NetMessage_SlotClick &slotClick = netMsg.data.slotClick;
+            Player *player = serverWorld->FindPlayer(client.playerId);
+            if (player) {
+                // TODO(security): Validate params, discard if invalid
+                player->inventory.SlotClick(slotClick.slotId, slotClick.doubleClick);
+            }
+            break;
+        } case NetMessage::Type::SlotScroll: {
+            NetMessage_SlotScroll &slotScroll = netMsg.data.slotScroll;
+            Player *player = serverWorld->FindPlayer(client.playerId);
+            if (player) {
+                // TODO(security): Validate params, discard if invalid
+                player->inventory.SlotScroll(slotScroll.slotId, slotScroll.scrollY);
+            }
+            break;
         } default: {
-            E_INFO("Unexpected netMsg type: %s\n", netMsg.TypeString());
+            E_INFO("Unexpected netMsg type: %s", netMsg.TypeString());
             break;
         }
     }

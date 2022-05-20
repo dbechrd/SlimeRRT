@@ -367,30 +367,7 @@ void World::SV_SimItems(double dt)
         Vector2 itemToPlayer = v2_sub(closestPlayer->body.GroundPosition(), item.body.GroundPosition());
         const float itemToPlayerDistSq = v2_length_sq(itemToPlayer);
         if (itemToPlayerDistSq < SQUARED(playerItemPickupDist)) {
-            bool pickedUpSomething = false;
-            switch (item.stack.id) {
-                //case Catalog::ItemID::Currency_Copper: {
-                //    // TODO(design): Convert coins to higher currency if stack fills up?
-                //    closestPlayer->inventory.slots[(int)PlayerInventorySlot::Coin_Copper].count += item.stack.count;
-                //    closestPlayer->stats.coinsCollected += item.stack.count;
-                //    break;
-                //} case Catalog::ItemID::Currency_Silver: {
-                //    // TODO(design): Convert coins to higher currency if stack fills up?
-                //    closestPlayer->inventory.slots[(int)PlayerInventorySlot::Coin_Silver].count += item.stack.count;
-                //    closestPlayer->stats.coinsCollected += item.stack.count;
-                //    break;
-                //} case Catalog::ItemID::Currency_Gilded: {
-                //    closestPlayer->inventory.slots[(int)PlayerInventorySlot::Coin_Gilded].count += item.stack.count;
-                //    closestPlayer->stats.coinsCollected += item.stack.count;
-                //    break;
-                //}
-                default: {
-                    pickedUpSomething = closestPlayer->inventory.PickUp(item.stack);
-                    break;
-                }
-            }
-
-            if (pickedUpSomething) {
+            if (closestPlayer->inventory.PickUp(item.stack)) {
                 if (!item.stack.count) {
                     item.pickedUpAt = glfwGetTime();
                     TraceLog(LOG_DEBUG, "Sim: Item picked up %u", item.id);

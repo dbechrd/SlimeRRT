@@ -67,13 +67,13 @@ struct PlayerSnapshot {
           | Inventory
     };
 
-    Flags     flags        {};
-    uint32_t  id           {};
-    Vector3   position     {};  // teleport, move
-    Direction direction    {};  // teleport, move
-    float     hitPoints    {};  // heal, damage, die
-    float     hitPointsMax {};  // <no events>
-    PlayerInventory inventory {};  // join, inventory update
+    Flags           flags        {};
+    uint32_t        id           {};
+    Vector3         position     {};  // teleport, move
+    Direction       direction    {};  // teleport, move
+    float           hitPoints    {};  // heal, damage, die
+    float           hitPointsMax {};  // <no events>
+    PlayerInventory inventory    {};  // join, inventory update
 };
 
 static inline PlayerSnapshot::Flags operator|(PlayerSnapshot::Flags lhs, PlayerSnapshot::Flags rhs)

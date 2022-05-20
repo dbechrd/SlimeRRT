@@ -147,8 +147,8 @@ ErrorType GameClient::Run(void)
     Catalog::g_tracks.Load();
     tileset_init();
 
-    Catalog::g_mixer.masterVolume = 0.0f;
-    Catalog::g_mixer.musicVolume = 0.2f;
+    Catalog::g_mixer.masterVolume = 0.75f;
+    Catalog::g_mixer.musicVolume = 0.3f;
     Catalog::g_sounds.mixer.volumeLimit[(size_t)Catalog::SoundID::GemBounce] = 0.8f;
     Catalog::g_sounds.mixer.volumeLimit[(size_t)Catalog::SoundID::Whoosh] = 0.6f;
 
@@ -743,7 +743,7 @@ ErrorType GameClient::Run(void)
         UI::HUD(fontSmall, player, debugStats);
         //UI::QuickHUD(fontSdf24, player, *world->map);
         if (inventoryActive) {
-            UI::Inventory(Catalog::g_items.Tex(), player, inventoryActive);
+            UI::Inventory(Catalog::g_items.Tex(), player, netClient, escape, inventoryActive);
         }
 
         rlDrawRenderBatchActive();

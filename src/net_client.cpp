@@ -68,11 +68,14 @@ ErrorType NetClient::Connect(const char *serverHost, unsigned short serverPort, 
 
 ErrorType NetClient::SendRaw(const void *data, size_t size)
 {
-    assert(server);
-    assert(server->address.port);
     assert(data);
     assert(size);
     assert(size <= PACKET_SIZE_MAX);
+
+    if (!server || server->state != ENET_PEER_STATE_CONNECTED) {
+        E_WARN("Not connected to server. Data not sent.");
+        return ErrorType::NotConnected;
+    }
 
     // TODO(dlb): Don't always use reliable flag.. figure out what actually needs to be reliable (e.g. chat)
     ENetPacket *packet = enet_packet_create(data, size, ENET_PACKET_FLAG_RELIABLE);
@@ -87,6 +90,11 @@ ErrorType NetClient::SendRaw(const void *data, size_t size)
 
 ErrorType NetClient::SendMsg(NetMessage &message)
 {
+    if (!server || server->state != ENET_PEER_STATE_CONNECTED) {
+        E_WARN("Not connected to server. NetMessage not sent.");
+        return ErrorType::NotConnected;
+    }
+
     message.connectionToken = connectionToken;
     ENetBuffer rawPacket{ PACKET_SIZE_MAX, calloc(PACKET_SIZE_MAX, sizeof(uint8_t)) };
     message.Serialize(*serverWorld, rawPacket);
@@ -117,13 +125,6 @@ ErrorType NetClient::Auth(void)
 
 ErrorType NetClient::SendChatMessage(const char *message, size_t messageLength)
 {
-    if (!server || server->state != ENET_PEER_STATE_CONNECTED) {
-        E_WARN("Not connected to server. Chat netMsg not sent.");
-        return ErrorType::NotConnected;
-    }
-
-    assert(server);
-    assert(server->address.port);
     assert(message);
 
     // TODO: Account for header size, determine MTU we want to aim for, and perhaps do auto-segmentation somewhere
@@ -144,15 +145,34 @@ ErrorType NetClient::SendChatMessage(const char *message, size_t messageLength)
     return result;
 }
 
+ErrorType NetClient::SendSlotClick(int slot, bool doubleClicked)
+{
+    assert(slot >= 0);
+    assert(slot < (int)PlayerInventorySlot::Count);
+
+    memset(&tempMsg, 0, sizeof(tempMsg));
+    tempMsg.type = NetMessage::Type::SlotClick;
+    tempMsg.data.slotClick.slotId = slot;
+    tempMsg.data.slotClick.doubleClick = doubleClicked;
+    ErrorType result = SendMsg(tempMsg);
+    return result;
+}
+
+ErrorType NetClient::SendSlotScroll(int slot, int scrollY)
+{
+    assert(slot >= 0);
+    assert(slot < (int)PlayerInventorySlot::Count);
+
+    memset(&tempMsg, 0, sizeof(tempMsg));
+    tempMsg.type = NetMessage::Type::SlotScroll;
+    tempMsg.data.slotScroll.slotId = slot;
+    tempMsg.data.slotScroll.scrollY = scrollY;
+    ErrorType result = SendMsg(tempMsg);
+    return result;
+}
+
 ErrorType NetClient::SendPlayerInput(void)
 {
-    if (!server || server->state != ENET_PEER_STATE_CONNECTED) {
-        E_WARN("Not connected to server. Input not sent.");
-        return ErrorType::NotConnected;
-    }
-    assert(server);
-    assert(server->address.port);
-
     if (!worldHistory.Count() || !inputHistory.Count()) {
         return ErrorType::Success;
     }

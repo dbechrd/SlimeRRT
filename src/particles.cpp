@@ -242,7 +242,9 @@ void Particle::Draw(void) const
         sprite_draw_body(sprite, body, color);
     } else {
         const Vector3 pos = body.WorldPosition();
-        DrawCircleSector({ pos.x, pos.y - pos.z }, sprite.scale, 0.0f, 360.0f, 12, color);
+        const float halfW = sprite.scale / 2.0f;
+        DrawRectangleRec({ pos.x - halfW, pos.y - pos.z - halfW, sprite.scale, sprite.scale }, color);
+        //DrawCircleSector({ pos.x, pos.y - pos.z }, sprite.scale, 0.0f, 360.0f, 12, color);
         //DrawCircleSectorLines({ pos.x, pos.y - pos.z }, sprite.scale, 0.0f, 360.0f, 12, Fade(BLACK, color.a / 255.0f));
     }
 }

@@ -24,6 +24,8 @@ struct NetClient {
     ErrorType OpenSocket      (void);
     ErrorType Connect         (const char *serverHost, unsigned short serverPort, const char *user, const char *password);
     ErrorType SendChatMessage (const char *message, size_t messageLength);
+    ErrorType SendSlotClick   (int slot, bool doubleClicked);
+    ErrorType SendSlotScroll  (int slot, int scrollY);
     ErrorType SendPlayerInput (void);
     void      PredictPlayer   (void);
     void      ReconcilePlayer (double tickDt);

@@ -949,8 +949,13 @@ void UI::DearMenu(ImFont *bigFont, bool &escape, bool connectedToServer)
     }
 }
 
-void UI::Inventory(const Texture &invItems, Player& player, bool &inventoryActive)
+void UI::Inventory(const Texture &invItems, Player& player, NetClient &netClient, bool &escape, bool &inventoryActive)
 {
+    if (inventoryActive && escape) {
+        inventoryActive = false;
+        escape = false;
+    }
+
     const ImVec2 inventorySize{ 540.0, 360.0f };
     const float pad = 80.0f;
     const float left = screenSize.x - pad - inventorySize.x;
@@ -1011,7 +1016,7 @@ void UI::Inventory(const Texture &invItems, Player& player, bool &inventoryActiv
             ImGui::PushID(col);
 
             int slot = row * PLAYER_INV_COLS + col;
-            ItemStack &invStack = player.inventory.GetInvStack(row, col);
+            ItemStack &invStack = player.inventory.GetInvStack(slot);
 
             if (invStack.count) {
                 Vector2 uv0{};
@@ -1059,15 +1064,17 @@ void UI::Inventory(const Texture &invItems, Player& player, bool &inventoryActiv
             //     mouse up = keep remainder on cursor
             //   Always centers item on cursor
             //   squish (less width, more height) animation on pick-up
-            const float scrollY = GetMouseWheelMove();
+            const int scrollY = (int)GetMouseWheelMove();
             if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
                 const bool doubleClick = ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left);
-                player.inventory.SlotClick(row, col, doubleClick);
+                netClient.SendSlotClick(slot, doubleClick);
+                //player.inventory.SlotClick(slot, doubleClick);
             //} else if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
             //    player.inventory.SlotClick(row, col);
             } else if (ImGui::IsItemHovered() && scrollY) {
                 // TODO(dlb): This will break if the window has any scrolling controls
-                player.inventory.SlotScroll(row, col, scrollY);
+                netClient.SendSlotScroll(slot, scrollY);
+                //player.inventory.SlotScroll(slot, scrollY);
             } else if (ImGui::IsItemHovered() && invStack.count && !cursorStack.count) {
                 const char *invName = invStack.Name();
                 ImGui::SetTooltip("%u %s", invStack.count, invName);
@@ -1109,10 +1116,12 @@ void UI::Inventory(const Texture &invItems, Player& player, bool &inventoryActiv
            32.0f
         };
 
-        if (uv0.x >= 0.0f && uv0.x < 1.0f && uv0.y >= 0.0f && uv0.y < 1.0f &&
-            uv1.x >= 0.0f && uv1.x < 1.0f && uv1.y >= 0.0f && uv1.y < 1.0f)
+#if 1
+        if (uv0.x >= 0.0f && uv0.x < 1.0f &&
+            uv0.y >= 0.0f && uv0.y < 1.0f &&
+            uv1.x > 0.0f && uv1.x <= 1.0f &&
+            uv1.y > 0.0f && uv1.y <= 1.0f)
         {
-            printf("%.01f %.01f\n", uv0.x, uv1.x);
             drawList->AddImage(
                 (ImTextureID)(size_t)invItems.id,
                 ImVec2(dstRect.x, dstRect.y),
@@ -1126,6 +1135,14 @@ void UI::Inventory(const Texture &invItems, Player& player, bool &inventoryActiv
                 IM_COL32(PINK.r, PINK.g, PINK.b, PINK.a)
             );
         }
+#else
+        drawList->AddImage(
+            (ImTextureID)(size_t)invItems.id,
+            ImVec2(dstRect.x, dstRect.y),
+            ImVec2(dstRect.x + dstRect.width, dstRect.y + dstRect.height),
+            ImVec2{ uv0.x, uv0.y }, ImVec2{ uv1.x, uv1.y }
+        );
+#endif
 
         char countBuf[16]{};
         snprintf(countBuf, sizeof(countBuf), "%d", cursorStack.count);

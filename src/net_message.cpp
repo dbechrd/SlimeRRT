@@ -41,23 +41,6 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
             }
 
             break;
-        } case NetMessage::Type::ChatMessage: {
-            NetMessage_ChatMessage &chatMsg = data.chatMsg;
-
-            stream.Process((uint32_t &)chatMsg.source, 6, (uint32_t)NetMessage_ChatMessage::Source::Unknown + 1, (uint32_t)NetMessage_ChatMessage::Source::Count - 1);
-            switch (chatMsg.source) {
-                case NetMessage_ChatMessage::Source::Client: {
-                    stream.Process(chatMsg.id, 32, 0, UINT32_MAX);
-                    break;
-                }
-            }
-            stream.Process(chatMsg.messageLength, 9, CHATMSG_LENGTH_MIN, CHATMSG_LENGTH_MAX);
-            stream.Align();
-            for (size_t i = 0; i < chatMsg.messageLength; i++) {
-                stream.ProcessChar(chatMsg.message[i]);
-            }
-
-            break;
         } case NetMessage::Type::Welcome: {
             NetMessage_Welcome &welcome = data.welcome;
 
@@ -86,6 +69,23 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                         stream.ProcessChar(player.name[i]);
                     }
                 }
+            }
+
+            break;
+        } case NetMessage::Type::ChatMessage: {
+            NetMessage_ChatMessage &chatMsg = data.chatMsg;
+
+            stream.Process((uint32_t &)chatMsg.source, 6, (uint32_t)NetMessage_ChatMessage::Source::Unknown + 1, (uint32_t)NetMessage_ChatMessage::Source::Count - 1);
+            switch (chatMsg.source) {
+                case NetMessage_ChatMessage::Source::Client: {
+                    stream.Process(chatMsg.id, 32, 0, UINT32_MAX);
+                    break;
+                }
+            }
+            stream.Process(chatMsg.messageLength, 9, CHATMSG_LENGTH_MIN, CHATMSG_LENGTH_MAX);
+            stream.Align();
+            for (size_t i = 0; i < chatMsg.messageLength; i++) {
+                stream.ProcessChar(chatMsg.message[i]);
             }
 
             break;
@@ -118,7 +118,7 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                     stream.Process(sample.run);
                     stream.Process(sample.attack);
                     assert((int)PlayerInventorySlot::Count > 0);
-                    stream.Process(sample.selectSlot, 4, 0, (uint32_t)PlayerInventorySlot::Count - 1);
+                    stream.Process(sample.selectSlot, 8, 0, (uint32_t)PlayerInventorySlot::Count - 1);
                 }
             }
             stream.Align();
@@ -362,6 +362,18 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                 }
             }
 
+            break;
+        } case NetMessage::Type::SlotClick: {
+            NetMessage_SlotClick &slotClick = data.slotClick;
+            stream.Process((uint8_t &)slotClick.slotId, 8, 0, (uint32_t)PlayerInventorySlot::Count - 1);
+            stream.Align();
+            stream.Process(slotClick.doubleClick);
+            break;
+        } case NetMessage::Type::SlotScroll: {
+            NetMessage_SlotScroll &slotScroll = data.slotScroll;
+            stream.Process((uint8_t &)slotScroll.slotId, 8, 0, (uint32_t)PlayerInventorySlot::Count - 1);
+            stream.Align();
+            stream.Process(slotScroll.scrollY);
             break;
         } default: {
             assert(!"Unrecognized NetMessageType");

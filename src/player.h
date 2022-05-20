@@ -13,7 +13,7 @@ struct Tilemap;
 #define PLAYER_INV_ROWS 6
 #define PLAYER_INV_COLS 10
 
-enum class PlayerInventorySlot {
+enum class PlayerInventorySlot : uint8_t {
     Coin_Copper = (PLAYER_INV_ROWS * PLAYER_INV_COLS),
     Coin_Silver,
     Coin_Gilded,
@@ -48,14 +48,11 @@ struct PlayerInventory {
     bool PickUp(ItemStack &srcStack)
     {
         uint32_t origCount = srcStack.count;
-        for (int row = 0; row < PLAYER_INV_ROWS; row++) {
-            for (int col = 0; col < PLAYER_INV_COLS; col++) {
-                int slot = row * PLAYER_INV_COLS + col;
-                ItemStack &invStack = GetInvStack(row, col);
-                TransferStack(srcStack, invStack);
-                if (!srcStack.count) {
-                    break;
-                }
+        for (int slot = 0; slot < (int)PlayerInventorySlot::Count; slot++) {
+            ItemStack &invStack = GetInvStack(slot);
+            TransferStack(srcStack, invStack);
+            if (!srcStack.count) {
+                break;
             }
         }
         return srcStack.count < origCount;
@@ -67,13 +64,10 @@ struct PlayerInventory {
         return cursor;
     }
 
-    ItemStack &GetInvStack(int row, int col)
+    ItemStack &GetInvStack(int slot)
     {
-        assert(row >= 0);
-        assert(col >= 0);
-        assert(row < PLAYER_INV_ROWS);
-        assert(col < PLAYER_INV_COLS);
-        const int slot = row * PLAYER_INV_COLS + col;
+        assert(slot >= 0);
+        assert(slot < (int)PlayerInventorySlot::Count);
         ItemStack &stack = slots[slot];
         return stack;
     }
@@ -111,25 +105,10 @@ struct PlayerInventory {
         return false;
     }
 
-    void SlotScroll(int slotRow, int slotCol, float scroll)
-    {
-        const int transferAmount = (int)scroll;
-        if (transferAmount) {
-            ItemStack &invStack = GetInvStack(slotRow, slotCol);
-            ItemStack &cursor = CursorStack();
-
-            if (transferAmount > 0) {
-                TransferStack(cursor, invStack, false, (uint32_t)transferAmount);
-            } else {
-                TransferStack(invStack, cursor, false, (uint32_t)-transferAmount);
-            }
-        }
-    }
-
-    void SlotClick(int slotRow, int slotCol, bool doubleClicked = false)
+    void SlotClick(int slot, bool doubleClicked)
     {
         ItemStack &cursor = CursorStack();
-        ItemStack &invStack = GetInvStack(slotRow, slotCol);
+        ItemStack &invStack = GetInvStack(slot);
 
         if (doubleClicked) {
             if (!cursor.count) {
@@ -137,11 +116,9 @@ struct PlayerInventory {
             }
             if (!invStack.count || (invStack.id == cursor.id)) {
                 bool done = false;
-                for (int row = PLAYER_INV_ROWS - 1; row >= 0 && !done; row--) {
-                    for (int col = PLAYER_INV_COLS - 1; col >= 0 && !done; col--) {
-                        ItemStack &srcStack = GetInvStack(row, col);
-                        done = TransferStack(srcStack, cursor, true);
-                    }
+                for (int slot = (int)PlayerInventorySlot::Count - 1; slot >= 0 && !done; slot--) {
+                    ItemStack &srcStack = GetInvStack(slot);
+                    done = TransferStack(srcStack, cursor, true);
                 }
             }
         } else {
@@ -149,6 +126,21 @@ struct PlayerInventory {
                 TransferStack(cursor, invStack);
             } else {
                 SwapStack(cursor, invStack);
+            }
+        }
+    }
+
+    void SlotScroll(int slot, int scroll)
+    {
+        const int transferAmount = scroll;
+        if (transferAmount) {
+            ItemStack &invStack = GetInvStack(slot);
+            ItemStack &cursor = CursorStack();
+
+            if (transferAmount > 0) {
+                TransferStack(cursor, invStack, false, (uint32_t)transferAmount);
+            } else {
+                TransferStack(invStack, cursor, false, (uint32_t)-transferAmount);
             }
         }
     }
@@ -170,18 +162,14 @@ struct PlayerInventory {
 
     void Sort(bool ignoreEmpty = false)
     {
-        for (int row = 0; row < PLAYER_INV_ROWS; row++) {
-            for (int col = 0; col < PLAYER_INV_COLS; col++) {
-                ItemStack &invStack = GetInvStack(row, col);
+        for (int slotA = 0; slotA < (int)PlayerInventorySlot::Count; slotA++) {
+            ItemStack &invStackA = GetInvStack(slotA);
 
-                for (int row2 = row; row2 < PLAYER_INV_ROWS; row2++) {
-                    for (int col2 = ((row2 == row) ? col + 1 : 0); col2 < PLAYER_INV_COLS; col2++) {
-                        ItemStack &invStack2 = GetInvStack(row2, col2);
+            for (int slotB = slotA + 1; slotB < (int)PlayerInventorySlot::Count; slotB++) {
+                ItemStack &invStackB = GetInvStack(slotB);
 
-                        if (Compare(invStack, invStack2, ignoreEmpty) > 0) {
-                            SwapStack(invStack2, invStack);
-                        }
-                    }
+                if (Compare(invStackA, invStackB, ignoreEmpty) > 0) {
+                    SwapStack(invStackB, invStackA);
                 }
             }
         }
@@ -189,57 +177,20 @@ struct PlayerInventory {
 
     void Combine(bool ignoreEmpty = false)
     {
-#if 0
-        for (int row = 0; row < PLAYER_INV_ROWS; row++) {
-            for (int col = 0; col < PLAYER_INV_COLS; col++) {
-                ItemStack &a = GetInvStack(row, col);
-                const Catalog::ItemType typeA = a.Type();
-                if (ignoreEmpty && a.id == Catalog::ItemID::Empty) continue;
+        for (int slotA = 0; slotA < (int)PlayerInventorySlot::Count; slotA++) {
+            ItemStack &invStackA = GetInvStack(slotA);
+            const Catalog::ItemType typeA = invStackA.Type();
+            if (ignoreEmpty && invStackA.id == Catalog::ItemID::Empty) continue;
 
-                for (int row2 = PLAYER_INV_ROWS - 1; row2 >= row; row2--) {
-                    for (int col2 = PLAYER_INV_COLS - 1; col2 >= ((row2 == row) ? col + 1 : 0); col2--) {
-                        ItemStack &b = GetInvStack(row2, col2);
-                        const Catalog::ItemType typeB = b.Type();
-                        if (ignoreEmpty && b.id == Catalog::ItemID::Empty) continue;
-                        //if (onlySameType && typeA != typeB) continue;
+            for (int slotB = slotA + 1; slotB < (int)PlayerInventorySlot::Count; slotB++) {
+                ItemStack &invStackB = GetInvStack(slotB);
+                const Catalog::ItemType typeB = invStackB.Type();
+                if (ignoreEmpty && invStackB.id == Catalog::ItemID::Empty) continue;
+                //if (onlySameType && typeA != typeB) continue;
 
-                        TransferStack(b, a);
-                    }
-                }
+                TransferStack(invStackB, invStackA);
             }
         }
-#else
-        for (int row = 0; row < PLAYER_INV_ROWS; row++) {
-            for (int col = 0; col < PLAYER_INV_COLS; col++) {
-                ItemStack &a = GetInvStack(row, col);
-                const Catalog::ItemType typeA = a.Type();
-                if (ignoreEmpty && a.id == Catalog::ItemID::Empty) continue;
-
-                for (int row2 = row; row2 < PLAYER_INV_ROWS; row2++) {
-                    for (int col2 = ((row2 == row) ? col + 1 : 0); col2 < PLAYER_INV_COLS; col2++) {
-                        ItemStack &b = GetInvStack(row2, col2);
-                        const Catalog::ItemType typeB = b.Type();
-                        if (ignoreEmpty && b.id == Catalog::ItemID::Empty) continue;
-                        //if (onlySameType && typeA != typeB) continue;
-
-                        TransferStack(b, a);
-                    }
-                }
-            }
-        }
-        /*for (int row = 0; row < PLAYER_INV_ROWS; row++) {
-            for (int col = 0; col < PLAYER_INV_COLS; col++) {
-                ItemStack &invStack = GetInvStack(row, col);
-
-                for (int row2 = row; row2 < PLAYER_INV_ROWS; row2++) {
-                    for (int col2 = ((row2 == row) ? col + 1 : 0); col2 < PLAYER_INV_COLS; col2++) {
-                        ItemStack &invStack2 = GetInvStack(row2, col2);
-                        TransferStack(invStack2, invStack);
-                    }
-                }
-            }
-        }*/
-#endif
     }
 
     void SortAndCombine(bool ignoreEmpty = false)
@@ -254,7 +205,7 @@ struct PlayerInventory {
         for (int row = 0; row < PLAYER_INV_ROWS; row++) {
             for (int col = 0; col < PLAYER_INV_COLS; col++) {
                 int slot = row * PLAYER_INV_COLS + col;
-                ItemStack &stack = GetInvStack(row, col);
+                ItemStack &stack = GetInvStack(slot);
                 stack.id = (Catalog::ItemID)dlb_rand32i_range(
                     0, 6
                     //(int)Catalog::ItemID::Empty,
