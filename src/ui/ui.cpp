@@ -1077,7 +1077,11 @@ void UI::Inventory(const Texture &invItems, Player& player, NetClient &netClient
                     // TODO(dlb): This will break if the window has any scrolling controls
                     netClient.SendSlotScroll(slot, scrollY);
                 } else if (IsKeyPressed(KEY_Q)) {
-                    netClient.SendSlotDrop(slot, 1);
+                    uint32_t dropCount = 1;
+                    if (IsKeyDown(KEY_LEFT_CONTROL)) {
+                        dropCount = invStack.count;
+                    }
+                    netClient.SendSlotDrop(slot, dropCount);
                 }
 
                 if (invStack.count && !cursorStack.count) {

@@ -43,7 +43,7 @@ int main(int argc, char *argv[])
     // Initialization
     //--------------------------------------------------------------------------------------
     std::thread *serverThread = 0;
-#if 0
+#if 1
     if (args.standalone) {
         serverThread = &GameServer::StartThread(args);
     }
