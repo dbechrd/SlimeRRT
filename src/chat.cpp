@@ -16,7 +16,7 @@ void ChatHistory::PushNetMessage(const NetMessage_ChatMessage &netChat)
     memcpy(&chat, &netChat, sizeof(netChat));
     chat.recvAt = glfwGetTime();
     assert(!chat.timestampStr[0]); // If this triggers, FYI, your timestamp will be overwritten
-    const char *timestampStr = TextFormatTimestamp();
+    const char *timestampStr = SafeTextFormatTimestamp();
     memcpy(chat.timestampStr, timestampStr, MIN(sizeof(chat.timestampStr), strlen(timestampStr)));
 }
 
@@ -53,7 +53,7 @@ void ChatHistory::PushMessage(NetMessage_ChatMessage::Source source, uint32_t id
 
     NetMessage_ChatMessage &chat = buffer.Alloc();
     chat.recvAt = glfwGetTime();
-    const char *timestampStr = TextFormatTimestamp();
+    const char *timestampStr = SafeTextFormatTimestamp();
     memcpy(chat.timestampStr, timestampStr, MIN(sizeof(chat.timestampStr), strlen(timestampStr)));
     chat.source = source;
     chat.id = id;
@@ -113,13 +113,13 @@ void ChatHistory::Render(const Font &font, int fontSize, World &world, float lef
             case NetMessage_ChatMessage::Source::Sam:    displayName = "[System]"; chatColor = GREEN;     break;
             case NetMessage_ChatMessage::Source::Client: {
                 Player *player = world.FindPlayer(chatMsg.id);
-                displayName = player ? TextFormat("[%.*s]", player->nameLength, player->name) : "someone";
+                displayName = player ? SafeTextFormat("[%.*s]", player->nameLength, player->name) : "someone";
                 break;
             }
             default: TraceLog(LOG_FATAL, "Unhandled chat source");
         }
 
-        const char *chatText = TextFormat("[%s]%s: %.*s", chatMsg.timestampStr, displayName,
+        const char *chatText = SafeTextFormat("[%s]%s: %.*s", chatMsg.timestampStr, displayName,
             chatMsg.messageLength, chatMsg.message);
 
         if (!chatActive) {

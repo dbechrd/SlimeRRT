@@ -42,13 +42,13 @@ int main(int argc, char *argv[])
     //--------------------------------------------------------------------------------------
     // Initialization
     //--------------------------------------------------------------------------------------
-    std::thread *serverThread = 0;
-#if 1
+    GameServer *gameServer = 0;
+#if 0
     if (args.standalone) {
-        serverThread = &GameServer::StartThread(args);
+        gameServer = new GameServer(args);
     }
 #else
-    serverThread = &GameServer::StartThread(args);
+    gameServer = new GameServer(args);
 #endif
 
     // TODO: Make CLI not be an entire client/player. Makes no sense for the CLI to show up in the world LUL.
@@ -84,9 +84,7 @@ int main(int argc, char *argv[])
     //--------------------------------
     // Clean up
     //--------------------------------
-    if (serverThread) {
-        serverThread->join();
-    }
+    delete gameServer;
     error_free();
     CloseWindow();
     enet_deinitialize();

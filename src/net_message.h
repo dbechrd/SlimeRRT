@@ -44,7 +44,7 @@ struct NetMessage_ChatMessage {
     Source   source         {};
     uint32_t id             {};
     uint32_t messageLength  {};
-    char     message        [CHATMSG_LENGTH_MAX]{};
+    char     message        [CHATMSG_LENGTH_MAX + 1]{};
 };
 
 struct NetMessage_Input {

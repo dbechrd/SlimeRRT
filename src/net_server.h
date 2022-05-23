@@ -30,6 +30,7 @@ struct NetServer {
 
     ~NetServer();
     ErrorType        OpenSocket        (unsigned short socketPort);
+    ErrorType        SendChatMessage   (const NetServerClient &client, const char *message, size_t messageLength);
     ErrorType        SendWorldChunk    (const NetServerClient &client, const Chunk &chunk);
     void             SendNearbyChunks  (NetServerClient &client);
     ErrorType        SendWorldSnapshot (NetServerClient &client);
@@ -55,6 +56,7 @@ private:
     ErrorType SendItemState        (const NetServerClient &client, const ItemWorld &item, bool nearby, bool spawned);
 
     bool IsValidInput (const NetServerClient &client, const InputSample &sample);
+    void ParseCommand (NetServerClient &client, NetMessage_ChatMessage &chatMsg);
     void ProcessMsg   (NetServerClient &client, ENetPacket &packet);
 
     NetServerClient *AddClient    (ENetPeer *peer);

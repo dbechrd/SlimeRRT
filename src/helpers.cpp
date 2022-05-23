@@ -47,11 +47,41 @@ void DrawTextFont(Font font, const char *text, float posX, float posY, float off
     }
 }
 
-const char *TextFormatIP(ENetAddress &address)
+// NOTE(dlb): Thread-local version of Raylib's TextFormat to prevent races causing reads from the wrong index
+// WARNING: String returned will expire after this function is called MAX_TEXTFORMAT_BUFFERS times
+const char *SafeTextFormat(const char *text, ...)
+{
+#ifndef MAX_TEXTFORMAT_BUFFERS
+#define MAX_TEXTFORMAT_BUFFERS 4        // Maximum number of static buffers for text formatting
+#endif
+
+#ifndef MAX_TEXT_BUFFER_LENGTH
+#define MAX_TEXT_BUFFER_LENGTH 1024     // Maximum length of each buffer
+#endif
+
+    // We create an array of buffers so strings don't expire until MAX_TEXTFORMAT_BUFFERS invocations
+    thread_local char buffers[MAX_TEXTFORMAT_BUFFERS][MAX_TEXT_BUFFER_LENGTH] = { 0 };
+    thread_local int index = 0;
+
+    char *currentBuffer = buffers[index];
+    memset(currentBuffer, 0, MAX_TEXT_BUFFER_LENGTH);
+
+    va_list args;
+    va_start(args, text);
+    vsnprintf(currentBuffer, MAX_TEXT_BUFFER_LENGTH, text, args);
+    va_end(args);
+
+    index += 1; // Move to next buffer for next function call
+    if (index >= MAX_TEXTFORMAT_BUFFERS) index = 0;
+
+    return currentBuffer;
+}
+
+const char *SafeTextFormatIP(ENetAddress &address)
 {
     //char asStr[64]{};
     //enet_address_get_host_ip_new(&address, asStr, sizeof(asStr) - 1);
-    //const char *text = TextFormat("%s:%hu", asStr, address.port);
+    //const char *text = SafeTextFormat("%s:%hu", asStr, address.port);
 
     // TODO(dlb)[cleanup]: Manual extraction of IPv4 address (was used by zed_net)
     //unsigned char bytes[4] = {};
@@ -59,9 +89,9 @@ const char *TextFormatIP(ENetAddress &address)
     //bytes[1] = (address.host >> 8) & 0xFF;
     //bytes[2] = (address.host >> 16) & 0xFF;
     //bytes[3] = (address.host >> 24) & 0xFF;
-    //const char *text = TextFormat("%d.%d.%d.%d:%hu", bytes[0], bytes[1], bytes[2], bytes[3], address.port);
+    //const char *text = SafeTextFormat("%d.%d.%d.%d:%hu", bytes[0], bytes[1], bytes[2], bytes[3], address.port);
 
-    const char *text = TextFormat("%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x",
+    const char *text = SafeTextFormat("%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x",
         (int)address.host.u.Byte[0],  (int)address.host.u.Byte[1],
         (int)address.host.u.Byte[2],  (int)address.host.u.Byte[3],
         (int)address.host.u.Byte[4],  (int)address.host.u.Byte[5],
@@ -74,9 +104,9 @@ const char *TextFormatIP(ENetAddress &address)
     return text;
 }
 
-const char *TextFormatTimestamp()
+const char *SafeTextFormatTimestamp()
 {
-    static char timestampStr[TIMESTAMP_LENGTH];
+    thread_local char timestampStr[TIMESTAMP_LENGTH];
     time_t t = time(NULL);
     struct tm tm = *localtime(&t);
     int len = snprintf(timestampStr, sizeof(timestampStr), "%02d:%02d:%02d", tm.tm_hour, tm.tm_min, tm.tm_sec);

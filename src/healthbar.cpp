@@ -18,15 +18,15 @@ void HealthBar::Draw(int fontSize, const Vector2 &topCenter, const char *name, c
     float y = topCenter.y - 10.0f;
     //float y = topCenter.y - 10.0f;
 
-    //const char *hpText = TextFormat("HP: %.02f / %.02f", hitPoints, hitPointsMax);
+    //const char *hpText = SafeTextFormat("HP: %.02f / %.02f", hitPoints, hitPointsMax);
     const char *hpText = 0;
     if (combat.diedAt) {
         assert(!combat.hitPoints);
-        hpText = TextFormat("Respawning in %0.1f ...", SV_RESPAWN_TIMER - (glfwGetTime() - combat.diedAt));
+        hpText = SafeTextFormat("Respawning in %0.1f ...", SV_RESPAWN_TIMER - (glfwGetTime() - combat.diedAt));
     } else {
-        hpText = TextFormat("HP: %.f / %.f", combat.hitPoints, combat.hitPointsMax);
+        hpText = SafeTextFormat("HP: %.f / %.f", combat.hitPoints, combat.hitPointsMax);
     }
-    const char *nameText = name ? TextFormat(name) : nullptr;
+    const char *nameText = name ? SafeTextFormat(name) : nullptr;
 
     Rectangle hpRect{};
     hpRect.width = (float)MeasureText(hpText, fontSize);

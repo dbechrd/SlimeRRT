@@ -31,6 +31,7 @@
 #define SV_DEBUG_INPUT 0
 #define CL_DEBUG_PLAYER_RECONCILIATION 0
 #define CURSOR_ITEM_RELATIVE_TERRARIA 0
+#define CURSOR_ITEM_HIDES_POINTER 0
 
 #if _DEBUG
     #define SHOW_DEBUG_STATS 1
@@ -71,7 +72,7 @@
 #define SV_PLAYER_CORPSE_LIFETIME   8.0      // how long to wait after a player dies to despawn their corpse
 #define SV_ENEMY_CORPSE_LIFETIME    4.0      // how long to wait after an enemy dies to despawn their corpse
 #define SV_RESPAWN_TIMER            5.0
-
+#define SV_COMMAND_MAX_ARGS         16       // max # of args a chat command can have
 #define SV_SLIME_MOVE_SPEED         METERS_TO_PIXELS(2.0f)
 #define SV_SLIME_ATTACK_TRACK       METERS_TO_PIXELS(5.0f)
 #define SV_SLIME_ATTACK_REACH       METERS_TO_PIXELS(0.5f)
@@ -124,7 +125,8 @@
 extern Shader g_sdfShader;
 
 void DrawTextFont(Font font, const char *text, float posX, float posY, float offsetX, float offsetY, int fontSize, const Color &color);
-const char *TextFormatIP(ENetAddress &address);
-const char *TextFormatTimestamp();
+const char *SafeTextFormat(const char *text, ...);
+const char *SafeTextFormatIP(ENetAddress &address);
+const char *SafeTextFormatTimestamp();
 float VolumeCorrection(float volume);
 bool PointInRect(Vector2 &point, Rectangle &rect);

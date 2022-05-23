@@ -98,7 +98,7 @@ ErrorType NetServer::SendMsg(const NetServerClient &client, NetMessage &message)
     ENetBuffer rawPacket{ PACKET_SIZE_MAX, calloc(PACKET_SIZE_MAX, sizeof(uint8_t)) };
     message.Serialize(*serverWorld, rawPacket);
 
-    //E_INFO("[SEND][%21s][%5u b] %16s ", TextFormatIP(client.peer->address), rawPacket.dataLength, netMsg.TypeString());
+    //E_INFO("[SEND][%21s][%5u b] %16s ", SafeTextFormatIP(client.peer->address), rawPacket.dataLength, netMsg.TypeString());
     if (message.type != NetMessage::Type::WorldSnapshot) {
         const char *subType = "";
         switch (message.type) {
@@ -163,7 +163,7 @@ ErrorType NetServer::SendWelcomeBasket(NetServerClient &client)
 
     E_ASSERT(BroadcastPlayerJoin(*player), "Failed to broadcast player join notification");
 
-    const char *message = TextFormat("%.*s joined the game.", player->nameLength, player->name);
+    const char *message = SafeTextFormat("%.*s joined the game.", player->nameLength, player->name);
     size_t messageLength = strlen(message);
     NetMessage_ChatMessage chatMsg{};
     chatMsg.source = NetMessage_ChatMessage::Source::Server;
@@ -215,6 +215,23 @@ ErrorType NetServer::BroadcastPlayerLeave(const Player &player)
     NetMessage_GlobalEvent::PlayerLeave &playerLeave = netMsg.data.globalEvent.data.playerLeave;
     playerLeave.playerId = player.id;
     return BroadcastMsg(netMsg);
+}
+
+ErrorType NetServer::SendChatMessage(const NetServerClient &client, const char *message, size_t messageLength)
+{
+    assert(message);
+    assert(messageLength <= UINT32_MAX);
+
+    NetMessage_ChatMessage chatMsg{};
+    chatMsg.source = NetMessage_ChatMessage::Source::Server;
+    chatMsg.messageLength = (uint32_t)MIN(messageLength, CHATMSG_LENGTH_MAX);
+    memcpy(chatMsg.message, message, chatMsg.messageLength);
+
+    memset(&netMsg, 0, sizeof(netMsg));
+    netMsg.type = NetMessage::Type::ChatMessage;
+    netMsg.data.chatMsg = chatMsg;
+    E_ASSERT(SendMsg(client, netMsg), "Failed to send chat msg");
+    return ErrorType::Success;
 }
 
 ErrorType NetServer::SendWorldChunk(const NetServerClient &client, const Chunk &chunk)
@@ -665,6 +682,94 @@ bool NetServer::IsValidInput(const NetServerClient &client, const InputSample &s
     return true;
 }
 
+void NetServer::ParseCommand(NetServerClient &client, NetMessage_ChatMessage &chatMsg)
+{
+    assert(chatMsg.messageLength);
+    assert(chatMsg.message[0] = '/');
+
+    // Get command name
+    char *command = strtok(chatMsg.message, "/ ");
+    if (!command) {
+        return;
+    }
+
+    int argc = 0;
+    char *argv[SV_COMMAND_MAX_ARGS]{};
+
+    for (;;) {
+        argv[argc] = strtok(0, " ");
+        if (!argv[argc]) break;
+        ++argc;
+    };
+
+#if _DEBUG
+    printf("Command: %s\n", command);
+    for (int i = 0; i < argc; i++) {
+        printf("  args[%d]: %s\n", i, argv[i]);
+    }
+#endif
+
+#define COMMAND_GIVE     "give"
+#define COMMAND_HELP     "help"
+#define COMMAND_TELEPORT "teleport"
+
+#define SUMMARY_GIVE     "[give] Gives an item to the specified player."
+#define SUMMARY_HELP     "[help] Shows the help page for a command."
+#define SUMMARY_TELEPORT "[teleport] Teleports a player to a location."
+
+#define USAGE_GIVE       "/give <player> <item_id> <count>"
+#define USAGE_HELP       "/help <command>"
+#define USAGE_TELEPORT   "/teleport <player> <x> <y> <z>"
+
+    if (!strcmp(command, COMMAND_GIVE)) {
+        if (argc == 3) {
+
+        } else {
+            SendChatMessage(client, CSTR("[give] Invalid arguments."));
+            SendChatMessage(client, CSTR(USAGE_GIVE));
+        }
+    } else if (!strcmp(command, COMMAND_HELP)) {
+        if (argc == 1) {
+            if (!strcmp(argv[0], COMMAND_GIVE)) {
+                SendChatMessage(client, CSTR(SUMMARY_GIVE));
+                SendChatMessage(client, CSTR(USAGE_GIVE));
+            } else if (!strcmp(argv[0], COMMAND_HELP)) {
+                SendChatMessage(client, CSTR(SUMMARY_HELP));
+                SendChatMessage(client, CSTR(USAGE_HELP));
+            } else if (!strcmp(argv[0], COMMAND_TELEPORT)) {
+                SendChatMessage(client, CSTR(SUMMARY_TELEPORT));
+                SendChatMessage(client, CSTR(USAGE_TELEPORT));
+            } else {
+                const char *err = SafeTextFormat("No help page found for '%s'", argv[0]);
+                SendChatMessage(client, err, strlen(err));
+            }
+        } else {
+            SendChatMessage(client, CSTR("[help] Invalid arguments."));
+            SendChatMessage(client, CSTR(USAGE_HELP));
+        }
+    } else if (!strcmp(command, COMMAND_TELEPORT)) {
+        if (argc == 4) {
+
+        } else {
+            SendChatMessage(client, CSTR("[teleport] Invalid arguments."));
+            SendChatMessage(client, CSTR(USAGE_TELEPORT));
+        }
+    } else {
+        const char *err = SafeTextFormat("Unsupported command '%s'", command);
+        SendChatMessage(client, err, strlen(err));
+    }
+
+    //if (!strncmp(chatMsg.message, "/teleport", chatMsg.messageLength)) {
+    //    Player *player = serverWorld->FindPlayer(client.playerId);
+    //    if (player) {
+    //        Vector2 playerBC = player->body.GroundPosition();
+    //        playerBC.x += dlb_rand32f_variance(10000.0f);
+    //        playerBC.y += dlb_rand32f_variance(10000.0f);
+    //        player->body.Teleport({ playerBC.x, playerBC.y, 0.0f });
+    //    }
+    //}
+}
+
 void NetServer::ProcessMsg(NetServerClient &client, ENetPacket &packet)
 {
     assert(serverWorld);
@@ -681,7 +786,7 @@ void NetServer::ProcessMsg(NetServerClient &client, ENetPacket &packet)
         return;
     }
 
-    //E_INFO("[RECV][%21s][%5u b] %16s ", TextFormatIP(client.peer->address), packet.rawBytes.dataLength, netMsg.TypeString());
+    //E_INFO("[RECV][%21s][%5u b] %16s ", SafeTextFormatIP(client.peer->address), packet.rawBytes.dataLength, netMsg.TypeString());
 
     switch (netMsg.type) {
         case NetMessage::Type::Identify: {
@@ -708,22 +813,16 @@ void NetServer::ProcessMsg(NetServerClient &client, ENetPacket &packet)
             chatMsg.source = NetMessage_ChatMessage::Source::Client;
             chatMsg.id = client.playerId;
 
-            if (!strncmp(chatMsg.message, "teleport", chatMsg.messageLength)) {
-                Player *player = serverWorld->FindPlayer(client.playerId);
-                if (player) {
-                    Vector2 playerBC = player->body.GroundPosition();
-                    playerBC.x += dlb_rand32f_variance(10000.0f);
-                    playerBC.y += dlb_rand32f_variance(10000.0f);
-                    player->body.Teleport({playerBC.x, playerBC.y, 0.0f});
-                }
+            if (chatMsg.messageLength && chatMsg.message[0] == '/') {
+                ParseCommand(client, chatMsg);
+            } else {
+                // Store chat netMsg in chat history
+                serverWorld->chatHistory.PushNetMessage(chatMsg);
+
+                // TODO(security): This is currently rebroadcasting user input to all other clients.. ripe for abuse
+                // Broadcast chat netMsg
+                BroadcastMsg(netMsg);
             }
-
-            // Store chat netMsg in chat history
-            serverWorld->chatHistory.PushNetMessage(chatMsg);
-
-            // TODO(security): This is currently rebroadcasting user input to all other clients.. ripe for abuse
-            // Broadcast chat netMsg
-            BroadcastMsg(netMsg);
             break;
         } case NetMessage::Type::Input: {
             NetMessage_Input &input = netMsg.data.input;
@@ -809,7 +908,7 @@ NetServerClient *NetServer::FindClient(ENetPeer *peer)
 
 ErrorType NetServer::RemoveClient(ENetPeer *peer)
 {
-    printf("Remove client %s\n", TextFormatIP(peer->address));
+    printf("Remove client %s\n", SafeTextFormatIP(peer->address));
     NetServerClient *client = FindClient(peer);
     if (client) {
         // TODO: Save from identify packet into NetServerClient, then user client.username
@@ -817,7 +916,7 @@ ErrorType NetServer::RemoveClient(ENetPeer *peer)
         if (player) {
             E_ASSERT(BroadcastPlayerLeave(*player), "Failed to broadcast player leave notification");
 
-            const char *message = TextFormat("%.*s left the game.", player->nameLength, player->name);
+            const char *message = SafeTextFormat("%.*s left the game.", player->nameLength, player->name);
             size_t messageLength = strlen(message);
             NetMessage_ChatMessage chatMsg{};
             chatMsg.source = NetMessage_ChatMessage::Source::Server;
@@ -849,7 +948,7 @@ ErrorType NetServer::Listen(void)
     while (svc > 0) {
         switch (event.type) {
             case ENET_EVENT_TYPE_CONNECT: {
-                E_INFO("A new client connected from %x:%u.", TextFormatIP(event.peer->address));
+                E_INFO("A new client connected from %x:%u.", SafeTextFormatIP(event.peer->address));
                 AddClient(event.peer);
                 break;
             } case ENET_EVENT_TYPE_RECEIVE: {
@@ -867,11 +966,11 @@ ErrorType NetServer::Listen(void)
                 enet_packet_destroy(event.packet);
                 break;
             } case ENET_EVENT_TYPE_DISCONNECT: {
-                E_INFO("%x:%u disconnected.", TextFormatIP(event.peer->address));
+                E_INFO("%x:%u disconnected.", SafeTextFormatIP(event.peer->address));
                 RemoveClient(event.peer);
                 break;
             } case ENET_EVENT_TYPE_DISCONNECT_TIMEOUT: {
-                E_INFO("%x:%u disconnected due to timeout.", TextFormatIP(event.peer->address));
+                E_INFO("%x:%u disconnected due to timeout.", SafeTextFormatIP(event.peer->address));
                 RemoveClient(event.peer);
                 break;
             } default: {

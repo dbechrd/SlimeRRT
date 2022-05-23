@@ -7,14 +7,19 @@ using namespace std::chrono_literals;
 
 const char *GameServer::LOG_SRC = "GameServer";
 
-std::thread &GameServer::StartThread(const Args &args)
+GameServer::GameServer(const Args &args)
 {
-    std::thread *serverThread = new std::thread([&args] {
-        GameServer *gameServer = new GameServer();
-        gameServer->Run(args);
-        delete gameServer;
+    serverThread = new std::thread([this, &args] {
+        Run(args);
     });
-    return *serverThread;
+}
+
+GameServer::~GameServer()
+{
+    if (serverThread) {
+        serverThread->join();
+    }
+    delete serverThread;
 }
 
 ErrorType GameServer::Run(const Args &args)

@@ -510,6 +510,7 @@ RAYGUIAPI bool GuiValueBox(Rectangle bounds, const char *text, int *value, int m
 RAYGUIAPI bool GuiTextBox(Rectangle bounds, char *text, int textSize, bool editMode);                   // Text Box control, updates input text
 RAYGUIAPI bool GuiTextBoxMulti(Rectangle bounds, char *text, int textSize, bool editMode);              // Text Box control with multiple lines
 RAYGUIAPI bool GuiTextBoxAdvanced(GuiTextBoxAdvancedState *textboxState, Rectangle bounds, char *text, int *textSize, int textCapacity, bool readOnly); // Advanced textbox with navigation/selection
+RAYGUIAPI void GuiTextBoxAdvancedPushCodepoint(GuiTextBoxAdvancedState *textboxState, char *text, int *textSize, int textCapacity, int codepoint);
 RAYGUIAPI float GuiSlider(Rectangle bounds, const char *textLeft, const char *textRight, float value, float minValue, float maxValue);       // Slider control, returns selected value
 RAYGUIAPI float GuiSliderBar(Rectangle bounds, const char *textLeft, const char *textRight, float value, float minValue, float maxValue);    // Slider Bar control, returns selected value
 RAYGUIAPI float GuiProgressBar(Rectangle bounds, const char *textLeft, const char *textRight, float value, float minValue, float maxValue);  // Progress Bar control, shows current progress value
@@ -2372,7 +2373,7 @@ bool GuiTextBoxAdvanced(GuiTextBoxAdvancedState *textboxState, Rectangle bounds,
     if (!textboxState->state) {
         textboxState->state = RAYGUI_CALLOC(1, sizeof(rGuiTextBoxAdvancedState));
     }
-    rGuiTextBoxAdvancedState *rTextboxState = ((rGuiTextBoxAdvancedState *)textboxState->state);
+    rGuiTextBoxAdvancedState *rTextboxState = (rGuiTextBoxAdvancedState *)textboxState->state;
     if (!rTextboxState->stb_state.initialized || *textSize == 0) {
         stb_textedit_initialize_state(&rTextboxState->stb_state, 1);
     }
@@ -2596,6 +2597,26 @@ bool GuiTextBoxAdvanced(GuiTextBoxAdvancedState *textboxState, Rectangle bounds,
 
     *textSize = str.used;
     return submit;
+}
+
+void GuiTextBoxAdvancedPushCodepoint(GuiTextBoxAdvancedState *textboxState, char *text, int *textSize, int textCapacity, int codepoint)
+{
+    assert(text);
+    assert(textSize && *textSize >= 0);
+    assert(textCapacity > 0);
+    assert(*textSize < textCapacity);
+
+    rstb_String str = { 0 };
+    str.buffer = text;
+    str.used = *textSize;
+    str.capacity = CHATMSG_LENGTH_MAX;
+
+    rGuiTextBoxAdvancedState *rTextboxState = (rGuiTextBoxAdvancedState *)textboxState->state;
+    stb_textedit_key(&str, &rTextboxState->stb_state, codepoint);
+
+    assert(str.used < str.capacity);
+    text[str.used] = '\0';
+    *textSize = str.used;
 }
 
 // Spinner control, returns selected value

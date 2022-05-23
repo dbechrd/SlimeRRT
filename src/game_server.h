@@ -6,10 +6,12 @@
 #include <thread>
 
 struct GameServer {
-    static std::thread &StartThread(const Args &args);
+    GameServer(const Args &args);
+    ~GameServer();
     ErrorType Run(const Args &args);
 
 private:
     static const char *LOG_SRC;
-    NetServer netServer {};
+    std::thread *serverThread {};
+    NetServer    netServer    {};
 };

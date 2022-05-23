@@ -125,7 +125,7 @@ void UI::Minimap(const Font &font, const Spycam &spycam, const World &world)
             float y = (p.body.WorldPosition().y / camRect.height) * minimapH + minimapY;
             const Color playerColor{ 220, 90, 20, 255 };
             DrawCircle((int)x, (int)y, 2.0f, playerColor);
-            const char *pName = TextFormat("%.*s", p.nameLength, p.name);
+            const char *pName = SafeTextFormat("%.*s", p.nameLength, p.name);
             int nameWidth = MeasureText(pName, font.baseSize);
             DrawTextFont(font, pName, x - (float)(nameWidth / 2), y - font.baseSize - 4, 0, 0, font.baseSize, YELLOW);
         }
@@ -516,43 +516,43 @@ void UI::HUD(const Font &font, const Player &player, const DebugStats &debugStat
 
     hudCursorY += pad;
 
-    text = TextFormat("%2i fps (%.02f ms)", GetFPS(), GetFrameTime() * 1000.0f);
+    text = SafeTextFormat("%2i fps (%.02f ms)", GetFPS(), GetFrameTime() * 1000.0f);
     PUSH_TEXT(text, WHITE);
-    text = TextFormat("Coins: %d", player.inventory.slots[(int)PlayerInventorySlot::Coin_Copper].count);
+    text = SafeTextFormat("Coins: %d", player.inventory.slots[(int)PlayerInventorySlot::Coin_Copper].count);
     PUSH_TEXT(text, YELLOW);
-    text = TextFormat("Coins collected   %u", player.stats.coinsCollected);
+    text = SafeTextFormat("Coins collected   %u", player.stats.coinsCollected);
     PUSH_TEXT(text, LIGHTGRAY);
-    text = TextFormat("Damage dealt      %.2f", player.stats.damageDealt);
+    text = SafeTextFormat("Damage dealt      %.2f", player.stats.damageDealt);
     PUSH_TEXT(text, LIGHTGRAY);
-    text = TextFormat("Kilometers walked %.2f", player.stats.kmWalked);
+    text = SafeTextFormat("Kilometers walked %.2f", player.stats.kmWalked);
     PUSH_TEXT(text, LIGHTGRAY);
-    text = TextFormat("Slimes slain      %u", player.stats.slimesSlain);
+    text = SafeTextFormat("Slimes slain      %u", player.stats.slimesSlain);
     PUSH_TEXT(text, LIGHTGRAY);
-    text = TextFormat("Times fist swung  %u", player.stats.timesFistSwung);
+    text = SafeTextFormat("Times fist swung  %u", player.stats.timesFistSwung);
     PUSH_TEXT(text, LIGHTGRAY);
-    text = TextFormat("Times sword swung %u", player.stats.timesSwordSwung);
+    text = SafeTextFormat("Times sword swung %u", player.stats.timesSwordSwung);
     PUSH_TEXT(text, LIGHTGRAY);
 
     if (debugStats.tick) {
-        text = TextFormat("Tick          %u", debugStats.tick);
+        text = SafeTextFormat("Tick          %u", debugStats.tick);
         PUSH_TEXT(text, GRAY);
-        text = TextFormat("framAccum     %.03f", debugStats.tickAccum);
+        text = SafeTextFormat("framAccum     %.03f", debugStats.tickAccum);
         PUSH_TEXT(text, GRAY);
-        text = TextFormat("frameDt       %.03f", debugStats.frameDt);
+        text = SafeTextFormat("frameDt       %.03f", debugStats.frameDt);
         PUSH_TEXT(text, GRAY);
-        text = TextFormat("Camera speed  %.03f", debugStats.cameraSpeed);
+        text = SafeTextFormat("Camera speed  %.03f", debugStats.cameraSpeed);
         PUSH_TEXT(text, GRAY);
-        text = TextFormat("Zoom          %.03f", spycam->GetZoom());
+        text = SafeTextFormat("Zoom          %.03f", spycam->GetZoom());
         PUSH_TEXT(text, GRAY);
-        text = TextFormat("Zoom inverse  %.03f", spycam->GetInvZoom());
+        text = SafeTextFormat("Zoom inverse  %.03f", spycam->GetInvZoom());
         PUSH_TEXT(text, GRAY);
-        text = TextFormat("Zoom mip      %d", spycam->GetZoomMipLevel());
+        text = SafeTextFormat("Zoom mip      %d", spycam->GetZoomMipLevel());
         PUSH_TEXT(text, GRAY);
-        text = TextFormat("Tiles visible %zu", debugStats.tilesDrawn);
+        text = SafeTextFormat("Tiles visible %zu", debugStats.tilesDrawn);
         PUSH_TEXT(text, GRAY);
-        text = TextFormat("Particle FX   %zu", debugStats.effectsActive);
+        text = SafeTextFormat("Particle FX   %zu", debugStats.effectsActive);
         PUSH_TEXT(text, GRAY);
-        text = TextFormat("Particles     %zu", debugStats.particlesActive);
+        text = SafeTextFormat("Particles     %zu", debugStats.particlesActive);
         PUSH_TEXT(text, GRAY);
     }
 
@@ -573,19 +573,19 @@ void UI::HUD(const Font &font, const Player &player, const DebugStats &debugStat
             bytesSentStart = debugStats.bytes_sent;
             bytesRecvStart = debugStats.bytes_recv;
         }
-        text = TextFormat("Ping          %u", debugStats.rtt);
+        text = SafeTextFormat("Ping          %u", debugStats.rtt);
         PUSH_TEXT(text, GRAY);
-        text = TextFormat("Packets sent  %llu", debugStats.packets_sent);
+        text = SafeTextFormat("Packets sent  %llu", debugStats.packets_sent);
         PUSH_TEXT(text, GRAY);
-        text = TextFormat("Packets lost  %u", debugStats.packets_lost);
+        text = SafeTextFormat("Packets lost  %u", debugStats.packets_lost);
         PUSH_TEXT(text, GRAY);
-        //text = TextFormat("Bytes sent    %llu", debugStats.bytes_sent);
+        //text = SafeTextFormat("Bytes sent    %llu", debugStats.bytes_sent);
         //PUSH_TEXT(text, GRAY);
-        //text = TextFormat("Bytes recv    %llu", debugStats.bytes_recv);
+        //text = SafeTextFormat("Bytes recv    %llu", debugStats.bytes_recv);
         //PUSH_TEXT(text, GRAY);
-        text = TextFormat("Up         %8.03f kbps", kbpsOut);
+        text = SafeTextFormat("Up         %8.03f kbps", kbpsOut);
         PUSH_TEXT(text, GRAY);
-        text = TextFormat("Down       %8.03f kbps", kbpsIn);
+        text = SafeTextFormat("Down       %8.03f kbps", kbpsIn);
         PUSH_TEXT(text, GRAY);
     } else {
         bytesSentStart = 0;
@@ -619,7 +619,7 @@ void UI::HUD(const Font &font, const Player &player, const DebugStats &debugStat
         PUSH_TEXT("Connected clients:", WHITE);
 
         for (auto &kv : gameServer.clients) {
-            text = TextFormatIP(kv.second.address);
+            text = SafeTextFormatIP(kv.second.address);
             PUSH_TEXT(text, WHITE);
         }
     }
@@ -650,7 +650,7 @@ void UI::QuickHUD(const Font &font, const Player &player, const Tilemap &tilemap
     frameRect.height = (float)gildedSpriteDef->spritesheet->frames[3].height;
     DrawTextureRec(gildedSpriteDef->spritesheet->texture, frameRect, { margin + pad, hudCursorY }, WHITE);
 
-    text = TextFormat("%d", player.inventory.slots[(int)PlayerInventorySlot::Coin_Copper].count);
+    text = SafeTextFormat("%d", player.inventory.slots[(int)PlayerInventorySlot::Coin_Copper].count);
     DrawTextFont(font, text, margin + pad + frameRect.width + pad, hudCursorY, 0, 0, font.baseSize, WHITE);
     hudCursorY += font.baseSize + pad;
 
@@ -660,15 +660,15 @@ void UI::QuickHUD(const Font &font, const Player &player, const Tilemap &tilemap
     const int16_t playerTileX = tilemap.CalcChunkTile(playerBC.x);
     const int16_t playerTileY = tilemap.CalcChunkTile(playerBC.y);
 
-    text = TextFormat("world: %0.2f %0.2f", playerBC.x, playerBC.y);
+    text = SafeTextFormat("world: %0.2f %0.2f", playerBC.x, playerBC.y);
     DrawTextFont(font, text, margin + pad + frameRect.width + pad, hudCursorY, 0, 0, font.baseSize, WHITE);
     hudCursorY += font.baseSize + pad;
 
-    text = TextFormat("chunk: %7d %7d", playerChunkX, playerChunkY);
+    text = SafeTextFormat("chunk: %7d %7d", playerChunkX, playerChunkY);
     DrawTextFont(font, text, margin + pad + frameRect.width + pad, hudCursorY, 0, 0, font.baseSize, WHITE);
     hudCursorY += font.baseSize + pad;
 
-    text = TextFormat(" tile: %7d %7d", playerTileX, playerTileY);
+    text = SafeTextFormat(" tile: %7d %7d", playerTileX, playerTileY);
     DrawTextFont(font, text, margin + pad + frameRect.width + pad, hudCursorY, 0, 0, font.baseSize, WHITE);
     hudCursorY += font.baseSize + pad;
 }
@@ -686,10 +686,21 @@ void UI::Chat(const Font &font, int fontSize, World &world, NetClient &netClient
 
     // Render chat input box
     static GuiTextBoxAdvancedState chatInputState;
-    if (chatActive) {
-        static int chatInputTextLen = 0;
-        static char chatInputText[CHATMSG_LENGTH_MAX]{};
+    static int chatInputTextLen = 0;
+    static char chatInputText[CHATMSG_LENGTH_MAX]{};
 
+    // HACK: Check for this *after* rendering chat to avoid pressing "t" causing it to show up in the chat box
+    bool addCommandSlash = false;
+    if (!chatActive && processKeyboard && (IsKeyPressed(KEY_T) || IsKeyPressed(KEY_SLASH))) {
+        if (IsKeyPressed(KEY_SLASH)) {
+            addCommandSlash = true;
+        }
+        processKeyboard = false;
+        chatActive = true;
+        GuiSetActiveTextbox(&chatInputState);
+    }
+
+    if (chatActive) {
         Rectangle chatInputRect = { margin, screenSize.y - margin - inputBoxHeight, chatWidth, inputBoxHeight };
         if (GuiTextBoxAdvanced(&chatInputState, chatInputRect, chatInputText, &chatInputTextLen, CHATMSG_LENGTH_MAX, !processKeyboard)) {
             if (chatInputTextLen) {
@@ -712,10 +723,14 @@ void UI::Chat(const Font &font, int fontSize, World &world, NetClient &netClient
         }
     }
 
-    // HACK: Check for this *after* rendering chat to avoid pressing "t" causing it to show up in the chat box
-    if (processKeyboard && IsKeyDown(KEY_T) && !chatActive) {
-        chatActive = true;
-        GuiSetActiveTextbox(&chatInputState);
+    if (addCommandSlash) {
+        GuiTextBoxAdvancedPushCodepoint(&chatInputState, chatInputText, &chatInputTextLen, CHATMSG_LENGTH_MAX, '/');
+        //rstb_String str = { 0 };
+        //str.buffer = chatInputText;
+        //str.used = chatInputTextLen;
+        //str.capacity = CHATMSG_LENGTH_MAX;
+        //stb_textedit_key(&str, (STB_TexteditState *)chatInputState.state, KEY_SLASH);
+        //chatInputTextLen = str.used;
     }
 }
 
@@ -746,13 +761,13 @@ void UI::TileHoverTip(const Font &font, const Tilemap &map)
     DrawRectangleLinesEx(tooltipRect, 1, Fade(BLACK, 0.8f));
 
     int lineOffset = 0;
-    DrawTextFont(font, TextFormat("tilePos : %d, %d", mouseTileX, mouseTileY),
+    DrawTextFont(font, SafeTextFormat("tilePos : %d, %d", mouseTileX, mouseTileY),
         tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, 0, 0, font.baseSize, WHITE);
     lineOffset += font.baseSize;
-    DrawTextFont(font, TextFormat("tileSize: %zu, %zu", TILE_W, TILE_W),
+    DrawTextFont(font, SafeTextFormat("tileSize: %zu, %zu", TILE_W, TILE_W),
         tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, 0, 0, font.baseSize, WHITE);
     lineOffset += font.baseSize;
-    DrawTextFont(font, TextFormat("tileType: %d", mouseTile->type),
+    DrawTextFont(font, SafeTextFormat("tileType: %d", mouseTile->type),
         tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, 0, 0, font.baseSize, WHITE);
     lineOffset += font.baseSize;
 }
@@ -1083,6 +1098,13 @@ void UI::Inventory(const Texture &invItems, Player& player, NetClient &netClient
                     }
                     netClient.SendSlotDrop(slot, dropCount);
                 }
+#if _DEBUG
+                else if (IsKeyPressed(KEY_KP_ADD)) {
+                    invStack.id = (Catalog::ItemID)(((int)invStack.id + 1) % (int)Catalog::ItemID::Count);
+                } else if (IsKeyPressed(KEY_KP_SUBTRACT)) {
+                    invStack.id = (Catalog::ItemID)(((int)invStack.id - 1 + (int)Catalog::ItemID::Count) % (int)Catalog::ItemID::Count);
+                }
+#endif
 
                 if (invStack.count && !cursorStack.count) {
                     const char *invName = invStack.Name();
@@ -1101,7 +1123,9 @@ void UI::Inventory(const Texture &invItems, Player& player, NetClient &netClient
     ImGui::PopStyleVar(6);
 
     if (cursorStack.count) {
+#if CURSOR_ITEM_HIDES_POINTER
         HideCursor();
+#endif
 
         ImDrawList *drawList = ImGui::GetForegroundDrawList();
         drawList->PushClipRect({0, 0}, {screenSize.x, screenSize.y});
@@ -1119,12 +1143,28 @@ void UI::Inventory(const Texture &invItems, Player& player, NetClient &netClient
         cursorOffset.y = -(ITEM_H / 2);
 #endif
 
+#if 1
         const Rectangle dstRect{
            mouseScreen.x + cursorOffset.x,
            mouseScreen.y + cursorOffset.y,
            32.0f,
            32.0f
         };
+#else
+        // NOTE: This is because there's a fair time gap between EndDrawing() (which calls glfwPollInput
+        // internally) and this code running (e.g. networking happens) during which the mouse can still be
+        // moving. Perhaps it makes sense to always just re-query mouse position rather than using the
+        // Raylib CORE.input cache for any UI stuff?
+        GLFWwindow *glfwWindow = glfwGetCurrentContext();
+        double freshX, freshY;
+        glfwGetCursorPos(glfwWindow, &freshX, &freshY);
+        const Rectangle dstRect{
+           (float)freshX + cursorOffset.x,
+           (float)freshY + cursorOffset.y,
+           32.0f,
+           32.0f
+        };
+#endif
 
 #if 1
         if (uv0.x >= 0.0f && uv0.x < 1.0f &&
@@ -1160,7 +1200,9 @@ void UI::Inventory(const Texture &invItems, Player& player, NetClient &netClient
 
         drawList->PopClipRect();
     } else {
+#if CURSOR_ITEM_HIDES_POINTER
         ShowCursor();
+#endif
     }
 
     ImGui::End();
