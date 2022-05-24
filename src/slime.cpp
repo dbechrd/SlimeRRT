@@ -215,7 +215,7 @@ void Slime::Draw(void) const
 
         sprite_draw_body(sprite, body, Fade(WHITE, 0.7f));
         Vector3 topCenter = WorldTopCenter();
-        HealthBar::Draw(10, { topCenter.x, topCenter.y - topCenter.z }, name, combat);
+        HealthBar::Draw({ topCenter.x, topCenter.y - topCenter.z }, name, combat);
 
 #if DEMO_SNAPSHOT_RADII
         // DEBUG: Draw stale visual marker if no snapshot received in a while

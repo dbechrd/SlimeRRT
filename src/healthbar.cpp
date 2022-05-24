@@ -6,17 +6,17 @@ Font HealthBar::s_font;
 
 void HealthBar::SetFont(const Font font)
 {
-    HealthBar::s_font = font;
+    s_font = font;
 }
 
-void HealthBar::Draw(int fontSize, const Vector2 &topCenter, const char *name, const Combat &combat)
+void HealthBar::Draw(const Vector2 &topCenter, const char *name, const Combat &combat)
 {
-    assert(HealthBar::s_font.baseSize);
+    const int fontSize = s_font.baseSize;
+    assert(fontSize);
 
     Vector2 pad{ 4.0f, 2.0f };
     float x = topCenter.x;
     float y = topCenter.y - 10.0f;
-    //float y = topCenter.y - 10.0f;
 
     //const char *hpText = SafeTextFormat("HP: %.02f / %.02f", hitPoints, hitPointsMax);
     const char *hpText = 0;
@@ -29,16 +29,18 @@ void HealthBar::Draw(int fontSize, const Vector2 &topCenter, const char *name, c
     const char *nameText = name ? SafeTextFormat(name) : nullptr;
 
     Rectangle hpRect{};
-    hpRect.width = (float)MeasureText(hpText, fontSize);
-    hpRect.height = (float)fontSize;
-    hpRect.x = x - ceilf(hpRect.width / 2.0f);
+    Vector2 hpRectMeasure = MeasureTextEx(s_font, hpText, (float)fontSize, 1.0f);
+    hpRect.width = hpRectMeasure.x;
+    hpRect.height = hpRectMeasure.y;
+    hpRect.x = x - hpRect.width / 2.0f;
     hpRect.y = y - fontSize;
 
     Rectangle nameRect{};
     if (nameText) {
-        nameRect.width = (float)MeasureText(nameText, fontSize);
-        nameRect.height = (float)fontSize;
-        nameRect.x = x - ceilf(nameRect.width / 2.0f);
+        Vector2 nameRectMeasure = MeasureTextEx(s_font, nameText, (float)fontSize, 1.0f);
+        nameRect.width = nameRectMeasure.x;
+        nameRect.height = nameRectMeasure.y;
+        nameRect.x = x - nameRect.width / 2.0f;
         nameRect.y = y - fontSize;
         if (combat.hitPointsMax) {
             nameRect.y -= 4.0f + fontSize;
@@ -55,18 +57,21 @@ void HealthBar::Draw(int fontSize, const Vector2 &topCenter, const char *name, c
     bgRect.height = hpRect.height + pad.y * 2.0f;
 
     // Draw background
-    DrawRectangleRec(bgRect, DARKGRAY);
+    DrawRectangleRec(bgRect, Fade(DARKGRAY, 0.8f));
 
-    // Draw hitpoint indicators
     if (combat.hitPointsMax) {
         Rectangle indicatorRect = bgRect;
         indicatorRect.width *= combat.hitPoints / combat.hitPointsMax;
 
+        // Hitpoint indicator bar and text
         DrawRectangleRec(indicatorRect, RED);
         DrawTextFont(s_font, hpText, hpRect.x, hpRect.y, 0, 0, fontSize, WHITE);
     }
 
     // Draw label
     DrawTextFont(s_font, nameText, nameRect.x, nameRect.y, 0, 0, fontSize, WHITE);
-    DrawRectangleLinesEx(bgRect, 1, BLACK);
+
+    if (combat.hitPointsMax) {
+        DrawRectangleLinesEx(bgRect, 1, BLACK);
+    }
 }

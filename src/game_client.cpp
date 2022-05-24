@@ -82,7 +82,8 @@ ErrorType GameClient::Run(void)
     assert(fontSmall.texture.id);
     //assert(fontBig.texture.id);
     GuiSetFont(fontSmall);
-    HealthBar::SetFont(GetFontDefault());
+    //HealthBar::SetFont(GetFontDefault());
+    HealthBar::SetFont(fontSmall);
 
 #if PIXEL_FIXER
     Shader pixelFixer = LoadShader("resources/pixelfixer.vs", "resources/pixelfixer.fs");

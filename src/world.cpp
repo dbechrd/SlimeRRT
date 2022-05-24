@@ -287,7 +287,9 @@ void World::SV_SimSlimes(double dt)
                     coinType = Catalog::ItemID::Currency_Gilded;
                 }
 
-                itemSystem.SpawnItem(slime.WorldCenter(), Catalog::ItemID::Item_Skull_And_Crossbones, 1);
+                Catalog::ItemID itemId = (Catalog::ItemID)dlb_rand32i_range(2, (int)Catalog::ItemID::Count);
+                uint32_t itemCount = dlb_rand32u_range(1, 4);
+                itemSystem.SpawnItem(slime.WorldCenter(), itemId, itemCount);
                 itemSystem.SpawnItem(slime.WorldCenter(), coinType, coins);
                 slime.combat.droppedDeathLoot = true;
             }

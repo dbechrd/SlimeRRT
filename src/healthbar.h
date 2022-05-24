@@ -6,7 +6,7 @@
 
 struct HealthBar {
     static void SetFont(const Font font);
-    static void Draw(int fontSize, const Vector2 &topCenter, const char *name, const Combat &combat);
+    static void Draw(const Vector2 &topCenter, const char *name, const Combat &combat);
 
 private:
     static Font s_font;

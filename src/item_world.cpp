@@ -72,6 +72,6 @@ void ItemWorld::Draw(void) const
         }
 
         Vector3 topCenter = WorldTopCenter();
-        HealthBar::Draw(10, { topCenter.x, topCenter.y - topCenter.z }, name, {});
+        HealthBar::Draw({ topCenter.x, topCenter.y - topCenter.z }, name, {});
     }
 }

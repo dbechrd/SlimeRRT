@@ -160,7 +160,7 @@ void Player::Update(double dt, InputSample &input, const Tilemap &map)
     }
 
     if (combat.hitPoints) {
-        float playerSpeed = 5.0f;
+        float playerSpeed = 3.0f;
         Vector2 move{};
 
         if (input.walkNorth || input.walkEast || input.walkSouth || input.walkWest) {
@@ -170,7 +170,7 @@ void Player::Update(double dt, InputSample &input, const Tilemap &map)
             move.x -= 1.0f * input.walkWest;
             if (input.run) {
                 moveState = Player::MoveState::Running;
-                playerSpeed += 2.0f;
+                playerSpeed += 1.0f;
             } else {
                 moveState = Player::MoveState::Walking;
             }
@@ -349,5 +349,5 @@ void Player::Draw(void) const
 
     sprite_draw_body(sprite, body, combat.hitPoints ? WHITE : GRAY);
     Vector3 topCenter = WorldTopCenter();
-    HealthBar::Draw(10, { topCenter.x, topCenter.y - topCenter.z }, name, combat);
+    HealthBar::Draw({ topCenter.x, topCenter.y - topCenter.z }, name, combat);
 }
