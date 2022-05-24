@@ -46,7 +46,7 @@ struct UI {
     static void WorldGrid(const Spycam &spycam);
 
     // Screen UI
-    static void Minimap(const Font &font, const Spycam &spycam, const World &world);
+    static void Minimap(const Font &font, const Spycam &spycam, World &world);
     static void Menubar(const NetClient &netClient);
     static void ShowDemoWindow();
     static void LoginForm(NetClient &netClient, ImGuiIO& io, bool &escape);

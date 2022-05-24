@@ -359,11 +359,15 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                     size_t idx = chunkIter->second;
                     assert(idx < map.chunks.size());
                     map.chunks[chunkIter->second] = worldChunk.chunk;
-                    map.GenerateMinimap();
                 } else {
                     TraceLog(LOG_DEBUG, "  Adding new chunk to chunk list");
                     map.chunks.emplace_back(worldChunk.chunk);
                     map.chunksIndex[worldChunk.chunk.Hash()] = map.chunks.size() - 1;
+                }
+                // TODO(perf): Only update if chunk is within visible region?
+                Player *player = serverWorld->FindPlayer(serverWorld->playerId);
+                if (player) {
+                    map.GenerateMinimap(player->body.GroundPosition());
                 }
             } else {
                 TraceLog(LOG_ERROR, "  Map is invalid, cannot process chunk");

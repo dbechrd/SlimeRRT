@@ -46,7 +46,7 @@
 #define ITEM_H ITEM_W
 #define TILE_W 32
 #define TILE_H TILE_W
-#define CHUNK_W 32
+#define CHUNK_W 16
 #define CHUNK_H CHUNK_W
 
 #define SV_HOSTNAME_LENGTH_MAX      256

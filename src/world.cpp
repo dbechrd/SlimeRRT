@@ -666,8 +666,8 @@ size_t World::DrawMap(const Spycam &spycam)
 
             // Draw all tiles as textured rects (looks best, performs worst)
             const Tile *tile = map->TileAtWorld(xx, yy);
-            //tileset_draw_tile(map->tilesetId, tile ? tile->type : Tile::Type::Void, { xx, yy });
-            tileset_draw_tile(map->tilesetId, tile ? tile->type : Tile::Type::Grass, { xx, yy });
+            tileset_draw_tile(map->tilesetId, tile ? tile->type : Tile::Type::Void, { xx, yy });
+            //tileset_draw_tile(map->tilesetId, tile ? tile->type : Tile::Type::Grass, { xx, yy });
 #if 0
             if (xx > 20 && yy > 20) {
                 char buf[16]{};

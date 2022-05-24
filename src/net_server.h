@@ -56,7 +56,7 @@ private:
     ErrorType SendItemState        (const NetServerClient &client, const ItemWorld &item, bool nearby, bool spawned);
 
     bool IsValidInput (const NetServerClient &client, const InputSample &sample);
-    void ParseCommand (NetServerClient &client, NetMessage_ChatMessage &chatMsg);
+    bool ParseCommand (NetServerClient &client, NetMessage_ChatMessage &chatMsg);
     void ProcessMsg   (NetServerClient &client, ENetPacket &packet);
 
     NetServerClient *AddClient    (ENetPeer *peer);

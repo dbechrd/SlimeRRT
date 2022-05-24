@@ -23,16 +23,6 @@ bool Tilemap::GenerateNoise(Texture &tex)
         return false;
     }
 
-    Color tileColors[(int)Tile::Type::Count]{};
-    tileColors[(int)Tile::Type::Void] = BLACK;
-    tileColors[(int)Tile::Type::Grass] = GREEN;
-    tileColors[(int)Tile::Type::Water] = SKYBLUE;
-    tileColors[(int)Tile::Type::Forest] = DARKGREEN;
-    tileColors[(int)Tile::Type::Wood] = BROWN;
-    tileColors[(int)Tile::Type::Concrete] = GRAY;
-    tileColors[(int)Tile::Type::Grass2] = GREEN;
-    tileColors[(int)Tile::Type::Grass3] = GREEN;
-
     thread_local OpenSimplexEnv *ose = 0;
     if (!ose) ose = initOpenSimplex();
     thread_local OpenSimplexGradients *osg = 0;
@@ -45,23 +35,23 @@ bool Tilemap::GenerateNoise(Texture &tex)
 #define OFF_Y 2048
 #define FREQ 1.0 / PERIOD
 
-    Image minimapImg{};
-    minimapImg.width = WIDTH;
-    minimapImg.height = HEIGHT;
-    minimapImg.mipmaps = 1;
-    minimapImg.format = PIXELFORMAT_UNCOMPRESSED_GRAYSCALE; //PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
-    minimapImg.data = calloc(WIDTH * HEIGHT, sizeof(uint8_t));
-    assert(minimapImg.data);
+    Image noiseImg{};
+    noiseImg.width = WIDTH;
+    noiseImg.height = HEIGHT;
+    noiseImg.mipmaps = 1;
+    noiseImg.format = PIXELFORMAT_UNCOMPRESSED_GRAYSCALE; //PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
+    noiseImg.data = calloc(WIDTH * HEIGHT, sizeof(uint8_t));
+    assert(noiseImg.data);
 
-    uint8_t *minimapPixel = (uint8_t *)minimapImg.data;
+    uint8_t *noisePixel = (uint8_t *)noiseImg.data;
     for (int y = 0; y < HEIGHT; y++) {
         for (int x = 0; x < WIDTH; x++) {
             const double noise = noise2(ose, osg, (x + OFF_X) * FREQ, (y + OFF_Y) * FREQ);
             //printf("%0.2f ", noise);
 
-            *minimapPixel = (uint8_t)(128.0 + noise * 128.0); // tileColors[(int)tile.type];
+            *noisePixel = (uint8_t)(128.0 + noise * 128.0); // tileColors[(int)tile.type];
             //printf("%d ", *minimapPixel);
-            minimapPixel++;
+            noisePixel++;
         }
         //printf("\n");
     }
@@ -73,58 +63,76 @@ bool Tilemap::GenerateNoise(Texture &tex)
 #undef OFF_Y
 #undef FREQ
 
-    tex = LoadTextureFromImage(minimapImg);
-    free(minimapImg.data);
+    tex = LoadTextureFromImage(noiseImg);
+    free(noiseImg.data);
     return true;
 }
 
-void Tilemap::GenerateMinimap(void)
+void Tilemap::GenerateMinimap(Vector2 worldPos)
 {
-    return;
-
     // Check for OpenGL context
     if (!IsWindowReady()) {
         return;
     }
 
-    UnloadTexture(minimap);
+    thread_local int pixelCount{};
+    thread_local Image minimapImg{};
+    thread_local Color tileColors[(int)Tile::Type::Count]{};
 
-    Image minimapImg{};
+    if (!minimap.width) {
+        minimapImg.width = CHUNK_W * 8;
+        minimapImg.height = CHUNK_W * 8;
+        minimapImg.mipmaps = 1;
+        minimapImg.format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
+        pixelCount = minimapImg.width * minimapImg.height;
+        assert(sizeof(Color) == 4);
+        minimapImg.data = calloc(pixelCount, sizeof(Color));
+        assert(minimapImg.data);
+
+        tileColors[(int)Tile::Type::Void] = BLACK;
+        tileColors[(int)Tile::Type::Grass] = GREEN;
+        tileColors[(int)Tile::Type::Water] = SKYBLUE;
+        tileColors[(int)Tile::Type::Forest] = DARKGREEN;
+        tileColors[(int)Tile::Type::Wood] = BROWN;
+        tileColors[(int)Tile::Type::Concrete] = GRAY;
+        tileColors[(int)Tile::Type::Grass2] = GREEN;
+        tileColors[(int)Tile::Type::Grass3] = GREEN;
+
+        minimap = LoadTextureFromImage(minimapImg);
+    }
+
     // NOTE: This is the client-side world map. Fog of war until tile types known?
-    minimapImg.width = CHUNK_W * 8;
-    minimapImg.height = CHUNK_W * 8;
-    minimapImg.mipmaps = 1;
-    minimapImg.format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
-    assert(sizeof(Color) == 4);
-    minimapImg.data = calloc((size_t)minimapImg.width * minimapImg.height, sizeof(Color));
-    assert(minimapImg.data);
+    Color *minimapPixels = (Color *)minimapImg.data;
+    memset(minimapPixels, 0, pixelCount * sizeof(*minimapPixels));
 
-    Color tileColors[(int)Tile::Type::Count]{};
-    tileColors[(int)Tile::Type::Void] = BLACK;
-    tileColors[(int)Tile::Type::Grass] = GREEN;
-    tileColors[(int)Tile::Type::Water] = SKYBLUE;
-    tileColors[(int)Tile::Type::Forest] = DARKGREEN;
-    tileColors[(int)Tile::Type::Wood] = BROWN;
-    tileColors[(int)Tile::Type::Concrete] = GRAY;
-    tileColors[(int)Tile::Type::Grass2] = GREEN;
-    tileColors[(int)Tile::Type::Grass3] = GREEN;
-
-    // TODO: Calculate chunk x,y for chunk -4,-4 from player's position, to chunk +4, +4
-    // Also, make sure to put pixels in minimapPixel in the correct location
-    Color *minimapPixel = (Color *)minimapImg.data;
-    for (const Chunk &chunk : chunks) {
-        for (size_t i = 0; i < ARRAY_SIZE(chunk.tiles); i++) {
-            const Tile &tile = chunk.tiles[i];
-            // Draw all tiles as different colored pixels
-            assert((int)tile.type >= 0);
-            assert((int)tile.type < (int)Tile::Type::Count);
-            *minimapPixel = tileColors[(int)tile.type];
-            minimapPixel++;
+    const int originChunkX = CalcChunk(worldPos.x);
+    const int originChunkY = CalcChunk(worldPos.y);
+    for (int chunkY = originChunkY - 4; chunkY < originChunkY + 4; chunkY++) {
+        for (int chunkX = originChunkX - 4; chunkX < originChunkX + 4; chunkX++) {
+            ChunkHash chunkHash = Chunk::Hash(chunkX, chunkY);
+            auto chunkIter = chunksIndex.find(chunkHash);
+            if (chunkIter != chunksIndex.end()) {
+                size_t chunkIdx = chunkIter->second;
+                assert(chunkIdx < chunks.size());
+                Chunk &chunk = chunks[chunkIdx];
+                for (int tileY = 0; tileY < CHUNK_W; tileY++) {
+                    for (int tileX = 0; tileX < CHUNK_W; tileX++) {
+                        Tile &tile = chunk.tiles[tileY * CHUNK_W + tileX];
+                        assert((int)tile.type >= 0);
+                        assert((int)tile.type < (int)Tile::Type::Count);
+                        int pixelY = ((chunkY - originChunkY + 4) * CHUNK_W + tileY);
+                        int pixelX = ((chunkX - originChunkX + 4) * CHUNK_W + tileX);
+                        int pixelIdx = pixelY * minimapImg.width + pixelX;
+                        assert(pixelIdx >= 0);
+                        assert(pixelIdx < pixelCount);
+                        minimapPixels[pixelIdx] = tileColors[(int)tile.type];
+                    }
+                }
+            }
         }
     }
 
-    minimap = LoadTextureFromImage(minimapImg);
-    free(minimapImg.data);
+    UpdateTexture(minimap, minimapImg.data);
 }
 
 //const int16_t Tilemap::CalcChunk(float world) const

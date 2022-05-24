@@ -43,10 +43,8 @@ ErrorType GameServer::Run(const Args &args)
     World *world = new World;
     world->map = world->mapSystem.Alloc();
 
-    //world->map->FindOrGenChunk(world->rtt_seed, -1, 0);
-
-    for (short y = -2; y < 2; y++) {
-        for (short x = -2; x < 2; x++) {
+    for (short y = -2; y <= 2; y++) {
+        for (short x = -2; x <= 2; x++) {
             world->map->FindOrGenChunk(world->rtt_seed, x, y);
         }
     }

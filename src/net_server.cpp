@@ -255,8 +255,8 @@ void NetServer::SendNearbyChunks(NetServerClient &client)
         const int16_t chunkX = serverWorld->map->CalcChunk(playerBC.x);
         const int16_t chunkY = serverWorld->map->CalcChunk(playerBC.y);
 
-        for (int y = chunkY - 2; y < chunkY + 2; y++) {
-            for (int x = chunkX - 2; x < chunkX + 2; x++) {
+        for (int y = chunkY - 2; y <= chunkY + 2; y++) {
+            for (int x = chunkX - 2; x <= chunkX + 2; x++) {
                 const ChunkHash chunkHash = Chunk::Hash(x, y);
                 if (!client.chunkHistory.contains(chunkHash)) {
                     const Chunk &chunk = serverWorld->map->FindOrGenChunk(serverWorld->rtt_seed, x, y);
@@ -682,20 +682,21 @@ bool NetServer::IsValidInput(const NetServerClient &client, const InputSample &s
     return true;
 }
 
-void NetServer::ParseCommand(NetServerClient &client, NetMessage_ChatMessage &chatMsg)
+bool NetServer::ParseCommand(NetServerClient &client, NetMessage_ChatMessage &chatMsg)
 {
-    assert(chatMsg.messageLength);
-    assert(chatMsg.message[0] = '/');
-
-    // Get command name
-    char *command = strtok(chatMsg.message, "/ ");
-    if (!command) {
-        return;
+    if (!chatMsg.messageLength || chatMsg.message[0] != '/') {
+        return false;
     }
 
+    // Parse command name
+    char *command = strtok(chatMsg.message, "/ ");
+    if (!command) {
+        return false;
+    }
+
+    // Parse command args
     int argc = 0;
     char *argv[SV_COMMAND_MAX_ARGS]{};
-
     for (;;) {
         argv[argc] = strtok(0, " ");
         if (!argv[argc]) break;
@@ -768,6 +769,7 @@ void NetServer::ParseCommand(NetServerClient &client, NetMessage_ChatMessage &ch
     //        player->body.Teleport({ playerBC.x, playerBC.y, 0.0f });
     //    }
     //}
+    return true;
 }
 
 void NetServer::ProcessMsg(NetServerClient &client, ENetPacket &packet)
@@ -813,9 +815,7 @@ void NetServer::ProcessMsg(NetServerClient &client, ENetPacket &packet)
             chatMsg.source = NetMessage_ChatMessage::Source::Client;
             chatMsg.id = client.playerId;
 
-            if (chatMsg.messageLength && chatMsg.message[0] == '/') {
-                ParseCommand(client, chatMsg);
-            } else {
+            if (!ParseCommand(client, chatMsg)) {
                 // Store chat netMsg in chat history
                 serverWorld->chatHistory.PushNetMessage(chatMsg);
 

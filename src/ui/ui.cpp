@@ -91,21 +91,35 @@ void UI::WorldGrid(const Spycam &spycam)
     DrawLineEx({ (float)center_x, 0 }, { center_x, camRect.height * TILE_H }, 3.0f, GREEN);
 }
 
-void UI::Minimap(const Font &font, const Spycam &spycam, const World &world)
+void UI::Minimap(const Font &font, const Spycam &spycam, World &world)
 {
     const Rectangle &camRect = spycam.GetRect();
 
     // Render minimap
     const int minimapMargin = 6;
-    const int minimapBorderWidth = 1;
+    const int minimapBorderWidth = 2;
     const int minimapX = (int)screenSize.x - minimapMargin - world.map->minimap.width - minimapBorderWidth * 2;
     const int minimapY = minimapMargin;
     const int minimapW = world.map->minimap.width + minimapBorderWidth * 2;
     const int minimapH = world.map->minimap.height + minimapBorderWidth * 2;
     const int minimapTexX = minimapX + minimapBorderWidth;
     const int minimapTexY = minimapY + minimapBorderWidth;
-    DrawRectangleLines(minimapX, minimapY, minimapW, minimapH, BLACK);
-    DrawTexture(world.map->minimap, minimapTexX, minimapTexY, WHITE);
+    DrawRectangle(minimapX, minimapY, minimapW, minimapH, { 220, 200, 135, 255 });
+    DrawRectangleLinesEx({(float)minimapX, (float)minimapY, (float)minimapW, (float)minimapH}, (float)minimapBorderWidth, BLACK);
+
+    Player *player = world.FindPlayer(world.playerId);
+    if (player) {
+        world.map->GenerateMinimap(player->body.GroundPosition());
+        Vector2 playerPos = player->body.GroundPosition();
+        const int offsetX = world.map->CalcChunkTile(playerPos.x) - CHUNK_W / 2;
+        const int offsetY = world.map->CalcChunkTile(playerPos.y) - CHUNK_W / 2;
+        BeginScissorMode(minimapTexX, minimapTexY, world.map->minimap.width, world.map->minimap.height);
+        DrawTexture(world.map->minimap, minimapTexX - offsetX, minimapTexY - offsetY, WHITE);
+        EndScissorMode();
+    }
+
+#if 0
+    // TODO: Fix relative positioning of the map markers now that the map scrolls
 
     // Draw slimes on map
     for (size_t i = 0; i < ARRAY_SIZE(world.slimes); i++) {
@@ -130,6 +144,7 @@ void UI::Minimap(const Font &font, const Spycam &spycam, const World &world)
             DrawTextFont(font, pName, x - (float)(nameWidth / 2), y - font.baseSize - 4, 0, 0, font.baseSize, YELLOW);
         }
     }
+#endif
 }
 
 void UI::Menubar(const NetClient &netClient)

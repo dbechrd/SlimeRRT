@@ -137,11 +137,6 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
             }
             stream.Align();
 
-            // TODO(cleanup): Move this out to net_client.cpp
-            if (mode == BitStream::Mode::Reader) {
-                world.map->GenerateMinimap();
-            }
-
             break;
         } case NetMessage::Type::WorldSnapshot: {
             WorldSnapshot &worldSnapshot = data.worldSnapshot;
@@ -175,7 +170,8 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                 if (player.flags & PlayerSnapshot::Flags::Inventory) {
                     stream.Process((uint8_t &)player.inventory.selectedSlot, 8, 0, (uint8_t)PlayerInventorySlot::Count - 1);
                     const size_t slotCount = ARRAY_SIZE(player.inventory.slots);
-                    bool slotMap[slotCount]{};
+                    thread_local bool slotMap[slotCount];
+                    memset(slotMap, 0, sizeof(slotMap));
                     for (size_t i = 0; i < slotCount; i++) {
                         ItemStack &invStack = player.inventory.slots[i];
                         slotMap[i] = invStack.count > 0;
