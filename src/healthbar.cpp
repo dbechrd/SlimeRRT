@@ -28,6 +28,14 @@ void HealthBar::Draw(const Vector2 &topCenter, const char *name, const Combat &c
     }
     const char *nameText = name ? SafeTextFormat(name) : nullptr;
 
+#if 1
+    if (combat.hitPointsMax) {
+        // HACK: Just show name and bar, no HP text.
+        hpText = nameText;
+        nameText = nullptr;
+    }
+#endif
+
     Rectangle hpRect{};
     Vector2 hpRectMeasure = MeasureTextEx(s_font, hpText, (float)fontSize, 1.0f);
     hpRect.width = hpRectMeasure.x;

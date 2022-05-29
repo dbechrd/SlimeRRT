@@ -15,8 +15,17 @@ void Slime::Init(void)
 {
     assert(!sprite.spriteDef);
 
+    SetName(CSTR("Slime"));
+
     body.drag = 0.95f;
     body.friction = 0.95f;
+
+    combat.hitPointsMax = 30.0f;
+    combat.hitPoints = combat.hitPointsMax;
+    combat.meleeDamage = 10.0f;
+    combat.lootTableId = LootTableID::LT_Slime;
+    //combat.droppedHitLoot = false;
+    //combat.droppedDeathLoot = false;
 
     sprite.scale = 1.0f;
     const Spritesheet &spritesheet = Catalog::g_spritesheets.FindById(Catalog::SpritesheetID::Slime);
@@ -25,17 +34,12 @@ void Slime::Init(void)
         sprite.spriteDef = spriteDef;
     }
 
-    combat.hitPointsMax = 30.0f;
-    combat.hitPoints = combat.hitPointsMax;
-    combat.meleeDamage = 10.0f;
-    combat.lootTableId = LootTableID::LT_Slime;
-    //combat.droppedHitLoot = false;
-    //combat.droppedDeathLoot = false;
     //randJumpIdle = 0.0;
 }
 
 void Slime::SetName(const char *slimeName, uint32_t slimeNameLength)
 {
+    memset(name, 0, nameLength);
     nameLength = MIN(slimeNameLength, USERNAME_LENGTH_MAX);
     memcpy(name, slimeName, nameLength);
 }
