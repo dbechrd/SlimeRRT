@@ -1,9 +1,12 @@
 #pragma once
 #include "args.h"
 #include "error.h"
+#include "input_mode.h"
 #include "net_client.h"
+#include "spycam.h"
 #include "raylib/raygui.h"
 
+struct ImFont;
 struct World;
 
 struct GameClient{
@@ -12,37 +15,55 @@ struct GameClient{
 
 private:
     static const char *LOG_SRC;
+
+    // Pirate exclamations
     const Args &args;
-    World      *world    {};
-    NetClient  netClient {};
 
-    double frameStart     {};
-
+    // Time
+    double       frameStart {};
     const double tickDt = 1.0 / SV_TICK_RATE;
     const double tickDtMax = tickDt * 2.0;
     double       tickAccum {};
-
     const double sendInputDt = 1.0 / CL_INPUT_SEND_RATE;
     const double sendInputDtMax = sendInputDt * 2.0;
     double       sendInputAccum {};
-    InputMode    inputMode = INPUT_MODE_PLAY;
 
-    bool gifRecording = false;
+    // Flags
+    InputMode inputMode = INPUT_MODE_PLAY;
     bool chatVisible = false;
     bool inventoryActive = false;
 
-    Texture checkboardTexture {};
-    Spycam spycam {};
-    Vector2 screenSize {};
-    Shader pixelFixer {};
-    int pixelFixerScreenSizeUniformLoc {};
+    // Fonts
+    ImFont *imFontHack16 {};
+    ImFont *imFontHack32 {};
+    ImFont *imFontHack48 {};
+    Font fontSmall {};
+    Font fontSdf24 {};
+    Font fontSdf72 {};
 
-    void                  Init                    (void);
-    void                  PlayMode_Audio          (double frameDt);
-    PlayerControllerState PlayMode_PollController (void);
-    void                  PlayMode_Update         (const PlayerControllerState &input);
-    void                  PlayMode_HandleInput    (const PlayerControllerState &input);
-    void                  PlayMode_UpdateCamera   (const PlayerControllerState &input, double frameDt);
-    void                  PlayMode_DrawWorld      (bool tileHover);
-    void                  PlayMode_DrawScreen     (bool tileHover);
+    // Textures
+    Texture checkboardTexture {};
+
+    // Shaders
+    Shader pixelFixer {};
+    int    pixelFixerScreenSizeUniformLoc {};
+
+    // Other important stuff
+    Vector2    screenSize {};
+    Spycam     spycam     {};
+    World     *world      {};
+    NetClient  netClient  {};
+
+    // Other random stuff
+    size_t tilesDrawn {};
+
+    void Init                    (void);
+    void PlayMode_PollController (PlayerControllerState &input);
+    ErrorType PlayMode_Network        (double frameDt, PlayerControllerState &input);
+    void PlayMode_Audio          (double frameDt, PlayerControllerState &input);
+    void PlayMode_HandleInput    (double frameDt, PlayerControllerState &input);
+    void PlayMode_UpdateCamera   (double frameDt, PlayerControllerState &input);
+    void PlayMode_Update         (double frameDt, PlayerControllerState &input);
+    void PlayMode_DrawWorld      (double frameDt, PlayerControllerState &input);
+    void PlayMode_DrawScreen     (double frameDt, PlayerControllerState &input);
 };

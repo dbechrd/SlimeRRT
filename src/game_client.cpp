@@ -56,8 +56,9 @@ void GameClient::Init(void)
     //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
     //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
 
-    ImFont *imFontHack16 = io.Fonts->AddFontFromFileTTF("resources/Hack-Bold.ttf", 16.0f);
-    ImFont *imFontHack48 = io.Fonts->AddFontFromFileTTF("resources/Hack-Bold.ttf", 48.0f);
+    imFontHack16 = io.Fonts->AddFontFromFileTTF("resources/Hack-Bold.ttf", 16.0f);
+    imFontHack32 = io.Fonts->AddFontFromFileTTF("resources/Hack-Bold.ttf", 32.0f);
+    imFontHack48 = io.Fonts->AddFontFromFileTTF("resources/Hack-Bold.ttf", 48.0f);
     io.FontDefault = imFontHack16;
 
     // Setup Dear ImGui style
@@ -70,14 +71,10 @@ void GameClient::Init(void)
     ImGui_ImplGlfw_InitForOpenGL(glfwWindow, true);
     ImGui_ImplOpenGL3_Init("#version 130");
 
-    if (netClient.Connect(args.host, args.port, args.user, args.pass) != ErrorType::Success) {
-        TraceLog(LOG_ERROR, "Failed to connect to local server");
-    }
-
     //const char *fontName = "C:/Windows/Fonts/consola.ttf";
     //const char *fontName = "resources/UbuntuMono-Regular.ttf";
     const char *fontName = "resources/Hack-Bold.ttf";
-    Font fontSmall = LoadFontEx(fontName, 16, 0, 0);
+    fontSmall = LoadFontEx(fontName, 16, 0, 0);
     //Font fontBig = LoadFontEx(fontName, 72, 0, 0);
     assert(fontSmall.texture.id);
     //assert(fontBig.texture.id);
@@ -92,8 +89,6 @@ void GameClient::Init(void)
 #endif
 
     // SDF font generation from TTF font
-    Font fontSdf24{};
-    Font fontSdf72{};
     {
         unsigned int fileSize = 0;
         unsigned char *fileData = 0;
@@ -187,13 +182,7 @@ void GameClient::Init(void)
     SetWindowState(FLAG_VSYNC_HINT);
 }
 
-void GameClient::PlayMode_Audio(double frameDt)
-{
-    SetMasterVolume(VolumeCorrection(Catalog::g_mixer.masterVolume));
-    Catalog::g_tracks.Update((float)frameDt);
-}
-
-PlayerControllerState GameClient::PlayMode_PollController(void)
+void GameClient::PlayMode_PollController(PlayerControllerState &input)
 {
     ImGuiIO &io = ImGui::GetIO();
     if (io.WantCaptureKeyboard) {
@@ -212,11 +201,40 @@ PlayerControllerState GameClient::PlayMode_PollController(void)
 
     const bool processMouse = inputMode == INPUT_MODE_PLAY && !io.WantCaptureMouse;
     const bool processKeyboard = inputMode == INPUT_MODE_PLAY;
-    PlayerControllerState input = PlayerControllerState::Query(processMouse, processKeyboard, spycam.freeRoam);
-    return input;
+    input.Query(processMouse, processKeyboard, spycam.freeRoam);
 }
 
-void GameClient::PlayMode_HandleInput(const PlayerControllerState &input)
+ErrorType GameClient::PlayMode_Network(double frameDt, PlayerControllerState &input)
+{
+    E_ASSERT(netClient.Receive(), "Failed to receive packets");
+
+    bool connected = netClient.ConnectedAndSpawned();
+    if (connected && world != netClient.serverWorld) {
+        // We joined a server, take on the server's world
+        world = netClient.serverWorld;
+        tickAccum = 0;
+        sendInputAccum = 0;
+    } else if (!connected && world) {
+        // We disconnected from a server, free the world
+        if (netClient.serverWorld) {
+            delete netClient.serverWorld;
+            netClient.serverWorld = nullptr;
+        }
+        world = nullptr;
+        tickAccum = 0;
+        sendInputAccum = 0;
+    }
+
+    return ErrorType::Success;
+}
+
+void GameClient::PlayMode_Audio(double frameDt, PlayerControllerState &input)
+{
+    SetMasterVolume(VolumeCorrection(Catalog::g_mixer.masterVolume));
+    Catalog::g_tracks.Update((float)frameDt);
+}
+
+void GameClient::PlayMode_HandleInput(double frameDt, PlayerControllerState &input)
 {
     UI::HandleInput(input);
 
@@ -317,29 +335,18 @@ void GameClient::PlayMode_HandleInput(const PlayerControllerState &input)
 #endif
 }
 
-void GameClient::PlayMode_Update(const PlayerControllerState &input)
+void GameClient::PlayMode_UpdateCamera(double frameDt, PlayerControllerState &input)
 {
-    const bool connectedToServer = netClient.ConnectedAndSpawned();
-    if (!connectedToServer) {
-        if (world) {
-            if (netClient.serverWorld) {
-                delete netClient.serverWorld;
-                netClient.serverWorld = nullptr;
-            }
-            world = nullptr;
-            tickAccum = 0;
-            sendInputAccum = 0;
-        }
-        return;
+    if (!spycam.freeRoam) {
+        Player *player = world->FindPlayer(world->playerId);
+        assert(player);
+        spycam.cameraGoal = player->body.GroundPosition();
     }
+    spycam.Update(input, frameDt);
+}
 
-    if (world != netClient.serverWorld) {
-        // We joined a server, switch to the server's world.
-        world = netClient.serverWorld;
-        tickAccum = 0;
-        sendInputAccum = 0;
-    }
-
+void GameClient::PlayMode_Update(double frameDt, PlayerControllerState &input)
+{
     Player *player = world->FindPlayer(world->playerId);
 
     // TODO(cleanup): jump
@@ -348,7 +355,9 @@ void GameClient::PlayMode_Update(const PlayerControllerState &input)
     }
 
     double renderAt = 0;
-    if (connectedToServer) {
+#if 0
+    if (netClient.ConnectedAndSpawned()) {
+#endif
         if (netClient.worldHistory.Count()) {
             const WorldSnapshot &worldSnapshot = netClient.worldHistory.Last();
 
@@ -398,8 +407,8 @@ void GameClient::PlayMode_Update(const PlayerControllerState &input)
             world->CL_Interpolate(renderAt);
             //world->CL_Extrapolate(now - renderAt);
         }
-    } else {
 #if 0
+    } else {
         while (tickAccum > tickDt) {
             InputSample inputSample{};
             inputSample.FromController(player->id, world->tick, input);
@@ -426,23 +435,12 @@ void GameClient::PlayMode_Update(const PlayerControllerState &input)
         //// Interpolate all of the other entities in the world
         //double renderAt = glfwGetTime() - tickDt * 2;
         //world->Interpolate(renderAt);
+    }
 #endif
-    }
 }
 
-void GameClient::PlayMode_UpdateCamera(const PlayerControllerState &input, double frameDt)
+void GameClient::PlayMode_DrawWorld(double frameDt, PlayerControllerState &input)
 {
-    Player *player = world->FindPlayer(world->playerId);
-    if (player && !spycam.freeRoam) {
-        spycam.cameraGoal = player->body.GroundPosition();
-    }
-    spycam.Update(input, frameDt);
-}
-
-void GameClient::PlayMode_DrawWorld(bool tileHover)
-{
-    DrawTexture(checkboardTexture, 0, 0, WHITE);
-
     Camera2D cam = spycam.GetCamera();
     BeginMode2D(cam);
 
@@ -452,12 +450,12 @@ void GameClient::PlayMode_DrawWorld(bool tileHover)
 #if PIXEL_FIXER
     BeginShaderMode(pixelFixer);
 #endif
-    size_t tilesDrawn = world->DrawMap(spycam);
+    tilesDrawn = world->DrawMap(spycam);
 #if PIXEL_FIXER
     EndShaderMode();
 #endif
 
-    if (tileHover) {
+    if (input.dbgFindMouseTile) {
         UI::TileHoverOutline(*world->map);
     }
     world->DrawItems();
@@ -525,14 +523,14 @@ void GameClient::PlayMode_DrawWorld(bool tileHover)
     EndMode2D();
 }
 
-void GameClient::PlayMode_DrawScreen(bool tileHover)
+void GameClient::PlayMode_DrawScreen(double frameDt, PlayerControllerState &input)
 {
     // Render mouse tile tooltip
-    if (tileHover) {
+    if (input.dbgFindMouseTile) {
         UI::TileHoverTip(fontSmall, *world->map);
     }
 
-    UI::Minimap(fontSmall, spycam, *world);
+    UI::Minimap(fontSmall, *world);
 
     // TODO(cleanup): Noise test
     //DrawTexturePro(noise,
@@ -540,7 +538,7 @@ void GameClient::PlayMode_DrawScreen(bool tileHover)
     //    { screenSize.x - 4 - 256, (float)4 + world->map->minimap.height + 4, 256, 256 },
     //    { 0, 0 }, 0, WHITE);
 
-    UI::Chat(fontSdf72, 16, *world, netClient, inputMode == INPUT_MODE_PLAY || inputMode == INPUT_MODE_CHAT, chatVisible, escape);
+    UI::Chat(fontSdf72, 16, *world, netClient, inputMode == INPUT_MODE_PLAY || inputMode == INPUT_MODE_CHAT, chatVisible, input.escape);
 
     // Render HUD
     UI::DebugStats debugStats{};
@@ -560,31 +558,35 @@ void GameClient::PlayMode_DrawScreen(bool tileHover)
         debugStats.bytes_sent = enet_peer_get_bytes_sent(netClient.server);
         debugStats.bytes_recv = enet_peer_get_bytes_received(netClient.server);
     }
-    UI::HUD(fontSmall, *world->map, player, debugStats);
+    UI::HUD(fontSmall, *world, debugStats);
     //UI::QuickHUD(fontSdf24, player, *world->map);
     if (inventoryActive) {
-        UI::Inventory(Catalog::g_items.Tex(), player, netClient, escape, inventoryActive);
+        Player *player = world->FindPlayer(world->playerId);
+        if (player) {
+            UI::Inventory(Catalog::g_items.Tex(), *player, netClient, input.escape, inventoryActive);
+        }
     }
 
     rlDrawRenderBatchActive();
 
     UI::Menubar(netClient);
     UI::ShowDemoWindow();
-    UI::LoginForm(netClient, io, escape);
+    UI::LoginForm(netClient, input.escape);
 
     //if (mixerActive) {
     //    UI::Mixer();
     //}
     //UI::Netstat(netClient, renderAt);
 
-    UI::ParticleConfig(*world, player);
+    UI::ParticleConfig(*world);
 
     //----------------------------------------------------------------------
     // Menu
     //----------------------------------------------------------------------
-    UI::InGameMenu(imFontHack48, escape, connectedToServer);
+    if (input.escape) puts("escape = true");
+    UI::InGameMenu(input.escape, netClient.ConnectedAndSpawned());
 
-    if (UI::DisconnectRequested(connectedToServer)) {
+    if (UI::DisconnectRequested(netClient.ConnectedAndSpawned())) {
         netClient.Disconnect();
         world = nullptr;
     }
@@ -596,6 +598,7 @@ ErrorType GameClient::Run(void)
 
     frameStart = glfwGetTime();
     while (!WindowShouldClose() && !UI::QuitRequested()) {
+        // Time is of the essence
         double now = glfwGetTime();
         double frameDt = now - frameStart;
         // Limit delta time to prevent spiraling for after long hitches (e.g. hitting a breakpoint)
@@ -603,44 +606,53 @@ ErrorType GameClient::Run(void)
         sendInputAccum += MIN(sendInputDt, sendInputDtMax);
         frameStart = now;
 
-        E_ASSERT(netClient.Receive(), "Failed to receive packets");
-        PlayMode_Audio(frameDt);
-        PlayerControllerState input = PlayMode_PollController();
-        PlayMode_HandleInput(input);
-        PlayMode_Update(input);
+        // Collect input
+        PlayerControllerState input{};
+        PlayMode_PollController(input);
 
-        {
-            Rectangle cameraRect = spycam.GetRect();
-            const Vector2 mousePosScreen = GetMousePosition();
-            Vector2 mousePosWorld{
-                cameraRect.x + mousePosScreen.x * spycam.GetInvZoom(),
-                cameraRect.y + mousePosScreen.y * spycam.GetInvZoom()
-            };
-            UI::Begin(mousePosScreen, mousePosWorld, screenSize, &spycam);
+        // Networking
+        E_ASSERT(PlayMode_Network(frameDt, input), "Failed to do message processing");
+
+        if (netClient.ConnectedAndSpawned()) {
+            PlayMode_Audio(frameDt, input);
+            PlayMode_HandleInput(frameDt, input);
+            PlayMode_UpdateCamera(frameDt, input);
+            PlayMode_Update(frameDt, input);
         }
 
-        //----------------------------------------------------------------------
-        // Render setup
-        //----------------------------------------------------------------------
+        // Render: Prologue
         BeginDrawing();
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
-        ClearBackground(ORANGE);
-        //----------------------------------------------------------------------
+        DrawTexture(checkboardTexture, 0, 0, WHITE);
 
-        PlayMode_DrawWorld(input.dbgFindMouseTile);
-        PlayMode_DrawScreen(input.dbgFindMouseTile);
+        // Render: Kernel
+        if (world) {
+            UI::Begin(imFontHack16, imFontHack32, imFontHack48, screenSize, &spycam);
+            PlayMode_DrawWorld(frameDt, input);
+            PlayMode_DrawScreen(frameDt, input);
+        } else {
+            //const char *mainMenuText = "TODO: Main Menu\nFoo foo foo";
+            //Vector2 textRect = MeasureTextEx(fontSdf72, mainMenuText, fontSdf72.baseSize, 1);
+            //DrawTextFont(fontSdf72, mainMenuText,
+            //        screenSize.x / 2 - textRect.x / 2,
+            //        screenSize.y / 2 - textRect.y / 2,
+            //    0, 0, fontSdf72.baseSize, WHITE);
 
-        //
+            rlDrawRenderBatchActive();
+            UI::Begin(imFontHack16, imFontHack32, imFontHack48, screenSize, &spycam);
+            bool escape = IsKeyPressed(KEY_ESCAPE);
+            UI::MainMenu(escape, args, netClient);
+        }
+
+        // Render: Epilogue
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         EndDrawing();
     }
 
-    //----------------------------------------------------------------------
     // Cleanup
-    //----------------------------------------------------------------------
     netClient.CloseSocket();
 
     // TODO: Wrap these in classes to use destructors?

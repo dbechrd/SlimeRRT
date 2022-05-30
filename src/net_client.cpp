@@ -902,7 +902,7 @@ bool NetClient::IsConnected(void) const
 bool NetClient::ConnectedAndSpawned(void) const
 {
     bool connectedAndSpawned =
-        IsConnected()
+        IsConnected() &&
         serverWorld &&
         serverWorld->playerId &&
         serverWorld->FindPlayer(serverWorld->playerId);

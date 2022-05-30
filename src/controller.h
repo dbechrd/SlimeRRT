@@ -41,7 +41,7 @@ struct PlayerControllerState {
     bool dbgKillRtreeRect {};
     bool dbgImgui         {};
 
-    static PlayerControllerState Query(bool ignoreMouse, bool ignoreKeyboard, bool freeCamera);
+    void Query(bool processMouse, bool processKeyboard, bool freeCamera);
 };
 
 struct InputSample {

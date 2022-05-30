@@ -11,6 +11,9 @@ Vector2 UI::mouseScreen;
 Vector2 UI::mouseWorld;
 Vector2 UI::screenSize;
 Spycam  *UI::spycam;
+ImFont *UI::imSmallFont;
+ImFont *UI::imMedFont;
+ImFont *UI::imBigFont;
 
 bool UI::showMenubar = false;
 bool UI::showDemoWindow = false;
@@ -19,6 +22,24 @@ bool UI::showParticleConfig = false;
 
 bool UI::disconnectRequested = false;
 bool UI::quitRequested = false;
+
+void UI::Begin(ImFont *imSmallFont, ImFont *imMedFont, ImFont *imBigFont, Vector2 screenSize, Spycam *spycam)
+{
+    Rectangle cameraRect = spycam->GetRect();
+    const Vector2 mouseScreen = GetMousePosition();
+    Vector2 mouseWorld{
+        cameraRect.x + mouseScreen.x * spycam->GetInvZoom(),
+        cameraRect.y + mouseScreen.y * spycam->GetInvZoom()
+    };
+
+    UI::mouseScreen = mouseScreen;
+    UI::mouseWorld = mouseWorld;
+    UI::screenSize = screenSize;
+    UI::spycam = spycam;
+    UI::imSmallFont = imSmallFont;
+    UI::imMedFont = imMedFont;
+    UI::imBigFont = imBigFont;
+};
 
 void UI::HandleInput(const PlayerControllerState &input)
 {
@@ -224,7 +245,7 @@ void UI::CenteredSliderFloatLeft(const char *label, float *v, float min, float m
     ImGui::PopItemWidth();
 }
 
-void UI::LoginForm(NetClient &netClient, ImGuiIO& io, bool &escape)
+void UI::LoginForm(NetClient &netClient, bool &escape)
 {
     if (netClient.IsConnected()) {
         showLoginWindow = false;
@@ -348,6 +369,7 @@ void UI::LoginForm(NetClient &netClient, ImGuiIO& io, bool &escape)
         }
         bool login = ImGui::Button("Connect##login_window:connect", ImVec2(60, 0));
         ImGui::PopStyleColor(stylesPushed);
+        ImGuiIO &io = ImGui::GetIO();
         if (formValid && (login ||
             IsKeyPressed(io.KeyMap[ImGuiKey_Enter]) ||
             IsKeyPressed(io.KeyMap[ImGuiKey_KeyPadEnter])))
@@ -411,7 +433,7 @@ void UI::Mixer(void)
     ImGui::End();
 }
 
-void UI::ParticleConfig(World &world, Player &player)
+void UI::ParticleConfig(World &world)
 {
     static ParticleEffectParams params{};
 
@@ -460,12 +482,15 @@ void UI::ParticleConfig(World &world, Player &player)
     SliderFloatLeft("##velocityZMax     ", &params.velocityZMax, -10.0f, 10.0f);
     SliderFloatLeft("##friction         ", &params.friction, 0.0f, 10.0f);
     if (ImGui::Button("Generate")) {
-        ParticleEffect *blood = world.particleSystem.GenerateEffect(
-            Catalog::ParticleEffectID::Blood,
-            v3_add(player.body.WorldPosition(), { 0, 0, 40 }),
-            params);
-        if (blood) {
-            blood->effectCallbacks[(size_t)ParticleEffect_Event::BeforeUpdate] = { ParticlesFollowPlayerGut, &player };
+        Player *player = world.FindPlayer(world.playerId);
+        if (player) {
+            ParticleEffect *blood = world.particleSystem.GenerateEffect(
+                Catalog::ParticleEffectID::Blood,
+                v3_add(player->body.WorldPosition(), { 0, 0, 40 }),
+                params);
+            if (blood) {
+                blood->effectCallbacks[(size_t)ParticleEffect_Event::BeforeUpdate] = { ParticlesFollowPlayerGut, &player };
+            }
         }
     }
 
@@ -503,9 +528,18 @@ void UI::Netstat(NetClient &netClient, double renderAt)
     ImGui::End();
 }
 
-void UI::HUD(const Font &font, const Tilemap &tilemap, const Player &player, const DebugStats &debugStats)
+void UI::HUD(const Font &font, World &world, const DebugStats &debugStats)
 {
     assert(spycam);
+
+    if (!world.map) {
+        return;
+    }
+
+    Player *player = world.FindPlayer(world.playerId);
+    if (!player) {
+        return;
+    }
 
     const char *text = 0;
     float hudCursorY = 0;
@@ -537,28 +571,28 @@ void UI::HUD(const Font &font, const Tilemap &tilemap, const Player &player, con
 
     text = SafeTextFormat("%2i fps (%.02f ms)", GetFPS(), GetFrameTime() * 1000.0f);
     PUSH_TEXT(text, WHITE);
-    text = SafeTextFormat("Coins: %d", player.inventory.slots[(int)PlayerInventorySlot::Coin_Copper].count);
+    text = SafeTextFormat("Coins: %d", player->inventory.slots[(int)PlayerInventorySlot::Coin_Copper].count);
     PUSH_TEXT(text, YELLOW);
-    text = SafeTextFormat("Coins collected   %u", player.stats.coinsCollected);
+    text = SafeTextFormat("Coins collected   %u", player->stats.coinsCollected);
     PUSH_TEXT(text, LIGHTGRAY);
-    text = SafeTextFormat("Damage dealt      %.2f", player.stats.damageDealt);
+    text = SafeTextFormat("Damage dealt      %.2f", player->stats.damageDealt);
     PUSH_TEXT(text, LIGHTGRAY);
-    text = SafeTextFormat("Kilometers walked %.2f", player.stats.kmWalked);
+    text = SafeTextFormat("Kilometers walked %.2f", player->stats.kmWalked);
     PUSH_TEXT(text, LIGHTGRAY);
-    text = SafeTextFormat("Slimes slain      %u", player.stats.slimesSlain);
+    text = SafeTextFormat("Slimes slain      %u", player->stats.slimesSlain);
     PUSH_TEXT(text, LIGHTGRAY);
-    text = SafeTextFormat("Times fist swung  %u", player.stats.timesFistSwung);
+    text = SafeTextFormat("Times fist swung  %u", player->stats.timesFistSwung);
     PUSH_TEXT(text, LIGHTGRAY);
-    text = SafeTextFormat("Times sword swung %u", player.stats.timesSwordSwung);
+    text = SafeTextFormat("Times sword swung %u", player->stats.timesSwordSwung);
     PUSH_TEXT(text, LIGHTGRAY);
 
-    const Vector2 playerBC = player.body.GroundPosition();
+    const Vector2 playerBC = player->body.GroundPosition();
     text = SafeTextFormat("World: %0.2f, %0.2f", playerBC.x, playerBC.y);
     PUSH_TEXT(text, LIGHTGRAY);
-    const int16_t playerChunkX = tilemap.CalcChunk(playerBC.x);
-    const int16_t playerChunkY = tilemap.CalcChunk(playerBC.y);
-    const int16_t playerTileX = tilemap.CalcChunkTile(playerBC.x);
-    const int16_t playerTileY = tilemap.CalcChunkTile(playerBC.y);
+    const int16_t playerChunkX = world.map->CalcChunk(playerBC.x);
+    const int16_t playerChunkY = world.map->CalcChunk(playerBC.y);
+    const int16_t playerTileX = world.map->CalcChunkTile(playerBC.x);
+    const int16_t playerTileY = world.map->CalcChunkTile(playerBC.y);
     text = SafeTextFormat("Chunk: %d, %d", playerChunkX, playerChunkY);
     PUSH_TEXT(text, LIGHTGRAY);
     text = SafeTextFormat("Tile:  %d, %d", playerTileX, playerTileY);
@@ -803,7 +837,7 @@ void UI::TileHoverTip(const Font &font, const Tilemap &map)
     lineOffset += font.baseSize;
 }
 
-int UI::Menu(const Font &font, const char **items, size_t itemCount)
+int UI::OldRaylibMenu(const Font &font, const char **items, size_t itemCount)
 {
     // TODO: Better animations/audio
     // Animations: https://www.youtube.com/watch?v=WjyP7cvZ1Ns
@@ -878,7 +912,159 @@ int UI::Menu(const Font &font, const char **items, size_t itemCount)
     return itemPressed;
 }
 
-void UI::InGameMenu(ImFont *bigFont, bool &escape, bool connectedToServer)
+void UI::MainMenu(bool &escape, const Args &args, NetClient &netClient)
+{
+    ImVec2 menuCenter{
+        screenSize.x / 2.0f,
+        screenSize.y / 2.0f
+    };
+    ImGui::SetNextWindowPos(menuCenter, 0, ImVec2(0.5f, 0.5f));
+    ImGui::SetNextWindowSize(ImVec2(600, 400));
+
+    static enum class Menu {
+        Main,
+            Singleplayer,
+            Multiplayer,
+            Audio
+    } currentMenu = Menu::Main;
+
+    ImGui::Begin("MainMenu", 0,
+        //ImGuiWindowFlags_NoTitleBar |
+        //ImGuiWindowFlags_NoResize |
+        //ImGuiWindowFlags_NoCollapse |
+        ImGuiWindowFlags_NoDecoration |
+        ImGuiWindowFlags_NoMove |
+        //ImGuiWindowFlags_NoBackground |
+        ImGuiWindowFlags_NoSavedSettings
+    );
+
+    switch (currentMenu) {
+        case Menu::Main: {
+            // This seems dangerous/annoying if user is spamming escape to get back to root menu
+            //if (escape) {
+            //    quitRequested = true;
+            //    escape = false;
+            //    break;
+            //}
+
+            ImGui::PushFont(UI::imBigFont);
+            CenteredText("Main Menu");
+            ImGui::PopFont();
+
+            ImGui::PushFont(UI::imMedFont);
+            ImGui::MenuItem("Single player");
+            if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
+                currentMenu = Menu::Singleplayer;
+            }
+            ImGui::MenuItem("Multiplayer");
+            if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
+                currentMenu = Menu::Multiplayer;
+            }
+            ImGui::MenuItem("Audio");
+            if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
+                currentMenu = Menu::Audio;
+            }
+            ImGui::MenuItem("Quit");
+            if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
+                quitRequested = true;
+            }
+            ImGui::PopFont();
+            break;
+        } case Menu::Singleplayer: {
+            if (escape || ImGui::Button("< Back")) {
+                currentMenu = Menu::Main;
+                escape = false;
+                break;
+            }
+            ImGui::SameLine();
+            ImGui::SetCursorPosY(5);  // idk how to calculate this properly
+            ImGui::PushFont(UI::imBigFont);
+            CenteredText("Choose a world:");
+            ImGui::PopFont();
+
+            ImGui::PushFont(UI::imMedFont);
+            if (ImGui::MenuItem("Dandyland")) {
+                // TODO: start GameServer in a new thread, then join it
+                //if (netClient.Connect(args.host, args.port, args.user, args.pass) != ErrorType::Success) {
+                //    TraceLog(LOG_ERROR, "Failed to connect to local server");
+                //}
+            }
+            ImGui::PopFont();
+            break;
+        } case Menu::Multiplayer: {
+            if (escape || ImGui::Button("< Back")) {
+                currentMenu = Menu::Main;
+                escape = false;
+                break;
+            }
+            ImGui::SameLine();
+            ImGui::SetCursorPosY(5);  // idk how to calculate this properly
+            ImGui::PushFont(UI::imBigFont);
+            CenteredText("Multiplayer");
+            ImGui::PopFont();
+
+            ImGui::PushFont(UI::imMedFont);
+            if (ImGui::MenuItem("Dandyland via DNS")) {
+                if (netClient.Connect(args.host, args.port, args.user, args.pass) != ErrorType::Success) {
+                    TraceLog(LOG_ERROR, "Failed to connect to local server");
+                }
+            }
+            ImGui::PopFont();
+            break;
+        } case Menu::Audio: {
+            if (escape || ImGui::Button("< Back")) {
+                currentMenu = Menu::Main;
+                escape = false;
+                break;
+            }
+            ImGui::SameLine();
+            ImGui::SetCursorPosX(ImGui::GetContentRegionMax().x - 100);
+            static bool audioAdvanced = false;
+            if (ImGui::Button(audioAdvanced ? "Show Less" : "Show More", ImVec2(100, 0))) {
+                audioAdvanced = !audioAdvanced;
+            }
+            ImGui::SameLine();
+            ImGui::SetCursorPosY(5);  // idk how to calculate this properly
+            ImGui::PushFont(UI::imBigFont);
+            CenteredText("Audio");
+            ImGui::PopFont();
+
+            ImGui::PushFont(UI::imMedFont);
+            CenteredSliderFloatLeft("##Master", &Catalog::g_mixer.masterVolume, 0.0f, 1.0f);
+            CenteredSliderFloatLeft("##Music ", &Catalog::g_mixer.musicVolume, 0.0f, 1.0f);
+            CenteredSliderFloatLeft("##Sfx   ", &Catalog::g_mixer.sfxVolume, 0.0f, 1.0f);
+
+            if (audioAdvanced) {
+                if (ImGui::TreeNode("Tracks")) {
+                    for (size_t i = 1; i < (size_t)Catalog::TrackID::Count; i++) {
+                        if (ImGui::TreeNode(Catalog::TrackIDString((Catalog::TrackID)i))) {
+                            SliderFloatLeft("##vLimit  ", &Catalog::g_tracks.mixer.volumeLimit[i], 0.0f, 1.0f);
+                            SliderFloatLeft("##vVolume ", &Catalog::g_tracks.mixer.volume[i], 0.0f, 1.0f);
+                            SliderFloatLeft("##vSpeed  ", &Catalog::g_tracks.mixer.volumeSpeed[i], 0.0f, 2.0f);
+                            SliderFloatLeft("##vTarget ", &Catalog::g_tracks.mixer.volumeTarget[i], 0.0f, 1.0f);
+                            ImGui::TreePop();
+                        }
+                    }
+                    ImGui::TreePop();
+                }
+                if (ImGui::TreeNode("Sound FX")) {
+                    for (size_t i = 1; i < (size_t)Catalog::SoundID::Count; i++) {
+                        if (ImGui::TreeNode(Catalog::SoundIDString((Catalog::SoundID)i))) {
+                            SliderFloatLeft("##vLimit  ", &Catalog::g_sounds.mixer.volumeLimit[i], 0.0f, 1.0f);
+                            ImGui::TreePop();
+                        }
+                    }
+                    ImGui::TreePop();
+                }
+            }
+            ImGui::PopFont();
+            break;
+        }
+    }
+    ImGui::End();
+}
+
+void UI::InGameMenu(bool &escape, bool connectedToServer)
 {
     const char *menuId = "EscMenu";
     if (!ImGui::IsPopupOpen(menuId) && escape) {
@@ -917,8 +1103,11 @@ void UI::InGameMenu(ImFont *bigFont, bool &escape, bool connectedToServer)
                     break;
                 }
 
-                ImGui::PushFont(bigFont);
-                CenteredText("Main Menu");
+                ImGui::PushFont(UI::imBigFont);
+                CenteredText("What's up?");
+                ImGui::PopFont();
+
+                ImGui::PushFont(UI::imMedFont);
                 ImGui::MenuItem("Resume");
                 if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
                     ImGui::CloseCurrentPopup();
@@ -957,14 +1146,14 @@ void UI::InGameMenu(ImFont *bigFont, bool &escape, bool connectedToServer)
                 }
                 ImGui::SameLine();
                 ImGui::SetCursorPosY(5);  // idk how to calculate this properly
-                ImGui::PushFont(bigFont);
+                ImGui::PushFont(UI::imBigFont);
                 CenteredText("Audio");
                 ImGui::PopFont();
 
+                ImGui::PushFont(UI::imMedFont);
                 CenteredSliderFloatLeft("##Master", &Catalog::g_mixer.masterVolume, 0.0f, 1.0f);
                 CenteredSliderFloatLeft("##Music ", &Catalog::g_mixer.musicVolume, 0.0f, 1.0f);
                 CenteredSliderFloatLeft("##Sfx   ", &Catalog::g_mixer.sfxVolume, 0.0f, 1.0f);
-
                 if (audioAdvanced) {
                     if (ImGui::TreeNode("Tracks")) {
                         for (size_t i = 1; i < (size_t)Catalog::TrackID::Count; i++) {
@@ -988,6 +1177,7 @@ void UI::InGameMenu(ImFont *bigFont, bool &escape, bool connectedToServer)
                         ImGui::TreePop();
                     }
                 }
+                ImGui::PopFont();
                 break;
             }
         }
@@ -997,9 +1187,12 @@ void UI::InGameMenu(ImFont *bigFont, bool &escape, bool connectedToServer)
 
 void UI::Inventory(const Texture &invItems, Player& player, NetClient &netClient, bool &escape, bool &inventoryActive)
 {
-    if (inventoryActive && escape) {
+    if (!inventoryActive) {
+        return;
+    } else if (escape) {
         inventoryActive = false;
         escape = false;
+        return;
     }
 
     const ImVec2 inventorySize{ 540.0, 360.0f };

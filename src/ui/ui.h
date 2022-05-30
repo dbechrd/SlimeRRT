@@ -25,18 +25,7 @@ struct UI {
         uint64_t bytes_recv;
     };
 
-    static void Begin(
-        Vector2 mouseScreen,
-        Vector2 mouseWorld,
-        Vector2 screenSize,
-        Spycam  *spycam
-    ) {
-        UI::mouseScreen = mouseScreen;
-        UI::mouseWorld  = mouseWorld;
-        UI::screenSize  = screenSize;
-        UI::spycam      = spycam;
-    };
-
+    static void Begin(ImFont *imSmallFont, ImFont *imMedFont, ImFont *imBigFont, Vector2 screenSize, Spycam *spycam);
     static void HandleInput(const PlayerControllerState &input);
     static bool DisconnectRequested(bool connectedToServer);
     static bool QuitRequested();
@@ -49,16 +38,17 @@ struct UI {
     static void Minimap(const Font &font, World &world);
     static void Menubar(const NetClient &netClient);
     static void ShowDemoWindow();
-    static void LoginForm(NetClient &netClient, ImGuiIO& io, bool &escape);
+    static void LoginForm(NetClient &netClient, bool &escape);
     static void Mixer(void);
-    static void ParticleConfig(World &world, Player &player);
+    static void ParticleConfig(World &world);
     static void Netstat(NetClient &netClient, double renderAt);
-    static void HUD(const Font &font, const Tilemap &tilemap, const Player &player, const DebugStats &debugStats);
+    static void HUD(const Font &font, World &world, const DebugStats &debugStats);
     static void QuickHUD(const Font &font, const Player &player, const Tilemap &tilemap);
     static void Chat(const Font &font, int fontSize, World &world, NetClient &netClient, bool processKeyboard, bool &chatActive, bool &escape);
     static void TileHoverTip(const Font &font, const Tilemap &map);
-    static int  Menu(const Font &font, const char **items, size_t itemCount);
-    static void InGameMenu(struct ImFont *bigFont, bool &escape, bool connectedToServer);
+    static int  OldRaylibMenu(const Font &font, const char **items, size_t itemCount);
+    static void MainMenu(bool &escape, const Args &args, NetClient &netClient);
+    static void InGameMenu(bool &escape, bool connectedToServer);
     static void Inventory(const Texture &invItems, Player &player, NetClient &netClient, bool &escape, bool &inventoryActive);
 
 private:
@@ -66,6 +56,9 @@ private:
     static Vector2 mouseWorld;
     static Vector2 screenSize;
     static Spycam  *spycam;
+    static ImFont  *imSmallFont;
+    static ImFont  *imMedFont;
+    static ImFont  *imBigFont;
 
     static bool showMenubar;
     static bool showDemoWindow;
