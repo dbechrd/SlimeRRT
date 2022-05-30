@@ -899,6 +899,16 @@ bool NetClient::IsConnected(void) const
     return server && server->state == ENET_PEER_STATE_CONNECTED;
 }
 
+bool NetClient::ConnectedAndSpawned(void) const
+{
+    bool connectedAndSpawned =
+        IsConnected()
+        serverWorld &&
+        serverWorld->playerId &&
+        serverWorld->FindPlayer(serverWorld->playerId);
+    return connectedAndSpawned;
+}
+
 bool NetClient::IsDisconnected(void) const
 {
     return !server || server->state == ENET_PEER_STATE_DISCONNECTED;

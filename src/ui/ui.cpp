@@ -20,7 +20,7 @@ bool UI::showParticleConfig = false;
 bool UI::disconnectRequested = false;
 bool UI::quitRequested = false;
 
-void UI::HandleInput(PlayerControllerState &input)
+void UI::HandleInput(const PlayerControllerState &input)
 {
     if (input.dbgImgui) {
         UI::showMenubar = !UI::showMenubar;
@@ -64,9 +64,11 @@ void UI::TileHoverOutline(const Tilemap &map)
     DrawRectangleLinesEx(mouseTileRect, floorf(spycam->GetInvZoom()), RED);
 }
 
-void UI::WorldGrid(const Spycam &spycam)
+void UI::WorldGrid()
 {
-    const Rectangle &camRect = spycam.GetRect();
+    assert(spycam);
+
+    const Rectangle &camRect = spycam->GetRect();
     for (float y = 0; y <= camRect.height; y++) {
         DrawLine(
             (int)(camRect.x + 0),
@@ -91,9 +93,11 @@ void UI::WorldGrid(const Spycam &spycam)
     DrawLineEx({ (float)center_x, 0 }, { center_x, camRect.height * TILE_H }, 3.0f, GREEN);
 }
 
-void UI::Minimap(const Font &font, const Spycam &spycam, World &world)
+void UI::Minimap(const Font &font, World &world)
 {
-    const Rectangle &camRect = spycam.GetRect();
+    assert(spycam);
+
+    const Rectangle &camRect = spycam->GetRect();
 
     // Render minimap
     const int minimapMargin = 6;

@@ -21,21 +21,22 @@ struct NetClient {
     RingBuffer<WorldSnapshot, CL_WORLD_HISTORY> worldHistory {};
 
     ~NetClient();
-    ErrorType OpenSocket      (void);
-    ErrorType Connect         (const char *serverHost, unsigned short serverPort, const char *user, const char *password);
-    ErrorType SendChatMessage (const char *message, size_t messageLength);
-    ErrorType SendSlotClick   (int slot, bool doubleClicked);
-    ErrorType SendSlotScroll  (int slot, int scrollY);
-    ErrorType SendSlotDrop    (int slot, uint32_t count);
-    ErrorType SendPlayerInput (void);
-    void      PredictPlayer   (void);
-    void      ReconcilePlayer (double tickDt);
-    ErrorType Receive         (void);
-    bool      IsConnecting    (void) const;
-    bool      IsConnected     (void) const;
-    bool      IsDisconnected  (void) const;
-    void      Disconnect      (void);
-    void      CloseSocket     (void);
+    ErrorType OpenSocket          (void);
+    ErrorType Connect             (const char *serverHost, unsigned short serverPort, const char *user, const char *password);
+    ErrorType SendChatMessage     (const char *message, size_t messageLength);
+    ErrorType SendSlotClick       (int slot, bool doubleClicked);
+    ErrorType SendSlotScroll      (int slot, int scrollY);
+    ErrorType SendSlotDrop        (int slot, uint32_t count);
+    ErrorType SendPlayerInput     (void);
+    void      PredictPlayer       (void);
+    void      ReconcilePlayer     (double tickDt);
+    ErrorType Receive             (void);
+    bool      IsConnecting        (void) const;
+    bool      IsConnected         (void) const;
+    bool      IsDisconnected      (void) const;
+    void      Disconnect          (void);
+    void      CloseSocket         (void);
+    bool      ConnectedAndSpawned (void) const;
 
 private:
     static const char *LOG_SRC;

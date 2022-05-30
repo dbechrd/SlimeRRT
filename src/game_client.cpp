@@ -43,16 +43,16 @@ inline void RainbowParticlesDamagePlayer(Particle &particle, void *userData)
     }
 }
 
-ErrorType GameClient::Run(void)
+void GameClient::Init(void)
 {
     SetWindowState(FLAG_WINDOW_RESIZABLE);
     SetExitKey(0);  // Disable default Escape exit key, we'll handle escape ourselves
-    Vector2 screenSize{ (float)GetRenderWidth(), (float)GetRenderHeight() };
+    screenSize = { (float)GetRenderWidth(), (float)GetRenderHeight() };
 
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO();
+    ImGuiIO &io = ImGui::GetIO();
     //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
     //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
 
@@ -86,8 +86,8 @@ ErrorType GameClient::Run(void)
     HealthBar::SetFont(fontSmall);
 
 #if PIXEL_FIXER
-    Shader pixelFixer = LoadShader("resources/pixelfixer.vs", "resources/pixelfixer.fs");
-    const int pixelFixerScreenSizeUniformLoc = GetShaderLocation(pixelFixer, "screenSize");
+    pixelFixer                     = LoadShader("resources/pixelfixer.vs", "resources/pixelfixer.fs");
+    pixelFixerScreenSizeUniformLoc = GetShaderLocation(pixelFixer, "screenSize");
     SetShaderValue(pixelFixer, pixelFixerScreenSizeUniformLoc, &screenSize, SHADER_UNIFORM_VEC2);
 #endif
 
@@ -132,7 +132,6 @@ ErrorType GameClient::Run(void)
     const int monitorWidth = GetMonitorWidth(0);
     const int monitorHeight = GetMonitorHeight(0);
 
-    Spycam spycam{};
     spycam.Init({ screenSize.x * 0.5f, screenSize.y * 0.5f });
 
     InitAudioDevice();
@@ -154,28 +153,8 @@ ErrorType GameClient::Run(void)
     Catalog::g_sounds.mixer.volumeLimit[(size_t)Catalog::SoundID::Whoosh] = 0.6f;
 
     Image checkerboardImage = GenImageChecked(monitorWidth, monitorHeight, 32, 32, LIGHTGRAY, GRAY);
-    Texture checkboardTexture = LoadTextureFromImage(checkerboardImage);
+    checkboardTexture = LoadTextureFromImage(checkerboardImage);
     UnloadImage(checkerboardImage);
-
-    World *lobby = new World;
-    lobby->tick = 1;
-    lobby->map = lobby->mapSystem.Alloc();
-    Slime &sam = lobby->SpawnSam();
-    world = lobby;
-
-    {
-        Player *player = lobby->AddPlayer(0);
-        assert(player);
-        lobby->playerId = player->id;
-        memcpy(player->name, CSTR("dandy"));
-        player->nameLength = (uint32_t)strlen(player->name);
-        player->combat.hitPoints = MAX(0, player->combat.hitPointsMax - 25);
-        //player->body.position.x = 1373.49854f;
-        // 1600 x 900
-        //player->body.position.x = 1373.498f;
-        // 1610 x 910
-        //player->body.position.x = 1457.83557f;
-    }
 
 #if DEMO_VIEW_RTREE
     const int RECT_COUNT = 100;
@@ -203,31 +182,419 @@ ErrorType GameClient::Run(void)
     }
 #endif
 
-    const double tickDt = 1.0 / SV_TICK_RATE;
-    const double tickDtMax = tickDt * 2.0;
-    double tickAccum = 0;
-    const double sendInputDt = 1.0 / CL_INPUT_SEND_RATE;
-    const double sendInputDtMax = sendInputDt * 2.0;
-    double sendInputAccum = 0;
-    double frameStart = glfwGetTime();
-
-    const int targetFPS = 60;
+    //const int targetFPS = 60;
     //SetTargetFPS(targetFPS);
     SetWindowState(FLAG_VSYNC_HINT);
-    bool gifRecording = false;
-    bool chatVisible = false;
-    bool inventoryActive = false;
+}
 
-    InputMode inputMode = INPUT_MODE_PLAY;
-    //---------------------------------------------------------------------------------------
+void GameClient::PlayMode_Audio(double frameDt)
+{
+    SetMasterVolume(VolumeCorrection(Catalog::g_mixer.masterVolume));
+    Catalog::g_tracks.Update((float)frameDt);
+}
+
+PlayerControllerState GameClient::PlayMode_PollController(void)
+{
+    ImGuiIO &io = ImGui::GetIO();
+    if (io.WantCaptureKeyboard) {
+        inputMode = INPUT_MODE_IMGUI;
+    } else if (chatVisible) {
+        inputMode = INPUT_MODE_CHAT;
+    } else {
+        inputMode = INPUT_MODE_PLAY;
+    }
+
+    //if (inputMode == INPUT_MODE_MENU) {
+    //    io.ConfigFlags |= ImGuiConfigFlags_NoMouse | ImGuiConfigFlags_NavNoCaptureKeyboard;
+    //} else {
+    //    io.ConfigFlags &= ~ImGuiConfigFlags_NoMouse & ~ImGuiConfigFlags_NavNoCaptureKeyboard;
+    //}
+
+    const bool processMouse = inputMode == INPUT_MODE_PLAY && !io.WantCaptureMouse;
+    const bool processKeyboard = inputMode == INPUT_MODE_PLAY;
+    PlayerControllerState input = PlayerControllerState::Query(processMouse, processKeyboard, spycam.freeRoam);
+    return input;
+}
+
+void GameClient::PlayMode_HandleInput(const PlayerControllerState &input)
+{
+    UI::HandleInput(input);
+
+    if (IsWindowResized() || input.toggleFullscreen) {
+        if (IsWindowResized()) {
+            screenSize.x = (float)GetRenderWidth() - GetRenderWidth() % 2;
+            screenSize.y = (float)GetRenderHeight() - GetRenderHeight() % 2;
+            SetWindowSize((int)screenSize.x, (int)screenSize.y);
+        }
+        if (input.toggleFullscreen) {
+            static Vector2 restoreSize = screenSize;
+            if (IsWindowFullscreen()) {
+                ToggleFullscreen();
+                SetWindowSize((int)restoreSize.x, (int)restoreSize.y);
+                screenSize = restoreSize;
+            } else {
+                restoreSize = screenSize;
+                int monitor = GetCurrentMonitor();
+                screenSize.x = (float)GetMonitorWidth(monitor);
+                screenSize.y = (float)GetMonitorHeight(monitor);
+                SetWindowSize((int)screenSize.x, (int)screenSize.y);
+                ToggleFullscreen();
+            }
+        }
+        // Weird line artifact appears, even with AlignPixel shader, if resolution has an odd number :(
+        assert((int)screenSize.x % 2 == 0);
+        assert((int)screenSize.y % 2 == 0);
+        //printf("w: %f h: %f\n", screenSize.x, screenSize.y);
+#if PIXEL_FIXER
+        SetShaderValue(pixelFixer, pixelFixerScreenSizeUniformLoc, &screenSize, SHADER_UNIFORM_VEC2);
+#endif
+        spycam.Reset();
+    }
+
+    if (input.dbgToggleVsync) {
+        IsWindowState(FLAG_VSYNC_HINT) ? ClearWindowState(FLAG_VSYNC_HINT) : SetWindowState(FLAG_VSYNC_HINT);
+    }
+
+    if (input.screenshot) {
+        time_t t = time(NULL);
+        struct tm tm = *localtime(&t);
+        char screenshotName[64]{};
+        int len = snprintf(screenshotName, sizeof(screenshotName),
+            "screenshots/%d-%02d-%02d_%02d-%02d-%02d_screenshot.png",
+            tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+        assert(len < sizeof(screenshotName));
+        TakeScreenshot(screenshotName);
+    }
+
+    if (input.toggleInventory) {
+        inventoryActive = !inventoryActive;
+    }
+
+    if (input.dbgChatMessage) {
+        //ParticleEffectParams rainbowParams{};
+        //rainbowParams.durationMin = 3.0f;
+        //rainbowParams.durationMax = rainbowParams.durationMin;
+        //rainbowParams.particleCountMin = 256;
+        //rainbowParams.particleCountMax = rainbowParams.particleCountMin;
+        //ParticleEffect *rainbowFx = world->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Rainbow, player.body.WorldPosition(), rainbowParams);
+        //if (rainbowFx) {
+        //    rainbowFx->particleCallbacks[(size_t)ParticleEffect_ParticleEvent::AfterUpdate] = { RainbowParticlesDamagePlayer, &player };
+        //}
+        //Catalog::g_sounds.Play(Catalog::SoundID::RainbowSparkles, 1.0f);
+        //world->chatHistory.PushDebug(CSTR("You pressed the send random chat message button. Congrats."));
+    }
+
+    if (input.dbgTeleport) {
+        netClient.SendChatMessage(CSTR("/rtp"));
+    }
+
+#if DEMO_VIEW_RTREE
+    if (input.dbgNextRtreeRect) {
+        if (next_rect_to_add < RECT_COUNT && (GetTime() - lastRectAddedAt > 0.1)) {
+            AABB aabb{};
+            aabb.min.x = rects[next_rect_to_add].x;
+            aabb.min.y = rects[next_rect_to_add].y;
+            aabb.max.x = rects[next_rect_to_add].x + rects[next_rect_to_add].width;
+            aabb.max.y = rects[next_rect_to_add].y + rects[next_rect_to_add].height;
+            tree.Insert(aabb, next_rect_to_add);
+            next_rect_to_add++;
+            lastRectAddedAt = GetTime();
+        }
+    } else {
+        lastRectAddedAt = 0;
+    }
+
+    if (input.dbgKillRtreeRect) {
+        size_t lastIdx = next_rect_to_add - 1;
+        AABB aabb{};
+        aabb.min.x = rects[lastIdx].x;
+        aabb.min.y = rects[lastIdx].y;
+        aabb.max.x = rects[lastIdx].x + rects[lastIdx].width;
+        aabb.max.y = rects[lastIdx].y + rects[lastIdx].height;
+        tree.Delete(aabb, lastIdx);
+        next_rect_to_add--;
+    }
+#endif
+}
+
+void GameClient::PlayMode_Update(const PlayerControllerState &input)
+{
+    const bool connectedToServer = netClient.ConnectedAndSpawned();
+    if (!connectedToServer) {
+        if (world) {
+            if (netClient.serverWorld) {
+                delete netClient.serverWorld;
+                netClient.serverWorld = nullptr;
+            }
+            world = nullptr;
+            tickAccum = 0;
+            sendInputAccum = 0;
+        }
+        return;
+    }
+
+    if (world != netClient.serverWorld) {
+        // We joined a server, switch to the server's world.
+        world = netClient.serverWorld;
+        tickAccum = 0;
+        sendInputAccum = 0;
+    }
+
+    Player *player = world->FindPlayer(world->playerId);
+
+    // TODO(cleanup): jump
+    if (player->body.OnGround() && IsKeyPressed(KEY_SPACE)) {
+        player->body.ApplyForce({ 0, 0, METERS_TO_PIXELS(4.0f) });
+    }
+
+    double renderAt = 0;
+    if (connectedToServer) {
+        if (netClient.worldHistory.Count()) {
+            const WorldSnapshot &worldSnapshot = netClient.worldHistory.Last();
+
+            static uint32_t lastTickAck = 0;
+            if (lastTickAck < worldSnapshot.tick) {
+                lastTickAck = worldSnapshot.tick;
+
+                world->tick = worldSnapshot.tick;
+
+                // TODO: Update world state from worldSnapshot and re-apply input with input.tick > snapshot.tick
+                //netClient.ReconcilePlayer(tickDt);
+            }
+            // TODO: Update world state from worldSnapshot and re-apply input with input.tick > snapshot.tick
+            netClient.ReconcilePlayer(tickDt);
+
+            //while (tickAccum > tickDt) {
+            InputSample &inputSample = netClient.inputHistory.Alloc();
+            inputSample.FromController(player->id, lastTickAck, input);
+
+            assert(world->map);
+            player->Update(tickDt, inputSample, *world->map);
+            world->particleSystem.Update(tickDt);
+            world->itemSystem.Update(tickDt);
+
+            //    tickAccum -= tickDt;
+            //}
+
+            // TODO: Roll-up inputs when v-sync disabled
+            // Send input to server at a fixed rate that matches server tick rate
+            while (sendInputAccum > sendInputDt) {
+                netClient.SendPlayerInput();
+                sendInputAccum -= sendInputDt;
+            }
+
+            world->CL_DespawnStaleEntities();
+
+            // Interpolate all of the other entities in the world
+            //printf("RTT: %u RTTv: %u LRT: %u LRTv: %u HRTv %u\n",
+            //    netClient.server->roundTripTime,
+            //    netClient.server->roundTripTimeVariance,
+            //    netClient.server->lastRoundTripTime,
+            //    netClient.server->lastRoundTripTimeVariance,
+            //    netClient.server->highestRoundTripTimeVariance
+            //);
+            //renderAt = now - (1.0 / SNAPSHOT_SEND_RATE) - (1.0 / (netClient.server->lastRoundTripTime + netClient.server->lastRoundTripTimeVariance));
+            renderAt = frameStart - (1.0 / (SNAPSHOT_SEND_RATE * 1.5));
+            world->CL_Interpolate(renderAt);
+            //world->CL_Extrapolate(now - renderAt);
+        }
+    } else {
+#if 0
+        while (tickAccum > tickDt) {
+            InputSample inputSample{};
+            inputSample.FromController(player->id, world->tick, input);
+
+            assert(world->map);
+            player->Update(tickDt, inputSample, *world->map);
+
+            world->SV_Simulate(tickDt);
+            world->particleSystem.Update(tickDt);
+            world->itemSystem.Update(tickDt);
+            world->CL_DespawnStaleEntities();
+
+            //WorldSnapshot &worldSnapshot = netClient.worldHistory.Alloc();
+            //assert(!worldSnapshot.tick);  // ringbuffer alloc fucked up and didn't zero slot
+            //worldSnapshot.playerId = player->id;
+            ////worldSnapshot.lastInputAck = world->tick;
+            //worldSnapshot.tick = world->tick;
+            //world->GenerateSnapshot(worldSnapshot);
+
+            world->tick++;
+            tickAccum -= tickDt;
+        }
+
+        //// Interpolate all of the other entities in the world
+        //double renderAt = glfwGetTime() - tickDt * 2;
+        //world->Interpolate(renderAt);
+#endif
+    }
+}
+
+void GameClient::PlayMode_UpdateCamera(const PlayerControllerState &input, double frameDt)
+{
+    Player *player = world->FindPlayer(world->playerId);
+    if (player && !spycam.freeRoam) {
+        spycam.cameraGoal = player->body.GroundPosition();
+    }
+    spycam.Update(input, frameDt);
+}
+
+void GameClient::PlayMode_DrawWorld(bool tileHover)
+{
+    DrawTexture(checkboardTexture, 0, 0, WHITE);
+
+    Camera2D cam = spycam.GetCamera();
+    BeginMode2D(cam);
+
+    Rectangle cameraRect = spycam.GetRect();
+    world->EnableCulling(cameraRect);
+
+#if PIXEL_FIXER
+    BeginShaderMode(pixelFixer);
+#endif
+    size_t tilesDrawn = world->DrawMap(spycam);
+#if PIXEL_FIXER
+    EndShaderMode();
+#endif
+
+    if (tileHover) {
+        UI::TileHoverOutline(*world->map);
+    }
+    world->DrawItems();
+    world->DrawEntities();
+    world->DrawParticles();
+    world->DrawFlush();
+
+#if DEMO_VIEW_RTREE
+    AABB searchAABB = {
+        mousePosWorld.x - 50,
+        mousePosWorld.y - 50,
+        mousePosWorld.x + 50,
+        mousePosWorld.y + 50
+    };
+    Rectangle searchRect{
+        searchAABB.min.x,
+        searchAABB.min.y,
+        searchAABB.max.x - searchAABB.min.x,
+        searchAABB.max.y - searchAABB.min.y
+    };
+
+#if 1
+    std::vector<size_t> matches{};
+    tree.Search(searchAABB, matches, RTree::CompareMode::Overlap);
+#else
+    static std::vector<void *> matches;
+    matches.clear();
+    for (size_t i = 0; i < rects.size(); i++) {
+        if (CheckCollisionRecs(rects[i], searchRect)) {
+            matches.push_back((void *)i);
+        }
+    }
+#endif
+
+    for (const size_t i : matches) {
+        DrawRectangleRec(rects[i], Fade(RED, 0.6f));
+        drawn[i] = true;
+    }
+
+    //for (size_t i = 0; i < drawn.size(); i++) {
+    //    if (!drawn[i]) {
+    //        DrawRectangleLinesEx(rects[i], 2, WHITE);
+    //    } else {
+    //        drawn[i] = false;
+    //    }
+    //}
+
+    tree.Draw();
+    DrawRectangleLinesEx(searchRect, 2, YELLOW);
+#endif
+
+#if DEMO_AI_TRACKING
+    {
+        for (size_t i = 0; i < ARRAY_SIZE(world->slimes); i++) {
+            const Slime &slime = world->slimes[i];
+            if (slime.id) {
+                Vector3 center = sprite_world_center(slime.sprite, slime.body.position, slime.sprite.scale);
+                DrawCircle((int)center.x, (int)center.y, METERS_TO_PIXELS(10.0f), Fade(ORANGE, 0.3f));
+            }
+        }
+    }
+#endif
+    //UI::WorldGrid(*world->map);
+
+    EndMode2D();
+}
+
+void GameClient::PlayMode_DrawScreen(bool tileHover)
+{
+    // Render mouse tile tooltip
+    if (tileHover) {
+        UI::TileHoverTip(fontSmall, *world->map);
+    }
+
+    UI::Minimap(fontSmall, spycam, *world);
 
     // TODO(cleanup): Noise test
-    //Texture noise{};
-    //world->map->GenerateNoise(noise);
+    //DrawTexturePro(noise,
+    //    { 0, 0, (float)noise.width, (float)noise.height },
+    //    { screenSize.x - 4 - 256, (float)4 + world->map->minimap.height + 4, 256, 256 },
+    //    { 0, 0 }, 0, WHITE);
 
-#define KEY_DOWN(key)
+    UI::Chat(fontSdf72, 16, *world, netClient, inputMode == INPUT_MODE_PLAY || inputMode == INPUT_MODE_CHAT, chatVisible, escape);
 
-    // Main game loop
+    // Render HUD
+    UI::DebugStats debugStats{};
+#if SHOW_DEBUG_STATS
+    debugStats.tick = world->tick;
+    debugStats.tickAccum = tickAccum;
+    debugStats.frameDt = frameDt;
+    debugStats.cameraSpeed = spycam.cameraSpeed;
+    debugStats.tilesDrawn = tilesDrawn;
+    debugStats.effectsActive = world->particleSystem.EffectsActive();
+    debugStats.particlesActive = world->particleSystem.ParticlesActive();
+#endif
+    if (netClient.server) {
+        debugStats.rtt = enet_peer_get_rtt(netClient.server);
+        debugStats.packets_sent = enet_peer_get_packets_sent(netClient.server);
+        debugStats.packets_lost = enet_peer_get_packets_lost(netClient.server);
+        debugStats.bytes_sent = enet_peer_get_bytes_sent(netClient.server);
+        debugStats.bytes_recv = enet_peer_get_bytes_received(netClient.server);
+    }
+    UI::HUD(fontSmall, *world->map, player, debugStats);
+    //UI::QuickHUD(fontSdf24, player, *world->map);
+    if (inventoryActive) {
+        UI::Inventory(Catalog::g_items.Tex(), player, netClient, escape, inventoryActive);
+    }
+
+    rlDrawRenderBatchActive();
+
+    UI::Menubar(netClient);
+    UI::ShowDemoWindow();
+    UI::LoginForm(netClient, io, escape);
+
+    //if (mixerActive) {
+    //    UI::Mixer();
+    //}
+    //UI::Netstat(netClient, renderAt);
+
+    UI::ParticleConfig(*world, player);
+
+    //----------------------------------------------------------------------
+    // Menu
+    //----------------------------------------------------------------------
+    UI::InGameMenu(imFontHack48, escape, connectedToServer);
+
+    if (UI::DisconnectRequested(connectedToServer)) {
+        netClient.Disconnect();
+        world = nullptr;
+    }
+}
+
+ErrorType GameClient::Run(void)
+{
+    Init();
+
+    frameStart = glfwGetTime();
     while (!WindowShouldClose() && !UI::QuitRequested()) {
         double now = glfwGetTime();
         double frameDt = now - frameStart;
@@ -236,458 +603,36 @@ ErrorType GameClient::Run(void)
         sendInputAccum += MIN(sendInputDt, sendInputDtMax);
         frameStart = now;
 
-        //----------------------------------------------------------------------
-        // Audio
-        //----------------------------------------------------------------------
-        SetMasterVolume(VolumeCorrection(Catalog::g_mixer.masterVolume));
-        Catalog::g_tracks.Update((float)frameDt);
-
-        //----------------------------------------------------------------------
-        // Input
-        //----------------------------------------------------------------------
-        if (io.WantCaptureKeyboard) {
-            inputMode = INPUT_MODE_IMGUI;
-        } else if (chatVisible) {
-            inputMode = INPUT_MODE_CHAT;
-        } else {
-            inputMode = INPUT_MODE_PLAY;
-        }
-
-        //if (inputMode == INPUT_MODE_MENU) {
-        //    io.ConfigFlags |= ImGuiConfigFlags_NoMouse | ImGuiConfigFlags_NavNoCaptureKeyboard;
-        //} else {
-        //    io.ConfigFlags &= ~ImGuiConfigFlags_NoMouse & ~ImGuiConfigFlags_NavNoCaptureKeyboard;
-        //}
-
-        const bool processMouse = inputMode == INPUT_MODE_PLAY && !io.WantCaptureMouse;
-        const bool processKeyboard = inputMode == INPUT_MODE_PLAY;
-        PlayerControllerState input = PlayerControllerState::Query(processMouse, processKeyboard, spycam.freeRoam);
-        bool escape = IsKeyPressed(KEY_ESCAPE);
-
-        // HACK: No way to check if Raylib is currently recording.. :(
-        //if (gifRecording) {
-        //    tickDt = 1.0 / 10.0;
-        //}
-
-        //----------------------------------------------------------------------
-        // Networking
-        //----------------------------------------------------------------------
         E_ASSERT(netClient.Receive(), "Failed to receive packets");
+        PlayMode_Audio(frameDt);
+        PlayerControllerState input = PlayMode_PollController();
+        PlayMode_HandleInput(input);
+        PlayMode_Update(input);
 
-        bool connectedToServer =
-            netClient.server &&
-            netClient.server->state == ENET_PEER_STATE_CONNECTED &&
-            netClient.serverWorld &&
-            netClient.serverWorld->playerId &&
-            netClient.serverWorld->FindPlayer(netClient.serverWorld->playerId);
-
-        if (connectedToServer && world != netClient.serverWorld) {
-            // We joined a server, switch to the server's world.
-            world = netClient.serverWorld;
-            tickAccum = 0;
-            sendInputAccum = 0;
-        } else if (!connectedToServer && world != lobby ) {
-            if (netClient.serverWorld) {
-                delete netClient.serverWorld;
-                netClient.serverWorld = nullptr;
-            }
-            world = lobby;
-            tickAccum = 0;
-            sendInputAccum = 0;
+        {
+            Rectangle cameraRect = spycam.GetRect();
+            const Vector2 mousePosScreen = GetMousePosition();
+            Vector2 mousePosWorld{
+                cameraRect.x + mousePosScreen.x * spycam.GetInvZoom(),
+                cameraRect.y + mousePosScreen.y * spycam.GetInvZoom()
+            };
+            UI::Begin(mousePosScreen, mousePosWorld, screenSize, &spycam);
         }
 
         //----------------------------------------------------------------------
-        // Update
+        // Render setup
         //----------------------------------------------------------------------
-        Player *playerPtr = world->FindPlayer(world->playerId);
-        assert(playerPtr);
-        Player &player = *playerPtr;
-
-        if (player.body.OnGround() && IsKeyPressed(KEY_SPACE)) {
-            // jump
-            player.body.ApplyForce({ 0, 0, METERS_TO_PIXELS(4.0f) });
-        }
-
-        double renderAt = 0;
-        if (connectedToServer) {
-            if (netClient.worldHistory.Count()) {
-                const WorldSnapshot &worldSnapshot = netClient.worldHistory.Last();
-
-                static uint32_t lastTickAck = 0;
-                if (lastTickAck < worldSnapshot.tick) {
-                    lastTickAck = worldSnapshot.tick;
-
-                    world->tick = worldSnapshot.tick;
-
-                    // TODO: Update world state from worldSnapshot and re-apply input with input.tick > snapshot.tick
-                    //netClient.ReconcilePlayer(tickDt);
-                }
-                // TODO: Update world state from worldSnapshot and re-apply input with input.tick > snapshot.tick
-                netClient.ReconcilePlayer(tickDt);
-
-                //while (tickAccum > tickDt) {
-                    InputSample &inputSample = netClient.inputHistory.Alloc();
-                    inputSample.FromController(player.id, lastTickAck, input);
-
-                    assert(world->map);
-                    player.Update(tickDt, inputSample, *world->map);
-                    world->particleSystem.Update(tickDt);
-                    world->itemSystem.Update(tickDt);
-
-                //    tickAccum -= tickDt;
-                //}
-
-                // Send input to server at a fixed rate that matches server tick rate
-                while (sendInputAccum > sendInputDt) {
-                    netClient.SendPlayerInput();
-                    sendInputAccum -= sendInputDt;
-                }
-
-                world->CL_DespawnStaleEntities();
-
-                // Interpolate all of the other entities in the world
-                //printf("RTT: %u RTTv: %u LRT: %u LRTv: %u HRTv %u\n",
-                //    netClient.server->roundTripTime,
-                //    netClient.server->roundTripTimeVariance,
-                //    netClient.server->lastRoundTripTime,
-                //    netClient.server->lastRoundTripTimeVariance,
-                //    netClient.server->highestRoundTripTimeVariance
-                //);
-                //renderAt = now - (1.0 / SNAPSHOT_SEND_RATE) - (1.0 / (netClient.server->lastRoundTripTime + netClient.server->lastRoundTripTimeVariance));
-                renderAt = now - (1.0 / (SNAPSHOT_SEND_RATE * 1.5));
-                world->CL_Interpolate(renderAt);
-                //world->CL_Extrapolate(now - renderAt);
-            }
-        } else {
-#if 1
-            while (tickAccum > tickDt) {
-                InputSample inputSample{};
-                inputSample.FromController(player.id, world->tick, input);
-
-                assert(world->map);
-                player.Update(tickDt, inputSample, *world->map);
-
-                world->SV_Simulate(tickDt);
-                world->particleSystem.Update(tickDt);
-                world->itemSystem.Update(tickDt);
-                world->CL_DespawnStaleEntities();
-
-
-                //WorldSnapshot &worldSnapshot = netClient.worldHistory.Alloc();
-                //assert(!worldSnapshot.tick);  // ringbuffer alloc fucked up and didn't zero slot
-                //worldSnapshot.playerId = player.id;
-                ////worldSnapshot.lastInputAck = world->tick;
-                //worldSnapshot.tick = world->tick;
-                //world->GenerateSnapshot(worldSnapshot);
-
-                world->tick++;
-                tickAccum -= tickDt;
-            }
-
-            //// Interpolate all of the other entities in the world
-            //double renderAt = glfwGetTime() - tickDt * 2;
-            //world->Interpolate(renderAt);
-#endif
-        }
-
-        static bool samTreasureRoom = false;
-        if (!samTreasureRoom && world == lobby && sam.combat.diedAt) {
-            const Vector2 playerBC = player.body.GroundPosition();
-            const Vector3 chestPos{ playerBC.x - 3, playerBC.y - 4, 0 };
-            Structure::Spawn(*world->map, chestPos.x, chestPos.y);
-
-            // TODO: Make chest/gems items.. or?
-            // - D2: flying item animation -> ground item
-            // - Terraria: Immediately items with physics that gravitate toward player
-            // - Minecraft: Immediately items with physics, lots of friction on ground, gravity scoop
-            // - What about DeathSpank?
-            //world->particleSystem.GenerateEffect(Catalog::ParticleEffectID::GoldenChest, 1, chestPos, 4.0f);
-            //world->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Gem, 8, chestPos, 3.0f);
-            //Catalog::g_sounds.Play(Catalog::SoundID::Gold, 1.0f + dlb_rand32f_variance(0.4f));
-            samTreasureRoom = true;
-        }
-
-        //----------------------------------------------------------------------
-        // Input handling
-        //----------------------------------------------------------------------
-        if (input.screenshot) {
-            time_t t = time(NULL);
-            struct tm tm = *localtime(&t);
-            char screenshotName[64]{};
-            int len = snprintf(screenshotName, sizeof(screenshotName),
-                "screenshots/%d-%02d-%02d_%02d-%02d-%02d_screenshot.png",
-                tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
-            assert(len < sizeof(screenshotName));
-            TakeScreenshot(screenshotName);
-        }
-
-        UI::HandleInput(input);
-
-        if (IsWindowResized() || input.toggleFullscreen) {
-            if (IsWindowResized()) {
-                screenSize.x = (float)GetRenderWidth() - GetRenderWidth() % 2;
-                screenSize.y = (float)GetRenderHeight() - GetRenderHeight() % 2;
-                SetWindowSize((int)screenSize.x, (int)screenSize.y);
-            }
-            if (input.toggleFullscreen) {
-                static Vector2 restoreSize = screenSize;
-                if (IsWindowFullscreen()) {
-                    ToggleFullscreen();
-                    SetWindowSize((int)restoreSize.x, (int)restoreSize.y);
-                    screenSize = restoreSize;
-                } else {
-                    restoreSize = screenSize;
-                    int monitor = GetCurrentMonitor();
-                    screenSize.x = (float)GetMonitorWidth(monitor);
-                    screenSize.y = (float)GetMonitorHeight(monitor);
-                    SetWindowSize((int)screenSize.x, (int)screenSize.y);
-                    ToggleFullscreen();
-                }
-            }
-            // Weird line artifact appears, even with AlignPixel shader, if resolution has an odd number :(
-            assert((int)screenSize.x % 2 == 0);
-            assert((int)screenSize.y % 2 == 0);
-            //printf("w: %f h: %f\n", screenSize.x, screenSize.y);
-#if PIXEL_FIXER
-            SetShaderValue(pixelFixer, pixelFixerScreenSizeUniformLoc, &screenSize, SHADER_UNIFORM_VEC2);
-#endif
-            spycam.Reset();
-        }
-
-        if (input.dbgToggleVsync) {
-            IsWindowState(FLAG_VSYNC_HINT) ? ClearWindowState(FLAG_VSYNC_HINT) : SetWindowState(FLAG_VSYNC_HINT);
-        }
-
-        if (input.dbgChatMessage) {
-            ParticleEffectParams rainbowParams{};
-            rainbowParams.durationMin = 3.0f;
-            rainbowParams.durationMax = rainbowParams.durationMin;
-            rainbowParams.particleCountMin = 256;
-            rainbowParams.particleCountMax = rainbowParams.particleCountMin;
-            ParticleEffect *rainbowFx = world->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Rainbow, player.body.WorldPosition(), rainbowParams);
-            if (rainbowFx) {
-                rainbowFx->particleCallbacks[(size_t)ParticleEffect_ParticleEvent::AfterUpdate] = { RainbowParticlesDamagePlayer, &player };
-            }
-            //world->chatHistory.PushDebug(CSTR("You pressed the send random chat message button. Congrats."));
-            Catalog::g_sounds.Play(Catalog::SoundID::RainbowSparkles, 1.0f);
-        }
-
-        if (input.dbgTeleport) {
-            netClient.SendChatMessage(CSTR("/rtp"));
-        }
-
-        if (world == lobby && input.dbgSpawnSam) {
-            lobby->SpawnSam();
-            samTreasureRoom = false;
-        }
-
-        if (input.toggleInventory) {
-            inventoryActive = !inventoryActive;
-        }
-
-#if DEMO_VIEW_RTREE
-            if (input.dbgNextRtreeRect) {
-                if (next_rect_to_add < RECT_COUNT && (GetTime() - lastRectAddedAt > 0.1)) {
-                    AABB aabb{};
-                    aabb.min.x = rects[next_rect_to_add].x;
-                    aabb.min.y = rects[next_rect_to_add].y;
-                    aabb.max.x = rects[next_rect_to_add].x + rects[next_rect_to_add].width;
-                    aabb.max.y = rects[next_rect_to_add].y + rects[next_rect_to_add].height;
-                    tree.Insert(aabb, next_rect_to_add);
-                    next_rect_to_add++;
-                    lastRectAddedAt = GetTime();
-                }
-            } else {
-                lastRectAddedAt = 0;
-            }
-
-            if (input.dbgKillRtreeRect) {
-                size_t lastIdx = next_rect_to_add - 1;
-                AABB aabb{};
-                aabb.min.x = rects[lastIdx].x;
-                aabb.min.y = rects[lastIdx].y;
-                aabb.max.x = rects[lastIdx].x + rects[lastIdx].width;
-                aabb.max.y = rects[lastIdx].y + rects[lastIdx].height;
-                tree.Delete(aabb, lastIdx);
-                next_rect_to_add--;
-            }
-#endif
-
-        //----------------------------------------------------------------------
-        // Camera
-        //----------------------------------------------------------------------
-        if (!spycam.freeRoam) {
-            spycam.cameraGoal = player.body.GroundPosition();
-        }
-        spycam.Update(input, frameDt);
-        Rectangle cameraRect = spycam.GetRect();
-
-        const Vector2 mousePosScreen = GetMousePosition();
-        Vector2 mousePosWorld{};
-        mousePosWorld.x += cameraRect.x + mousePosScreen.x * spycam.GetInvZoom();
-        mousePosWorld.y += cameraRect.y + mousePosScreen.y * spycam.GetInvZoom();
-
         BeginDrawing();
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
-        UI::Begin(mousePosScreen, mousePosWorld, screenSize, &spycam);
-
         ClearBackground(ORANGE);
-
         //----------------------------------------------------------------------
-        // Render world
-        //----------------------------------------------------------------------
-        DrawTexture(checkboardTexture, 0, 0, WHITE);
 
-        Camera2D cam = spycam.GetCamera();
-        BeginMode2D(cam);
+        PlayMode_DrawWorld(input.dbgFindMouseTile);
+        PlayMode_DrawScreen(input.dbgFindMouseTile);
 
-        world->EnableCulling(cameraRect);
-
-#if PIXEL_FIXER
-        BeginShaderMode(pixelFixer);
-#endif
-        size_t tilesDrawn = world->DrawMap(spycam);
-        //world->DrawNoiseDebug(spycam);
-#if PIXEL_FIXER
-        EndShaderMode();
-#endif
-
-        if (input.dbgFindMouseTile) {
-            UI::TileHoverOutline(*world->map);
-        }
-        world->DrawItems();
-        world->DrawEntities();
-        world->DrawParticles();
-        world->DrawFlush();
-
-#if DEMO_VIEW_RTREE
-        AABB searchAABB = {
-            mousePosWorld.x - 50,
-            mousePosWorld.y - 50,
-            mousePosWorld.x + 50,
-            mousePosWorld.y + 50
-        };
-        Rectangle searchRect{
-            searchAABB.min.x,
-            searchAABB.min.y,
-            searchAABB.max.x - searchAABB.min.x,
-            searchAABB.max.y - searchAABB.min.y
-        };
-
-#if 1
-        std::vector<size_t> matches{};
-        tree.Search(searchAABB, matches, RTree::CompareMode::Overlap);
-#else
-        static std::vector<void *> matches;
-        matches.clear();
-        for (size_t i = 0; i < rects.size(); i++) {
-            if (CheckCollisionRecs(rects[i], searchRect)) {
-                matches.push_back((void *)i);
-            }
-        }
-#endif
-
-        for (const size_t i : matches) {
-            DrawRectangleRec(rects[i], Fade(RED, 0.6f));
-            drawn[i] = true;
-        }
-
-        //for (size_t i = 0; i < drawn.size(); i++) {
-        //    if (!drawn[i]) {
-        //        DrawRectangleLinesEx(rects[i], 2, WHITE);
-        //    } else {
-        //        drawn[i] = false;
-        //    }
-        //}
-
-        tree.Draw();
-        DrawRectangleLinesEx(searchRect, 2, YELLOW);
-#endif
-
-#if DEMO_AI_TRACKING
-        {
-            for (size_t i = 0; i < ARRAY_SIZE(world->slimes); i++) {
-                const Slime &slime = world->slimes[i];
-                if (slime.id) {
-                    Vector3 center = sprite_world_center(slime.sprite, slime.body.position, slime.sprite.scale);
-                    DrawCircle((int)center.x, (int)center.y, METERS_TO_PIXELS(10.0f), Fade(ORANGE, 0.3f));
-                }
-            }
-        }
-#endif
-        //UI::WorldGrid(*world->map);
-
-        EndMode2D();
-
-        //----------------------------------------------------------------------
-        // Render screen (HUD, UI, etc.)
-        //----------------------------------------------------------------------
-        // Render mouse tile tooltip
-        if (input.dbgFindMouseTile) {
-            UI::TileHoverTip(fontSmall, *world->map);
-        }
-
-        UI::Minimap(fontSmall, spycam, *world);
-
-        // TODO(cleanup): Noise test
-        //DrawTexturePro(noise,
-        //    { 0, 0, (float)noise.width, (float)noise.height },
-        //    { screenSize.x - 4 - 256, (float)4 + world->map->minimap.height + 4, 256, 256 },
-        //    { 0, 0 }, 0, WHITE);
-
-        UI::Chat(fontSdf72, 16, *world, netClient, inputMode == INPUT_MODE_PLAY || inputMode == INPUT_MODE_CHAT, chatVisible, escape);
-
-        // Render HUD
-        UI::DebugStats debugStats{};
-#if SHOW_DEBUG_STATS
-        debugStats.tick            = world->tick;
-        debugStats.tickAccum       = tickAccum;
-        debugStats.frameDt         = frameDt;
-        debugStats.cameraSpeed     = spycam.cameraSpeed;
-        debugStats.tilesDrawn      = tilesDrawn;
-        debugStats.effectsActive   = world->particleSystem.EffectsActive();
-        debugStats.particlesActive = world->particleSystem.ParticlesActive();
-#endif
-        if (netClient.server) {
-            debugStats.rtt = enet_peer_get_rtt(netClient.server);
-            debugStats.packets_sent = enet_peer_get_packets_sent(netClient.server);
-            debugStats.packets_lost = enet_peer_get_packets_lost(netClient.server);
-            debugStats.bytes_sent = enet_peer_get_bytes_sent(netClient.server);
-            debugStats.bytes_recv = enet_peer_get_bytes_received(netClient.server);
-        }
-        UI::HUD(fontSmall, *world->map, player, debugStats);
-        //UI::QuickHUD(fontSdf24, player, *world->map);
-        if (inventoryActive) {
-            UI::Inventory(Catalog::g_items.Tex(), player, netClient, escape, inventoryActive);
-        }
-
-        rlDrawRenderBatchActive();
-
-        UI::Menubar(netClient);
-        UI::ShowDemoWindow();
-        UI::LoginForm(netClient, io, escape);
-
-        //if (mixerActive) {
-        //    UI::Mixer();
-        //}
-        //UI::Netstat(netClient, renderAt);
-
-        UI::ParticleConfig(*world, player);
-
-        //----------------------------------------------------------------------
-        // Menu
-        //----------------------------------------------------------------------
-        UI::InGameMenu(imFontHack48, escape, connectedToServer);
-
-        if (UI::DisconnectRequested(connectedToServer)) {
-            netClient.Disconnect();
-            world = lobby;
-        }
-
-        //----------------------------------------------------------------------------------
-
+        //
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         EndDrawing();
@@ -699,7 +644,6 @@ ErrorType GameClient::Run(void)
     netClient.CloseSocket();
 
     // TODO: Wrap these in classes to use destructors?
-    delete lobby;
     UnloadShader(g_sdfShader);
     UnloadFont(fontSdf24);
     UnloadFont(fontSdf72);

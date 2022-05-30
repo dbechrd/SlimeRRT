@@ -37,16 +37,16 @@ struct UI {
         UI::spycam      = spycam;
     };
 
-    static void HandleInput(PlayerControllerState &input);
+    static void HandleInput(const PlayerControllerState &input);
     static bool DisconnectRequested(bool connectedToServer);
     static bool QuitRequested();
 
     // World UI
     static void TileHoverOutline(const Tilemap &map);
-    static void WorldGrid(const Spycam &spycam);
+    static void WorldGrid();
 
     // Screen UI
-    static void Minimap(const Font &font, const Spycam &spycam, World &world);
+    static void Minimap(const Font &font, World &world);
     static void Menubar(const NetClient &netClient);
     static void ShowDemoWindow();
     static void LoginForm(NetClient &netClient, ImGuiIO& io, bool &escape);
