@@ -43,7 +43,7 @@ struct Slime : public Drawable {
 
     float Depth(void) const;
     bool  Cull(const Rectangle& cullRect) const;
-    void  Draw(void) const;
+    void  Draw(const World &world) const;
 
 private:
     void UpdateDirection(Vector2 offset);

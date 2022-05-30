@@ -330,7 +330,94 @@ bool Player::Cull(const Rectangle &cullRect) const
     return cull;
 }
 
-void Player::Draw(void) const
+void Player::DrawSwimOverlay(const World &world) const
+{
+    Vector2 groundPos = body.GroundPosition();
+    const Tile *tileLeft = world.map->TileAtWorld(groundPos.x - 15.0f, groundPos.y);
+    const Tile *tileRight = world.map->TileAtWorld(groundPos.x + 15.0f, groundPos.y);
+    if (tileLeft && tileLeft->type == Tile::Type::Water ||
+        tileRight && tileRight->type == Tile::Type::Water) {
+        auto tilesetId = world.map->tilesetId;
+        Tileset &tileset = g_tilesets[(size_t)tilesetId];
+        Rectangle tileRect = tileset_tile_rect(tilesetId, Tile::Type::Water);
+        assert(tileRect.width == TILE_W);
+        assert(tileRect.height == TILE_W);
+
+        Vector3 gut3d = GetAttachPoint(Player::AttachPoint::Gut);
+        Vector2 gut2d = { gut3d.x, gut3d.y - gut3d.z + 10.0f };
+        float offsetX = fmodf(gut2d.x, TILE_W);
+        float offsetY = fmodf(gut2d.y, TILE_W);
+        if (offsetX < 0) offsetX += TILE_W;
+        if (offsetY < 0) offsetY += TILE_W;
+
+        Rectangle dstTopLeft{
+            gut2d.x - offsetX - ((offsetX < (TILE_W / 2)) ? TILE_W : 0),
+            gut2d.y,
+            TILE_W,
+            TILE_W - offsetY
+        };
+
+        Rectangle dstTopRight = dstTopLeft;
+        dstTopRight.x += TILE_W;
+
+        Rectangle srcTop = tileRect;
+        srcTop.y += offsetY;
+        srcTop.height -= offsetY;
+
+        Rectangle dstBotLeft{
+            gut2d.x - offsetX - ((offsetX < (TILE_W / 2)) ? TILE_W : 0),
+            gut2d.y - offsetY + TILE_W,
+            TILE_W,
+            TILE_W
+        };
+
+        Rectangle dstBotRight = dstBotLeft;
+        dstBotRight.x += TILE_W;
+
+        float minXWater = FLT_MAX;
+        float maxXWater = FLT_MIN;
+
+#define CHECK_AND_DRAW(src, dst) \
+            tile = world.map->TileAtWorld((dst).x, (dst).y);                                  \
+            if (tile && tile->type == Tile::Type::Water) {                                   \
+                DrawTexturePro(tileset.texture, (src), (dst), { 0, 0 }, 0, Fade(WHITE, 0.8f)); \
+                minXWater = MIN(minXWater, (dst).x);                                           \
+                maxXWater = MAX(maxXWater, (dst).x + (dst).width);                             \
+            }
+
+        const Tile *tile = 0;
+        CHECK_AND_DRAW(srcTop, dstTopLeft);
+        CHECK_AND_DRAW(srcTop, dstTopRight);
+        CHECK_AND_DRAW(tileRect, dstBotLeft);
+        CHECK_AND_DRAW(tileRect, dstBotRight);
+
+#undef CHECK_AND_DRAW
+
+        const Tile *playerGutTile = world.map->TileAtWorld(gut2d.x, gut2d.y);
+        if (playerGutTile && playerGutTile->type == Tile::Type::Water) {
+            Rectangle bubblesDstTopMid{
+                gut2d.x - 20.0f,
+                gut2d.y,
+                40.0f,
+                8.0f
+            };
+
+            Rectangle bubblesSrcTop = tileRect;
+            bubblesSrcTop.y += offsetY;
+            bubblesSrcTop.height -= offsetY;
+
+            //DrawCircleV({ minXWater, playerGut2D.y }, 2.0f, PINK);
+            //DrawCircleV({ maxXWater, playerGut2D.y }, 2.0f, PINK);
+
+            const double now = glfwGetTime();
+            const float radiusDelta = (moveState != Player::MoveState::Idle) ? (sinf((float)now * 8) * 3) : 0.0f;
+            const float radius = 20.0f + radiusDelta;
+            DrawEllipse((int)gut2d.x, (int)gut2d.y, radius, radius * 0.5f, Fade(SKYBLUE, 0.4f));
+        }
+    }
+}
+
+void Player::Draw(const World &world) const
 {
     // Player shadow
     // TODO: Shadow size based on height from ground
@@ -338,6 +425,10 @@ void Player::Draw(void) const
     //const float shadowScale = 1.0f + slime->transform.position.z / 20.0f;
     const Vector2 playerGroundPos = body.GroundPosition();
     Shadow::Draw((int)playerGroundPos.x, (int)playerGroundPos.y, 16.0f, -6.0f);
+
+    sprite_draw_body(sprite, body, combat.hitPoints ? WHITE : GRAY);
+
+    DrawSwimOverlay(world);
 
 #if DEMO_SNAPSHOT_RADII
     {
@@ -347,7 +438,6 @@ void Player::Draw(void) const
     }
 #endif
 
-    sprite_draw_body(sprite, body, combat.hitPoints ? WHITE : GRAY);
     Vector3 topCenter = WorldTopCenter();
     HealthBar::Draw({ topCenter.x, topCenter.y - topCenter.z }, name, combat);
 }

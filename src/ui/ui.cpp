@@ -499,7 +499,7 @@ void UI::Netstat(NetClient &netClient, double renderAt)
     ImGui::End();
 }
 
-void UI::HUD(const Font &font, const Player &player, const DebugStats &debugStats)
+void UI::HUD(const Font &font, const Tilemap &tilemap, const Player &player, const DebugStats &debugStats)
 {
     assert(spycam);
 
@@ -510,7 +510,7 @@ void UI::HUD(const Font &font, const Player &player, const DebugStats &debugStat
     DrawTextFont(font, text, margin + pad, hudCursorY, 0, 0, font.baseSize, color); \
     hudCursorY += font.baseSize + pad;
 
-    int linesOfText = 8;
+    int linesOfText = 11;
     if (debugStats.tick) {
         linesOfText += 10;
     }
@@ -546,6 +546,18 @@ void UI::HUD(const Font &font, const Player &player, const DebugStats &debugStat
     text = SafeTextFormat("Times fist swung  %u", player.stats.timesFistSwung);
     PUSH_TEXT(text, LIGHTGRAY);
     text = SafeTextFormat("Times sword swung %u", player.stats.timesSwordSwung);
+    PUSH_TEXT(text, LIGHTGRAY);
+
+    const Vector2 playerBC = player.body.GroundPosition();
+    text = SafeTextFormat("World: %0.2f, %0.2f", playerBC.x, playerBC.y);
+    PUSH_TEXT(text, LIGHTGRAY);
+    const int16_t playerChunkX = tilemap.CalcChunk(playerBC.x);
+    const int16_t playerChunkY = tilemap.CalcChunk(playerBC.y);
+    const int16_t playerTileX = tilemap.CalcChunkTile(playerBC.x);
+    const int16_t playerTileY = tilemap.CalcChunkTile(playerBC.y);
+    text = SafeTextFormat("Chunk: %d, %d", playerChunkX, playerChunkY);
+    PUSH_TEXT(text, LIGHTGRAY);
+    text = SafeTextFormat("Tile:  %d, %d", playerTileX, playerTileY);
     PUSH_TEXT(text, LIGHTGRAY);
 
     if (debugStats.tick) {
@@ -862,7 +874,7 @@ int UI::Menu(const Font &font, const char **items, size_t itemCount)
     return itemPressed;
 }
 
-void UI::DearMenu(ImFont *bigFont, bool &escape, bool connectedToServer)
+void UI::InGameMenu(ImFont *bigFont, bool &escape, bool connectedToServer)
 {
     const char *menuId = "EscMenu";
     if (!ImGui::IsPopupOpen(menuId) && escape) {

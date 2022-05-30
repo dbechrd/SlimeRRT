@@ -2,6 +2,8 @@
 #include "raylib/raylib.h"
 #include <vector>
 
+struct World;
+
 enum class DrawableType {
     Particle,
     Player,
@@ -13,7 +15,7 @@ enum class DrawableType {
 struct Drawable {
     virtual float Depth() const = 0;
     virtual bool Cull(const Rectangle& cullRect) const = 0;
-    virtual void Draw() const = 0;
+    virtual void Draw(const World &world) const = 0;
 };
 
 struct DrawCommand {
@@ -24,7 +26,7 @@ struct DrawList {
     void EnableCulling(const Rectangle &rect);  // must be enabled before calling push()
     void DisableCulling();
     void Push(const Drawable &drawable);
-    void Flush();
+    void Flush(const World &world);
 
     bool      cullEnabled {};
     Rectangle cullRect    {};

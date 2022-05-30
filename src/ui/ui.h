@@ -53,12 +53,12 @@ struct UI {
     static void Mixer(void);
     static void ParticleConfig(World &world, Player &player);
     static void Netstat(NetClient &netClient, double renderAt);
-    static void HUD(const Font &font, const Player &player, const DebugStats &debugStats);
+    static void HUD(const Font &font, const Tilemap &tilemap, const Player &player, const DebugStats &debugStats);
     static void QuickHUD(const Font &font, const Player &player, const Tilemap &tilemap);
     static void Chat(const Font &font, int fontSize, World &world, NetClient &netClient, bool processKeyboard, bool &chatActive, bool &escape);
     static void TileHoverTip(const Font &font, const Tilemap &map);
     static int  Menu(const Font &font, const char **items, size_t itemCount);
-    static void DearMenu(struct ImFont *bigFont, bool &escape, bool connectedToServer);
+    static void InGameMenu(struct ImFont *bigFont, bool &escape, bool connectedToServer);
     static void Inventory(const Texture &invItems, Player &player, NetClient &netClient, bool &escape, bool &inventoryActive);
 
 private:

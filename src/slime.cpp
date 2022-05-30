@@ -208,7 +208,7 @@ bool Slime::Cull(const Rectangle &cullRect) const
     return cull;
 }
 
-void Slime::Draw(void) const
+void Slime::Draw(const World &world) const
 {
     const Vector2 slimeBC = body.GroundPosition();
     if (combat.hitPoints) {

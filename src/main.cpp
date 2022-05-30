@@ -43,7 +43,7 @@ int main(int argc, char *argv[])
     // Initialization
     //--------------------------------------------------------------------------------------
     GameServer *gameServer = 0;
-#if 0
+#if 1
     if (args.standalone) {
         gameServer = new GameServer(args);
     }

@@ -807,5 +807,5 @@ void World::DrawParticles(void)
 
 void World::DrawFlush(void)
 {
-    drawList.Flush();
+    drawList.Flush(*this);
 }

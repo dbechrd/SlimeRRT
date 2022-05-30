@@ -473,7 +473,7 @@ ErrorType GameClient::Run(void)
         }
 
         if (input.dbgTeleport) {
-            netClient.SendChatMessage(CSTR("teleport"));
+            netClient.SendChatMessage(CSTR("/rtp"));
         }
 
         if (world == lobby && input.dbgSpawnSam) {
@@ -527,9 +527,6 @@ ErrorType GameClient::Run(void)
         mousePosWorld.x += cameraRect.x + mousePosScreen.x * spycam.GetInvZoom();
         mousePosWorld.y += cameraRect.y + mousePosScreen.y * spycam.GetInvZoom();
 
-        //----------------------------------------------------------------------
-        // Render world
-        //----------------------------------------------------------------------
         BeginDrawing();
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
@@ -537,6 +534,10 @@ ErrorType GameClient::Run(void)
         UI::Begin(mousePosScreen, mousePosWorld, screenSize, &spycam);
 
         ClearBackground(ORANGE);
+
+        //----------------------------------------------------------------------
+        // Render world
+        //----------------------------------------------------------------------
         DrawTexture(checkboardTexture, 0, 0, WHITE);
 
         Camera2D cam = spycam.GetCamera();
@@ -560,96 +561,6 @@ ErrorType GameClient::Run(void)
         world->DrawEntities();
         world->DrawParticles();
         world->DrawFlush();
-
-        Vector2 playerPos = player.body.GroundPosition();
-        const Tile *playerTileLeft = world->map->TileAtWorld(playerPos.x - 15.0f, playerPos.y);
-        const Tile *playerTileRight = world->map->TileAtWorld(playerPos.x + 15.0f, playerPos.y);
-        if (playerTileLeft && playerTileLeft->type == Tile::Type::Water &&
-            playerTileRight && playerTileRight->type == Tile::Type::Water)
-        {
-            auto tilesetId = world->map->tilesetId;
-            Tileset &tileset = g_tilesets[(size_t)tilesetId];
-            Rectangle tileRect = tileset_tile_rect(tilesetId, Tile::Type::Water);
-            assert(tileRect.width == TILE_W);
-            assert(tileRect.height == TILE_W);
-
-            Vector3 playerGut3D = player.GetAttachPoint(Player::AttachPoint::Gut);
-            Vector2 playerGut2D = { playerGut3D.x, playerGut3D.y - playerGut3D.z + 10.0f };
-            float offsetX = fmodf(playerGut2D.x, TILE_W);
-            float offsetY = fmodf(playerGut2D.y, TILE_W);
-
-            Rectangle dstTopMid{
-                playerGut2D.x - offsetX,
-                playerGut2D.y,
-                TILE_W,
-                TILE_W - offsetY
-            };
-
-            Rectangle dstTopLeft = dstTopMid;
-            dstTopLeft.x -= TILE_W;
-
-            Rectangle dstTopRight = dstTopMid;
-            dstTopRight.x += TILE_W;
-
-            Rectangle srcTop = tileRect;
-            srcTop.y += offsetY;
-            srcTop.height -= offsetY;
-
-            Rectangle dstBotMid{
-                playerGut2D.x - offsetX,
-                playerGut2D.y - offsetY + TILE_W,
-                TILE_W,
-                TILE_W
-            };
-
-            Rectangle dstBotLeft = dstBotMid;
-            dstBotLeft.x -= TILE_W;
-
-            Rectangle dstBotRight = dstBotMid;
-            dstBotRight.x += TILE_W;
-
-            float minXWater = FLT_MAX;
-            float maxXWater = FLT_MIN;
-
-#define CHECK_AND_DRAW(src, dst) \
-            tile = world->map->TileAtWorld((dst).x, (dst).y);                                  \
-            if (tile && tile->type == Tile::Type::Water) {                                   \
-                DrawTexturePro(tileset.texture, (src), (dst), { 0, 0 }, 0, Fade(WHITE, 0.8f)); \
-                minXWater = MIN(minXWater, (dst).x);                                           \
-                maxXWater = MAX(maxXWater, (dst).x + (dst).width);                             \
-            }
-
-            const Tile *tile = 0;
-            CHECK_AND_DRAW(srcTop, dstTopLeft);
-            CHECK_AND_DRAW(srcTop, dstTopMid);
-            CHECK_AND_DRAW(srcTop, dstTopRight);
-            CHECK_AND_DRAW(tileRect, dstBotLeft);
-            CHECK_AND_DRAW(tileRect, dstBotMid);
-            CHECK_AND_DRAW(tileRect, dstBotRight);
-
-#undef CHECK_AND_DRAW
-
-            const Tile *playerGutTile = world->map->TileAtWorld(playerGut2D.x, playerGut2D.y);
-            if (playerGutTile && playerGutTile->type == Tile::Type::Water) {
-                Rectangle bubblesDstTopMid{
-                    playerGut2D.x - 20.0f,
-                    playerGut2D.y,
-                    40.0f,
-                    8.0f
-                };
-
-                Rectangle bubblesSrcTop = tileRect;
-                bubblesSrcTop.y += offsetY;
-                bubblesSrcTop.height -= offsetY;
-
-                //DrawCircleV({ minXWater, playerGut2D.y }, 2.0f, PINK);
-                //DrawCircleV({ maxXWater, playerGut2D.y }, 2.0f, PINK);
-
-                const float radiusDelta = (player.moveState != Player::MoveState::Idle) ? (float)(sin(now * 8) * 3) : 0.0f;
-                const float radius = 20.0f + radiusDelta;
-                DrawEllipse((int)playerGut2D.x, (int)playerGut2D.y, radius, radius * 0.5f, Fade(SKYBLUE, 0.4f));
-            }
-        }
 
 #if DEMO_VIEW_RTREE
         AABB searchAABB = {
@@ -713,6 +624,11 @@ ErrorType GameClient::Run(void)
         //----------------------------------------------------------------------
         // Render screen (HUD, UI, etc.)
         //----------------------------------------------------------------------
+        // Render mouse tile tooltip
+        if (input.dbgFindMouseTile) {
+            UI::TileHoverTip(fontSmall, *world->map);
+        }
+
         UI::Minimap(fontSmall, spycam, *world);
 
         // TODO(cleanup): Noise test
@@ -741,7 +657,7 @@ ErrorType GameClient::Run(void)
             debugStats.bytes_sent = enet_peer_get_bytes_sent(netClient.server);
             debugStats.bytes_recv = enet_peer_get_bytes_received(netClient.server);
         }
-        UI::HUD(fontSmall, player, debugStats);
+        UI::HUD(fontSmall, *world->map, player, debugStats);
         //UI::QuickHUD(fontSdf24, player, *world->map);
         if (inventoryActive) {
             UI::Inventory(Catalog::g_items.Tex(), player, netClient, escape, inventoryActive);
@@ -758,27 +674,23 @@ ErrorType GameClient::Run(void)
         //}
         //UI::Netstat(netClient, renderAt);
 
-        // Render mouse tile tooltip
-        if (input.dbgFindMouseTile) {
-            UI::TileHoverTip(fontSmall, *world->map);
-        }
-
         UI::ParticleConfig(*world, player);
 
         //----------------------------------------------------------------------
         // Menu
         //----------------------------------------------------------------------
-        UI::DearMenu(imFontHack48, escape, connectedToServer);
-
-        ImGui::Render();
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-        EndDrawing();
-        //----------------------------------------------------------------------------------
+        UI::InGameMenu(imFontHack48, escape, connectedToServer);
 
         if (UI::DisconnectRequested(connectedToServer)) {
             netClient.Disconnect();
             world = lobby;
         }
+
+        //----------------------------------------------------------------------------------
+
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        EndDrawing();
     }
 
     //----------------------------------------------------------------------

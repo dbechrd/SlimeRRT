@@ -47,7 +47,7 @@ void ItemWorld::Update(double dt)
     }
 }
 
-void ItemWorld::Draw(void) const
+void ItemWorld::Draw(const World &world) const
 {
     if (pickedUpAt) {
         DrawCircleV(body.VisualPosition(), 5.0f, RED);
