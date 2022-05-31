@@ -74,7 +74,7 @@
 #define SV_RESPAWN_TIMER            5.0
 #define SV_COMMAND_MAX_ARGS         16       // max # of args a chat command can have
 #define SV_SLIME_MOVE_SPEED         METERS_TO_PIXELS(2.0f)
-#define SV_SLIME_ATTACK_TRACK       METERS_TO_PIXELS(5.0f)
+#define SV_SLIME_ATTACK_TRACK       METERS_TO_PIXELS(10.0f)
 #define SV_SLIME_ATTACK_REACH       METERS_TO_PIXELS(0.5f)
 #define SV_SLIME_RADIUS             METERS_TO_PIXELS(0.5f)
 

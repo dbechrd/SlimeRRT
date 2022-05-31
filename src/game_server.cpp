@@ -52,14 +52,7 @@ ErrorType GameServer::Run(const Args &args)
     netServer.serverWorld = world;
 
     {
-        Slime *slime = world->SpawnSlime(0);
-        slime->body.Teleport(world->GetWorldSpawn());
-        slime->body.Move({ -50.0f, 0 });
-
-        slime = world->SpawnSlime(0);
-        slime->body.Teleport(world->GetWorldSpawn());
-        slime->body.Move({ -50.0f, 50.0f });
-
+        // TODO: Spawn slimes near player rather than randomly nearly spawn only once
         for (size_t i = 0; i < SV_MAX_SLIMES; i++) {
             world->SpawnSlime(0);
         }

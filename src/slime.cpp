@@ -106,8 +106,8 @@ bool Slime::Move(double dt, Vector2 offset)
         moveState = MoveState::Jump;
         body.velocity.x += offset.x;
         body.velocity.y += offset.y;
-        body.velocity.z += METERS_TO_PIXELS(3.0f);
-        randJumpIdle = (double)dlb_rand32f_range(1.0f, 2.5f) / sprite.scale;
+        body.velocity.z += METERS_TO_PIXELS(4.0f);
+        randJumpIdle = (double)dlb_rand32f_range(0.5f, 1.5f) / sprite.scale;
         UpdateDirection(offset);
         return true;
     }
