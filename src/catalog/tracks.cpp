@@ -1,4 +1,3 @@
-#include "catalog/mixer.h"
 #include "catalog/sounds.h"
 #include "catalog/tracks.h"
 #include "raylib/raylib.h"

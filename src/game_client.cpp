@@ -59,6 +59,7 @@ void GameClient::Init(void)
     imFontHack16 = io.Fonts->AddFontFromFileTTF("resources/Hack-Bold.ttf", 16.0f);
     imFontHack32 = io.Fonts->AddFontFromFileTTF("resources/Hack-Bold.ttf", 32.0f);
     imFontHack48 = io.Fonts->AddFontFromFileTTF("resources/Hack-Bold.ttf", 48.0f);
+    imFontHack64 = io.Fonts->AddFontFromFileTTF("resources/Hack-Bold.ttf", 64.0f);
     io.FontDefault = imFontHack16;
 
     // Setup Dear ImGui style
@@ -135,7 +136,6 @@ void GameClient::Init(void)
     }
 
     Catalog::g_items.Load();
-    Catalog::g_mixer.Load();
     Catalog::g_particleFx.Load();
     Catalog::g_sounds.Load();
     Catalog::g_spritesheets.Load();

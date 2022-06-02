@@ -1,4 +1,6 @@
 #pragma once
+
+#include "csv.h"
 #include <dlb_murmur3.h>
 #include <raylib/raylib.h>
 #include <array>
@@ -296,6 +298,7 @@ namespace Catalog {
 
     private:
         Texture tex {};
+        CSV csv {};
         std::array<Item, (size_t)ItemID::Count> byId {};
     } g_items;
 }
