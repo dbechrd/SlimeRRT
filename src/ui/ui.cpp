@@ -1,4 +1,4 @@
-#include "error.h"
+﻿#include "error.h"
 #include "net_client.h"
 #include "../spycam.h"
 #include "../tilemap.h"
@@ -19,6 +19,8 @@ bool UI::showParticleConfig = false;
 
 bool UI::disconnectRequested = false;
 bool UI::quitRequested = false;
+
+UI::Menu UI::mainMenu = UI::Menu::Main;
 
 void UI::Begin(Vector2 screenSize, Spycam *spycam)
 {
@@ -898,11 +900,61 @@ int UI::OldRaylibMenu(const Font &font, const char **items, size_t itemCount)
     return itemPressed;
 }
 
-bool UI::MenuBackButton(void)
+bool UI::BreadcrumbButton(const char *label, Menu menu, bool &escape)
 {
+    ImGui::PushFont(g_fonts.imFontHack16);
+    if (!label[0]) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
+    ImGui::Button(label);
+    if (!label[0]) ImGui::PopStyleColor(1);
+    bool pressed = (ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
+        ImGui::IsMouseHoveringRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax()));
+    if (escape || pressed) {
+        Catalog::g_sounds.Play(Catalog::SoundID::Squish2);
+        mainMenu = menu;
+        escape = false;
+    }
+    ImGui::SameLine();
+    ImGui::Text(label[0] ? " -> " : "");
+    ImGui::SameLine();
+    ImGui::PopFont();
+    return pressed;
+}
+
+void UI::BreadcrumbText(const char *text)
+{
+    ImGui::PushFont(g_fonts.imFontHack16);
+    ImGui::Text(text);
+    ImGui::PopFont();
+}
+
+bool UI::MenuBackButton(Menu menu, bool &escape)
+{
+    return false;
+
+    ImGui::PushFont(g_fonts.imFontHack32);
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
-    bool pressed = ImGui::Button("< Back");
+    ImGui::Button("< Back");
+    bool pressed = (ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
+                    ImGui::IsMouseHoveringRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax()));
+    if (escape || pressed) {
+        Catalog::g_sounds.Play(Catalog::SoundID::Squish2);
+        mainMenu = menu;
+        escape = false;
+    }
     ImGui::PopStyleColor(1);
+    ImGui::PopFont();
+    ImGui::SameLine();
+    return pressed;
+}
+
+bool UI::MenuItemClick(const char *label)
+{
+    ImGui::MenuItem(label);
+    bool pressed = ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
+                   ImGui::IsMouseHoveringRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
+    if (pressed) {
+        Catalog::g_sounds.Play(Catalog::SoundID::Squish1);
+    }
     return pressed;
 }
 
@@ -915,13 +967,6 @@ void UI::MainMenu(bool &escape, const Args &args, NetClient &netClient)
     float windowPaddingY = 200.0f;
     ImGui::SetNextWindowPos(menuCenter, 0, ImVec2(0.5f, 0.5f));
     ImGui::SetNextWindowSize(ImVec2(screenSize.x, screenSize.y));
-
-    static enum class Menu {
-        Main,
-        Singleplayer,
-        Multiplayer,
-        Audio
-    } currentMenu = Menu::Main;
 
     ImGui::PushFont(g_fonts.imFontHack32);
 
@@ -939,8 +984,14 @@ void UI::MainMenu(bool &escape, const Args &args, NetClient &netClient)
         ImGuiWindowFlags_NoSavedSettings
     );
 
-    switch (currentMenu) {
+    Menu oldMenu = mainMenu;
+
+    switch (mainMenu) {
         case Menu::Main: {
+            UI::BreadcrumbButton("", Menu::Main, escape);
+            UI::BreadcrumbText("");
+            if (MenuBackButton(Menu::Main, escape)) break;
+
             // This seems dangerous/annoying if user is spamming escape to get back to root menu
             //if (escape) {
             //    quitRequested = true;
@@ -953,38 +1004,32 @@ void UI::MainMenu(bool &escape, const Args &args, NetClient &netClient)
             ImGui::PopFont();
 
             ImGui::PushFont(g_fonts.imFontHack48);
-            ImGui::MenuItem("Single player");
-            if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
-                currentMenu = Menu::Singleplayer;
+            if (UI::MenuItemClick("Single player")) {
+                mainMenu = Menu::Singleplayer;
             }
-            ImGui::MenuItem("Multiplayer");
-            if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
-                currentMenu = Menu::Multiplayer;
+            if (UI::MenuItemClick("Multiplayer")) {
+                mainMenu = Menu::Multiplayer;
             }
-            ImGui::MenuItem("Audio");
-            if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
-                currentMenu = Menu::Audio;
+            if (UI::MenuItemClick("Audio")) {
+                mainMenu = Menu::Audio;
             }
-            ImGui::MenuItem("Quit");
-            if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
+            if (UI::MenuItemClick("Quit")) {
                 quitRequested = true;
             }
             ImGui::PopFont();
             break;
         } case Menu::Singleplayer: {
-            if (escape || MenuBackButton()) {
-                currentMenu = Menu::Main;
-                escape = false;
-                break;
-            }
-            ImGui::SameLine();
-            ImGui::SetCursorPosY(windowPaddingY - 3.0f);  // idk how to calculate this properly
+            if (UI::BreadcrumbButton("Main Menu", Menu::Main, escape)) break;
+            UI::BreadcrumbText("Single player");
+
+            if (MenuBackButton(Menu::Main, escape)) break;
+
             ImGui::PushFont(g_fonts.imFontHack64);
             CenteredText("Choose a world:");
             ImGui::PopFont();
 
             ImGui::PushFont(g_fonts.imFontHack48);
-            if (ImGui::MenuItem("Dandyland")) {
+            if (UI::MenuItemClick("Dandyland")) {
                 // TODO: start GameServer in a new thread, then join it
                 //if (netClient.Connect(args.host, args.port, args.user, args.pass) != ErrorType::Success) {
                 //    TraceLog(LOG_ERROR, "Failed to connect to local server");
@@ -993,20 +1038,17 @@ void UI::MainMenu(bool &escape, const Args &args, NetClient &netClient)
             ImGui::PopFont();
             break;
         } case Menu::Multiplayer: {
-            if (escape || MenuBackButton()) {
-                currentMenu = Menu::Main;
-                escape = false;
-                break;
-            }
+            if (UI::BreadcrumbButton("Main Menu", Menu::Main, escape)) break;
+            UI::BreadcrumbText("Multiplayer");
 
-            ImGui::SameLine();
-            ImGui::SetCursorPosY(windowPaddingY - 3.0f);  // idk how to calculate this properly
+            if (MenuBackButton(Menu::Main, escape)) break;
+
             ImGui::PushFont(g_fonts.imFontHack64);
             CenteredText("Multiplayer");
             ImGui::PopFont();
 
             ImGui::PushFont(g_fonts.imFontHack48);
-            if (ImGui::MenuItem("Dandyland via DNS")) {
+            if (UI::MenuItemClick("Dandyland via DNS")) {
                 if (netClient.Connect(args.host, args.port, args.user, args.pass) != ErrorType::Success) {
                     TraceLog(LOG_ERROR, "Failed to connect to local server");
                 }
@@ -1014,19 +1056,11 @@ void UI::MainMenu(bool &escape, const Args &args, NetClient &netClient)
             ImGui::PopFont();
             break;
         } case Menu::Audio: {
-            if (escape || MenuBackButton()) {
-                currentMenu = Menu::Main;
-                escape = false;
-                break;
-            }
-            ImGui::SameLine();
-            ImGui::SetCursorPosX(ImGui::GetContentRegionMax().x - 100);
-            static bool audioAdvanced = false;
-            if (ImGui::Button(audioAdvanced ? "Show Less" : "Show More")) {
-                audioAdvanced = !audioAdvanced;
-            }
-            ImGui::SameLine();
-            ImGui::SetCursorPosY(windowPaddingY - 3.0f);  // idk how to calculate this properly
+            if (UI::BreadcrumbButton("Main Menu", Menu::Main, escape)) break;
+            UI::BreadcrumbText("Audio");
+
+            if (MenuBackButton(Menu::Main, escape)) break;
+
             ImGui::PushFont(g_fonts.imFontHack64);
             CenteredText("Audio");
             ImGui::PopFont();

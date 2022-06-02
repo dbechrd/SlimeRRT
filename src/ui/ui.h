@@ -65,8 +65,20 @@ private:
     static bool disconnectRequested;
     static bool quitRequested;
 
+
+    enum Menu : int {
+        Main,
+        Singleplayer,
+        Multiplayer,
+        Audio
+    };
+    static Menu mainMenu;
+
     static void CenteredText(const char *text);
     static void SliderFloatLeft(const char *label, float *v, float min, float max);
     static void SliderIntLeft(const char *label, int *v, int min, int max);
-    static bool MenuBackButton(void);
+    static bool BreadcrumbButton(const char *label, Menu menu, bool &escape);
+    static void BreadcrumbText(const char *text);
+    static bool MenuBackButton(Menu menu, bool &escape);
+    static bool MenuItemClick(const char *label);
 };

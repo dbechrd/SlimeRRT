@@ -33,7 +33,7 @@ namespace Catalog {
         void Load(void);
         void Unload(void);
         const Sound &FindById(SoundID id) const;
-        void Play(SoundID id, float pitch, bool multi = false);
+        void Play(SoundID id, float pitch = 1.0f, bool multi = false);
         bool Playing(SoundID id);
         const unsigned char *MissingOggData(size_t &fileSize);
 
