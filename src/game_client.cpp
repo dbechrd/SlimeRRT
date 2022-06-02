@@ -3,6 +3,7 @@
 #include "catalog/spritesheets.h"
 #include "catalog/tracks.h"
 #include "draw_command.h"
+#include "catalog/fonts.h"
 #include "fx/fx.h"
 #include "game_client.h"
 #include "healthbar.h"
@@ -56,11 +57,11 @@ void GameClient::Init(void)
     //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
     //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
 
-    imFontHack16 = io.Fonts->AddFontFromFileTTF("resources/Hack-Bold.ttf", 16.0f);
-    imFontHack32 = io.Fonts->AddFontFromFileTTF("resources/Hack-Bold.ttf", 32.0f);
-    imFontHack48 = io.Fonts->AddFontFromFileTTF("resources/Hack-Bold.ttf", 48.0f);
-    imFontHack64 = io.Fonts->AddFontFromFileTTF("resources/Hack-Bold.ttf", 64.0f);
-    io.FontDefault = imFontHack16;
+    g_fonts.imFontHack16 = io.Fonts->AddFontFromFileTTF("resources/Hack-Bold.ttf", 16.0f);
+    g_fonts.imFontHack32 = io.Fonts->AddFontFromFileTTF("resources/Hack-Bold.ttf", 32.0f);
+    g_fonts.imFontHack48 = io.Fonts->AddFontFromFileTTF("resources/Hack-Bold.ttf", 48.0f);
+    g_fonts.imFontHack64 = io.Fonts->AddFontFromFileTTF("resources/Hack-Bold.ttf", 64.0f);
+    io.FontDefault = g_fonts.imFontHack16;
 
     // Setup Dear ImGui style
     ImGui::StyleColorsDark();
@@ -75,13 +76,13 @@ void GameClient::Init(void)
     //const char *fontName = "C:/Windows/Fonts/consola.ttf";
     //const char *fontName = "resources/UbuntuMono-Regular.ttf";
     const char *fontName = "resources/Hack-Bold.ttf";
-    fontSmall = LoadFontEx(fontName, 16, 0, 0);
+    g_fonts.fontSmall = LoadFontEx(fontName, 16, 0, 0);
     //Font fontBig = LoadFontEx(fontName, 72, 0, 0);
-    assert(fontSmall.texture.id);
+    assert(g_fonts.fontSmall.texture.id);
     //assert(fontBig.texture.id);
-    GuiSetFont(fontSmall);
+    GuiSetFont(g_fonts.fontSmall);
     //HealthBar::SetFont(GetFontDefault());
-    HealthBar::SetFont(fontSmall);
+    HealthBar::SetFont(g_fonts.fontSmall);
 
 #if PIXEL_FIXER
     pixelFixer                     = LoadShader("resources/pixelfixer.vs", "resources/pixelfixer.fs");
@@ -95,33 +96,33 @@ void GameClient::Init(void)
         unsigned char *fileData = 0;
         Image atlas{};
 
-        fontSdf24.baseSize = 24;
-        fontSdf24.glyphCount = 95;
+        g_fonts.fontSdf24.baseSize = 24;
+        g_fonts.fontSdf24.glyphCount = 95;
         // Parameters > font size: 16, no glyphs array provided (0), glyphs count: 0 (defaults to 95)
         // Loading file to memory
         fileData = LoadFileData(fontName, &fileSize);
-        fontSdf24.glyphs = LoadFontData(fileData, fileSize, fontSdf24.baseSize, 0, 0, FONT_SDF);
+        g_fonts.fontSdf24.glyphs = LoadFontData(fileData, fileSize, g_fonts.fontSdf24.baseSize, 0, 0, FONT_SDF);
         // Parameters > glyphs count: 95, font size: 16, glyphs padding in image: 0 px, pack method: 1 (Skyline algorythm)
-        atlas = GenImageFontAtlas(fontSdf24.glyphs, &fontSdf24.recs, 95, fontSdf24.baseSize, 0, 1);
-        fontSdf24.texture = LoadTextureFromImage(atlas);
+        atlas = GenImageFontAtlas(g_fonts.fontSdf24.glyphs, &g_fonts.fontSdf24.recs, 95, g_fonts.fontSdf24.baseSize, 0, 1);
+        g_fonts.fontSdf24.texture = LoadTextureFromImage(atlas);
         UnloadImage(atlas);
         UnloadFileData(fileData);  // Free memory from loaded file
 
-        fontSdf72.baseSize = 72;
-        fontSdf72.glyphCount = 95;
+        g_fonts.fontSdf72.baseSize = 72;
+        g_fonts.fontSdf72.glyphCount = 95;
         // Parameters > font size: 16, no glyphs array provided (0), glyphs count: 0 (defaults to 95)
         // Loading file to memory
         fileData = LoadFileData(fontName, &fileSize);
-        fontSdf72.glyphs = LoadFontData(fileData, fileSize, fontSdf72.baseSize, 0, 0, FONT_SDF);
+        g_fonts.fontSdf72.glyphs = LoadFontData(fileData, fileSize, g_fonts.fontSdf72.baseSize, 0, 0, FONT_SDF);
         // Parameters > glyphs count: 95, font size: 16, glyphs padding in image: 0 px, pack method: 1 (Skyline algorythm)
-        atlas = GenImageFontAtlas(fontSdf72.glyphs, &fontSdf72.recs, 95, fontSdf72.baseSize, 0, 1);
-        fontSdf72.texture = LoadTextureFromImage(atlas);
+        atlas = GenImageFontAtlas(g_fonts.fontSdf72.glyphs, &g_fonts.fontSdf72.recs, 95, g_fonts.fontSdf72.baseSize, 0, 1);
+        g_fonts.fontSdf72.texture = LoadTextureFromImage(atlas);
         UnloadImage(atlas);
         UnloadFileData(fileData);  // Free memory from loaded file
 
         // Load SDF required shader (we use default vertex shader)
         g_sdfShader = LoadShader(0, "resources/sdf.fs");
-        SetTextureFilter(fontSdf72.texture, TEXTURE_FILTER_BILINEAR);  // Required for SDF font
+        SetTextureFilter(g_fonts.fontSdf72.texture, TEXTURE_FILTER_BILINEAR);  // Required for SDF font
     }
 
     // NOTE: There could be other, bigger monitors
@@ -208,19 +209,17 @@ ErrorType GameClient::PlayMode_Network(double frameDt, PlayerControllerState &in
 {
     E_ASSERT(netClient.Receive(), "Failed to receive packets");
 
+    if (UI::DisconnectRequested(netClient.ConnectedAndSpawned())) {
+        netClient.Disconnect();
+        world = nullptr;
+        tickAccum = 0;
+        sendInputAccum = 0;
+    }
+
     bool connected = netClient.ConnectedAndSpawned();
     if (connected && world != netClient.serverWorld) {
         // We joined a server, take on the server's world
         world = netClient.serverWorld;
-        tickAccum = 0;
-        sendInputAccum = 0;
-    } else if (!connected && world) {
-        // We disconnected from a server, free the world
-        if (netClient.serverWorld) {
-            delete netClient.serverWorld;
-            netClient.serverWorld = nullptr;
-        }
-        world = nullptr;
         tickAccum = 0;
         sendInputAccum = 0;
     }
@@ -527,10 +526,10 @@ void GameClient::PlayMode_DrawScreen(double frameDt, PlayerControllerState &inpu
 {
     // Render mouse tile tooltip
     if (input.dbgFindMouseTile) {
-        UI::TileHoverTip(fontSmall, *world->map);
+        UI::TileHoverTip(g_fonts.fontSmall, *world->map);
     }
 
-    UI::Minimap(fontSmall, *world);
+    UI::Minimap(g_fonts.fontSmall, *world);
 
     // TODO(cleanup): Noise test
     //DrawTexturePro(noise,
@@ -538,7 +537,7 @@ void GameClient::PlayMode_DrawScreen(double frameDt, PlayerControllerState &inpu
     //    { screenSize.x - 4 - 256, (float)4 + world->map->minimap.height + 4, 256, 256 },
     //    { 0, 0 }, 0, WHITE);
 
-    UI::Chat(fontSdf72, 16, *world, netClient, inputMode == INPUT_MODE_PLAY || inputMode == INPUT_MODE_CHAT, chatVisible, input.escape);
+    UI::Chat(g_fonts.fontSdf72, 16, *world, netClient, inputMode == INPUT_MODE_PLAY || inputMode == INPUT_MODE_CHAT, chatVisible, input.escape);
 
     // Render HUD
     UI::DebugStats debugStats{};
@@ -558,7 +557,7 @@ void GameClient::PlayMode_DrawScreen(double frameDt, PlayerControllerState &inpu
         debugStats.bytes_sent = enet_peer_get_bytes_sent(netClient.server);
         debugStats.bytes_recv = enet_peer_get_bytes_received(netClient.server);
     }
-    UI::HUD(fontSmall, *world, debugStats);
+    UI::HUD(g_fonts.fontSmall, *world, debugStats);
     //UI::QuickHUD(fontSdf24, player, *world->map);
     if (inventoryActive) {
         Player *player = world->FindPlayer(world->playerId);
@@ -585,11 +584,6 @@ void GameClient::PlayMode_DrawScreen(double frameDt, PlayerControllerState &inpu
     //----------------------------------------------------------------------
     if (input.escape) puts("escape = true");
     UI::InGameMenu(input.escape, netClient.ConnectedAndSpawned());
-
-    if (UI::DisconnectRequested(netClient.ConnectedAndSpawned())) {
-        netClient.Disconnect();
-        world = nullptr;
-    }
 }
 
 ErrorType GameClient::Run(void)
@@ -627,21 +621,14 @@ ErrorType GameClient::Run(void)
         ImGui::NewFrame();
         DrawTexture(checkboardTexture, 0, 0, WHITE);
 
+        rlDrawRenderBatchActive();
+        UI::Begin(screenSize, &spycam);
+
         // Render: Kernel
         if (world) {
-            UI::Begin(imFontHack16, imFontHack32, imFontHack48, screenSize, &spycam);
             PlayMode_DrawWorld(frameDt, input);
             PlayMode_DrawScreen(frameDt, input);
         } else {
-            //const char *mainMenuText = "TODO: Main Menu\nFoo foo foo";
-            //Vector2 textRect = MeasureTextEx(fontSdf72, mainMenuText, fontSdf72.baseSize, 1);
-            //DrawTextFont(fontSdf72, mainMenuText,
-            //        screenSize.x / 2 - textRect.x / 2,
-            //        screenSize.y / 2 - textRect.y / 2,
-            //    0, 0, fontSdf72.baseSize, WHITE);
-
-            rlDrawRenderBatchActive();
-            UI::Begin(imFontHack16, imFontHack32, imFontHack48, screenSize, &spycam);
             bool escape = IsKeyPressed(KEY_ESCAPE);
             UI::MainMenu(escape, args, netClient);
         }
@@ -657,13 +644,13 @@ ErrorType GameClient::Run(void)
 
     // TODO: Wrap these in classes to use destructors?
     UnloadShader(g_sdfShader);
-    UnloadFont(fontSdf24);
-    UnloadFont(fontSdf72);
+    UnloadFont(g_fonts.fontSdf24);
+    UnloadFont(g_fonts.fontSdf72);
 #if PIXEL_FIXER
     UnloadShader(pixelFixer);
 #endif
     UnloadTexture(checkboardTexture);
-    UnloadFont(fontSmall);
+    UnloadFont(g_fonts.fontSmall);
     //UnloadFont(fontBig);
     Catalog::g_tracks.Unload();
     Catalog::g_sounds.Unload();

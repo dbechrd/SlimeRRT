@@ -25,7 +25,7 @@ struct UI {
         uint64_t bytes_recv;
     };
 
-    static void Begin(ImFont *imSmallFont, ImFont *imMedFont, ImFont *imBigFont, Vector2 screenSize, Spycam *spycam);
+    static void Begin(Vector2 screenSize, Spycam *spycam);
     static void HandleInput(const PlayerControllerState &input);
     static bool DisconnectRequested(bool connectedToServer);
     static bool QuitRequested();
@@ -56,9 +56,6 @@ private:
     static Vector2 mouseWorld;
     static Vector2 screenSize;
     static Spycam  *spycam;
-    static ImFont  *imSmallFont;
-    static ImFont  *imMedFont;
-    static ImFont  *imBigFont;
 
     static bool showMenubar;
     static bool showDemoWindow;
@@ -71,5 +68,5 @@ private:
     static void CenteredText(const char *text);
     static void SliderFloatLeft(const char *label, float *v, float min, float max);
     static void SliderIntLeft(const char *label, int *v, int min, int max);
-    static void CenteredSliderFloatLeft(const char *label, float *v, float min, float max);
+    static bool MenuBackButton(void);
 };

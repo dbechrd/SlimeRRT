@@ -11,9 +11,6 @@ Vector2 UI::mouseScreen;
 Vector2 UI::mouseWorld;
 Vector2 UI::screenSize;
 Spycam  *UI::spycam;
-ImFont *UI::imSmallFont;
-ImFont *UI::imMedFont;
-ImFont *UI::imBigFont;
 
 bool UI::showMenubar = false;
 bool UI::showDemoWindow = false;
@@ -23,7 +20,7 @@ bool UI::showParticleConfig = false;
 bool UI::disconnectRequested = false;
 bool UI::quitRequested = false;
 
-void UI::Begin(ImFont *imSmallFont, ImFont *imMedFont, ImFont *imBigFont, Vector2 screenSize, Spycam *spycam)
+void UI::Begin(Vector2 screenSize, Spycam *spycam)
 {
     Rectangle cameraRect = spycam->GetRect();
     const Vector2 mouseScreen = GetMousePosition();
@@ -36,9 +33,6 @@ void UI::Begin(ImFont *imSmallFont, ImFont *imMedFont, ImFont *imBigFont, Vector
     UI::mouseWorld = mouseWorld;
     UI::screenSize = screenSize;
     UI::spycam = spycam;
-    UI::imSmallFont = imSmallFont;
-    UI::imMedFont = imMedFont;
-    UI::imBigFont = imBigFont;
 };
 
 void UI::HandleInput(const PlayerControllerState &input)
@@ -217,7 +211,15 @@ void UI::SliderFloatLeft(const char *label, float *v, float min, float max)
     assert(label[1] == '#');
     ImGui::Text(label + 2);
     ImGui::SameLine();
-    ImGui::SliderFloat(label, v, min, max, "%.01f");
+    float sliderMargin = 20.0f;
+    float cursorX = ImGui::GetCursorPosX();
+    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + sliderMargin);
+    float sliderWidth = ImGui::GetContentRegionAvail().x - sliderMargin * 2.0f;
+    ImGui::PushItemWidth(sliderWidth);
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 10.0f));
+    ImGui::SliderFloat(label, v, min, max, "%.03f");
+    ImGui::PopStyleVar();
+    ImGui::PopItemWidth();
 }
 
 void UI::SliderIntLeft(const char *label, int *v, int min, int max)
@@ -227,22 +229,6 @@ void UI::SliderIntLeft(const char *label, int *v, int min, int max)
     ImGui::Text(label + 2);
     ImGui::SameLine();
     ImGui::SliderInt(label, v, min, max);
-}
-
-void UI::CenteredSliderFloatLeft(const char *label, float *v, float min, float max)
-{
-    assert(label[0] == '#');
-    assert(label[1] == '#');
-    ImGui::Text(label + 2);
-    ImGui::SameLine();
-    float windowWidth = ImGui::GetWindowSize().x;
-    float widthAvail = ImGui::GetContentRegionAvail().x;
-    float widthUsed = windowWidth - widthAvail;
-    float sliderWidth = windowWidth - widthUsed * 2.0f;
-    ImGui::SetCursorPosX((windowWidth - sliderWidth) * 0.5f);
-    ImGui::PushItemWidth(sliderWidth);
-    ImGui::SliderFloat(label, v, min, max, "%.03f");
-    ImGui::PopItemWidth();
 }
 
 void UI::LoginForm(NetClient &netClient, bool &escape)
@@ -912,21 +898,36 @@ int UI::OldRaylibMenu(const Font &font, const char **items, size_t itemCount)
     return itemPressed;
 }
 
+bool UI::MenuBackButton(void)
+{
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
+    bool pressed = ImGui::Button("< Back");
+    ImGui::PopStyleColor(1);
+    return pressed;
+}
+
 void UI::MainMenu(bool &escape, const Args &args, NetClient &netClient)
 {
     ImVec2 menuCenter{
         screenSize.x / 2.0f,
         screenSize.y / 2.0f
     };
+    float windowPaddingY = 200.0f;
     ImGui::SetNextWindowPos(menuCenter, 0, ImVec2(0.5f, 0.5f));
-    ImGui::SetNextWindowSize(ImVec2(600, 400));
+    ImGui::SetNextWindowSize(ImVec2(screenSize.x, screenSize.y));
 
     static enum class Menu {
         Main,
-            Singleplayer,
-            Multiplayer,
-            Audio
+        Singleplayer,
+        Multiplayer,
+        Audio
     } currentMenu = Menu::Main;
+
+    ImGui::PushFont(g_fonts.imFontHack32);
+
+    int styleVars = 0;
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(400.0f, 200.0f)); styleVars++;
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 20.0f)); styleVars++;
 
     ImGui::Begin("MainMenu", 0,
         //ImGuiWindowFlags_NoTitleBar |
@@ -947,11 +948,11 @@ void UI::MainMenu(bool &escape, const Args &args, NetClient &netClient)
             //    break;
             //}
 
-            ImGui::PushFont(UI::imBigFont);
+            ImGui::PushFont(g_fonts.imFontHack64);
             CenteredText("Main Menu");
             ImGui::PopFont();
 
-            ImGui::PushFont(UI::imMedFont);
+            ImGui::PushFont(g_fonts.imFontHack48);
             ImGui::MenuItem("Single player");
             if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
                 currentMenu = Menu::Singleplayer;
@@ -971,18 +972,18 @@ void UI::MainMenu(bool &escape, const Args &args, NetClient &netClient)
             ImGui::PopFont();
             break;
         } case Menu::Singleplayer: {
-            if (escape || ImGui::Button("< Back")) {
+            if (escape || MenuBackButton()) {
                 currentMenu = Menu::Main;
                 escape = false;
                 break;
             }
             ImGui::SameLine();
-            ImGui::SetCursorPosY(5);  // idk how to calculate this properly
-            ImGui::PushFont(UI::imBigFont);
+            ImGui::SetCursorPosY(windowPaddingY - 3.0f);  // idk how to calculate this properly
+            ImGui::PushFont(g_fonts.imFontHack64);
             CenteredText("Choose a world:");
             ImGui::PopFont();
 
-            ImGui::PushFont(UI::imMedFont);
+            ImGui::PushFont(g_fonts.imFontHack48);
             if (ImGui::MenuItem("Dandyland")) {
                 // TODO: start GameServer in a new thread, then join it
                 //if (netClient.Connect(args.host, args.port, args.user, args.pass) != ErrorType::Success) {
@@ -992,18 +993,19 @@ void UI::MainMenu(bool &escape, const Args &args, NetClient &netClient)
             ImGui::PopFont();
             break;
         } case Menu::Multiplayer: {
-            if (escape || ImGui::Button("< Back")) {
+            if (escape || MenuBackButton()) {
                 currentMenu = Menu::Main;
                 escape = false;
                 break;
             }
+
             ImGui::SameLine();
-            ImGui::SetCursorPosY(5);  // idk how to calculate this properly
-            ImGui::PushFont(UI::imBigFont);
+            ImGui::SetCursorPosY(windowPaddingY - 3.0f);  // idk how to calculate this properly
+            ImGui::PushFont(g_fonts.imFontHack64);
             CenteredText("Multiplayer");
             ImGui::PopFont();
 
-            ImGui::PushFont(UI::imMedFont);
+            ImGui::PushFont(g_fonts.imFontHack48);
             if (ImGui::MenuItem("Dandyland via DNS")) {
                 if (netClient.Connect(args.host, args.port, args.user, args.pass) != ErrorType::Success) {
                     TraceLog(LOG_ERROR, "Failed to connect to local server");
@@ -1012,7 +1014,7 @@ void UI::MainMenu(bool &escape, const Args &args, NetClient &netClient)
             ImGui::PopFont();
             break;
         } case Menu::Audio: {
-            if (escape || ImGui::Button("< Back")) {
+            if (escape || MenuBackButton()) {
                 currentMenu = Menu::Main;
                 escape = false;
                 break;
@@ -1020,21 +1022,23 @@ void UI::MainMenu(bool &escape, const Args &args, NetClient &netClient)
             ImGui::SameLine();
             ImGui::SetCursorPosX(ImGui::GetContentRegionMax().x - 100);
             static bool audioAdvanced = false;
-            if (ImGui::Button(audioAdvanced ? "Show Less" : "Show More", ImVec2(100, 0))) {
+            if (ImGui::Button(audioAdvanced ? "Show Less" : "Show More")) {
                 audioAdvanced = !audioAdvanced;
             }
             ImGui::SameLine();
-            ImGui::SetCursorPosY(5);  // idk how to calculate this properly
-            ImGui::PushFont(UI::imBigFont);
+            ImGui::SetCursorPosY(windowPaddingY - 3.0f);  // idk how to calculate this properly
+            ImGui::PushFont(g_fonts.imFontHack64);
             CenteredText("Audio");
             ImGui::PopFont();
 
-            ImGui::PushFont(UI::imMedFont);
-            CenteredSliderFloatLeft("##Master", &Catalog::g_mixer.masterVolume, 0.0f, 1.0f);
-            CenteredSliderFloatLeft("##Music ", &Catalog::g_mixer.musicVolume, 0.0f, 1.0f);
-            CenteredSliderFloatLeft("##Sfx   ", &Catalog::g_mixer.sfxVolume, 0.0f, 1.0f);
+            ImGui::PushFont(g_fonts.imFontHack48);
+            SliderFloatLeft("##Master", &Catalog::g_mixer.masterVolume, 0.0f, 1.0f);
+            SliderFloatLeft("##Music ", &Catalog::g_mixer.musicVolume, 0.0f, 1.0f);
+            SliderFloatLeft("##Sfx   ", &Catalog::g_mixer.sfxVolume, 0.0f, 1.0f);
+            ImGui::PopFont();
 
-            if (audioAdvanced) {
+            ImGui::PushFont(g_fonts.imFontHack16);
+            if (ImGui::TreeNode("Advanced")) {
                 if (ImGui::TreeNode("Tracks")) {
                     for (size_t i = 1; i < (size_t)Catalog::TrackID::Count; i++) {
                         if (ImGui::TreeNode(Catalog::TrackIDString((Catalog::TrackID)i))) {
@@ -1056,12 +1060,16 @@ void UI::MainMenu(bool &escape, const Args &args, NetClient &netClient)
                     }
                     ImGui::TreePop();
                 }
+                ImGui::TreePop();
             }
             ImGui::PopFont();
             break;
         }
     }
+
     ImGui::End();
+    ImGui::PopStyleVar(styleVars);
+    ImGui::PopFont();
 }
 
 void UI::InGameMenu(bool &escape, bool connectedToServer)
@@ -1103,11 +1111,11 @@ void UI::InGameMenu(bool &escape, bool connectedToServer)
                     break;
                 }
 
-                ImGui::PushFont(UI::imBigFont);
+                ImGui::PushFont(g_fonts.imFontHack64);
                 CenteredText("What's up?");
                 ImGui::PopFont();
 
-                ImGui::PushFont(UI::imMedFont);
+                ImGui::PushFont(g_fonts.imFontHack48);
                 ImGui::MenuItem("Resume");
                 if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
                     ImGui::CloseCurrentPopup();
@@ -1146,14 +1154,14 @@ void UI::InGameMenu(bool &escape, bool connectedToServer)
                 }
                 ImGui::SameLine();
                 ImGui::SetCursorPosY(5);  // idk how to calculate this properly
-                ImGui::PushFont(UI::imBigFont);
+                ImGui::PushFont(g_fonts.imFontHack64);
                 CenteredText("Audio");
                 ImGui::PopFont();
 
-                ImGui::PushFont(UI::imMedFont);
-                CenteredSliderFloatLeft("##Master", &Catalog::g_mixer.masterVolume, 0.0f, 1.0f);
-                CenteredSliderFloatLeft("##Music ", &Catalog::g_mixer.musicVolume, 0.0f, 1.0f);
-                CenteredSliderFloatLeft("##Sfx   ", &Catalog::g_mixer.sfxVolume, 0.0f, 1.0f);
+                ImGui::PushFont(g_fonts.imFontHack48);
+                SliderFloatLeft("##Master", &Catalog::g_mixer.masterVolume, 0.0f, 1.0f);
+                SliderFloatLeft("##Music ", &Catalog::g_mixer.musicVolume, 0.0f, 1.0f);
+                SliderFloatLeft("##Sfx   ", &Catalog::g_mixer.sfxVolume, 0.0f, 1.0f);
                 if (audioAdvanced) {
                     if (ImGui::TreeNode("Tracks")) {
                         for (size_t i = 1; i < (size_t)Catalog::TrackID::Count; i++) {

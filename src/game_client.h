@@ -33,15 +33,6 @@ private:
     bool chatVisible = false;
     bool inventoryActive = false;
 
-    // Fonts
-    ImFont *imFontHack16 {};
-    ImFont *imFontHack32 {};
-    ImFont *imFontHack48 {};
-    ImFont *imFontHack64 {};
-    Font fontSmall {};
-    Font fontSdf24 {};
-    Font fontSdf72 {};
-
     // Textures
     Texture checkboardTexture {};
 
