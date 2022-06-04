@@ -57,10 +57,14 @@ void GameClient::Init(void)
     //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
     //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
 
-    g_fonts.imFontHack16 = io.Fonts->AddFontFromFileTTF("resources/Hack-Bold.ttf", 16.0f);
-    g_fonts.imFontHack32 = io.Fonts->AddFontFromFileTTF("resources/Hack-Bold.ttf", 32.0f);
-    g_fonts.imFontHack48 = io.Fonts->AddFontFromFileTTF("resources/Hack-Bold.ttf", 48.0f);
-    g_fonts.imFontHack64 = io.Fonts->AddFontFromFileTTF("resources/Hack-Bold.ttf", 64.0f);
+    const char *fontName = "C:/Windows/Fonts/consolab.ttf";
+    //const char *fontName = "resources/Hack-Bold.ttf";
+    //const char *fontName = "resources/PressStart2P-vaV7.ttf";
+
+    g_fonts.imFontHack16 = io.Fonts->AddFontFromFileTTF(fontName, 16.0f);
+    g_fonts.imFontHack32 = io.Fonts->AddFontFromFileTTF(fontName, 32.0f);
+    g_fonts.imFontHack48 = io.Fonts->AddFontFromFileTTF(fontName, 48.0f);
+    g_fonts.imFontHack64 = io.Fonts->AddFontFromFileTTF(fontName, 64.0f);
     io.FontDefault = g_fonts.imFontHack16;
 
     // Setup Dear ImGui style
@@ -73,9 +77,6 @@ void GameClient::Init(void)
     ImGui_ImplGlfw_InitForOpenGL(glfwWindow, true);
     ImGui_ImplOpenGL3_Init("#version 130");
 
-    //const char *fontName = "C:/Windows/Fonts/consola.ttf";
-    //const char *fontName = "resources/UbuntuMono-Regular.ttf";
-    const char *fontName = "resources/Hack-Bold.ttf";
     g_fonts.fontSmall = LoadFontEx(fontName, 16, 0, 0);
     //Font fontBig = LoadFontEx(fontName, 72, 0, 0);
     assert(g_fonts.fontSmall.texture.id);

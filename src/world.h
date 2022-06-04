@@ -42,17 +42,16 @@ struct World {
     ////////////////////////////////////////////
     // vvv DO NOT HOLD A POINTER TO THESE! vvv
     //
-    Player *AddPlayer     (uint32_t playerId);
-    Player *FindPlayer    (uint32_t playerId);
-    //void    DespawnPlayer (uint32_t playerId);
-    void    RemovePlayer  (uint32_t playerId);
+    Player *AddPlayer         (uint32_t playerId);
+    Player *FindPlayer        (uint32_t playerId);
+    Player *FindPlayerByName  (const char *name, size_t nameLength);
+    Player *FindClosestPlayer (Vector2 worldPos, float maxDist);
+    void    RemovePlayer      (uint32_t playerId);
 
-    Slime  &SpawnSam      (void);
-    Slime  *SpawnSlime    (uint32_t slimeId);
-    Slime  *FindSlime     (uint32_t slimeId);
-    void    DespawnSlime  (uint32_t slimeId);
-
-    Player *FindClosestPlayer(Vector2 worldPos, float maxDist);
+    Slime  &SpawnSam    (void);
+    Slime  *SpawnSlime  (uint32_t slimeId);
+    Slime  *FindSlime   (uint32_t slimeId);
+    void    RemoveSlime (uint32_t slimeId);
     //
     // ^^^ DO NOT HOLD A POINTER TO THESE! ^^^
     ////////////////////////////////////////////

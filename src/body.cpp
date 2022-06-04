@@ -37,7 +37,7 @@ inline Vector2 Body3D::VisualPosition(void) const
     return result;
 }
 
-inline void Body3D::Teleport(const Vector3 &pos)
+inline void Body3D::Teleport(Vector3 pos)
 {
     prevPosition = position;
     position.x = pos.x;
@@ -46,7 +46,7 @@ inline void Body3D::Teleport(const Vector3 &pos)
     lastMoved = glfwGetTime();
 }
 
-inline void Body3D::Move(const Vector2 &offset)
+inline void Body3D::Move(Vector2 offset)
 {
     prevPosition = position;
     position.x += offset.x;
@@ -54,7 +54,7 @@ inline void Body3D::Move(const Vector2 &offset)
     lastMoved = glfwGetTime();
 }
 
-inline void Body3D::Move3D(const Vector3 &offset)
+inline void Body3D::Move3D(Vector3 offset)
 {
     prevPosition = position;
     position.x += offset.x;
@@ -93,7 +93,7 @@ inline double Body3D::TimeSinceLastMove(void) const
     return glfwGetTime() - lastMoved;
 }
 
-inline void Body3D::ApplyForce(const Vector3 &force)
+inline void Body3D::ApplyForce(Vector3 force)
 {
     velocity.x += force.x;
     velocity.y += force.y;

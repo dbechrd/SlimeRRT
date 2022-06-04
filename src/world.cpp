@@ -86,6 +86,20 @@ Player *World::FindPlayer(uint32_t playerId)
     return 0;
 }
 
+Player *World::FindPlayerByName(const char *name, size_t nameLength)
+{
+    if (!playerId) {
+        return 0;
+    }
+
+    for (Player &player : players) {
+        if (nameLength == player.nameLength && !strncmp(name, player.name, player.nameLength)) {
+            return &player;
+        }
+    }
+    return 0;
+}
+
 Player *World::FindClosestPlayer(Vector2 worldPos, float maxDist)
 {
     for (Player &player : players) {
@@ -99,19 +113,6 @@ Player *World::FindClosestPlayer(Vector2 worldPos, float maxDist)
     }
     return 0;
 }
-
-#if 0
-void World::DespawnPlayer(uint32_t playerId)
-{
-    Player *player = FindPlayer(playerId);
-    if (!player) {
-        TraceLog(LOG_ERROR, "Cannot visually despawn a player that doesn't exist. playerId: %u", playerId);
-        return;
-    }
-
-    player->sprite.spriteDef = 0;
-}
-#endif
 
 void World::RemovePlayer(uint32_t playerId)
 {
@@ -197,7 +198,7 @@ Slime *World::FindSlime(uint32_t slimeId)
     return 0;
 }
 
-void World::DespawnSlime(uint32_t slimeId)
+void World::RemoveSlime(uint32_t slimeId)
 {
     Slime *slime = FindSlime(slimeId);
     if (!slime) {
@@ -428,7 +429,7 @@ void World::DespawnDeadEntities(void)
         // Check if enemy has been dead for awhile
         if (enemy.combat.diedAt && now - enemy.combat.diedAt > SV_ENEMY_CORPSE_LIFETIME) {
             //TraceLog(LOG_DEBUG, "Despawn stale enemy corpse %u", enemy.id);
-            DespawnSlime(enemy.id);
+            RemoveSlime(enemy.id);
         }
     }
 
@@ -590,7 +591,7 @@ void World::CL_DespawnStaleEntities(void)
             const bool faraway = distSq >= SQUARED(CL_ENEMY_FARAWAY_THRESHOLD);
             if (faraway) {
                 //TraceLog(LOG_DEBUG, "Despawn far away enemy %u", enemy.id);
-                DespawnSlime(enemy.id);
+                RemoveSlime(enemy.id);
                 continue;
             }
         }

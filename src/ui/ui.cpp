@@ -218,7 +218,7 @@ void UI::SliderFloatLeft(const char *label, float *v, float min, float max)
     ImGui::SetCursorPosX(ImGui::GetCursorPosX() + sliderMargin);
     float sliderWidth = ImGui::GetContentRegionAvail().x - sliderMargin * 2.0f;
     ImGui::PushItemWidth(sliderWidth);
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 10.0f));
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 14.0f));
     ImGui::SliderFloat(label, v, min, max, "%.03f");
     ImGui::PopStyleVar();
     ImGui::PopItemWidth();
@@ -1000,7 +1000,9 @@ void UI::MainMenu(bool &escape, const Args &args, NetClient &netClient)
             //}
 
             ImGui::PushFont(g_fonts.imFontHack64);
-            CenteredText("Main Menu");
+            ImGui::Text("Slime Game");
+            ImGui::Spacing();
+            ImGui::Spacing();
             ImGui::PopFont();
 
             ImGui::PushFont(g_fonts.imFontHack48);
@@ -1025,7 +1027,9 @@ void UI::MainMenu(bool &escape, const Args &args, NetClient &netClient)
             if (MenuBackButton(Menu::Main, escape)) break;
 
             ImGui::PushFont(g_fonts.imFontHack64);
-            CenteredText("Choose a world:");
+            ImGui::Text("Choose a world");
+            ImGui::Spacing();
+            ImGui::Spacing();
             ImGui::PopFont();
 
             ImGui::PushFont(g_fonts.imFontHack48);
@@ -1044,7 +1048,9 @@ void UI::MainMenu(bool &escape, const Args &args, NetClient &netClient)
             if (MenuBackButton(Menu::Main, escape)) break;
 
             ImGui::PushFont(g_fonts.imFontHack64);
-            CenteredText("Multiplayer");
+            ImGui::Text("Join a server");
+            ImGui::Spacing();
+            ImGui::Spacing();
             ImGui::PopFont();
 
             ImGui::PushFont(g_fonts.imFontHack48);
@@ -1062,7 +1068,9 @@ void UI::MainMenu(bool &escape, const Args &args, NetClient &netClient)
             if (MenuBackButton(Menu::Main, escape)) break;
 
             ImGui::PushFont(g_fonts.imFontHack64);
-            CenteredText("Audio");
+            ImGui::Text("Audio Settings");
+            ImGui::Spacing();
+            ImGui::Spacing();
             ImGui::PopFont();
 
             ImGui::PushFont(g_fonts.imFontHack48);
@@ -1146,7 +1154,7 @@ void UI::InGameMenu(bool &escape, bool connectedToServer)
                 }
 
                 ImGui::PushFont(g_fonts.imFontHack64);
-                CenteredText("What's up?");
+                ImGui::Text("What's up?");
                 ImGui::PopFont();
 
                 ImGui::PushFont(g_fonts.imFontHack48);
@@ -1189,7 +1197,7 @@ void UI::InGameMenu(bool &escape, bool connectedToServer)
                 ImGui::SameLine();
                 ImGui::SetCursorPosY(5);  // idk how to calculate this properly
                 ImGui::PushFont(g_fonts.imFontHack64);
-                CenteredText("Audio");
+                ImGui::Text("Audio");
                 ImGui::PopFont();
 
                 ImGui::PushFont(g_fonts.imFontHack48);

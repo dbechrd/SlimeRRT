@@ -25,16 +25,16 @@ struct Body3D {
     Vector2 GroundPosition(void) const;
     Vector2 PrevGroundPosition(void) const;
     Vector2 VisualPosition(void) const;
-    void Teleport(const Vector3 &pos);
-    void Move(const Vector2 &offset);
-    void Move3D(const Vector3 &offset);
+    void Teleport(Vector3 pos);
+    void Move(Vector2 offset);
+    void Move3D(Vector3 offset);
     bool Bounced(void) const;
     bool OnGround(void) const;
     bool JustLanded(void) const;
     bool Resting(void) const;
     bool Idle(void) const;
     double TimeSinceLastMove(void) const;
-    void ApplyForce(const Vector3 &force);
+    void ApplyForce(Vector3 force);
     void Update(double dt);
 
 private:

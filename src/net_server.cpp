@@ -720,7 +720,7 @@ bool NetServer::ParseCommand(NetServerClient &client, NetMessage_ChatMessage &ch
 
 #define USAGE_GIVE       "/give <player> <item_id> <count>"
 #define USAGE_HELP       "/help <command>"
-#define USAGE_TELEPORT   "/teleport <player> <x> <y> <z>"
+#define USAGE_TELEPORT   "/teleport [player] <x> <y> <z>"
 
     if (!strcmp(command, COMMAND_GIVE)) {
         if (argc == 3) {
@@ -749,8 +749,24 @@ bool NetServer::ParseCommand(NetServerClient &client, NetMessage_ChatMessage &ch
             SendChatMessage(client, CSTR(USAGE_HELP));
         }
     } else if (!strcmp(command, COMMAND_TELEPORT)) {
-        if (argc == 4) {
-
+        if (argc == 3) {
+            Player *player = serverWorld->FindPlayer(client.playerId);
+            if (player) {
+                float x = strtof(argv[0], 0);
+                float y = strtof(argv[1], 0);
+                float z = strtof(argv[2], 0);
+                printf("Teleported %.*s to %f %f %f\n", player->nameLength, player->name, x, y, z);
+                player->body.Teleport({ x, y, z });
+            }
+        } else if (argc == 4) {
+            Player *player = serverWorld->FindPlayerByName(argv[0], strlen(argv[0]));
+            if (player) {
+                float x = strtof(argv[1], 0);
+                float y = strtof(argv[2], 0);
+                float z = strtof(argv[3], 0);
+                printf("Teleported %.*s to %f %f %f\n", player->nameLength, player->name, x, y, z);
+                player->body.Teleport({ x, y, z });
+            }
         } else {
             SendChatMessage(client, CSTR("[teleport] Invalid arguments."));
             SendChatMessage(client, CSTR(USAGE_TELEPORT));
