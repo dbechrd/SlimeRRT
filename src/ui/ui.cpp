@@ -920,7 +920,7 @@ bool UI::BreadcrumbButton(const char *label, Menu menu, bool *escape)
     bool pressed = (ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
         ImGui::IsMouseHoveringRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax()));
     if ((escape && *escape) || pressed) {
-        Catalog::g_sounds.Play(Catalog::SoundID::Squish2);
+        //Catalog::g_sounds.Play(Catalog::SoundID::Squish2, 1.0f + dlb_rand32f_variance(0.1f));
         mainMenu = menu;
         if (escape) *escape = false;
     }
@@ -948,7 +948,7 @@ bool UI::MenuBackButton(Menu menu, bool &escape)
     bool pressed = (ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
                     ImGui::IsMouseHoveringRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax()));
     if (escape || pressed) {
-        Catalog::g_sounds.Play(Catalog::SoundID::Squish2);
+        //Catalog::g_sounds.Play(Catalog::SoundID::Squish2, 1.0f + dlb_rand32f_variance(0.1f));
         mainMenu = menu;
         escape = false;
     }
@@ -964,7 +964,7 @@ bool UI::MenuItemClick(const char *label)
     bool pressed = ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
                    ImGui::IsMouseHoveringRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
     if (pressed) {
-        Catalog::g_sounds.Play(Catalog::SoundID::Squish1);
+        //Catalog::g_sounds.Play(Catalog::SoundID::Squish1, 1.0f + dlb_rand32f_variance(0.1f));
     }
     return pressed;
 }
@@ -1283,6 +1283,13 @@ void UI::MainMenu(bool &escape, GameClient &game)
             ImGui::PopFont();
             break;
         }
+    }
+
+    if (mainMenu != oldMenu) {
+        Catalog::g_sounds.Play(
+            mainMenu > oldMenu ? Catalog::SoundID::Squish1 : Catalog::SoundID::Squish2,
+            1.0f + dlb_rand32f_variance(0.1f)
+        );
     }
 
     ImGui::End();

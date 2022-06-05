@@ -39,9 +39,15 @@ bool ItemWorld::Cull(const Rectangle& cullRect) const
 
 void ItemWorld::Update(double dt)
 {
+    assert((int)stack.id);
+    assert(stack.count);
     if (stack.id != namedStack.id || stack.count != namedStack.count) {
         const char *itemName = stack.Name();
-        snprintf(name, sizeof(name), "%s (%u)", itemName, stack.count);
+        if (stack.count > 1) {
+            snprintf(name, sizeof(name), "%s (%u)", itemName, stack.count);
+        } else {
+            snprintf(name, sizeof(name), "%s", itemName);
+        }
         namedStack.id = stack.id;
         namedStack.count = stack.count;
     }

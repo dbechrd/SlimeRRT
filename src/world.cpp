@@ -289,7 +289,8 @@ void World::SV_SimSlimes(double dt)
                 }
 
                 Catalog::ItemID itemId = (Catalog::ItemID)dlb_rand32i_range(2, (int)Catalog::ItemID::Count - 1);
-                uint32_t itemCount = dlb_rand32u_range(1, 4);
+                uint32_t rndCount = dlb_rand32u_range(1, 4);
+                uint32_t itemCount = MIN(rndCount, Catalog::g_items.FindById(itemId).stackLimit);
                 itemSystem.SpawnItem(slime.WorldCenter(), itemId, itemCount);
                 itemSystem.SpawnItem(slime.WorldCenter(), coinType, coins);
                 slime.combat.droppedDeathLoot = true;
