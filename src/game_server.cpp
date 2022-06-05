@@ -38,7 +38,7 @@ ErrorType GameServer::Run(const Args &args)
 
     error_init("server.log");
 
-    Catalog::g_items.Load();
+    Catalog::g_items.LoadData();
 
     World *world = new World;
     world->map = world->mapSystem.Alloc();
@@ -54,7 +54,7 @@ ErrorType GameServer::Run(const Args &args)
     {
         // TODO: Spawn slimes near player rather than randomly nearly spawn only once
         for (size_t i = 0; i < SV_MAX_SLIMES; i++) {
-            //world->SpawnSlime(0);
+            world->SpawnSlime(0);
         }
     }
 

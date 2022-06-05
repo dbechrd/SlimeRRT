@@ -5,12 +5,12 @@
 #define CSV_DEBUG_PRINT 0
 
 namespace Catalog {
-    void Items::Load(void)
-    {
-        if (IsWindowReady()) {
-            tex = LoadTexture("resources/joecreates.png");
-        }
+    void Items::LoadTextures(void) {
+        tex = LoadTexture("resources/joecreates.png");
+    }
 
+    void Items::LoadData(void)
+    {
         const char *csvFilename = "data/items.csv";
         CSV::Error err = csv.ReadFromFile(csvFilename);
         if (err != CSV::SUCCESS) {

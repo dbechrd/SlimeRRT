@@ -292,7 +292,8 @@ namespace Catalog {
     };
 
     struct Items {
-        void Load(void);
+        void  LoadTextures(void);
+        void  LoadData(void);
         const Item &FindById(ItemID id) const;
         const Texture Tex(void) const;
 

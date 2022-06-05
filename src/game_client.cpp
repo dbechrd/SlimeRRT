@@ -139,7 +139,8 @@ void GameClient::Init(void)
         printf("ERROR: Failed to initialized audio device\n");
     }
 
-    Catalog::g_items.Load();
+    Catalog::g_items.LoadTextures();
+    Catalog::g_items.LoadData();
     Catalog::g_particleFx.Load();
     Catalog::g_sounds.Load();
     Catalog::g_spritesheets.Load();
