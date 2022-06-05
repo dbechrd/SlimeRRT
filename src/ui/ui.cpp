@@ -1060,32 +1060,33 @@ void UI::MainMenu(bool &escape, GameClient &game)
 
             UI::MenuTitle("Join a server");
 
-            const char *message = 0;
-            bool msgIsError = false;
-            thread_local double connectingIdxLastUpdate = 0;
+            thread_local const char *message = 0;
+            thread_local bool msgIsError = false;
+            thread_local bool connecting = false;
             thread_local size_t connectingIdx = 0;
-            thread_local bool triedConnecting = false;
-            thread_local double failedToConnectShownAt = 0;
+            thread_local double connectingIdxLastUpdate = 0;
+            thread_local bool reset = false;
+
+            if (reset) {
+                message = 0;
+                msgIsError = false;
+                connecting = false;
+                connectingIdx = 0;
+                reset = false;
+            }
 
             if (game.netClient.IsDisconnected()) {
-                if (triedConnecting) {
+                if (connecting) {
                     message = "DandyNet is offline. :(";
                     msgIsError = true;
-                    if (!failedToConnectShownAt) {
-                        failedToConnectShownAt = glfwGetTime();
-                    } else if (glfwGetTime() - failedToConnectShownAt > 5.0) {
-                        triedConnecting = false;
-                        failedToConnectShownAt = 0;
-                    }
                 }
-                connectingIdx = 0;
 
                 if (message) {
                     if (msgIsError) ImGui::PushStyleColor(ImGuiCol_Text, ImColor(220, 0, 0, 255).Value);
                     CenteredText(message);
                     if (msgIsError) ImGui::PopStyleColor(1);
                     if (ImGui::Button("Okay")) {
-                        triedConnecting = false;
+                        reset = true;
                     }
                 } else {
                     ImGui::PushFont(g_fonts.imFontHack48);
@@ -1101,9 +1102,7 @@ void UI::MainMenu(bool &escape, GameClient &game)
                         mainMenu = Menu::Multiplayer_New;
                     }
                 }
-            } else {
-                assert(game.netClient.IsConnecting() || game.netClient.IsConnected());
-
+            } else if (game.netClient.IsConnecting()) {
                 const char *text[]{
                     "Attempting to connect   ",
                     "Attempting to connect.  ",
@@ -1111,7 +1110,7 @@ void UI::MainMenu(bool &escape, GameClient &game)
                     "Attempting to connect...",
                 };
                 message = text[connectingIdx];
-                triedConnecting = true;
+                connecting = true;
                 if (glfwGetTime() - connectingIdxLastUpdate > 0.25) {
                     connectingIdx = (connectingIdx + 1) % ARRAY_SIZE(text);
                     connectingIdxLastUpdate = glfwGetTime();
@@ -1128,7 +1127,10 @@ void UI::MainMenu(bool &escape, GameClient &game)
 
                 if (ImGui::Button("Cancel")) {
                     disconnectRequested = true;
+                    reset = true;
                 }
+            } else if (game.netClient.IsConnected()) {
+                reset = true;
             }
 
             break;
