@@ -610,7 +610,7 @@ namespace RTree {
         }
 
         void DrawNode(const Node<T> &node, int level) const {
-            static Color colors[] = {
+            thread_local Color colors[] = {
                 Color{ 255,   0,   0, 255 },
                 Color{   0, 255,   0, 255 },
                 Color{   0,   0, 255, 255 },

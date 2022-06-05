@@ -248,7 +248,7 @@ namespace Catalog {
 
     ItemType ItemTypeFromString(const char *str, size_t length)
     {
-        static std::unordered_map<u32, ItemType> itemTypeByName{};
+        thread_local std::unordered_map<u32, ItemType> itemTypeByName{};
         if (!itemTypeByName.size()) {
             itemTypeByName[dlb_murmur3(CSTR("Empty"   ))] = ItemType::Empty;
             itemTypeByName[dlb_murmur3(CSTR("System"  ))] = ItemType::System;

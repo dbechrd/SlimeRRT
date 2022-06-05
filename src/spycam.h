@@ -24,4 +24,5 @@ private:
     Rectangle cameraRect   {};
     float     invZoom      {};
     int       zoomMipLevel {};
+    float     smoothing    = 0.2f;
 };

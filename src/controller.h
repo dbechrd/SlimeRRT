@@ -40,6 +40,7 @@ struct PlayerControllerState {
     bool dbgNextRtreeRect {};
     bool dbgKillRtreeRect {};
     bool dbgImgui         {};
+    bool dbgJump          {};
 
     void Query(bool processMouse, bool processKeyboard, bool freeCamera);
 };
@@ -57,11 +58,9 @@ struct InputSample {
     uint32_t selectSlot {};  // PlayerInventorySlot
     bool     skipFx     {};  // once the input has been processed once, don't trigger FX (particles, sounds, etc.)
 
-    void FromController(uint32_t playerId, uint32_t tick, const PlayerControllerState &controllerState)
+    void FromController(uint32_t playerId, uint32_t inputSeq, const PlayerControllerState &controllerState)
     {
-        static uint32_t nextSeqNum = 0;
-        nextSeqNum = MAX(1, nextSeqNum + 1);
-        seq        = nextSeqNum;
+        seq        = inputSeq;
         ownerId    = playerId;
         //clientTick = tick;
         walkNorth  = controllerState.walkNorth;

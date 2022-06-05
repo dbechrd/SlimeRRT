@@ -64,7 +64,7 @@ ErrorType GameServer::Run(const Args &args)
     double tickAccum = 0.0f;
     double frameStart = glfwGetTime();
 
-    while (!args.exiting) {
+    while (!args.serverQuit) {
         world->tick++;
         E_ASSERT(netServer.Listen(), "Failed to listen on socket");
 
@@ -73,13 +73,14 @@ ErrorType GameServer::Run(const Args &args)
         frameStart = now;
 
         while (tickAccum > tickDt) {
+#if 0
             // TODO: Limit how many inputs player is allowed to send us each tick
             // Process queued player inputs
             size_t inputHistoryLen = netServer.inputHistory.Count();
             for (size_t i = 0; i < inputHistoryLen; i++) {
                 InputSample &sample = netServer.inputHistory.At(i);
 
-                NetServerClient *client = netServer.FindClient(sample.ownerId);
+                SV_Client *client = netServer.FindClient(sample.ownerId);
                 if (!client) {
                     //printf("Client not found, cannot sample input #%u from %u\n", sample.seq, sample.ownerId);
                     continue;
@@ -102,13 +103,29 @@ ErrorType GameServer::Run(const Args &args)
 
                 client->lastInputAck = sample.seq;
             }
+#endif
 
             world->SV_Simulate(tickDt);
 
             for (size_t i = 0; i < SV_MAX_PLAYERS; i++) {
-                NetServerClient &client = netServer.clients[i];
+                SV_Client &client = netServer.clients[i];
                 if (!client.playerId) {
                     continue;
+                }
+
+                // Handle client input for this tick
+                if (client.inputBuffer.seq > client.lastInputAck) {
+                    Player *player = world->FindPlayer(client.playerId);
+                    if (!player) {
+                        printf("Player not found, cannot sample input #%u from %u\n", client.inputBuffer.seq, client.playerId);
+                        continue;
+                    }
+
+                    assert(client.playerId == player->id);
+                    assert(world->map);
+                    player->Update(tickDt, client.inputBuffer, *world->map);
+
+                    client.lastInputAck = client.inputBuffer.seq;
                 }
 
                 // Send nearby chunks to player if they haven't received them yet

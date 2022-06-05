@@ -237,7 +237,7 @@ void Player::Update(double dt, InputSample &input, const Tilemap &map)
             }
 
             if (Move(moveBuffer)) {
-                static double lastFootstep = 0;
+                thread_local double lastFootstep = 0;
                 double timeSinceLastFootstep = glfwGetTime() - lastFootstep;
                 float distanceMoved = v2_length(moveBuffer);
                 if (!input.skipFx && timeSinceLastFootstep > 1.0f / distanceMoved) {

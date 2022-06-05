@@ -35,7 +35,7 @@ ErrorType NetServer::OpenSocket(unsigned short socketPort)
     return ErrorType::Success;
 }
 
-ErrorType NetServer::SendRaw(const NetServerClient &client, const void *data, size_t size)
+ErrorType NetServer::SendRaw(const SV_Client &client, const void *data, size_t size)
 {
     assert(data);
     assert(size <= PACKET_SIZE_MAX);
@@ -76,7 +76,7 @@ ErrorType NetServer::BroadcastRaw(const void *data, size_t size)
             continue;
         }
 
-        NetServerClient &client = clients[i];
+        SV_Client &client = clients[i];
         assert(client.peer);
         assert(client.peer->address.port);
         if (enet_peer_send(client.peer, 0, packet) < 0) {
@@ -88,7 +88,7 @@ ErrorType NetServer::BroadcastRaw(const void *data, size_t size)
     return err_code;
 }
 
-ErrorType NetServer::SendMsg(const NetServerClient &client, NetMessage &message)
+ErrorType NetServer::SendMsg(const SV_Client &client, NetMessage &message)
 {
     if (!client.peer || client.peer->state != ENET_PEER_STATE_CONNECTED) { // || !client.playerId) {
         return ErrorType::Success;
@@ -119,7 +119,7 @@ ErrorType NetServer::BroadcastMsg(NetMessage &message)
 
     // Broadcast netMsg to all connected clients
     for (int i = 0; i < SV_MAX_PLAYERS; i++) {
-        NetServerClient &client = clients[i];
+        SV_Client &client = clients[i];
         ErrorType result = SendMsg(clients[i], message);
         if (result != ErrorType::Success) {
             err_code = result;
@@ -129,7 +129,7 @@ ErrorType NetServer::BroadcastMsg(NetMessage &message)
     return err_code;
 }
 
-ErrorType NetServer::SendWelcomeBasket(NetServerClient &client)
+ErrorType NetServer::SendWelcomeBasket(SV_Client &client)
 {
     // TODO: Send current state to new client
     // - world (seed + entities)
@@ -217,7 +217,7 @@ ErrorType NetServer::BroadcastPlayerLeave(const Player &player)
     return BroadcastMsg(netMsg);
 }
 
-ErrorType NetServer::SendChatMessage(const NetServerClient &client, const char *message, size_t messageLength)
+ErrorType NetServer::SendChatMessage(const SV_Client &client, const char *message, size_t messageLength)
 {
     assert(message);
     assert(messageLength <= UINT32_MAX);
@@ -234,7 +234,7 @@ ErrorType NetServer::SendChatMessage(const NetServerClient &client, const char *
     return ErrorType::Success;
 }
 
-ErrorType NetServer::SendWorldChunk(const NetServerClient &client, const Chunk &chunk)
+ErrorType NetServer::SendWorldChunk(const SV_Client &client, const Chunk &chunk)
 {
     TraceLog(LOG_DEBUG, "Sending world chunk [%hd, %hd] to player #%u", chunk.x, chunk.y, client.playerId);
 
@@ -246,7 +246,7 @@ ErrorType NetServer::SendWorldChunk(const NetServerClient &client, const Chunk &
     return ErrorType::Success;
 }
 
-void NetServer::SendNearbyChunks(NetServerClient &client)
+void NetServer::SendNearbyChunks(SV_Client &client)
 {
     // Send nearby chunks to player if they haven't received them yet
     const Player *player = serverWorld->FindPlayer(client.playerId);
@@ -268,7 +268,7 @@ void NetServer::SendNearbyChunks(NetServerClient &client)
     }
 }
 
-ErrorType NetServer::SendWorldSnapshot(NetServerClient &client)
+ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
 {
     assert(client.playerId);
 
@@ -494,7 +494,7 @@ ErrorType NetServer::SendWorldSnapshot(NetServerClient &client)
 }
 
 #if 0
-ErrorType NetServer::SendNearbyEvents(const NetServerClient &client)
+ErrorType NetServer::SendNearbyEvents(const SV_Client &client)
 {
     Player *player = serverWorld->FindPlayer(client.playerId);
     assert(player);
@@ -574,7 +574,7 @@ ErrorType NetServer::SendNearbyEvents(const NetServerClient &client)
     return ErrorType::Success;
 }
 
-ErrorType NetServer::SendPlayerState(const NetServerClient &client, const Player &otherPlayer, bool nearby, bool spawned)
+ErrorType NetServer::SendPlayerState(const SV_Client &client, const Player &otherPlayer, bool nearby, bool spawned)
 {
     NetMessage netMsg{};
     netMsg.type = NetMessage::Type::NearbyEvent;
@@ -603,7 +603,7 @@ ErrorType NetServer::SendPlayerState(const NetServerClient &client, const Player
     return SendMsg(client, netMsg);
 }
 
-ErrorType NetServer::SendEnemyState(const NetServerClient &client, const Slime &enemy, bool nearby, bool spawned)
+ErrorType NetServer::SendEnemyState(const SV_Client &client, const Slime &enemy, bool nearby, bool spawned)
 {
     NetMessage netMsg{};
     netMsg.type = NetMessage::Type::NearbyEvent;
@@ -632,14 +632,14 @@ ErrorType NetServer::SendEnemyState(const NetServerClient &client, const Slime &
     return SendMsg(client, netMsg);
 }
 
-ErrorType NetServer::SendItemState(const NetServerClient &client, const ItemWorld &item, bool nearby, bool spawned)
+ErrorType NetServer::SendItemState(const SV_Client &client, const ItemWorld &item, bool nearby, bool spawned)
 {
     assert(!"Not yet implemented");
     return ErrorType::PeerSendFailed;
 }
 #endif
 
-NetServerClient *NetServer::FindClient(uint32_t playerId)
+SV_Client *NetServer::FindClient(uint32_t playerId)
 {
     for (int i = 0; i < SV_MAX_PLAYERS; i++) {
         if (clients[i].playerId == playerId) {
@@ -649,7 +649,7 @@ NetServerClient *NetServer::FindClient(uint32_t playerId)
     return 0;
 }
 
-bool NetServer::IsValidInput(const NetServerClient &client, const InputSample &sample)
+bool NetServer::IsValidInput(const SV_Client &client, const InputSample &sample)
 {
     // If ownerId doesn't match, ignore
     if (sample.ownerId != client.playerId) {
@@ -672,17 +672,17 @@ bool NetServer::IsValidInput(const NetServerClient &client, const InputSample &s
     //}
 
     // If sample already exists, ignore
-    for (size_t i = 0; i < inputHistory.Count(); i++) {
-        InputSample &histSample = inputHistory.At(i);
-        if (histSample.ownerId == sample.ownerId && histSample.seq == sample.seq) {
-            return false;
-        }
-    }
+    //for (size_t i = 0; i < inputHistory.Count(); i++) {
+    //    InputSample &histSample = inputHistory.At(i);
+    //    if (histSample.ownerId == sample.ownerId && histSample.seq == sample.seq) {
+    //        return false;
+    //    }
+    //}
 
     return true;
 }
 
-bool NetServer::ParseCommand(NetServerClient &client, NetMessage_ChatMessage &chatMsg)
+bool NetServer::ParseCommand(SV_Client &client, NetMessage_ChatMessage &chatMsg)
 {
     if (!chatMsg.messageLength || chatMsg.message[0] != '/') {
         return false;
@@ -788,7 +788,7 @@ bool NetServer::ParseCommand(NetServerClient &client, NetMessage_ChatMessage &ch
     return true;
 }
 
-void NetServer::ProcessMsg(NetServerClient &client, ENetPacket &packet)
+void NetServer::ProcessMsg(SV_Client &client, ENetPacket &packet)
 {
     assert(serverWorld);
 
@@ -846,8 +846,9 @@ void NetServer::ProcessMsg(NetServerClient &client, ENetPacket &packet)
                 for (size_t i = 0; i < input.sampleCount; i++) {
                     InputSample &sample = input.samples[i];
                     if (sample.seq && IsValidInput(client, sample)) {
-                        InputSample &histSample = inputHistory.Alloc();
-                        histSample = sample;
+                        client.inputBuffer = sample;
+                        //InputSample &histSample = inputHistory.Alloc();
+                        //histSample = sample;
 #if SV_DEBUG_INPUT
                         printf("Received input #%u\n", histSample.seq);
 #endif
@@ -891,10 +892,10 @@ void NetServer::ProcessMsg(NetServerClient &client, ENetPacket &packet)
     }
 }
 
-NetServerClient *NetServer::AddClient(ENetPeer *peer)
+SV_Client *NetServer::AddClient(ENetPeer *peer)
 {
     for (int i = 0; i < SV_MAX_PLAYERS; i++) {
-        NetServerClient &client = clients[i];
+        SV_Client &client = clients[i];
         if (!client.playerId) {
             assert(!client.peer);
             client.peer = peer;
@@ -907,9 +908,9 @@ NetServerClient *NetServer::AddClient(ENetPeer *peer)
     return 0;
 }
 
-NetServerClient *NetServer::FindClient(ENetPeer *peer)
+SV_Client *NetServer::FindClient(ENetPeer *peer)
 {
-    NetServerClient *client = (NetServerClient *)peer->data;
+    SV_Client *client = (SV_Client *)peer->data;
     if (client) {
         return client;
     }
@@ -925,9 +926,9 @@ NetServerClient *NetServer::FindClient(ENetPeer *peer)
 ErrorType NetServer::RemoveClient(ENetPeer *peer)
 {
     printf("Remove client %s\n", SafeTextFormatIP(peer->address));
-    NetServerClient *client = FindClient(peer);
+    SV_Client *client = FindClient(peer);
     if (client) {
-        // TODO: Save from identify packet into NetServerClient, then user client.username
+        // TODO: Save from identify packet into SV_Client, then user client.username
         Player *player = serverWorld->FindPlayer(client->playerId);
         if (player) {
             E_ASSERT(BroadcastPlayerLeave(*player), "Failed to broadcast player leave notification");
@@ -974,7 +975,7 @@ ErrorType NetServer::Listen(void)
                 //    event.peer->address.port,
                 //    event.channelID);
 
-                NetServerClient *client = FindClient(event.peer);
+                SV_Client *client = FindClient(event.peer);
                 assert(client);
                 if (client) {
                     ProcessMsg(*client, *event.packet);

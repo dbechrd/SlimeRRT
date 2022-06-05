@@ -19,7 +19,7 @@ const SpriteAnim &sprite_anim(const Sprite &sprite)
 const SpriteFrame &sprite_frame(const Sprite &sprite)
 {
     if (!sprite.spriteDef) {
-        static SpriteFrame frame{};
+        thread_local SpriteFrame frame{};
         frame.x = 0;
         frame.y = 0;
         frame.width = 16;

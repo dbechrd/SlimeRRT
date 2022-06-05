@@ -8,7 +8,7 @@ struct Args {
     unsigned short    port       { SV_DEFAULT_PORT }; // SV_SINGLEPLAYER_PORT };
     const char       *user       { SV_SINGLEPLAYER_USER };
     const char       *pass       { SV_SINGLEPLAYER_PASS };
-    std::atomic<bool> exiting    { false };
+    std::atomic<bool> serverQuit { false };
 
     Args(int argc, char *argv[]);
 };

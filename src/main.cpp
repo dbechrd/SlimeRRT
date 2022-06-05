@@ -75,10 +75,10 @@ int main(int argc, char *argv[])
         // NOTE: I could avoid the flicker if Raylib would let me pass it as a flag into InitWindow -_-
         //SetWindowState(FLAG_WINDOW_HIDDEN);
 
-        GameClient *gameClient = new GameClient(args);
-        gameClient->Run();
-        args.exiting = true;
-        delete gameClient;
+        GameClient *game = new GameClient(args);
+        game->Run();
+        args.serverQuit = true;
+        delete game;
     }
 
     //--------------------------------

@@ -33,7 +33,7 @@ ItemWorld *ItemSystem::SpawnItem(Vector3 pos, Catalog::ItemID catalogId, uint32_
     if (id) {
         item.id = id;
     } else {
-        static uint32_t nextId = 0;
+        thread_local uint32_t nextId = 0;
         nextId = MAX(1, nextId + 1); // Prevent ID zero from being used on overflow
         item.id = nextId;
     }

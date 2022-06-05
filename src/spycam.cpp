@@ -78,7 +78,7 @@ void Spycam::Update(const PlayerControllerState &input, double dt)
             zoom *= input.cameraZoomDelta > 0.0f ? 2.0f : 0.5f;
         }
 #else
-        static bool zoomOut = false;
+        thread_local bool zoomOut = false;
         if (input.cameraZoomOut) zoomOut = !zoomOut;
         zoom = zoomOut ? 0.5f : 1.0f;
 #endif
@@ -98,7 +98,7 @@ void Spycam::Update(const PlayerControllerState &input, double dt)
             if (camera.rotation < 0.0f) camera.rotation += 360.0f;
         }
     }
-    camera.target = v2_add(camera.target, v2_scale(v2_sub(cameraGoal, camera.target), 1.0f));
+    camera.target = v2_add(camera.target, v2_scale(v2_sub(cameraGoal, camera.target), smoothing));
 
     cameraRect.x = camera.target.x - camera.offset.x * invZoom;
     cameraRect.y = camera.target.y - camera.offset.y * invZoom;

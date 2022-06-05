@@ -6,17 +6,20 @@
 struct World;
 
 struct NetClient {
-    const char     *serverHost      {};
-    unsigned short  serverPort      {};
-    ENetHost       *client          {};
-    ENetPeer       *server          {};
-    uint32_t        connectionToken {};
-    size_t          usernameLength  {};
-    char            username        [USERNAME_LENGTH_MAX] {};
-    size_t          passwordLength  {};
-    char            password        [PASSWORD_LENGTH_MAX] {};
-    World          *serverWorld     {};
-    //uint32_t        inputSeq        {};  // seq # of input last sent to server
+    char            serverHost       [SV_HOSTNAME_LENGTH_MAX]{};
+    size_t          serverHostLength {};
+    unsigned short  serverPort       {};
+    size_t          usernameLength   {};
+    char            username         [USERNAME_LENGTH_MAX]{};
+    size_t          passwordLength   {};
+    char            password         [PASSWORD_LENGTH_MAX]{};
+
+    uint32_t        connectionToken  {};
+    ENetHost        *client          {};
+    ENetPeer        *server          {};
+    World           *serverWorld     {};
+
+    uint32_t        inputSeq         {};  // seq # of input last sent to server
     RingBuffer<InputSample,   CL_INPUT_HISTORY> inputHistory {};
     RingBuffer<WorldSnapshot, CL_WORLD_HISTORY> worldHistory {};
 

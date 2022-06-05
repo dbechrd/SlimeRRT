@@ -31,7 +31,7 @@ namespace FX {
         particle.color = WHITE;
         particle.sprite.scale = 1.0f;
 
-        static const SpriteDef *copperSpriteDef{};
+        thread_local const SpriteDef *copperSpriteDef{};
         if (!copperSpriteDef) {
             const Spritesheet &copperSpritesheet = Catalog::g_spritesheets.FindById(Catalog::SpritesheetID::Coin_Copper);
             copperSpriteDef = copperSpritesheet.FindSprite("coin");

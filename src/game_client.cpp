@@ -28,6 +28,8 @@
 #include "imgui/imgui_impl_glfw.h"
 #include "GLFW/glfw3.h"
 
+#include <atomic>
+
 const char *GameClient::LOG_SRC = "GameClient";
 
 // TODO: Move this somewhere less stupid (e.g. a library of particle updaters)
@@ -210,11 +212,18 @@ ErrorType GameClient::PlayMode_Network(double frameDt, PlayerControllerState &in
 {
     E_ASSERT(netClient.Receive(), "Failed to receive packets");
 
-    if (UI::DisconnectRequested(netClient.ConnectedAndSpawned())) {
+    if (UI::DisconnectRequested(netClient.IsDisconnected())) {
         netClient.Disconnect();
+        if (localServer) {
+            args.serverQuit = true;
+            delete localServer;
+            localServer = 0;
+            args.serverQuit = false;
+        }
         world = nullptr;
         tickAccum = 0;
         sendInputAccum = 0;
+        return ErrorType::Success;
     }
 
     bool connected = netClient.ConnectedAndSpawned();
@@ -245,7 +254,7 @@ void GameClient::PlayMode_HandleInput(double frameDt, PlayerControllerState &inp
             SetWindowSize((int)screenSize.x, (int)screenSize.y);
         }
         if (input.toggleFullscreen) {
-            static Vector2 restoreSize = screenSize;
+            thread_local Vector2 restoreSize = screenSize;
             if (IsWindowFullscreen()) {
                 ToggleFullscreen();
                 SetWindowSize((int)restoreSize.x, (int)restoreSize.y);
@@ -335,47 +344,30 @@ void GameClient::PlayMode_HandleInput(double frameDt, PlayerControllerState &inp
 #endif
 }
 
-void GameClient::PlayMode_UpdateCamera(double frameDt, PlayerControllerState &input)
-{
-    if (!spycam.freeRoam) {
-        Player *player = world->FindPlayer(world->playerId);
-        assert(player);
-        spycam.cameraGoal = player->body.GroundPosition();
-    }
-    spycam.Update(input, frameDt);
-}
-
 void GameClient::PlayMode_Update(double frameDt, PlayerControllerState &input)
 {
     Player *player = world->FindPlayer(world->playerId);
 
     // TODO(cleanup): jump
-    if (player->body.OnGround() && IsKeyPressed(KEY_SPACE)) {
+    if (player->body.OnGround() && input.dbgJump) {
         player->body.ApplyForce({ 0, 0, METERS_TO_PIXELS(4.0f) });
     }
 
-    double renderAt = 0;
+    renderAt = 0;
 #if 0
-    if (netClient.ConnectedAndSpawned()) {
+    while (tickAccum > tickDt) {
 #endif
         if (netClient.worldHistory.Count()) {
             const WorldSnapshot &worldSnapshot = netClient.worldHistory.Last();
+            world->tick = worldSnapshot.tick;
 
-            static uint32_t lastTickAck = 0;
-            if (lastTickAck < worldSnapshot.tick) {
-                lastTickAck = worldSnapshot.tick;
-
-                world->tick = worldSnapshot.tick;
-
-                // TODO: Update world state from worldSnapshot and re-apply input with input.tick > snapshot.tick
-                //netClient.ReconcilePlayer(tickDt);
-            }
-            // TODO: Update world state from worldSnapshot and re-apply input with input.tick > snapshot.tick
+            // Update world state from worldSnapshot and re-apply input with input.tick > snapshot.tick
             netClient.ReconcilePlayer(tickDt);
 
             //while (tickAccum > tickDt) {
+            netClient.inputSeq = MAX(1, netClient.inputSeq + 1);
             InputSample &inputSample = netClient.inputHistory.Alloc();
-            inputSample.FromController(player->id, lastTickAck, input);
+            inputSample.FromController(player->id, netClient.inputSeq, input);
 
             assert(world->map);
             player->Update(tickDt, inputSample, *world->map);
@@ -408,35 +400,19 @@ void GameClient::PlayMode_Update(double frameDt, PlayerControllerState &input)
             //world->CL_Extrapolate(now - renderAt);
         }
 #if 0
-    } else {
-        while (tickAccum > tickDt) {
-            InputSample inputSample{};
-            inputSample.FromController(player->id, world->tick, input);
-
-            assert(world->map);
-            player->Update(tickDt, inputSample, *world->map);
-
-            world->SV_Simulate(tickDt);
-            world->particleSystem.Update(tickDt);
-            world->itemSystem.Update(tickDt);
-            world->CL_DespawnStaleEntities();
-
-            //WorldSnapshot &worldSnapshot = netClient.worldHistory.Alloc();
-            //assert(!worldSnapshot.tick);  // ringbuffer alloc fucked up and didn't zero slot
-            //worldSnapshot.playerId = player->id;
-            ////worldSnapshot.lastInputAck = world->tick;
-            //worldSnapshot.tick = world->tick;
-            //world->GenerateSnapshot(worldSnapshot);
-
-            world->tick++;
-            tickAccum -= tickDt;
-        }
-
-        //// Interpolate all of the other entities in the world
-        //double renderAt = glfwGetTime() - tickDt * 2;
-        //world->Interpolate(renderAt);
+        tickAccum -= tickDt;
     }
 #endif
+}
+
+void GameClient::PlayMode_UpdateCamera(double frameDt, PlayerControllerState &input)
+{
+    if (!spycam.freeRoam) {
+        Player *player = world->FindPlayer(world->playerId);
+        assert(player);
+        spycam.cameraGoal = player->body.GroundPosition();
+    }
+    spycam.Update(input, frameDt);
 }
 
 void GameClient::PlayMode_DrawWorld(double frameDt, PlayerControllerState &input)
@@ -481,7 +457,7 @@ void GameClient::PlayMode_DrawWorld(double frameDt, PlayerControllerState &input
     std::vector<size_t> matches{};
     tree.Search(searchAABB, matches, RTree::CompareMode::Overlap);
 #else
-    static std::vector<void *> matches;
+    thread_local std::vector<void *> matches;
     matches.clear();
     for (size_t i = 0; i < rects.size(); i++) {
         if (CheckCollisionRecs(rects[i], searchRect)) {
@@ -525,6 +501,8 @@ void GameClient::PlayMode_DrawWorld(double frameDt, PlayerControllerState &input
 
 void GameClient::PlayMode_DrawScreen(double frameDt, PlayerControllerState &input)
 {
+    assert(world);
+
     // Render mouse tile tooltip
     if (input.dbgFindMouseTile) {
         UI::TileHoverTip(g_fonts.fontSmall, *world->map);
@@ -580,10 +558,6 @@ void GameClient::PlayMode_DrawScreen(double frameDt, PlayerControllerState &inpu
 
     UI::ParticleConfig(*world);
 
-    //----------------------------------------------------------------------
-    // Menu
-    //----------------------------------------------------------------------
-    if (input.escape) puts("escape = true");
     UI::InGameMenu(input.escape, netClient.ConnectedAndSpawned());
 }
 
@@ -608,11 +582,11 @@ ErrorType GameClient::Run(void)
         // Networking
         E_ASSERT(PlayMode_Network(frameDt, input), "Failed to do message processing");
 
-        if (netClient.ConnectedAndSpawned()) {
+        if (world) {
             PlayMode_Audio(frameDt, input);
             PlayMode_HandleInput(frameDt, input);
-            PlayMode_UpdateCamera(frameDt, input);
             PlayMode_Update(frameDt, input);
+            PlayMode_UpdateCamera(frameDt, input);
         }
 
         // Render: Prologue
@@ -631,7 +605,7 @@ ErrorType GameClient::Run(void)
             PlayMode_DrawScreen(frameDt, input);
         } else {
             bool escape = IsKeyPressed(KEY_ESCAPE);
-            UI::MainMenu(escape, args, netClient);
+            UI::MainMenu(escape, *this);
         }
 
         // Render: Epilogue
@@ -641,8 +615,6 @@ ErrorType GameClient::Run(void)
     }
 
     // Cleanup
-    netClient.CloseSocket();
-
     // TODO: Wrap these in classes to use destructors?
     UnloadShader(g_sdfShader);
     UnloadFont(g_fonts.fontSdf24);

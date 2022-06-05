@@ -60,7 +60,8 @@ ErrorType NetClient::Connect(const char *serverHost, unsigned short serverPort, 
 #endif
     enet_host_flush(client);
 
-    this->serverHost = serverHost;
+    this->serverHostLength = strlen(serverHost);
+    strncpy(this->serverHost, serverHost, SV_HOSTNAME_LENGTH_MAX);
     this->serverPort = serverPort;
     this->usernameLength = strlen(username);
     strncpy(this->username, username, USERNAME_LENGTH_MAX);
@@ -205,12 +206,12 @@ ErrorType NetClient::SendPlayerInput(void)
     for (size_t i = 0; i < inputHistory.Count() && sampleCount < CL_INPUT_SAMPLES_MAX; i++) {
         InputSample &inputSample = inputHistory.At(i);
         if (inputSample.seq > worldSnapshot.lastInputAck) {
-            //if (sampleCount == 0) { printf("Sending input seq:"); }
-            //printf(" %u", inputSample.seq);
+            if (sampleCount == 0) { printf("Sending input seq:"); }
+            printf(" %u", inputSample.seq);
             tempMsg.data.input.samples[sampleCount++] = inputSample;
         }
     }
-    //putchar('\n');
+    putchar('\n');
     //fflush(stdout);
     tempMsg.data.input.sampleCount = sampleCount;
     return SendMsg(tempMsg);
@@ -282,7 +283,11 @@ void NetClient::ReconcilePlayer(double tickDt)
             // server and received a new playerId. Intentionally ignore those.
             if (input.ownerId == player->id && input.seq > latestSnapshot.lastInputAck) {
 #if CL_DEBUG_PLAYER_RECONCILIATION
-                putchar(input.walkWest ? '<' : '.');
+                if (input.walkEast) putchar('>');
+                else if (input.walkWest) putchar('<');
+                else if (input.walkNorth) putchar('^');
+                else if (input.walkSouth) putchar('v');
+                else putchar('.');
 #endif
                 assert(serverWorld->map);
                 player->Update(tickDt, input, *serverWorld->map);
@@ -832,7 +837,7 @@ ErrorType NetClient::Receive(void)
         //    //E_ASSERT(ErrorType::PeerConnectFailed, "Failed to connect to server %s:%hu.", hostname, port);
         //}
 
-        static const char *prevState = 0;
+        thread_local const char *prevState = 0;
         const char *curState = ServerStateString();
         if (curState != prevState) {
             E_INFO("%s", curState);
@@ -916,6 +921,15 @@ bool NetClient::IsDisconnected(void) const
 
 void NetClient::Disconnect(void)
 {
+    memset(serverHost, 0, sizeof(serverHost));
+    serverHostLength = 0;
+    serverPort = 0;
+    memset(username, 0, sizeof(username));
+    usernameLength = 0;
+    memset(password, 0, sizeof(password));
+    passwordLength = 0;
+
+    connectionToken = 0;
     if (server) {
         enet_peer_disconnect_now(server, 1);
         server = nullptr;
@@ -924,9 +938,10 @@ void NetClient::Disconnect(void)
         delete serverWorld;
         serverWorld = nullptr;
     }
+
+    inputSeq = 0;
     inputHistory.Clear();
     worldHistory.Clear();
-    connectionToken = 0;
 }
 
 void NetClient::CloseSocket(void)

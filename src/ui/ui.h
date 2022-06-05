@@ -27,7 +27,7 @@ struct UI {
 
     static void Begin(Vector2 screenSize, Spycam *spycam);
     static void HandleInput(const PlayerControllerState &input);
-    static bool DisconnectRequested(bool connectedToServer);
+    static bool DisconnectRequested(bool disconnected);
     static bool QuitRequested();
 
     // World UI
@@ -47,7 +47,7 @@ struct UI {
     static void Chat(const Font &font, int fontSize, World &world, NetClient &netClient, bool processKeyboard, bool &chatActive, bool &escape);
     static void TileHoverTip(const Font &font, const Tilemap &map);
     static int  OldRaylibMenu(const Font &font, const char **items, size_t itemCount);
-    static void MainMenu(bool &escape, const Args &args, NetClient &netClient);
+    static void MainMenu(bool &escape, GameClient &game);
     static void InGameMenu(bool &escape, bool connectedToServer);
     static void Inventory(const Texture &invItems, Player &player, NetClient &netClient, bool &escape, bool &inventoryActive);
 

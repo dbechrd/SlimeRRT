@@ -161,7 +161,7 @@ Slime *World::SpawnSlime(uint32_t slimeId)
             if (slimeId) {
                 slime.id = slimeId;
             } else {
-                static uint32_t nextId = 0;
+                thread_local uint32_t nextId = 0;
                 nextId = MAX(1, nextId + 1); // Prevent ID zero from being used on overflow
                 slime.id = nextId;
             }

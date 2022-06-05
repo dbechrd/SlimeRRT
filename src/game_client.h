@@ -6,18 +6,20 @@
 #include "spycam.h"
 #include "raylib/raygui.h"
 
+struct GameServer;
 struct ImFont;
 struct World;
 
-struct GameClient{
-    GameClient(const Args &args) : args(args) {};
+struct GameClient {
+    Args       &args;
+    GameServer *localServer {};
+    NetClient  netClient    {};
+
+    GameClient(Args &args) : args(args) {};
     ErrorType Run(void);
 
 private:
     static const char *LOG_SRC;
-
-    // Pirate exclamations
-    const Args &args;
 
     // Time
     double       frameStart {};
@@ -41,17 +43,17 @@ private:
     int    pixelFixerScreenSizeUniformLoc {};
 
     // Other important stuff
-    Vector2    screenSize {};
-    Spycam     spycam     {};
-    World     *world      {};
-    NetClient  netClient  {};
+    Vector2    screenSize   {};
+    Spycam     spycam       {};
+    World      *world       {};
 
     // Other random stuff
     size_t tilesDrawn {};
+    double renderAt   {};
 
     void Init                    (void);
     void PlayMode_PollController (PlayerControllerState &input);
-    ErrorType PlayMode_Network        (double frameDt, PlayerControllerState &input);
+    ErrorType PlayMode_Network   (double frameDt, PlayerControllerState &input);
     void PlayMode_Audio          (double frameDt, PlayerControllerState &input);
     void PlayMode_HandleInput    (double frameDt, PlayerControllerState &input);
     void PlayMode_UpdateCamera   (double frameDt, PlayerControllerState &input);

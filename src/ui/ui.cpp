@@ -45,9 +45,9 @@ void UI::HandleInput(const PlayerControllerState &input)
     }
 }
 
-bool UI::DisconnectRequested(bool connectedToServer)
+bool UI::DisconnectRequested(bool disconnected)
 {
-    if (!connectedToServer) {
+    if (disconnected) {
         disconnectRequested = false;
     }
     return disconnectRequested;
@@ -67,8 +67,8 @@ void UI::TileHoverOutline(const Tilemap &map)
         return;
     }
 
-    const int mouseTileX = (int)mouseWorld.x / TILE_W;
-    const int mouseTileY = (int)mouseWorld.y / TILE_W;
+    const int mouseTileX = (int)floorf(mouseWorld.x / TILE_W);
+    const int mouseTileY = (int)floorf(mouseWorld.y / TILE_W);
 
     // Draw red outline on hovered tile
     const int zoomMipLevel = spycam->GetZoomMipLevel();
@@ -263,11 +263,11 @@ void UI::LoginForm(NetClient &netClient, bool &escape)
 #endif
 
     if (ImGui::BeginPopupModal("Connect to Server##login_window", &showLoginWindow, ImGuiWindowFlags_AlwaysAutoResize)) {
-        static char host[SV_HOSTNAME_LENGTH_MAX + 1]{ "slime.theprogrammingjunkie.com" };
-        static int  port = SV_DEFAULT_PORT;
-        static char username[USERNAME_LENGTH_MAX + 1]{ "guest" };
-        static char password[PASSWORD_LENGTH_MAX + 1]{ "pizza" };
-        static const char *message = 0;
+        thread_local char host[SV_HOSTNAME_LENGTH_MAX + 1]{ "slime.theprogrammingjunkie.com" };
+        thread_local int  port = SV_DEFAULT_PORT;
+        thread_local char username[USERNAME_LENGTH_MAX + 1]{ "guest" };
+        thread_local char password[PASSWORD_LENGTH_MAX + 1]{ "pizza" };
+        thread_local const char *message = 0;
         bool formValid = true;
 
         ImGui::Text("    Host:");
@@ -295,10 +295,10 @@ void UI::LoginForm(NetClient &netClient, bool &escape)
         ImGui::SetNextItemWidth(232);
         ImGui::InputText("##password", password, sizeof(password), ImGuiInputTextFlags_Password);
 
-        static double connectingIdxLastUpdate = 0;
-        static size_t connectingIdx = 0;
-        static bool triedConnecting = false;
-        static double failedToConnectShownAt = 0;
+        thread_local double connectingIdxLastUpdate = 0;
+        thread_local size_t connectingIdx = 0;
+        thread_local bool triedConnecting = false;
+        thread_local double failedToConnectShownAt = 0;
         if (netClient.IsConnecting()) {
             const char *text[3]{
                 "Attempting to connect.  ",
@@ -322,7 +322,7 @@ void UI::LoginForm(NetClient &netClient, bool &escape)
                 }
             } else {
                 message = 0;
-                static char buf[64]{};
+                thread_local char buf[64]{};
                 size_t usernameLen = strnlen(username, sizeof(username));
                 size_t passwordLen = strnlen(password, sizeof(password));
                 if (usernameLen < USERNAME_LENGTH_MIN || usernameLen > USERNAME_LENGTH_MAX) {
@@ -423,7 +423,7 @@ void UI::Mixer(void)
 
 void UI::ParticleConfig(World &world)
 {
-    static ParticleEffectParams params{};
+    thread_local ParticleEffectParams params{};
 
     if (!showParticleConfig) {
         return;
@@ -450,7 +450,7 @@ void UI::ParticleConfig(World &world)
         ImGuiWindowFlags_NoSavedSettings
     );
 
-    static bool ignoreEmpty = false;
+    thread_local bool ignoreEmpty = false;
     ImGui::Text("Particle Effect");
     SliderIntLeft(  "##particleCountMin ", &params.particleCountMin, 1, 256);
     SliderIntLeft(  "##particleCountMax ", &params.particleCountMax, 1, 256);
@@ -609,11 +609,11 @@ void UI::HUD(const Font &font, World &world, const DebugStats &debugStats)
         PUSH_TEXT(text, GRAY);
     }
 
-    static uint64_t bytesSentStart = 0;
-    static uint64_t bytesRecvStart = 0;
-    static double bandwidthTimerStartedAt = 0;
-    static float kbpsOut = 0.0f;
-    static float kbpsIn = 0.0f;
+    thread_local uint64_t bytesSentStart = 0;
+    thread_local uint64_t bytesRecvStart = 0;
+    thread_local double bandwidthTimerStartedAt = 0;
+    thread_local float kbpsOut = 0.0f;
+    thread_local float kbpsIn = 0.0f;
 
     if (debugStats.rtt) {
         if (!bandwidthTimerStartedAt) {
@@ -738,9 +738,9 @@ void UI::Chat(const Font &font, int fontSize, World &world, NetClient &netClient
     world.chatHistory.Render(font, fontSize, world, margin, chatBottom, chatWidth, chatActive);
 
     // Render chat input box
-    static GuiTextBoxAdvancedState chatInputState;
-    static int chatInputTextLen = 0;
-    static char chatInputText[CHATMSG_LENGTH_MAX]{};
+    thread_local GuiTextBoxAdvancedState chatInputState;
+    thread_local int chatInputTextLen = 0;
+    thread_local char chatInputText[CHATMSG_LENGTH_MAX]{};
 
     // HACK: Check for this *after* rendering chat to avoid pressing "t" causing it to show up in the chat box
     bool addCommandSlash = false;
@@ -794,9 +794,6 @@ void UI::TileHoverTip(const Font &font, const Tilemap &map)
         return;
     }
 
-    const int mouseTileX = (int)mouseWorld.x / TILE_W;
-    const int mouseTileY = (int)mouseWorld.y / TILE_W;
-
     const float tooltipOffsetX = 10.0f;
     const float tooltipOffsetY = 10.0f;
     const float tooltipPad = 4.0f;
@@ -813,14 +810,19 @@ void UI::TileHoverTip(const Font &font, const Tilemap &map)
     DrawRectangleRec(tooltipRect, Fade(DARKGRAY, 0.8f));
     DrawRectangleLinesEx(tooltipRect, 1, Fade(BLACK, 0.8f));
 
+    const int mouseChunkX = map.CalcChunk(mouseWorld.x);
+    const int mouseChunkY = map.CalcChunk(mouseWorld.y);
+    const int mouseTileX = map.CalcChunkTile(mouseWorld.x);
+    const int mouseTileY = map.CalcChunkTile(mouseWorld.y);
+
     int lineOffset = 0;
-    DrawTextFont(font, SafeTextFormat("tilePos : %d, %d", mouseTileX, mouseTileY),
+    DrawTextFont(font, SafeTextFormat("chunk: %d, %d", mouseChunkX, mouseChunkY),
         tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, 0, 0, font.baseSize, WHITE);
     lineOffset += font.baseSize;
-    DrawTextFont(font, SafeTextFormat("tileSize: %zu, %zu", TILE_W, TILE_W),
+    DrawTextFont(font, SafeTextFormat("tile : %d, %d", mouseTileX, mouseTileY),
         tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, 0, 0, font.baseSize, WHITE);
     lineOffset += font.baseSize;
-    DrawTextFont(font, SafeTextFormat("tileType: %d", mouseTile->type),
+    DrawTextFont(font, SafeTextFormat("type : %d", mouseTile->type),
         tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, 0, 0, font.baseSize, WHITE);
     lineOffset += font.baseSize;
 }
@@ -958,7 +960,7 @@ bool UI::MenuItemClick(const char *label)
     return pressed;
 }
 
-void UI::MainMenu(bool &escape, const Args &args, NetClient &netClient)
+void UI::MainMenu(bool &escape, GameClient &game)
 {
     ImVec2 menuCenter{
         screenSize.x / 2.0f,
@@ -1038,28 +1040,46 @@ void UI::MainMenu(bool &escape, const Args &args, NetClient &netClient)
                 //if (netClient.Connect(args.host, args.port, args.user, args.pass) != ErrorType::Success) {
                 //    TraceLog(LOG_ERROR, "Failed to connect to local server");
                 //}
-            }
-            ImGui::PopFont();
-            break;
-        } case Menu::Multiplayer: {
-            if (UI::BreadcrumbButton("Main Menu", Menu::Main, escape)) break;
-            UI::BreadcrumbText("Multiplayer");
-
-            if (MenuBackButton(Menu::Main, escape)) break;
-
-            ImGui::PushFont(g_fonts.imFontHack64);
-            ImGui::Text("Join a server");
-            ImGui::Spacing();
-            ImGui::Spacing();
-            ImGui::PopFont();
-
-            ImGui::PushFont(g_fonts.imFontHack48);
-            if (UI::MenuItemClick("Dandyland via DNS")) {
-                if (netClient.Connect(args.host, args.port, args.user, args.pass) != ErrorType::Success) {
+                game.localServer = new GameServer(game.args);
+                if (game.netClient.Connect(game.args.host, game.args.port, game.args.user, game.args.pass) != ErrorType::Success) {
                     TraceLog(LOG_ERROR, "Failed to connect to local server");
                 }
             }
             ImGui::PopFont();
+            break;
+        } case Menu::Multiplayer: {
+            if (UI::BreadcrumbButton("Main Menu", Menu::Main, escape)) {
+                disconnectRequested = true;
+                break;
+            }
+            UI::BreadcrumbText("Multiplayer");
+
+            if (MenuBackButton(Menu::Main, escape)) {
+                disconnectRequested = true;
+                break;
+            }
+
+            if (game.netClient.IsDisconnected()) {
+                ImGui::PushFont(g_fonts.imFontHack64);
+                ImGui::Text("Join a server");
+                ImGui::Spacing();
+                ImGui::Spacing();
+                ImGui::PopFont();
+
+                ImGui::PushFont(g_fonts.imFontHack48);
+                if (UI::MenuItemClick("Dandyland via DNS")) {
+                    // TODO: Put login form here
+                    if (game.netClient.Connect(game.args.host, game.args.port, game.args.user, game.args.pass) != ErrorType::Success) {
+                        TraceLog(LOG_ERROR, "Failed to connect to local server");
+                    }
+                }
+                ImGui::PopFont();
+            } else {
+                assert(game.netClient.IsConnecting() || game.netClient.IsConnected());
+                ImGui::PushFont(g_fonts.imFontHack64);
+                ImGui::Text("Connecting...");
+                ImGui::PopFont();
+            }
             break;
         } case Menu::Audio: {
             if (UI::BreadcrumbButton("Main Menu", Menu::Main, escape)) break;
@@ -1129,7 +1149,7 @@ void UI::InGameMenu(bool &escape, bool connectedToServer)
     ImGui::SetNextWindowPos(menuCenter, 0, ImVec2(0.5f, 0.5f));
     ImGui::SetNextWindowSize(ImVec2(600, 400));
 
-    static enum class Menu {
+    thread_local enum class Menu {
         Main,
         Audio
     } currentMenu = Menu::Main;
@@ -1190,7 +1210,7 @@ void UI::InGameMenu(bool &escape, bool connectedToServer)
 
                 ImGui::SameLine();
                 ImGui::SetCursorPosX(ImGui::GetContentRegionMax().x - 100);
-                static bool audioAdvanced = false;
+                thread_local bool audioAdvanced = false;
                 if (ImGui::Button(audioAdvanced ? "Show Less" : "Show More", ImVec2(100, 0))) {
                     audioAdvanced = !audioAdvanced;
                 }
@@ -1266,7 +1286,7 @@ void UI::Inventory(const Texture &invItems, Player& player, NetClient &netClient
         ImGuiWindowFlags_NoSavedSettings
     );
 
-    static bool ignoreEmpty = false;
+    thread_local bool ignoreEmpty = false;
     ImGui::Text("Your stuffs:");
     ImGui::SameLine();
     if (ImGui::Button("Sort")) player.inventory.Sort(ignoreEmpty);

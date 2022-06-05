@@ -387,7 +387,7 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
 
 #if _DEBUG && 0
     if (type == NetMessage::Type::WorldSnapshot) {
-        static FILE *sendLog = fopen("send.log", "w");
+        thread_local FILE *sendLog = fopen("send.log", "w");
         fprintf(sendLog, "Snapshot #%u: ", data.worldSnapshot.tick);
         for (size_t i = 0; i < buffer.dataLength; i++) {
             fprintf(sendLog, "%02hhx", *((uint8_t *)buffer.data + i));
