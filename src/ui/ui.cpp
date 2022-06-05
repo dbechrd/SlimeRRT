@@ -207,6 +207,15 @@ void UI::CenteredText(const char *text)
     ImGui::Text(text);
 }
 
+void UI::MenuTitle(const char *text)
+{
+    ImGui::PushFont(g_fonts.imFontHack64);
+    ImGui::Text(text);
+    ImGui::Spacing();
+    ImGui::Spacing();
+    ImGui::PopFont();
+}
+
 void UI::SliderFloatLeft(const char *label, float *v, float min, float max)
 {
     assert(label[0] == '#');
@@ -902,7 +911,7 @@ int UI::OldRaylibMenu(const Font &font, const char **items, size_t itemCount)
     return itemPressed;
 }
 
-bool UI::BreadcrumbButton(const char *label, Menu menu, bool &escape)
+bool UI::BreadcrumbButton(const char *label, Menu menu, bool *escape)
 {
     ImGui::PushFont(g_fonts.imFontHack16);
     if (!label[0]) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
@@ -910,10 +919,10 @@ bool UI::BreadcrumbButton(const char *label, Menu menu, bool &escape)
     if (!label[0]) ImGui::PopStyleColor(1);
     bool pressed = (ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
         ImGui::IsMouseHoveringRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax()));
-    if (escape || pressed) {
+    if ((escape && *escape) || pressed) {
         Catalog::g_sounds.Play(Catalog::SoundID::Squish2);
         mainMenu = menu;
-        escape = false;
+        if (escape) *escape = false;
     }
     ImGui::SameLine();
     ImGui::Text(label[0] ? " -> " : "");
@@ -990,7 +999,7 @@ void UI::MainMenu(bool &escape, GameClient &game)
 
     switch (mainMenu) {
         case Menu::Main: {
-            UI::BreadcrumbButton("", Menu::Main, escape);
+            UI::BreadcrumbButton("", Menu::Main, &escape);
             UI::BreadcrumbText("");
             if (MenuBackButton(Menu::Main, escape)) break;
 
@@ -1001,11 +1010,7 @@ void UI::MainMenu(bool &escape, GameClient &game)
             //    break;
             //}
 
-            ImGui::PushFont(g_fonts.imFontHack64);
-            ImGui::Text("Slime Game");
-            ImGui::Spacing();
-            ImGui::Spacing();
-            ImGui::PopFont();
+            UI::MenuTitle("Slime Game");
 
             ImGui::PushFont(g_fonts.imFontHack48);
             if (UI::MenuItemClick("Single player")) {
@@ -1023,16 +1028,11 @@ void UI::MainMenu(bool &escape, GameClient &game)
             ImGui::PopFont();
             break;
         } case Menu::Singleplayer: {
-            if (UI::BreadcrumbButton("Main Menu", Menu::Main, escape)) break;
+            if (UI::BreadcrumbButton("Main Menu", Menu::Main, &escape)) break;
             UI::BreadcrumbText("Single player");
-
             if (MenuBackButton(Menu::Main, escape)) break;
 
-            ImGui::PushFont(g_fonts.imFontHack64);
-            ImGui::Text("Choose a world");
-            ImGui::Spacing();
-            ImGui::Spacing();
-            ImGui::PopFont();
+            UI::MenuTitle("Choose a world");
 
             ImGui::PushFont(g_fonts.imFontHack48);
             if (UI::MenuItemClick("Dandyland")) {
@@ -1048,50 +1048,204 @@ void UI::MainMenu(bool &escape, GameClient &game)
             ImGui::PopFont();
             break;
         } case Menu::Multiplayer: {
-            if (UI::BreadcrumbButton("Main Menu", Menu::Main, escape)) {
+            if (UI::BreadcrumbButton("Main Menu", Menu::Main, &escape)) {
                 disconnectRequested = true;
                 break;
             }
             UI::BreadcrumbText("Multiplayer");
-
             if (MenuBackButton(Menu::Main, escape)) {
                 disconnectRequested = true;
                 break;
             }
 
-            if (game.netClient.IsDisconnected()) {
-                ImGui::PushFont(g_fonts.imFontHack64);
-                ImGui::Text("Join a server");
-                ImGui::Spacing();
-                ImGui::Spacing();
-                ImGui::PopFont();
+            UI::MenuTitle("Join a server");
 
-                ImGui::PushFont(g_fonts.imFontHack48);
-                if (UI::MenuItemClick("Dandyland via DNS")) {
-                    // TODO: Put login form here
-                    if (game.netClient.Connect(game.args.host, game.args.port, game.args.user, game.args.pass) != ErrorType::Success) {
-                        TraceLog(LOG_ERROR, "Failed to connect to local server");
+            const char *message = 0;
+            bool msgIsError = false;
+            thread_local double connectingIdxLastUpdate = 0;
+            thread_local size_t connectingIdx = 0;
+            thread_local bool triedConnecting = false;
+            thread_local double failedToConnectShownAt = 0;
+
+            if (game.netClient.IsDisconnected()) {
+                if (triedConnecting) {
+                    message = "DandyNet is offline. :(";
+                    msgIsError = true;
+                    if (!failedToConnectShownAt) {
+                        failedToConnectShownAt = glfwGetTime();
+                    } else if (glfwGetTime() - failedToConnectShownAt > 5.0) {
+                        triedConnecting = false;
+                        failedToConnectShownAt = 0;
                     }
                 }
-                ImGui::PopFont();
+                connectingIdx = 0;
+
+                if (message) {
+                    if (msgIsError) ImGui::PushStyleColor(ImGuiCol_Text, ImColor(220, 0, 0, 255).Value);
+                    CenteredText(message);
+                    if (msgIsError) ImGui::PopStyleColor(1);
+                    if (ImGui::Button("Okay")) {
+                        triedConnecting = false;
+                    }
+                } else {
+                    ImGui::PushFont(g_fonts.imFontHack48);
+                    if (UI::MenuItemClick("Dandyland via DNS")) {
+                        // TODO: Put login form here
+                        if (game.netClient.Connect(game.args.host, game.args.port, game.args.user, game.args.pass) != ErrorType::Success) {
+                            TraceLog(LOG_ERROR, "Failed to connect to local server");
+                        }
+                    }
+                    ImGui::PopFont();
+
+                    if (ImGui::Button("Add server")) {
+                        mainMenu = Menu::Multiplayer_New;
+                    }
+                }
             } else {
                 assert(game.netClient.IsConnecting() || game.netClient.IsConnected());
-                ImGui::PushFont(g_fonts.imFontHack64);
-                ImGui::Text("Connecting...");
-                ImGui::PopFont();
+
+                const char *text[]{
+                    "Attempting to connect   ",
+                    "Attempting to connect.  ",
+                    "Attempting to connect.. ",
+                    "Attempting to connect...",
+                };
+                message = text[connectingIdx];
+                triedConnecting = true;
+                if (glfwGetTime() - connectingIdxLastUpdate > 0.25) {
+                    connectingIdx = (connectingIdx + 1) % ARRAY_SIZE(text);
+                    connectingIdxLastUpdate = glfwGetTime();
+                }
+
+                if (message) {
+                    if (msgIsError) ImGui::PushStyleColor(ImGuiCol_Text, ImColor(220, 0, 0, 255).Value);
+                    CenteredText(message);
+                    if (msgIsError) ImGui::PopStyleColor(1);
+                    //ImGui::Text(message);
+                } else {
+                    ImGui::Text("");
+                }
+
+                if (ImGui::Button("Cancel")) {
+                    disconnectRequested = true;
+                }
             }
+
+            break;
+        } case Menu::Multiplayer_New: {
+            if (UI::BreadcrumbButton("Main Menu", Menu::Main, 0)) {
+                disconnectRequested = true;
+                break;
+            }
+            if (UI::BreadcrumbButton("Multiplayer", Menu::Multiplayer, &escape)) break;
+            UI::BreadcrumbText("Add Server");
+            if (MenuBackButton(Menu::Multiplayer, escape)) break;
+
+            UI::MenuTitle("Add Server");
+
+            thread_local char host[SV_HOSTNAME_LENGTH_MAX + 1]{ "slime.theprogrammingjunkie.com" };
+            thread_local int  port = SV_DEFAULT_PORT;
+            thread_local char username[USERNAME_LENGTH_MAX + 1]{ "guest" };
+            thread_local char password[PASSWORD_LENGTH_MAX + 1]{ "pizza" };
+            thread_local const char *message = 0;
+            bool formValid = true;
+
+            ImGui::Text("Host / IP:");
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+            ImGui::InputText("##multiplayer_new_host", host, sizeof(host)); //, ImGuiInputTextFlags_Password | ImGuiInputTextFlags_ReadOnly);
+
+            ImGui::Text("Port #   :");
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+            ImGui::InputInt("##multiplayer_new_port", &port, 1, 100); //, ImGuiInputTextFlags_ReadOnly);
+            port = CLAMP(port, 0, USHRT_MAX);
+
+            ImGui::Text("Username :");
+            ImGui::SameLine();
+            // https://github.com/ocornut/imgui/issues/455#issuecomment-167440172
+            if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && !ImGui::IsAnyItemActive() && !ImGui::IsMouseClicked(0)) {
+                ImGui::SetKeyboardFocusHere();
+            }
+            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+            ImGui::InputText("##multiplayer_new_username", username, sizeof(username));
+
+            ImGui::Text("Password :");
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+            ImGui::InputText("##multiplayer_new_password", password, sizeof(password), ImGuiInputTextFlags_Password);
+
+            message = 0;
+            thread_local char buf[64]{};
+            size_t usernameLen = strnlen(username, sizeof(username));
+            size_t passwordLen = strnlen(password, sizeof(password));
+            if (usernameLen < USERNAME_LENGTH_MIN || usernameLen > USERNAME_LENGTH_MAX) {
+                formValid = false;
+                snprintf(buf, sizeof(buf), "Username must be between %d-%d characters", USERNAME_LENGTH_MIN, USERNAME_LENGTH_MAX);
+                message = buf;
+            } else if (passwordLen < PASSWORD_LENGTH_MIN || passwordLen > PASSWORD_LENGTH_MAX) {
+                formValid = false;
+                snprintf(buf, sizeof(buf), "Password must be between %d-%d characters", PASSWORD_LENGTH_MIN, PASSWORD_LENGTH_MAX);
+                message = buf;
+            }
+
+            if (message) {
+                ImGui::PushStyleColor(ImGuiCol_Text, ImColor(220, 0, 0, 255).Value);
+                CenteredText(message);
+                ImGui::PopStyleColor(1);
+                //ImGui::Text(message);
+            } else {
+                ImGui::Text("");
+            }
+
+            ImGui::BeginDisabled(message);
+
+            int stylesPushed = 1;
+            ImGui::PushStyleColor(ImGuiCol_Button, formValid ? 0xFFBF8346 : 0xFF666666);
+            if (!formValid) {
+                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, 0xFF666666);
+                ImGui::PushStyleColor(ImGuiCol_ButtonActive, 0xFF666666);
+                stylesPushed += 2;
+            }
+            bool login = ImGui::Button("Save##login_window:save");
+            ImGui::PopStyleColor(stylesPushed);
+            ImGuiIO &io = ImGui::GetIO();
+            if (formValid && (login ||
+                IsKeyPressed(io.KeyMap[ImGuiKey_Enter]) ||
+                IsKeyPressed(io.KeyMap[ImGuiKey_KeyPadEnter]))) {
+                //game.netClient.Connect(host, (unsigned short)port, username, password);
+
+                // TODO: Save server to server list
+            }
+
+            ImGui::SameLine();
+            // TODO(hack): Figure out how to fix margin
+            ImGui::Text(" ");
+            ImGui::SameLine();
+            //ImGui::PushStyleColor(ImGuiCol_Button, 0xFF999999);
+            bool cancel = ImGui::Button("Cancel##login_window:cancel");
+            //ImGui::PopStyleColor();
+
+            ImGui::EndDisabled();
+
+            if (cancel) {
+                disconnectRequested = true;
+                mainMenu = Menu::Multiplayer;
+            }
+
+            //if (cancel || escape) {
+            //    memset(username, 0, sizeof(username));
+            //    memset(password, 0, sizeof(password));
+            //    escape = false;
+            //}
+
             break;
         } case Menu::Audio: {
-            if (UI::BreadcrumbButton("Main Menu", Menu::Main, escape)) break;
+            if (UI::BreadcrumbButton("Main Menu", Menu::Main, &escape)) break;
             UI::BreadcrumbText("Audio");
-
             if (MenuBackButton(Menu::Main, escape)) break;
 
-            ImGui::PushFont(g_fonts.imFontHack64);
-            ImGui::Text("Audio Settings");
-            ImGui::Spacing();
-            ImGui::Spacing();
-            ImGui::PopFont();
+            UI::MenuTitle("Audio Settings");
 
             ImGui::PushFont(g_fonts.imFontHack48);
             SliderFloatLeft("##Master", &Catalog::g_mixer.masterVolume, 0.0f, 1.0f);

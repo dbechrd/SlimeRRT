@@ -70,14 +70,16 @@ private:
         Main,
         Singleplayer,
         Multiplayer,
+        Multiplayer_New,
         Audio
     };
     static Menu mainMenu;
 
     static void CenteredText(const char *text);
+    static void MenuTitle(const char *text);
     static void SliderFloatLeft(const char *label, float *v, float min, float max);
     static void SliderIntLeft(const char *label, int *v, int min, int max);
-    static bool BreadcrumbButton(const char *label, Menu menu, bool &escape);
+    static bool BreadcrumbButton(const char *label, Menu menu, bool *escape);
     static void BreadcrumbText(const char *text);
     static bool MenuBackButton(Menu menu, bool &escape);
     static bool MenuItemClick(const char *label);

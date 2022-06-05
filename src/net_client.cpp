@@ -52,9 +52,9 @@ ErrorType NetClient::Connect(const char *serverHost, unsigned short serverPort, 
     server = enet_host_connect(client, &address, 1, 0);
     assert(server);
 
-#if _DEBUG
+#if _DEBUG && CL_DEBUG_REALLY_LONG_TIMEOUT
     uint32_t thirtyMins = 30 * 60 * 1000;
-    enet_peer_timeout(server, 32, thirtyMins, thirtyMins);  // 10 minute timeout for debugging
+    enet_peer_timeout(server, 32, thirtyMins, thirtyMins);  // long timeout for debugging
 #else
     enet_peer_timeout(server, 32, 5000, 15000);  // 32 RTT if > 3s, else if > 15s
 #endif
