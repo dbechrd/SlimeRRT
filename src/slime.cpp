@@ -143,6 +143,7 @@ bool Slime::TryCombine(Slime &other)
     // Kill slime B
     b->combat.hitPoints = 0.0f;
     b->combat.diedAt = glfwGetTime();
+    b->combat.droppedDeathLoot = true;
 #if SV_DEBUG_WORLD_ENEMIES
     TraceLog(LOG_DEBUG, "Combined slime #%u into slime #%u", b->id, a->id);
 #endif

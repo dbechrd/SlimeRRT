@@ -10,7 +10,7 @@ void PlayerControllerState::Query(bool processMouse, bool processKeyboard, bool 
     // Global events
     if (processKeyboard) {
         toggleFullscreen = IsKeyPressed(KEY_F11);
-        screenshot       = IsKeyPressed(KEY_PRINT_SCREEN);
+        screenshot       = IsKeyPressed(KEY_F10);
         dbgToggleVsync   = IsKeyPressed(KEY_V);
     }
 

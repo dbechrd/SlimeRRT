@@ -948,7 +948,8 @@ void NetClient::Disconnect(void)
         delete serverWorld;
         serverWorld = nullptr;
     }
-
+    tickAccum = 0;
+    sendInputAccum = 0;
     inputSeq = 0;
     inputHistory.Clear();
     worldHistory.Clear();

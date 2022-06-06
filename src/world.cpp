@@ -160,13 +160,23 @@ Slime *World::SpawnSlime(uint32_t slimeId, Vector2 origin)
             assert(!slime.combat.hitPointsMax);
 
             Vector3 spawnPos{};
-            spawnPos.x = origin.x + dlb_rand32f_variance(SV_ENEMY_DESPAWN_RADIUS * 0.7f);
-            spawnPos.y = origin.y + dlb_rand32f_variance(SV_ENEMY_DESPAWN_RADIUS * 0.7f);
+            spawnPos.x = dlb_rand32f_variance(1.0f);
+            spawnPos.y = dlb_rand32f_variance(1.0f);
+            spawnPos = v3_normalize(spawnPos);
+
+            // Scale into correct range for valid spawn ring
+            float mult = dlb_rand32f_range(SV_ENEMY_MIN_SPAWN_DIST, SV_ENEMY_DESPAWN_RADIUS);
+            spawnPos = v3_scale(spawnPos, mult);
+
+            // Translate to whatever point we want to spawn
+            spawnPos.x += origin.x;
+            spawnPos.y += origin.y;
+
             for (Player &player : players) {
                 float spawnDist = v3_length_sq(v3_sub(spawnPos, player.body.WorldPosition()));
                 if (spawnDist < SV_ENEMY_MIN_SPAWN_DIST * SV_ENEMY_MIN_SPAWN_DIST) {
-                    TraceLog(LOG_DEBUG, "Failed to spawn enemy, too close to player");
-                    return 0;
+                    //TraceLog(LOG_DEBUG, "Failed to spawn enemy, too close to player");
+                    //return 0;
                 }
             }
 
@@ -269,7 +279,7 @@ void World::SV_SimPlayers(double dt)
         }
 
         // Try to spawn enemies near player
-        if (dlb_rand32f() < 0.20f * dt) {
+        if (dlb_rand32f() < 0.5f * dt) {
             Slime *slime = SpawnSlime(0, player.body.GroundPosition());
             if (slime) {
                 TraceLog(LOG_DEBUG, "Successfully spawned slime near player");
@@ -305,7 +315,7 @@ void World::SV_SimSlimes(double dt)
                 uint32_t rndCount = dlb_rand32u_range(1, 4);
                 uint32_t itemCount = MIN(rndCount, Catalog::g_items.FindById(itemId).stackLimit);
                 itemSystem.SpawnItem(slime.WorldCenter(), itemId, itemCount);
-                itemSystem.SpawnItem(slime.WorldCenter(), coinType, coins);
+                //itemSystem.SpawnItem(slime.WorldCenter(), coinType, coins);
                 slime.combat.droppedDeathLoot = true;
             }
             continue;

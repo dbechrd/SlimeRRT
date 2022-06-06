@@ -215,24 +215,14 @@ ErrorType GameClient::PlayMode_Network(double frameDt, PlayerControllerState &in
 
     if (UI::DisconnectRequested(netClient.IsDisconnected())) {
         netClient.Disconnect();
-        if (localServer) {
-            args.serverQuit = true;
-            delete localServer;
-            localServer = 0;
-            args.serverQuit = false;
-        }
-        world = nullptr;
-        tickAccum = 0;
-        sendInputAccum = 0;
-        return ErrorType::Success;
     }
 
-    bool connected = netClient.ConnectedAndSpawned();
-    if (connected && world != netClient.serverWorld) {
-        // We joined a server, take on the server's world
-        world = netClient.serverWorld;
-        tickAccum = 0;
-        sendInputAccum = 0;
+    // If I disconnect from local server for any reason, clean up the thread
+    if (localServer && netClient.IsDisconnected()) {
+        args.serverQuit = true;
+        delete localServer;
+        localServer = 0;
+        args.serverQuit = false;
     }
 
     return ErrorType::Success;
@@ -347,7 +337,7 @@ void GameClient::PlayMode_HandleInput(double frameDt, PlayerControllerState &inp
 
 void GameClient::PlayMode_Update(double frameDt, PlayerControllerState &input)
 {
-    Player *player = world->FindPlayer(world->playerId);
+    Player *player = netClient.serverWorld->FindPlayer(netClient.serverWorld->playerId);
 
     // TODO(cleanup): jump
     if (player->body.OnGround() && input.dbgJump) {
@@ -361,7 +351,7 @@ void GameClient::PlayMode_Update(double frameDt, PlayerControllerState &input)
         if (netClient.worldHistory.Count()) {
             const WorldSnapshot &worldSnapshot = netClient.worldHistory.Last();
             //printf("worldTick: %u, lastSnapshot: %u, delta: %u\n", world->tick, worldSnapshot.tick, worldSnapshot.tick - world->tick);
-            world->tick = worldSnapshot.tick;
+            netClient.serverWorld->tick = worldSnapshot.tick;
 
             // Update world state from worldSnapshot and re-apply input with input.tick > snapshot.tick
             netClient.ReconcilePlayer();
@@ -371,22 +361,22 @@ void GameClient::PlayMode_Update(double frameDt, PlayerControllerState &input)
             InputSample &inputSample = netClient.inputHistory.Alloc();
             inputSample.FromController(player->id, netClient.inputSeq, frameDt, input);
 
-            assert(world->map);
-            player->Update(inputSample, *world->map);
-            world->particleSystem.Update(frameDt);
-            world->itemSystem.Update(frameDt);
+            assert(netClient.serverWorld->map);
+            player->Update(inputSample, *netClient.serverWorld->map);
+            netClient.serverWorld->particleSystem.Update(frameDt);
+            netClient.serverWorld->itemSystem.Update(frameDt);
 
             //    tickAccum -= tickDt;
             //}
 
             // TODO: Roll-up inputs when v-sync disabled
             // Send input to server at a fixed rate that matches server tick rate
-            while (sendInputAccum > sendInputDt) {
+            while (netClient.sendInputAccum > sendInputDt) {
                 netClient.SendPlayerInput();
-                sendInputAccum -= sendInputDt;
+                netClient.sendInputAccum -= sendInputDt;
             }
 
-            world->CL_DespawnStaleEntities();
+            netClient.serverWorld->CL_DespawnStaleEntities();
 
             // Interpolate all of the other entities in the world
             //printf("RTT: %u RTTv: %u LRT: %u LRTv: %u HRTv %u\n",
@@ -398,8 +388,8 @@ void GameClient::PlayMode_Update(double frameDt, PlayerControllerState &input)
             //);
             //renderAt = now - (1.0 / SNAPSHOT_SEND_RATE) - (1.0 / (netClient.server->lastRoundTripTime + netClient.server->lastRoundTripTimeVariance));
             renderAt = frameStart - (1.0 / (SNAPSHOT_SEND_RATE * 1.5));
-            world->CL_Interpolate(renderAt);
-            //world->CL_Extrapolate(now - renderAt);
+            netClient.serverWorld->CL_Interpolate(renderAt);
+            //netClient.serverWorld->CL_Extrapolate(now - renderAt);
         }
 #if 0
         tickAccum -= tickDt;
@@ -410,7 +400,7 @@ void GameClient::PlayMode_Update(double frameDt, PlayerControllerState &input)
 void GameClient::PlayMode_UpdateCamera(double frameDt, PlayerControllerState &input)
 {
     if (!spycam.freeRoam) {
-        Player *player = world->FindPlayer(world->playerId);
+        Player *player = netClient.serverWorld->FindPlayer(netClient.serverWorld->playerId);
         assert(player);
         spycam.cameraGoal = player->body.GroundPosition();
     }
@@ -423,23 +413,23 @@ void GameClient::PlayMode_DrawWorld(double frameDt, PlayerControllerState &input
     BeginMode2D(cam);
 
     Rectangle cameraRect = spycam.GetRect();
-    world->EnableCulling(cameraRect);
+    netClient.serverWorld->EnableCulling(cameraRect);
 
 #if CL_PIXEL_FIXER
     BeginShaderMode(pixelFixer);
 #endif
-    tilesDrawn = world->DrawMap(spycam);
+    tilesDrawn = netClient.serverWorld->DrawMap(spycam);
 #if CL_PIXEL_FIXER
     EndShaderMode();
 #endif
 
     if (input.dbgFindMouseTile) {
-        UI::TileHoverOutline(*world->map);
+        UI::TileHoverOutline(*netClient.serverWorld->map);
     }
-    world->DrawItems();
-    world->DrawEntities();
-    world->DrawParticles();
-    world->DrawFlush();
+    netClient.serverWorld->DrawItems();
+    netClient.serverWorld->DrawEntities();
+    netClient.serverWorld->DrawParticles();
+    netClient.serverWorld->DrawFlush();
 
 #if CL_DEMO_VIEW_RTREE
     AABB searchAABB = {
@@ -503,14 +493,14 @@ void GameClient::PlayMode_DrawWorld(double frameDt, PlayerControllerState &input
 
 void GameClient::PlayMode_DrawScreen(double frameDt, PlayerControllerState &input)
 {
-    assert(world);
+    assert(netClient.serverWorld);
 
     // Render mouse tile tooltip
     if (input.dbgFindMouseTile) {
-        UI::TileHoverTip(g_fonts.fontSmall, *world->map);
+        UI::TileHoverTip(g_fonts.fontSmall, *netClient.serverWorld->map);
     }
 
-    UI::Minimap(g_fonts.fontSmall, *world);
+    UI::Minimap(g_fonts.fontSmall, *netClient.serverWorld);
 
     // TODO(cleanup): Noise test
     //DrawTexturePro(noise,
@@ -518,18 +508,18 @@ void GameClient::PlayMode_DrawScreen(double frameDt, PlayerControllerState &inpu
     //    { screenSize.x - 4 - 256, (float)4 + world->map->minimap.height + 4, 256, 256 },
     //    { 0, 0 }, 0, WHITE);
 
-    UI::Chat(g_fonts.fontSdf72, 16, *world, netClient, inputMode == INPUT_MODE_PLAY || inputMode == INPUT_MODE_CHAT, chatVisible, input.escape);
+    UI::Chat(g_fonts.fontSdf72, 16, *netClient.serverWorld, netClient, inputMode == INPUT_MODE_PLAY || inputMode == INPUT_MODE_CHAT, chatVisible, input.escape);
 
     // Render HUD
     UI::DebugStats debugStats{};
 #if SHOW_DEBUG_STATS
-    debugStats.tick = world->tick;
-    debugStats.tickAccum = tickAccum;
+    debugStats.tick = netClient.serverWorld->tick;
+    debugStats.tickAccum = netClient.tickAccum;
     debugStats.frameDt = frameDt;
     debugStats.cameraSpeed = spycam.cameraSpeed;
     debugStats.tilesDrawn = tilesDrawn;
-    debugStats.effectsActive = world->particleSystem.EffectsActive();
-    debugStats.particlesActive = world->particleSystem.ParticlesActive();
+    debugStats.effectsActive = netClient.serverWorld->particleSystem.EffectsActive();
+    debugStats.particlesActive = netClient.serverWorld->particleSystem.ParticlesActive();
 #endif
     if (netClient.server) {
         debugStats.rtt = enet_peer_get_rtt(netClient.server);
@@ -538,10 +528,10 @@ void GameClient::PlayMode_DrawScreen(double frameDt, PlayerControllerState &inpu
         debugStats.bytes_sent = enet_peer_get_bytes_sent(netClient.server);
         debugStats.bytes_recv = enet_peer_get_bytes_received(netClient.server);
     }
-    UI::HUD(g_fonts.fontSmall, *world, debugStats);
+    UI::HUD(g_fonts.fontSmall, *netClient.serverWorld, debugStats);
     //UI::QuickHUD(fontSdf24, player, *world->map);
     if (inventoryActive) {
-        Player *player = world->FindPlayer(world->playerId);
+        Player *player = netClient.serverWorld->FindPlayer(netClient.serverWorld->playerId);
         if (player) {
             UI::Inventory(Catalog::g_items.Tex(), *player, netClient, input.escape, inventoryActive);
         }
@@ -552,7 +542,7 @@ void GameClient::PlayMode_DrawScreen(double frameDt, PlayerControllerState &inpu
     UI::Menubar(netClient);
     UI::ShowDemoWindow();
     UI::Netstat(netClient, renderAt);
-    UI::ParticleConfig(*world);
+    UI::ParticleConfig(*netClient.serverWorld);
     UI::InGameMenu(input.escape, netClient.ConnectedAndSpawned());
 }
 
@@ -566,8 +556,8 @@ ErrorType GameClient::Run(void)
         double now = glfwGetTime();
         double frameDt = now - frameStart;
         // Limit delta time to prevent spiraling for after long hitches (e.g. hitting a breakpoint)
-        tickAccum += MIN(frameDt, tickDtMax);
-        sendInputAccum += MIN(sendInputDt, sendInputDtMax);
+        netClient.tickAccum += MIN(frameDt, tickDtMax);
+        netClient.sendInputAccum += MIN(sendInputDt, sendInputDtMax);
         frameStart = now;
 
         // Collect input
@@ -577,25 +567,29 @@ ErrorType GameClient::Run(void)
         // Networking
         E_ASSERT(PlayMode_Network(frameDt, input), "Failed to do message processing");
 
-        if (world) {
+        bool connected = netClient.ConnectedAndSpawned();
+        if (connected) {
             PlayMode_Audio(frameDt, input);
             PlayMode_HandleInput(frameDt, input);
             PlayMode_Update(frameDt, input);
             PlayMode_UpdateCamera(frameDt, input);
         }
 
-        // Render: Prologue
+        // Render prepare
         BeginDrawing();
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
-        DrawTexture(checkboardTexture, 0, 0, WHITE);
 
+        // Render background
+        DrawTexture(checkboardTexture, 0, 0, WHITE);
         rlDrawRenderBatchActive();
+
+        // Render UI
         UI::Begin(screenSize, &spycam);
 
-        // Render: Kernel
-        if (world) {
+        // Render game
+        if (connected) {
             PlayMode_DrawWorld(frameDt, input);
             PlayMode_DrawScreen(frameDt, input);
         } else {
@@ -603,7 +597,7 @@ ErrorType GameClient::Run(void)
             UI::MainMenu(escape, *this);
         }
 
-        // Render: Epilogue
+        // Render flip
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         EndDrawing();
