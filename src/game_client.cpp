@@ -373,8 +373,8 @@ void GameClient::PlayMode_Update(double frameDt, PlayerControllerState &input)
 
             assert(world->map);
             player->Update(inputSample, *world->map);
-            world->particleSystem.Update(tickDt);
-            world->itemSystem.Update(tickDt);
+            world->particleSystem.Update(frameDt);
+            world->itemSystem.Update(frameDt);
 
             //    tickAccum -= tickDt;
             //}
@@ -551,15 +551,8 @@ void GameClient::PlayMode_DrawScreen(double frameDt, PlayerControllerState &inpu
 
     UI::Menubar(netClient);
     UI::ShowDemoWindow();
-    UI::LoginForm(netClient, input.escape);
-
-    //if (mixerActive) {
-    //    UI::Mixer();
-    //}
-    //UI::Netstat(netClient, renderAt);
-
+    UI::Netstat(netClient, renderAt);
     UI::ParticleConfig(*world);
-
     UI::InGameMenu(input.escape, netClient.ConnectedAndSpawned());
 }
 

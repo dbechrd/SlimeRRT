@@ -150,8 +150,15 @@ ErrorType GameServer::Run(const Args &args)
                 double inputOverflow = inputSecAccum - tickDt;
                 client.inputOverflow += inputOverflow;
                 client.inputOverflow = MAX(0.0, client.inputOverflow);
+#if SV_DEBUG_INPUT_SAMPLES
                 TraceLog(LOG_DEBUG, "inputOverflow: %f, tickDt: %f%s", client.inputOverflow, tickDt,
-                    client.inputOverflow > SV_INPUT_HACK_THRESHOLD ? " [INPUT HACKER ALERT TRIGGERED]" : "");
+                    client.inputOverflow > SV_INPUT_HACK_THRESHOLD ? " [INPUT HAX DETECTED]" : "");
+#else
+                if (client.inputOverflow > SV_INPUT_HACK_THRESHOLD) {
+                    TraceLog(LOG_DEBUG, "inputOverflow: %f, tickDt: %f [INPUT HAX DETECTED]",
+                        client.inputOverflow, tickDt);
+                }
+#endif
 
                 // Send nearby chunks to player if they haven't received them yet
                 netServer.SendNearbyChunks(client);

@@ -14,8 +14,8 @@ Spycam  *UI::spycam;
 
 bool UI::showMenubar = false;
 bool UI::showDemoWindow = false;
-bool UI::showLoginWindow = false;
 bool UI::showParticleConfig = false;
+bool UI::showNetstatWindow = false;
 
 bool UI::disconnectRequested = false;
 bool UI::quitRequested = false;
@@ -41,7 +41,6 @@ void UI::HandleInput(const PlayerControllerState &input)
 {
     if (input.dbgImgui) {
         UI::showMenubar = !UI::showMenubar;
-        UI::showDemoWindow = showMenubar && IsKeyDown(KEY_LEFT_SHIFT);
     }
 }
 
@@ -174,17 +173,18 @@ void UI::Menubar(const NetClient &netClient)
 
     if (ImGui::BeginMainMenuBar()) {
         if (ImGui::BeginMenu("Debug")) {
-            if (netClient.IsConnected()) {
-                ImGui::MenuItem("Log Off", 0, &disconnectRequested);
-            } else {
-                ImGui::MenuItem("Log On", 0, &showLoginWindow);
-            }
+            //if (netClient.IsConnected()) {
+            //    ImGui::MenuItem("Log Off", 0, &disconnectRequested);
+            //} else {
+            //    ImGui::MenuItem("Log On", 0, &showLoginWindow);
+            //}
             ImGui::MenuItem("Demo Window", 0, &showDemoWindow);
             ImGui::MenuItem("Particle Config", 0, &showParticleConfig);
+            ImGui::MenuItem("Netstat", 0, &showNetstatWindow);
 
-            if (ImGui::MenuItem("Quit", "Alt+F4")) {
-                quitRequested = true;
-            }
+            //if (ImGui::MenuItem("Quit", "Alt+F4")) {
+            //    quitRequested = true;
+            //}
 
             ImGui::EndMenu();
         }
@@ -192,9 +192,11 @@ void UI::Menubar(const NetClient &netClient)
     }
 }
 
-void UI::ShowDemoWindow()
+void UI::ShowDemoWindow(void)
 {
-    if (!showDemoWindow) return;
+    if (!showDemoWindow) {
+        return;
+    }
 
     ImGui::ShowDemoWindow(&showDemoWindow);
 }
@@ -239,201 +241,19 @@ void UI::SliderIntLeft(const char *label, int *v, int min, int max)
     assert(label[1] == '#');
     ImGui::Text(label + 2);
     ImGui::SameLine();
+    float sliderMargin = 20.0f;
+    float cursorX = ImGui::GetCursorPosX();
+    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + sliderMargin);
+    float sliderWidth = ImGui::GetContentRegionAvail().x - sliderMargin * 2.0f;
+    ImGui::PushItemWidth(sliderWidth);
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 14.0f));
     ImGui::SliderInt(label, v, min, max);
-}
-
-void UI::LoginForm(NetClient &netClient, bool &escape)
-{
-    if (netClient.IsConnected()) {
-        showLoginWindow = false;
-    }
-    if (!showLoginWindow) return;
-
-#if 1
-    //ImGui::SetNextWindowPos(ImVec2(screenSize.x - 240 - 10, 10));
-    //ImGui::SetNextWindowSize(ImVec2(240, 0));
-    auto rayDarkBlue = DARKBLUE;
-    ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(rayDarkBlue.r, rayDarkBlue.g, rayDarkBlue.b, rayDarkBlue.a));
-    ImGui::PushStyleColor(ImGuiCol_Border, IM_COL32_BLACK);
-    ImGui::Begin("Quick Menu##mini_menu", 0,
-        //ImGuiWindowFlags_NoTitleBar |
-        //ImGuiWindowFlags_NoMove |
-        //ImGuiWindowFlags_NoResize |
-        ImGuiWindowFlags_NoCollapse
-    );
-    ImGui::PopStyleColor(2);
-    ImGui::Text("Play with friends!");
-    //if (ImGui::Button("Connect to myself", ImVec2(150, 0))) {
-    //    netClient.Connect(SV_SINGLEPLAYER_HOST, SV_SINGLEPLAYER_PORT, SV_SINGLEPLAYER_USER, SV_SINGLEPLAYER_PASS);
-    //}
-    if (ImGui::Button("Connect to DandyNet")) {
-        ImGui::OpenPopup("Connect to Server##login_window");
-    }
-#endif
-
-    if (ImGui::BeginPopupModal("Connect to Server##login_window", &showLoginWindow, ImGuiWindowFlags_AlwaysAutoResize)) {
-        thread_local char host[SV_HOSTNAME_LENGTH_MAX + 1]{ "slime.theprogrammingjunkie.com" };
-        thread_local int  port = SV_DEFAULT_PORT;
-        thread_local char username[USERNAME_LENGTH_MAX + 1]{ "guest" };
-        thread_local char password[PASSWORD_LENGTH_MAX + 1]{ "pizza" };
-        thread_local const char *message = 0;
-        bool formValid = true;
-
-        ImGui::Text("    Host:");
-        ImGui::SameLine();
-        ImGui::SetNextItemWidth(232);
-        ImGui::InputText("##host", host, sizeof(host)); //, ImGuiInputTextFlags_Password | ImGuiInputTextFlags_ReadOnly);
-
-        ImGui::Text("    Port:");
-        ImGui::SameLine();
-        ImGui::SetNextItemWidth(89);
-        ImGui::InputInt("##port", &port, 1, 100); //, ImGuiInputTextFlags_ReadOnly);
-        port = CLAMP(port, 0, USHRT_MAX);
-
-        ImGui::Text("Username:");
-        ImGui::SameLine();
-        // https://github.com/ocornut/imgui/issues/455#issuecomment-167440172
-        if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && !ImGui::IsAnyItemActive() && !ImGui::IsMouseClicked(0)) {
-            ImGui::SetKeyboardFocusHere();
-        }
-        ImGui::SetNextItemWidth(232);
-        ImGui::InputText("##username", username, sizeof(username));
-
-        ImGui::Text("Password:");
-        ImGui::SameLine();
-        ImGui::SetNextItemWidth(232);
-        ImGui::InputText("##password", password, sizeof(password), ImGuiInputTextFlags_Password);
-
-        thread_local double connectingIdxLastUpdate = 0;
-        thread_local size_t connectingIdx = 0;
-        thread_local bool triedConnecting = false;
-        thread_local double failedToConnectShownAt = 0;
-        if (netClient.IsConnecting()) {
-            const char *text[3]{
-                "Attempting to connect.  ",
-                "Attempting to connect.. ",
-                "Attempting to connect...",
-            };
-            message = text[connectingIdx];
-            triedConnecting = true;
-            if (glfwGetTime() - connectingIdxLastUpdate > 0.2) {
-                connectingIdx = (connectingIdx + 1) % ARRAY_SIZE(text);
-                connectingIdxLastUpdate = glfwGetTime();
-            }
-        } else {
-            if (triedConnecting) {
-                message = "DandyNet is offline. :(";
-                if (!failedToConnectShownAt) {
-                    failedToConnectShownAt = glfwGetTime();
-                } else if (glfwGetTime() - failedToConnectShownAt > 5.0) {
-                    triedConnecting = false;
-                    failedToConnectShownAt = 0;
-                }
-            } else {
-                message = 0;
-                thread_local char buf[64]{};
-                size_t usernameLen = strnlen(username, sizeof(username));
-                size_t passwordLen = strnlen(password, sizeof(password));
-                if (usernameLen < USERNAME_LENGTH_MIN || usernameLen > USERNAME_LENGTH_MAX) {
-                    formValid = false;
-                    snprintf(buf, sizeof(buf), "Username must be between %d-%d characters", USERNAME_LENGTH_MIN, USERNAME_LENGTH_MAX);
-                    message = buf;
-                } else if (passwordLen < PASSWORD_LENGTH_MIN || passwordLen > PASSWORD_LENGTH_MAX) {
-                    formValid = false;
-                    snprintf(buf, sizeof(buf), "Password must be between %d-%d characters", PASSWORD_LENGTH_MIN, PASSWORD_LENGTH_MAX);
-                    message = buf;
-                }
-            }
-            connectingIdx = 0;
-        }
-
-        if (message) {
-            CenteredText(message);
-        } else {
-            ImGui::Text("");
-        }
-
-        ImGui::BeginDisabled(netClient.IsConnecting());
-
-        ImGui::SetCursorPosX(177.0f);
-
-        int stylesPushed = 1;
-        ImGui::PushStyleColor(ImGuiCol_Button, formValid ? 0xFFBF8346 : 0xFF666666);
-        if (!formValid) {
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, 0xFF666666);
-            ImGui::PushStyleColor(ImGuiCol_ButtonActive, 0xFF666666);
-            stylesPushed += 2;
-        }
-        bool login = ImGui::Button("Connect##login_window:connect", ImVec2(60, 0));
-        ImGui::PopStyleColor(stylesPushed);
-        ImGuiIO &io = ImGui::GetIO();
-        if (formValid && (login ||
-            IsKeyPressed(io.KeyMap[ImGuiKey_Enter]) ||
-            IsKeyPressed(io.KeyMap[ImGuiKey_KeyPadEnter])))
-        {
-            netClient.Connect(host, (unsigned short)port, username, password);
-        }
-
-        ImGui::SameLine();
-        //ImGui::PushStyleColor(ImGuiCol_Button, 0xFF999999);
-        bool cancel = ImGui::Button("Cancel##login_window:cancel", ImVec2(60, 0));
-        //ImGui::PopStyleColor();
-
-        ImGui::EndDisabled();
-
-        if (cancel || escape) {
-            memset(username, 0, sizeof(username));
-            memset(password, 0, sizeof(password));
-            ImGui::CloseCurrentPopup();
-            escape = false;
-        }
-        ImGui::EndPopup();
-    }
-    ImGui::End();
-}
-
-void UI::Mixer(void)
-{
-    ImGui::SetNextWindowSize(ImVec2(350, 0), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowPos(ImVec2(6, 398), ImGuiCond_FirstUseEver);
-    auto rayDarkBlue = DARKGRAY;
-    ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(rayDarkBlue.r, rayDarkBlue.g, rayDarkBlue.b, rayDarkBlue.a));
-    ImGui::PushStyleColor(ImGuiCol_Border, IM_COL32_BLACK);
-    ImGui::Begin("Mixer##mixer", 0,
-        0
-        //ImGuiWindowFlags_NoTitleBar |
-        //ImGuiWindowFlags_NoMove |
-        //ImGuiWindowFlags_NoResize |
-        //ImGuiWindowFlags_NoCollapse
-    );
-    ImGui::PopStyleColor(2);
-    ImGui::SliderFloat("Master", &Catalog::g_mixer.masterVolume, 0.0f, 1.0f, "%.03f");
-    ImGui::SliderFloat("Music ", &Catalog::g_mixer.musicVolume, 0.0f, 1.0f, "%.03f");
-    ImGui::SliderFloat("Sfx   ", &Catalog::g_mixer.sfxVolume, 0.0f, 1.0f, "%.03f");
-    ImGui::Text("Tracks:");
-    for (size_t i = 1; i < (size_t)Catalog::TrackID::Count; i++) {
-        if (ImGui::TreeNode(Catalog::TrackIDString((Catalog::TrackID)i))) {
-            ImGui::SliderFloat("vLimit  ", &Catalog::g_tracks.mixer.volumeLimit[i],  0.0f, 1.0f, "%.03f");
-            ImGui::SliderFloat("vVolume ", &Catalog::g_tracks.mixer.volume[i],       0.0f, 1.0f, "%.03f");
-            ImGui::SliderFloat("vSpeed  ", &Catalog::g_tracks.mixer.volumeSpeed[i],  0.0f, 2.0f, "%.03f");
-            ImGui::SliderFloat("vTarget ", &Catalog::g_tracks.mixer.volumeTarget[i], 0.0f, 1.0f, "%.03f");
-            ImGui::TreePop();
-        }
-    }
-    ImGui::Text("Sfx:");
-    for (size_t i = 1; i < (size_t)Catalog::SoundID::Count; i++) {
-        if (ImGui::TreeNode(Catalog::SoundIDString((Catalog::SoundID)i))) {
-            ImGui::SliderFloat("vLimit  ", &Catalog::g_sounds.mixer.volumeLimit[i], 0.0f, 1.0f, "%.03f");
-            ImGui::TreePop();
-        }
-    }
-    ImGui::End();
+    ImGui::PopStyleVar();
+    ImGui::PopItemWidth();
 }
 
 void UI::ParticleConfig(World &world)
 {
-    thread_local ParticleEffectParams params{};
-
     if (!showParticleConfig) {
         return;
     }
@@ -459,8 +279,8 @@ void UI::ParticleConfig(World &world)
         ImGuiWindowFlags_NoSavedSettings
     );
 
-    thread_local bool ignoreEmpty = false;
-    ImGui::Text("Particle Effect");
+    thread_local ParticleEffectParams params{};
+    UI::MenuTitle("Particle Effect");
     SliderIntLeft(  "##particleCountMin ", &params.particleCountMin, 1, 256);
     SliderIntLeft(  "##particleCountMax ", &params.particleCountMax, 1, 256);
     SliderFloatLeft("##durationMin      ", &params.durationMin, 0.1f, 10.0f);
@@ -486,7 +306,7 @@ void UI::ParticleConfig(World &world)
                 v3_add(player->body.WorldPosition(), { 0, 0, 40 }),
                 params);
             if (blood) {
-                blood->effectCallbacks[(size_t)ParticleEffect_Event::BeforeUpdate] = { ParticlesFollowPlayerGut, &player };
+                blood->effectCallbacks[(size_t)ParticleEffect_Event::BeforeUpdate] = { ParticlesFollowPlayerGut, player };
             }
         }
     }
@@ -498,12 +318,16 @@ void UI::ParticleConfig(World &world)
 
 void UI::Netstat(NetClient &netClient, double renderAt)
 {
+    if (!showNetstatWindow) {
+        return;
+    }
+
     ImGui::SetNextWindowSize(ImVec2(380, 400), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowPos(ImVec2(360, 100), ImGuiCond_FirstUseEver);
     auto rayDarkBlue = DARKGRAY;
     ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(rayDarkBlue.r, rayDarkBlue.g, rayDarkBlue.b, rayDarkBlue.a));
     ImGui::PushStyleColor(ImGuiCol_Border, IM_COL32_BLACK);
-    ImGui::Begin("Network##netstat", 0,
+    ImGui::Begin("Network##netstat", &showNetstatWindow,
         0
         //ImGuiWindowFlags_NoTitleBar
         //ImGuiWindowFlags_NoMove |
@@ -522,6 +346,13 @@ void UI::Netstat(NetClient &netClient, double renderAt)
         ImGui::Text("Times:");
         ImGui::PlotHistogram("times", times, (int)snapshotCount, 0, 0, -2.0f, 2.0f, ImVec2(300.0f, 50.0f));
     }
+
+#if CL_DEBUG_SPEEDHAX
+    int msecHax = g_inputMsecHax;
+    UI::SliderIntLeft("##g_inputMsecHax", &msecHax, 0, UINT8_MAX);
+    g_inputMsecHax = (uint8_t)msecHax;
+#endif
+
     ImGui::End();
 }
 
@@ -1339,10 +1170,6 @@ void UI::InGameMenu(bool &escape, bool connectedToServer)
                 ImGui::PushFont(g_fonts.imFontHack64);
                 ImGui::Text("What's up?");
                 ImGui::PopFont();
-
-                int msecHax = g_inputMsecHax;
-                UI::SliderIntLeft("##g_inputMsecHax", &msecHax, 0, UINT8_MAX);
-                g_inputMsecHax = (uint8_t)msecHax;
 
                 ImGui::PushFont(g_fonts.imFontHack48);
                 ImGui::MenuItem("Resume");

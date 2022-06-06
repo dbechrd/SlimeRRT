@@ -61,7 +61,7 @@ void PlayerControllerState::Query(bool processMouse, bool processKeyboard, bool 
             dbgToggleFreecam = IsKeyPressed(KEY_F);
             dbgNextRtreeRect = IsKeyDown(KEY_N) && !IsKeyDown(KEY_K);
             dbgKillRtreeRect = IsKeyDown(KEY_K) && !IsKeyDown(KEY_N);
-            dbgImgui         = IsKeyPressed(KEY_GRAVE);
+            dbgImgui         = IsKeyPressed(KEY_GRAVE) && IsKeyDown(KEY_LEFT_SHIFT);
             dbgJump          = IsKeyPressed(KEY_SPACE);
         }
     }

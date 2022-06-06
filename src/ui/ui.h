@@ -37,9 +37,7 @@ struct UI {
     // Screen UI
     static void Minimap(const Font &font, World &world);
     static void Menubar(const NetClient &netClient);
-    static void ShowDemoWindow();
-    static void LoginForm(NetClient &netClient, bool &escape);
-    static void Mixer(void);
+    static void ShowDemoWindow(void);
     static void ParticleConfig(World &world);
     static void Netstat(NetClient &netClient, double renderAt);
     static void HUD(const Font &font, World &world, const DebugStats &debugStats);
@@ -59,12 +57,11 @@ private:
 
     static bool showMenubar;
     static bool showDemoWindow;
-    static bool showLoginWindow;
     static bool showParticleConfig;
+    static bool showNetstatWindow;
 
     static bool disconnectRequested;
     static bool quitRequested;
-
 
     enum Menu : int {
         Main,
