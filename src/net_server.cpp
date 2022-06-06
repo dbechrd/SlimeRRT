@@ -236,8 +236,9 @@ ErrorType NetServer::SendChatMessage(const SV_Client &client, const char *messag
 
 ErrorType NetServer::SendWorldChunk(const SV_Client &client, const Chunk &chunk)
 {
+#if SV_DEBUG_WORLD_CHUNKS
     TraceLog(LOG_DEBUG, "Sending world chunk [%hd, %hd] to player #%u", chunk.x, chunk.y, client.playerId);
-
+#endif
     memset(&netMsg, 0, sizeof(netMsg));
     netMsg.type = NetMessage::Type::WorldChunk;
     NetMessage_WorldChunk &worldChunk = netMsg.data.worldChunk;
@@ -300,7 +301,9 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
         const float distSq = v2_length_sq(v2_sub(player.body.GroundPosition(), otherPlayer.body.GroundPosition()));
         bool nearby = distSq <= SQUARED(SV_PLAYER_NEARBY_THRESHOLD);
         if (!nearby) {
+#if SV_DEBUG_WORLD_PLAYERS
             TraceLog(LOG_DEBUG, "Left vicinity of player #%u", otherPlayer.id);
+#endif
             client.playerHistory.erase(otherPlayer.id);
             continue;
         }
@@ -314,7 +317,9 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
             flags = PlayerSnapshot::Flags::Owner;
         } else if (prevState == client.playerHistory.end()) {
             flags = PlayerSnapshot::Flags::PuppetSpawn;
+#if SV_DEBUG_WORLD_PLAYERS
             TraceLog(LOG_DEBUG, "Entered vicinity of player #%u", otherPlayer.id);
+#endif
         } else {
             // Send delta updates for puppets that the client already knows about
 
@@ -379,7 +384,9 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
         EnemySnapshot::Flags flags = EnemySnapshot::Flags::None;
         if (prevState == client.enemyHistory.end()) {
             flags = EnemySnapshot::Flags::All;
+#if SV_DEBUG_WORLD_ENEMIES
             TraceLog(LOG_DEBUG, "Entered vicinity of enemy #%u", enemy.id);
+#endif
         } else {
             // "Despawn" notification already sent
             if (prevState->second.flags & EnemySnapshot::Flags::Despawn) {
@@ -446,7 +453,9 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
         ItemSnapshot::Flags flags = ItemSnapshot::Flags::None;
         if (prevState == client.itemHistory.end()) {
             flags = ItemSnapshot::Flags::All;
+#if SV_DEBUG_WORLD_ITEMS
             TraceLog(LOG_DEBUG, "Entered vicinity of item #%u", item.id);
+#endif
         } else {
             // "Despawn" notification already sent
             if (prevState->second.flags & ItemSnapshot::Flags::Despawn) {
@@ -482,8 +491,9 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
 
         // DEBUG(cleanup): FPSDfasdf
         const Vector3 worldPos = item.body.WorldPosition();
+#if SV_DEBUG_WORLD_ITEMS
         TraceLog(LOG_DEBUG, "Sending snapshot for Item #%u: itemId: %u count: %u pos: %f %f %f", item.id, item.stack.id, item.stack.count, worldPos.x, worldPos.y, worldPos.z);
-
+#endif
         worldSnapshot.items[worldSnapshot.itemCount] = state;
         worldSnapshot.itemCount++;
     }
@@ -655,6 +665,11 @@ bool NetServer::IsValidInput(const SV_Client &client, const InputSample &sample)
     if (sample.ownerId != client.playerId) {
         // TODO: Disconnect someone trying to impersonate?
         // Maybe their ID changed due to a recent reconnect? Check connection age.
+        return false;
+    }
+
+    // We already know about this sample, ignore
+    if (sample.seq <= client.lastInputRecv) {
         return false;
     }
 
@@ -846,10 +861,11 @@ void NetServer::ProcessMsg(SV_Client &client, ENetPacket &packet)
                 for (size_t i = 0; i < input.sampleCount; i++) {
                     InputSample &sample = input.samples[i];
                     if (sample.seq && IsValidInput(client, sample)) {
-                        client.inputBuffer = sample;
-                        //InputSample &histSample = inputHistory.Alloc();
-                        //histSample = sample;
-#if SV_DEBUG_INPUT
+                        //client.inputBuffer = sample;
+                        InputSample &histSample = client.inputHistory.Alloc();
+                        histSample = sample;
+                        client.lastInputRecv = MAX(client.lastInputRecv, sample.seq);
+#if SV_DEBUG_INPUT_SAMPLES
                         printf("Received input #%u\n", histSample.seq);
 #endif
                     }

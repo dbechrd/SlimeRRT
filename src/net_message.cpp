@@ -111,6 +111,7 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                     stream.Process(sample.seq, 32, 0, UINT32_MAX);
                     // TODO: Don't send ownerId more than once.. move this up outside of the loop
                     stream.Process(sample.ownerId, 32, 0, UINT32_MAX);
+                    stream.Process(sample.msec);
                     stream.Process(sample.walkNorth);
                     stream.Process(sample.walkEast);
                     stream.Process(sample.walkSouth);
@@ -251,9 +252,6 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                     for (size_t i = 0; i < playerJoin.nameLength; i++) {
                         stream.ProcessChar(playerJoin.name[i]);
                     }
-
-                    TraceLog(LOG_DEBUG, "PlayerJoin %u", playerJoin.playerId);
-
                     break;
                 } case NetMessage_GlobalEvent::Type::PlayerLeave: {
                     NetMessage_GlobalEvent::PlayerLeave &playerLeave = globalEvent.data.playerLeave;

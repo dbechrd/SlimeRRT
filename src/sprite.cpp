@@ -113,7 +113,7 @@ bool sprite_cull_body(const Sprite &sprite, const Body3D &body, Rectangle cullRe
 
 static void sprite_draw(const Sprite &sprite, Rectangle screenRect, Color color)
 {
-#if DEMO_BODY_RECT
+#if CL_DEMO_BODY_RECT
     // DEBUG: Draw collision rectangle
     DrawRectangleRec(dest, Fade(RED, 0.2f));
 #endif
@@ -128,7 +128,7 @@ static void sprite_draw(const Sprite &sprite, Rectangle screenRect, Color color)
         DrawRectangleRec(screenRect, MAGENTA);
     }
 
-#if DEMO_BODY_RECT
+#if CL_DEMO_BODY_RECT
     // DEBUG: Draw bottom bottomCenter
     //Vector2 groundPos = sprite_world_center;
     //DrawCircle((int)groundPos.x, (int)groundPos.y, 4.0f, RED);

@@ -49,6 +49,7 @@ struct InputSample {
     uint32_t seq        {};  // monotonic input sequence number
     uint32_t ownerId    {};  // player who generated this input
     //uint32_t clientTick {};  // client tick when input was detected
+    uint8_t  msec       {};  // duration of command (https://developer.valvesoftware.com/wiki/Latency_Compensating_Methods_in_Client/Server_In-game_Protocol_Design_and_Optimization)
     bool     walkNorth  {};
     bool     walkEast   {};
     bool     walkSouth  {};
@@ -58,11 +59,21 @@ struct InputSample {
     uint32_t selectSlot {};  // PlayerInventorySlot
     bool     skipFx     {};  // once the input has been processed once, don't trigger FX (particles, sounds, etc.)
 
-    void FromController(uint32_t playerId, uint32_t inputSeq, const PlayerControllerState &controllerState)
+    void FromController(uint32_t playerId, uint32_t inputSeq, double frameDt, const PlayerControllerState &controllerState)
     {
+        double frameDtMs = frameDt * 1000.0;
+        if (frameDtMs > UINT8_MAX) {
+            TraceLog(LOG_WARNING, "InputSample msec too large, will be truncated to 256 ms");
+        }
         seq        = inputSeq;
         ownerId    = playerId;
         //clientTick = tick;
+        msec       = (uint8_t)MIN(frameDt * 1000.0, UINT8_MAX);
+#if CL_DEBUG_SPEEDHAX
+        if (g_inputMsecHax) {
+            msec = MIN(g_inputMsecHax, UINT8_MAX);
+        }
+#endif
         walkNorth  = controllerState.walkNorth;
         walkEast   = controllerState.walkEast;
         walkSouth  = controllerState.walkSouth;

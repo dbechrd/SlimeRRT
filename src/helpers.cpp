@@ -5,6 +5,7 @@
 #include <cstdio>
 
 Shader g_sdfShader{};
+uint8_t g_inputMsecHax{ 0 };
 
 static Color ShadowColor(const Color color)
 {

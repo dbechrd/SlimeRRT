@@ -93,8 +93,9 @@ ItemWorld *ItemSystem::Find(uint32_t itemId)
 
 bool ItemSystem::Remove(uint32_t itemId)
 {
+#if SV_DEBUG_WORLD_ITEMS
     TraceLog(LOG_DEBUG, "Despawning item %u", itemId);
-
+#endif
     auto elem = byId.find(itemId);
     if (elem == byId.end()) {
         TraceLog(LOG_WARNING, "Cannot remove an item that doesn't exist. itemId: %u", itemId);
@@ -123,7 +124,9 @@ bool ItemSystem::Remove(uint32_t itemId)
     }
     byId.erase(itemId);
 
+#if SV_DEBUG_WORLD_ITEMS
     TraceLog(LOG_DEBUG, "Despawned item %u", itemId);
+#endif
     return success;
 }
 

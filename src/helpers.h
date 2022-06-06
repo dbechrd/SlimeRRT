@@ -22,17 +22,24 @@
 //------------------------------------------------------------------------------
 // Feature flags
 //------------------------------------------------------------------------------
-#define CULL_ON_PUSH 1
-#define PIXEL_FIXER 1
-#define DEMO_VIEW_RTREE 0
-#define DEMO_AI_TRACKING 0
-#define DEMO_BODY_RECT 0
-#define DEMO_SNAPSHOT_RADII 0
-#define SV_DEBUG_INPUT 0
-#define CL_DEBUG_PLAYER_RECONCILIATION 0
-#define CL_DEBUG_REALLY_LONG_TIMEOUT 0
-#define CURSOR_ITEM_RELATIVE_TERRARIA 0
-#define CURSOR_ITEM_HIDES_POINTER 0
+#define CL_CULL_ON_PUSH                  1
+#define CL_CURSOR_ITEM_HIDES_POINTER     0
+#define CL_CURSOR_ITEM_RELATIVE_TERRARIA 0
+#define CL_DEBUG_PLAYER_RECONCILIATION   0
+#define CL_DEBUG_REALLY_LONG_TIMEOUT     0
+#define CL_DEBUG_SPEEDHAX                1
+#define CL_DEBUG_WORLD_CHUNKS            0
+#define CL_DEBUG_WORLD_ITEMS             0
+#define CL_DEMO_AI_TRACKING              0
+#define CL_DEMO_BODY_RECT                0
+#define CL_DEMO_SNAPSHOT_RADII           0
+#define CL_DEMO_VIEW_RTREE               0
+#define CL_PIXEL_FIXER                   1
+#define SV_DEBUG_INPUT_SAMPLES           0
+#define SV_DEBUG_WORLD_CHUNKS            0
+#define SV_DEBUG_WORLD_ENEMIES           0
+#define SV_DEBUG_WORLD_ITEMS             0
+#define SV_DEBUG_WORLD_PLAYERS           0
 
 #if _DEBUG
     #define SHOW_DEBUG_STATS 1
@@ -62,6 +69,7 @@
 #define SV_MAX_ITEMS                256 //4096
 #define SV_WORLD_ITEM_LIFETIME      300 //600 // despawn items after 10 minutes
 #define SV_TICK_RATE                60
+#define SV_TICK_DT                  (1.0 / SV_TICK_RATE)
 #define SV_INPUT_HISTORY            (SV_TICK_RATE * SV_MAX_PLAYERS)
 #define SV_WORLD_HISTORY            SV_TICK_RATE
 // NOTE: max diagonal distance at 1080p is 1100 + radius units. 1200px allows for a ~50px wide entity
@@ -78,6 +86,8 @@
 #define SV_SLIME_ATTACK_TRACK       METERS_TO_PIXELS(10.0f)
 #define SV_SLIME_ATTACK_REACH       METERS_TO_PIXELS(0.5f)
 #define SV_SLIME_RADIUS             METERS_TO_PIXELS(0.5f)
+// NOTE: Have legit clients d/c if their FPS drops below 15 fps to prevent them from being banned for hacking due to input latency
+#define SV_INPUT_HACK_THRESHOLD     (SV_TICK_DT * 5.0)  // 4 frames of overflowed input time is surely a hacker (or a client with < 15 fps?)
 
 // NOTE: Due to how "enemy.moved" flag is calculated atm, this *MUST* match SV_TICK_RATE
 #define SNAPSHOT_SEND_RATE            SV_TICK_RATE  //MIN(30, SV_TICK_RATE)
@@ -88,7 +98,7 @@
 #define CL_INPUT_SAMPLE_RATE          SV_TICK_RATE  // must be equal to SV_TICK_RATE
 #define CL_INPUT_SEND_RATE            SV_TICK_RATE  // can be <= CL_INPUT_SAMPLE_RATE
 #define CL_INPUT_SAMPLES_MAX          SV_TICK_RATE  // send up to 1 second of samples per packet
-#define CL_INPUT_HISTORY              32  // SV_TICK_RATE  // keep 1 second of input data
+#define CL_INPUT_HISTORY              MIN(32, CL_INPUT_SAMPLES_MAX)  // how many samples to keep around client side
 #define CL_WORLD_HISTORY              (SV_TICK_RATE / 2 + 1)  // >= 500 ms of data
 #define CL_CHAT_HISTORY               256
 #define CL_FARAWAY_BUFFER_RADIUS      (SV_STALE_RADIUS * 2.0f)
@@ -124,6 +134,7 @@
 // Helper functions
 //------------------------------------------------------------------------------
 extern Shader g_sdfShader;
+extern uint8_t g_inputMsecHax;
 
 void DrawTextFont(Font font, const char *text, float posX, float posY, float offsetX, float offsetY, int fontSize, const Color &color);
 const char *SafeTextFormat(const char *text, ...);

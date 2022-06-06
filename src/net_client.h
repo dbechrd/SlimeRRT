@@ -32,7 +32,7 @@ struct NetClient {
     ErrorType SendSlotDrop        (int slot, uint32_t count);
     ErrorType SendPlayerInput     (void);
     void      PredictPlayer       (void);
-    void      ReconcilePlayer     (double tickDt);
+    void      ReconcilePlayer     (void);
     ErrorType Receive             (void);
     bool      IsConnecting        (void) const;
     bool      IsConnected         (void) const;

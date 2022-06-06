@@ -11,9 +11,13 @@ struct SV_Client {
     ENetPeer    *peer              {};
     uint32_t    connectionToken    {};  // unique identifier in addition to ip/port to detect reconnect from same UDP port
     uint32_t    playerId           {};
-    uint32_t    lastInputAck       {};  // sequence # of last processed input for this client
+    uint32_t    lastInputAck       {};  // sequence # of last input processed for this client
+    uint32_t    lastInputRecv      {};  // sequence # of last input received from client
     double      lastSnapshotSentAt {};
-    InputSample inputBuffer        {};  // last input received (TODO: all input received since last tick, consolidated)
+    double      inputOverflow      {};  // how msec of input we've received over/under expected by frameDt
+
+    //InputSample inputBuffer        {};  // last input received (TODO: all input received since last tick, consolidated)
+    RingBuffer<InputSample, SV_INPUT_HISTORY / SV_MAX_PLAYERS> inputHistory {};
 
     //RingBuffer<WorldSnapshot, SV_WORLD_HISTORY> worldHistory {};
     std::unordered_map<uint32_t, PlayerSnapshot> playerHistory {};

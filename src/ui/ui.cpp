@@ -1340,6 +1340,10 @@ void UI::InGameMenu(bool &escape, bool connectedToServer)
                 ImGui::Text("What's up?");
                 ImGui::PopFont();
 
+                int msecHax = g_inputMsecHax;
+                UI::SliderIntLeft("##g_inputMsecHax", &msecHax, 0, UINT8_MAX);
+                g_inputMsecHax = (uint8_t)msecHax;
+
                 ImGui::PushFont(g_fonts.imFontHack48);
                 ImGui::MenuItem("Resume");
                 if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
@@ -1580,7 +1584,7 @@ void UI::Inventory(const Texture &invItems, Player& player, NetClient &netClient
     ImGui::PopStyleVar(6);
 
     if (cursorStack.count) {
-#if CURSOR_ITEM_HIDES_POINTER
+#if CL_CURSOR_ITEM_HIDES_POINTER
         HideCursor();
 #endif
 
@@ -1592,7 +1596,7 @@ void UI::Inventory(const Texture &invItems, Player& player, NetClient &netClient
         player.inventory.TexRect(invItems, cursorStack.id, uv0, uv1);
 
         Vector2 cursorOffset{};
-#if CURSOR_ITEM_RELATIVE_TERRARIA
+#if CL_CURSOR_ITEM_RELATIVE_TERRARIA
         cursorOffset.x = 8;
         cursorOffset.y = 8;
 #else
@@ -1657,7 +1661,7 @@ void UI::Inventory(const Texture &invItems, Player& player, NetClient &netClient
 
         drawList->PopClipRect();
     } else {
-#if CURSOR_ITEM_HIDES_POINTER
+#if CL_CURSOR_ITEM_HIDES_POINTER
         ShowCursor();
 #endif
     }

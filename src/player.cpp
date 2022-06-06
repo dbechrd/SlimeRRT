@@ -150,10 +150,12 @@ bool Player::Attack(void)
     return false;
 }
 
-void Player::Update(double dt, InputSample &input, const Tilemap &map)
+void Player::Update(InputSample &input, const Tilemap &map)
 {
     assert(id);
     assert(input.ownerId == id);
+
+    float dt = input.msec / 1000.0f;
 
     if (input.selectSlot) {
         inventory.selectedSlot = (PlayerInventorySlot)input.selectSlot;
@@ -185,7 +187,7 @@ void Player::Update(double dt, InputSample &input, const Tilemap &map)
             // TODO: moveState = Player::MoveState::Swimming;
         }
 
-        Vector2 moveOffset = v2_scale(v2_normalize(move), METERS_TO_PIXELS(playerSpeed) * (float)dt);
+        Vector2 moveOffset = v2_scale(v2_normalize(move), METERS_TO_PIXELS(playerSpeed) * dt);
         moveBuffer = v2_add(moveBuffer, moveOffset);
 
         if (!input.skipFx && input.attack && Attack()) {
@@ -430,7 +432,7 @@ void Player::Draw(const World &world) const
 
     DrawSwimOverlay(world);
 
-#if DEMO_SNAPSHOT_RADII
+#if CL_DEMO_SNAPSHOT_RADII
     {
         const Vector2 visPos = body.VisualPosition();
         DrawCircleLines((int)visPos.x, (int)visPos.y, SV_ENEMY_NEARBY_THRESHOLD, GREEN);

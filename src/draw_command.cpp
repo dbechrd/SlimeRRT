@@ -28,7 +28,7 @@ void DrawList::Push(const Drawable &drawable)
     //    return;
     //}
 
-#if CULL_ON_PUSH
+#if CL_CULL_ON_PUSH
     if (cullEnabled && drawable.Cull(cullRect)) {
         return;
     }
@@ -57,7 +57,7 @@ void DrawList::Flush(const World &world)
     }
 
     for (const DrawCommand &cmd : sortedCommands) {
-#if !CULL_ON_PUSH
+#if !CL_CULL_ON_PUSH
         if (!cullEnabled || !cmd.drawable.Cull()) {
             cmd.drawable->Draw();
         }

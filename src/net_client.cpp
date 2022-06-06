@@ -224,7 +224,7 @@ void NetClient::PredictPlayer(void)
     //player->Update(now, input.dt);
 }
 
-void NetClient::ReconcilePlayer(double tickDt)
+void NetClient::ReconcilePlayer(void)
 {
     if (!serverWorld || !worldHistory.Count()) {
         // Not connected to server, or no snapshots received yet
@@ -290,7 +290,7 @@ void NetClient::ReconcilePlayer(double tickDt)
                 else putchar('.');
 #endif
                 assert(serverWorld->map);
-                player->Update(tickDt, input, *serverWorld->map);
+                player->Update(input, *serverWorld->map);
             }
         }
 #if CL_DEBUG_PLAYER_RECONCILIATION
@@ -360,17 +360,23 @@ void NetClient::ProcessMsg(ENetPacket &packet)
             break;
         } case NetMessage::Type::WorldChunk: {
             NetMessage_WorldChunk &worldChunk = tempMsg.data.worldChunk;
+#if CL_DEBUG_WORLD_CHUNKS
             TraceLog(LOG_DEBUG, "Received world chunk %hd %hd", worldChunk.chunk.x, worldChunk.chunk.y);
+#endif
             if (serverWorld->map) {
                 Tilemap &map = *serverWorld->map;
                 auto chunkIter = map.chunksIndex.find(worldChunk.chunk.Hash());
                 if (chunkIter != map.chunksIndex.end()) {
+#if CL_DEBUG_WORLD_CHUNKS
                     TraceLog(LOG_DEBUG, "  Updating existing chunk");
+#endif
                     size_t idx = chunkIter->second;
                     assert(idx < map.chunks.size());
                     map.chunks[chunkIter->second] = worldChunk.chunk;
                 } else {
+#if CL_DEBUG_WORLD_CHUNKS
                     TraceLog(LOG_DEBUG, "  Adding new chunk to chunk list");
+#endif
                     map.chunks.emplace_back(worldChunk.chunk);
                     map.chunksIndex[worldChunk.chunk.Hash()] = map.chunks.size() - 1;
                 }
@@ -628,10 +634,12 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                     if (itemSnapshot.flags & ItemSnapshot::Flags::Despawn) {
                         continue;
                     }
+#if CL_DEBUG_WORLD_ITEMS
                     TraceLog(LOG_DEBUG, "Trying to spawn item: item #%u, catalog #%u, count %u",
                         itemSnapshot.id,
                         itemSnapshot.catalogId,
                         itemSnapshot.stackCount);
+#endif
                     item = serverWorld->itemSystem.SpawnItem(
                         itemSnapshot.position,
                         itemSnapshot.catalogId,
@@ -643,11 +651,11 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                         continue;
                     }
                 }
-
+#if CL_DEBUG_WORLD_ITEMS
                 if (itemSnapshot.flags != ItemSnapshot::Flags::None) {
                     TraceLog(LOG_DEBUG, "Snapshot: item #%u", itemSnapshot.id);
                 }
-
+#endif
                 const bool posChanged = itemSnapshot.flags & ItemSnapshot::Flags::Position;
 
                 if (posChanged) {
@@ -687,7 +695,9 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                         item->pickedUpAt = worldSnapshot.recvAt;
                         Catalog::g_sounds.Play(Catalog::SoundID::Gold, 1.0f + dlb_rand32f_variance(0.2f), true);
                     }
+#if CL_DEBUG_WORLD_ITEMS
                     TraceLog(LOG_DEBUG, "Snapshot: item #%u stack count = %u", item->id, item->stack.count);
+#endif
                 }
             }
             break;

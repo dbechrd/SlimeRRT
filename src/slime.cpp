@@ -143,8 +143,9 @@ bool Slime::TryCombine(Slime &other)
     // Kill slime B
     b->combat.hitPoints = 0.0f;
     b->combat.diedAt = glfwGetTime();
-
+#if SV_DEBUG_WORLD_ENEMIES
     TraceLog(LOG_DEBUG, "Combined slime #%u into slime #%u", b->id, a->id);
+#endif
     return true;
 }
 
@@ -221,7 +222,7 @@ void Slime::Draw(const World &world) const
         Vector3 topCenter = WorldTopCenter();
         HealthBar::Draw({ topCenter.x, topCenter.y - topCenter.z }, name, combat);
 
-#if DEMO_SNAPSHOT_RADII
+#if CL_DEMO_SNAPSHOT_RADII
         // DEBUG: Draw stale visual marker if no snapshot received in a while
         if (body.positionHistory.Count()) {
             auto &lastPos = body.positionHistory.Last();

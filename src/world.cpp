@@ -374,7 +374,9 @@ void World::SV_SimItems(double dt)
             if (closestPlayer->inventory.PickUp(item.stack)) {
                 if (!item.stack.count) {
                     item.pickedUpAt = glfwGetTime();
+#if SV_DEBUG_WORLD_ITEMS
                     TraceLog(LOG_DEBUG, "Sim: Item picked up %u", item.id);
+#endif
                 } else {
                     // TODO: Send item update message so other players know stack was partially picked up
                     // to update their label.
@@ -540,7 +542,12 @@ void World::CL_Extrapolate(double dt)
         }
         // TODO: Use future inputs we've received from the server to predict other players more reliability
         InputSample input{};
-        player.Update(dt, input, *map);
+        double dtMs = dt * 1000.0;
+        if (dtMs > UINT8_MAX) {
+            TraceLog(LOG_WARNING, "Extrapolation dt too large, will be truncated to 256 ms");
+        }
+        input.msec = (uint8_t)MIN(dt * 1000.0, UINT8_MAX);
+        player.Update(input, *map);
     }
     for (Slime &enemy : slimes) {
         if (!enemy.id) {

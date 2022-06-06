@@ -54,13 +54,13 @@ ErrorType GameServer::Run(const Args &args)
     {
         // TODO: Spawn slimes near player rather than randomly nearly spawn only once
         for (size_t i = 0; i < SV_MAX_SLIMES; i++) {
-            world->SpawnSlime(0);
+            //world->SpawnSlime(0);
         }
     }
 
     E_ASSERT(netServer.OpenSocket(args.port), "Failed to open socket");
 
-    const double tickDt = 1.0f / SV_TICK_RATE;
+    const double tickDt = SV_TICK_DT;
     double tickAccum = 0.0f;
     double frameStart = glfwGetTime();
 
@@ -104,7 +104,7 @@ ErrorType GameServer::Run(const Args &args)
                 client->lastInputAck = sample.seq;
             }
 #endif
-
+            assert(world->map);
             world->SV_Simulate(tickDt);
 
             for (size_t i = 0; i < SV_MAX_PLAYERS; i++) {
@@ -113,27 +113,52 @@ ErrorType GameServer::Run(const Args &args)
                     continue;
                 }
 
-                // Handle client input for this tick
-                if (client.inputBuffer.seq > client.lastInputAck) {
-                    Player *player = world->FindPlayer(client.playerId);
-                    if (!player) {
-                        printf("Player not found, cannot sample input #%u from %u\n", client.inputBuffer.seq, client.playerId);
+                Player *player = world->FindPlayer(client.playerId);
+                if (!player) {
+                    TraceLog(LOG_DEBUG, "Player not found, cannot simulate");
+                    continue;
+                }
+                assert(client.playerId == player->id);
+
+                // Keep track of how many milliseconds of input we've processed
+                // for this client this tick.
+                double inputSecAccum = 0;
+
+                // Process queued player inputs
+                for (size_t i = 0; i < client.inputHistory.Count(); i++) {
+                    InputSample &sample = client.inputHistory.At(i);
+
+                    if (sample.seq <= client.lastInputAck) {
+                        //TraceLog(LOG_WARNING, "Ignoring old input #%u from %u\n", sample.seq, sample.ownerId);
                         continue;
                     }
 
-                    assert(client.playerId == player->id);
-                    assert(world->map);
-                    player->Update(tickDt, client.inputBuffer, *world->map);
+                    double inputSec = sample.msec / 1000.0;
+                    //double inputOverflow = (inputSecAccum + inputSec) - tickDt;
+                    //if (inputOverflow > 0.0) {
+                    //    sample.msec = (uint8_t)MIN(inputOverflow * 1000.0, UINT8_MAX);
+                    //    TraceLog(LOG_WARNING, "Saving overflow (%u ms) from input.msec (seq: #%u, player: %u)", sample.msec, sample.seq, sample.ownerId);
+                    //    //client.inputHistory.Clear();
+                    //    break;
+                    //}
+                    inputSecAccum += inputSec;
 
-                    client.lastInputAck = client.inputBuffer.seq;
+                    player->Update(sample, *world->map);
+                    client.lastInputAck = sample.seq;
                 }
+
+                double inputOverflow = inputSecAccum - tickDt;
+                client.inputOverflow += inputOverflow;
+                client.inputOverflow = MAX(0.0, client.inputOverflow);
+                TraceLog(LOG_DEBUG, "inputOverflow: %f, tickDt: %f%s", client.inputOverflow, tickDt,
+                    client.inputOverflow > SV_INPUT_HACK_THRESHOLD ? " [INPUT HACKER ALERT TRIGGERED]" : "");
 
                 // Send nearby chunks to player if they haven't received them yet
                 netServer.SendNearbyChunks(client);
 
                 if (glfwGetTime() - client.lastSnapshotSentAt > 1.0 / SNAPSHOT_SEND_RATE) {
-#if SV_DEBUG_INPUT
-                    printf("Sending snapshot for tick %u / input seq #%u, to player %u\n", world->tick, client.lastInputAck, client.playerId);
+#if SV_DEBUG_INPUT_SAMPLES
+                    TraceLog(LOG_DEBUG, "Sending snapshot for tick %u / input seq #%u, to player %u\n", world->tick, client.lastInputAck, client.playerId);
 #endif
                     // Send snapshot
                     E_ASSERT(netServer.SendWorldSnapshot(client), "Failed to send world snapshot");

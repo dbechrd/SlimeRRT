@@ -87,7 +87,7 @@ void GameClient::Init(void)
     //HealthBar::SetFont(GetFontDefault());
     HealthBar::SetFont(g_fonts.fontSmall);
 
-#if PIXEL_FIXER
+#if CL_PIXEL_FIXER
     pixelFixer                     = LoadShader("resources/pixelfixer.vs", "resources/pixelfixer.fs");
     pixelFixerScreenSizeUniformLoc = GetShaderLocation(pixelFixer, "screenSize");
     SetShaderValue(pixelFixer, pixelFixerScreenSizeUniformLoc, &screenSize, SHADER_UNIFORM_VEC2);
@@ -156,7 +156,7 @@ void GameClient::Init(void)
     checkboardTexture = LoadTextureFromImage(checkerboardImage);
     UnloadImage(checkerboardImage);
 
-#if DEMO_VIEW_RTREE
+#if CL_DEMO_VIEW_RTREE
     const int RECT_COUNT = 100;
     std::array<Rectangle, RECT_COUNT> rects{};
     std::array<bool, RECT_COUNT> drawn{};
@@ -273,7 +273,7 @@ void GameClient::PlayMode_HandleInput(double frameDt, PlayerControllerState &inp
         assert((int)screenSize.x % 2 == 0);
         assert((int)screenSize.y % 2 == 0);
         //printf("w: %f h: %f\n", screenSize.x, screenSize.y);
-#if PIXEL_FIXER
+#if CL_PIXEL_FIXER
         SetShaderValue(pixelFixer, pixelFixerScreenSizeUniformLoc, &screenSize, SHADER_UNIFORM_VEC2);
 #endif
         spycam.Reset();
@@ -316,7 +316,7 @@ void GameClient::PlayMode_HandleInput(double frameDt, PlayerControllerState &inp
         netClient.SendChatMessage(CSTR("/rtp"));
     }
 
-#if DEMO_VIEW_RTREE
+#if CL_DEMO_VIEW_RTREE
     if (input.dbgNextRtreeRect) {
         if (next_rect_to_add < RECT_COUNT && (GetTime() - lastRectAddedAt > 0.1)) {
             AABB aabb{};
@@ -360,18 +360,19 @@ void GameClient::PlayMode_Update(double frameDt, PlayerControllerState &input)
 #endif
         if (netClient.worldHistory.Count()) {
             const WorldSnapshot &worldSnapshot = netClient.worldHistory.Last();
+            //printf("worldTick: %u, lastSnapshot: %u, delta: %u\n", world->tick, worldSnapshot.tick, worldSnapshot.tick - world->tick);
             world->tick = worldSnapshot.tick;
 
             // Update world state from worldSnapshot and re-apply input with input.tick > snapshot.tick
-            netClient.ReconcilePlayer(tickDt);
+            netClient.ReconcilePlayer();
 
             //while (tickAccum > tickDt) {
             netClient.inputSeq = MAX(1, netClient.inputSeq + 1);
             InputSample &inputSample = netClient.inputHistory.Alloc();
-            inputSample.FromController(player->id, netClient.inputSeq, input);
+            inputSample.FromController(player->id, netClient.inputSeq, frameDt, input);
 
             assert(world->map);
-            player->Update(tickDt, inputSample, *world->map);
+            player->Update(inputSample, *world->map);
             world->particleSystem.Update(tickDt);
             world->itemSystem.Update(tickDt);
 
@@ -424,11 +425,11 @@ void GameClient::PlayMode_DrawWorld(double frameDt, PlayerControllerState &input
     Rectangle cameraRect = spycam.GetRect();
     world->EnableCulling(cameraRect);
 
-#if PIXEL_FIXER
+#if CL_PIXEL_FIXER
     BeginShaderMode(pixelFixer);
 #endif
     tilesDrawn = world->DrawMap(spycam);
-#if PIXEL_FIXER
+#if CL_PIXEL_FIXER
     EndShaderMode();
 #endif
 
@@ -440,7 +441,7 @@ void GameClient::PlayMode_DrawWorld(double frameDt, PlayerControllerState &input
     world->DrawParticles();
     world->DrawFlush();
 
-#if DEMO_VIEW_RTREE
+#if CL_DEMO_VIEW_RTREE
     AABB searchAABB = {
         mousePosWorld.x - 50,
         mousePosWorld.y - 50,
@@ -484,7 +485,7 @@ void GameClient::PlayMode_DrawWorld(double frameDt, PlayerControllerState &input
     DrawRectangleLinesEx(searchRect, 2, YELLOW);
 #endif
 
-#if DEMO_AI_TRACKING
+#if CL_DEMO_AI_TRACKING
     {
         for (size_t i = 0; i < ARRAY_SIZE(world->slimes); i++) {
             const Slime &slime = world->slimes[i];
@@ -620,7 +621,7 @@ ErrorType GameClient::Run(void)
     UnloadShader(g_sdfShader);
     UnloadFont(g_fonts.fontSdf24);
     UnloadFont(g_fonts.fontSdf72);
-#if PIXEL_FIXER
+#if CL_PIXEL_FIXER
     UnloadShader(pixelFixer);
 #endif
     UnloadTexture(checkboardTexture);
