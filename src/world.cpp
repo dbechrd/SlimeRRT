@@ -100,13 +100,14 @@ Player *World::FindPlayerByName(const char *name, size_t nameLength)
     return 0;
 }
 
-Player *World::FindClosestPlayer(Vector2 worldPos, float maxDist)
+Player *World::FindClosestPlayer(Vector2 worldPos, float maxDist, float *distSq = 0)
 {
     for (Player &player : players) {
         if (player.id && player.combat.hitPoints) {
             Vector2 toPlayer = v2_sub(player.body.GroundPosition(), worldPos);
             const float toPlayerDistSq = v2_length_sq(toPlayer);
             if (toPlayerDistSq <= SQUARED(maxDist)) {
+                if (distSq) *distSq = toPlayerDistSq;
                 return &player;
             }
         }
@@ -128,7 +129,7 @@ void World::RemovePlayer(uint32_t playerId)
 
 Slime &World::SpawnSam(void)
 {
-    Slime *slime = SpawnSlime(0);
+    Slime *slime = SpawnSlime(0, {0, 0});
     assert(slime);
     Slime &sam = *slime;
     sam.SetName(CSTR("Sam"));
@@ -141,7 +142,7 @@ Slime &World::SpawnSam(void)
     return sam;
 }
 
-Slime *World::SpawnSlime(uint32_t slimeId)
+Slime *World::SpawnSlime(uint32_t slimeId, Vector2 origin)
 {
 #if _DEBUG
     if (slimeId) {
@@ -158,6 +159,17 @@ Slime *World::SpawnSlime(uint32_t slimeId)
             assert(!slime.nameLength);
             assert(!slime.combat.hitPointsMax);
 
+            Vector3 spawnPos{};
+            spawnPos.x = origin.x + dlb_rand32f_variance(SV_ENEMY_DESPAWN_RADIUS * 0.7f);
+            spawnPos.y = origin.y + dlb_rand32f_variance(SV_ENEMY_DESPAWN_RADIUS * 0.7f);
+            for (Player &player : players) {
+                float spawnDist = v3_length_sq(v3_sub(spawnPos, player.body.WorldPosition()));
+                if (spawnDist < SV_ENEMY_MIN_SPAWN_DIST * SV_ENEMY_MIN_SPAWN_DIST) {
+                    TraceLog(LOG_DEBUG, "Failed to spawn enemy, too close to player");
+                    return 0;
+                }
+            }
+
             if (slimeId) {
                 slime.id = slimeId;
             } else {
@@ -167,14 +179,7 @@ Slime *World::SpawnSlime(uint32_t slimeId)
             }
 
             slime.Init();
-
-            // TODO: Implement a more general "place entity" solution for rocks, trees, monsters, etc.
-            slime.body.Teleport({
-                dlb_rand32f_variance(5000),
-                dlb_rand32f_variance(5000),
-                0.0f
-            });
-
+            slime.body.Teleport(spawnPos);
             //TraceLog(LOG_DEBUG, "Spawned enemy %u", slime.id);
             return &slime;
         }
@@ -262,6 +267,14 @@ void World::SV_SimPlayers(double dt)
                 }
             }
         }
+
+        // Try to spawn enemies near player
+        if (dlb_rand32f() < 0.20f * dt) {
+            Slime *slime = SpawnSlime(0, player.body.GroundPosition());
+            if (slime) {
+                TraceLog(LOG_DEBUG, "Successfully spawned slime near player");
+            }
+        }
     }
 }
 
@@ -298,15 +311,19 @@ void World::SV_SimSlimes(double dt)
             continue;
         }
 
-        Player *closestPlayer = FindClosestPlayer(slime.body.GroundPosition(), SV_SLIME_ATTACK_TRACK);
-        if (!closestPlayer || !closestPlayer->id) {
-            slime.Update(dt);
+        // Find nearest player
+        float slimeToPlayerDistSq = 0.0f;
+        Player *closestPlayer = FindClosestPlayer(slime.body.GroundPosition(), SV_ENEMY_DESPAWN_RADIUS, &slimeToPlayerDistSq);
+        if (!closestPlayer) {
+            // No nearby players, insta-kill slime w/ no loot
+            slime.combat.DealDamage(slime.combat.hitPoints);
+            slime.combat.droppedDeathLoot = true;
             continue;
         }
 
-        Vector2 slimeToPlayer = v2_sub(closestPlayer->body.GroundPosition(), slime.body.GroundPosition());
-        const float slimeToPlayerDistSq = v2_length_sq(slimeToPlayer);
+        // Allow slime to move toward nearest player
         if (slimeToPlayerDistSq <= SQUARED(SV_SLIME_ATTACK_TRACK)) {
+            Vector2 slimeToPlayer = v2_sub(closestPlayer->body.GroundPosition(), slime.body.GroundPosition());
             const float slimeToPlayerDist = sqrtf(slimeToPlayerDistSq);
             const float moveDist = MIN(slimeToPlayerDist, SV_SLIME_MOVE_SPEED * slime.sprite.scale);
             // 5% -1.0, 95% +1.0f
@@ -339,8 +356,7 @@ void World::SV_SimSlimes(double dt)
         }
 
         // Allow slime to attack if on the ground and close enough to the player
-        slimeToPlayer = v2_sub(closestPlayer->body.GroundPosition(), slime.body.GroundPosition());
-        if (v2_length_sq(slimeToPlayer) <= SQUARED(SV_SLIME_ATTACK_REACH)) {
+        if (slimeToPlayerDistSq <= SQUARED(SV_SLIME_ATTACK_REACH)) {
             if (slime.Attack(dt)) {
                 closestPlayer->combat.DealDamage(slime.combat.meleeDamage * slime.sprite.scale);
             }

@@ -33,6 +33,7 @@
 #define CL_DEMO_AI_TRACKING              0
 #define CL_DEMO_BODY_RECT                0
 #define CL_DEMO_SNAPSHOT_RADII           0
+#define CL_DEMO_SPAWN_RADII              1
 #define CL_DEMO_VIEW_RTREE               0
 #define CL_PIXEL_FIXER                   1
 #define SV_DEBUG_INPUT_SAMPLES           0
@@ -75,9 +76,16 @@
 // NOTE: max diagonal distance at 1080p is 1100 + radius units. 1200px allows for a ~50px wide entity
 #define SV_PLAYER_NEARBY_THRESHOLD  1200.0f  // how close a player has to be to receive a snapshot
 #define SV_ENEMY_NEARBY_THRESHOLD   1200.0f  // how close an enemy has to be to receive a snapshot
+#if 0
+#define SV_ENEMY_MIN_SPAWN_DIST     METERS_TO_PIXELS(5.0f)   // closest enemies can spawn to a player
+#define SV_ENEMY_DESPAWN_RADIUS     METERS_TO_PIXELS(10.0f)  // furthest enemies can be from a player before despawning
+#else
+#define SV_ENEMY_MIN_SPAWN_DIST     METERS_TO_PIXELS(15.0f)  // closest enemies can spawn to a player
+#define SV_ENEMY_DESPAWN_RADIUS     METERS_TO_PIXELS(30.0f)  // furthest enemies can be from a player before despawning
+#endif
 #define SV_ITEM_NEARBY_THRESHOLD    1200.0f  // how close an item has to be to receive a snapshot
 #define SV_ITEM_PICKUP_DELAY        0.5      // how long after an item is spawned before it can be picked up by a player
-#define SV_STALE_RADIUS             50.0f
+#define SV_STALE_RADIUS             50.0f    // unknown.. was this supposed to be used for something?
 #define SV_PLAYER_CORPSE_LIFETIME   8.0      // how long to wait after a player dies to despawn their corpse
 #define SV_ENEMY_CORPSE_LIFETIME    4.0      // how long to wait after an enemy dies to despawn their corpse
 #define SV_RESPAWN_TIMER            5.0

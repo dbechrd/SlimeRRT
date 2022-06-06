@@ -440,6 +440,14 @@ void Player::Draw(const World &world) const
     }
 #endif
 
+#if CL_DEMO_SPAWN_RADII
+    {
+        const Vector2 visPos = body.VisualPosition();
+        DrawCircleLines((int)visPos.x, (int)visPos.y, SV_ENEMY_DESPAWN_RADIUS, GREEN);
+        DrawCircleLines((int)visPos.x, (int)visPos.y, SV_ENEMY_MIN_SPAWN_DIST, RED);
+    }
+#endif
+
     Vector3 topCenter = WorldTopCenter();
     HealthBar::Draw({ topCenter.x, topCenter.y - topCenter.z }, name, combat);
 }

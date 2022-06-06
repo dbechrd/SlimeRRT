@@ -45,11 +45,11 @@ struct World {
     Player *AddPlayer         (uint32_t playerId);
     Player *FindPlayer        (uint32_t playerId);
     Player *FindPlayerByName  (const char *name, size_t nameLength);
-    Player *FindClosestPlayer (Vector2 worldPos, float maxDist);
+    Player *FindClosestPlayer (Vector2 worldPos, float maxDist, float *distSq);
     void    RemovePlayer      (uint32_t playerId);
 
     Slime  &SpawnSam    (void);
-    Slime  *SpawnSlime  (uint32_t slimeId);
+    Slime  *SpawnSlime  (uint32_t slimeId, Vector2 origin);
     Slime  *FindSlime   (uint32_t slimeId);
     void    RemoveSlime (uint32_t slimeId);
     //

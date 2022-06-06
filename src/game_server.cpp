@@ -51,13 +51,6 @@ ErrorType GameServer::Run(const Args &args)
 
     netServer.serverWorld = world;
 
-    {
-        // TODO: Spawn slimes near player rather than randomly nearly spawn only once
-        for (size_t i = 0; i < SV_MAX_SLIMES; i++) {
-            //world->SpawnSlime(0);
-        }
-    }
-
     E_ASSERT(netServer.OpenSocket(args.port), "Failed to open socket");
 
     const double tickDt = SV_TICK_DT;
