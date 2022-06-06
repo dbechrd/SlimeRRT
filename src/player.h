@@ -30,8 +30,8 @@ enum class PlayerInventorySlot : uint8_t {
 };
 
 struct PlayerInventory {
-    PlayerInventorySlot selectedSlot{};  // NOTE: for hotbar, needs rework
-    ItemStack slots[(int)PlayerInventorySlot::Count]{};
+    PlayerInventorySlot selectedSlot {};  // NOTE: for hotbar, needs rework
+    ItemStack           slots        [(int)PlayerInventorySlot::Count]{};
 
     void TexRect(const Texture &invItems, Catalog::ItemID itemId, Vector2 &min, Vector2 &max)
     {
@@ -266,6 +266,7 @@ struct Player : Drawable {
     Body3D          body        {};
     Combat          combat      {};
     Sprite          sprite      {};
+    uint32_t        xp          {};
     PlayerInventory inventory   {};
     Stats           stats       {};
 

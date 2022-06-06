@@ -50,11 +50,11 @@ private:
 
     void Init                    (void);
     void PlayMode_PollController (PlayerControllerState &input);
-    ErrorType PlayMode_Network   (double frameDt, PlayerControllerState &input);
-    void PlayMode_Audio          (double frameDt, PlayerControllerState &input);
-    void PlayMode_HandleInput    (double frameDt, PlayerControllerState &input);
+    ErrorType PlayMode_Network   (void);
+    void PlayMode_Audio          (double frameDt);
+    void PlayMode_HandleInput    (PlayerControllerState &input);
     void PlayMode_UpdateCamera   (double frameDt, PlayerControllerState &input);
     void PlayMode_Update         (double frameDt, PlayerControllerState &input);
-    void PlayMode_DrawWorld      (double frameDt, PlayerControllerState &input);
+    void PlayMode_DrawWorld      (PlayerControllerState &input);
     void PlayMode_DrawScreen     (double frameDt, PlayerControllerState &input);
 };

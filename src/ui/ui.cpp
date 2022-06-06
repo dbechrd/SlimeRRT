@@ -173,19 +173,9 @@ void UI::Menubar(const NetClient &netClient)
 
     if (ImGui::BeginMainMenuBar()) {
         if (ImGui::BeginMenu("Debug")) {
-            //if (netClient.IsConnected()) {
-            //    ImGui::MenuItem("Log Off", 0, &disconnectRequested);
-            //} else {
-            //    ImGui::MenuItem("Log On", 0, &showLoginWindow);
-            //}
             ImGui::MenuItem("Demo Window", 0, &showDemoWindow);
             ImGui::MenuItem("Particle Config", 0, &showParticleConfig);
             ImGui::MenuItem("Netstat", 0, &showNetstatWindow);
-
-            //if (ImGui::MenuItem("Quit", "Alt+F4")) {
-            //    quitRequested = true;
-            //}
-
             ImGui::EndMenu();
         }
         ImGui::EndMainMenuBar();
@@ -376,7 +366,7 @@ void UI::HUD(const Font &font, World &world, const DebugStats &debugStats)
     DrawTextFont(font, text, margin + pad, hudCursorY, 0, 0, font.baseSize, color); \
     hudCursorY += font.baseSize + pad;
 
-    int linesOfText = 11;
+    int linesOfText = 12;
     if (debugStats.tick) {
         linesOfText += 10;
     }
@@ -401,6 +391,10 @@ void UI::HUD(const Font &font, World &world, const DebugStats &debugStats)
     PUSH_TEXT(text, WHITE);
     text = SafeTextFormat("Coins: %d", player->inventory.slots[(int)PlayerInventorySlot::Coin_Copper].count);
     PUSH_TEXT(text, YELLOW);
+    text = SafeTextFormat("XP: %u", player->xp);
+    PUSH_TEXT(text, GREEN);
+    text = SafeTextFormat("Level: %u", player->combat.level);
+    PUSH_TEXT(text, GREEN);
     text = SafeTextFormat("Coins collected   %u", player->stats.coinsCollected);
     PUSH_TEXT(text, LIGHTGRAY);
     text = SafeTextFormat("Damage dealt      %.2f", player->stats.damageDealt);
@@ -769,7 +763,7 @@ void UI::BreadcrumbText(const char *text)
     ImGui::PopFont();
 }
 
-bool UI::MenuBackButton(Menu menu, bool &escape)
+bool UI::MenuBackButton(Menu menu, bool *escape)
 {
     return false;
 
@@ -778,10 +772,10 @@ bool UI::MenuBackButton(Menu menu, bool &escape)
     ImGui::Button("< Back");
     bool pressed = (ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
                     ImGui::IsMouseHoveringRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax()));
-    if (escape || pressed) {
+    if ((escape && *escape) || pressed) {
         //Catalog::g_sounds.Play(Catalog::SoundID::Squish2, 1.0f + dlb_rand32f_variance(0.1f));
         mainMenu = menu;
-        escape = false;
+        if (escape) *escape = false;
     }
     ImGui::PopStyleColor(1);
     ImGui::PopFont();
@@ -832,7 +826,6 @@ void UI::MainMenu(bool &escape, GameClient &game)
         case Menu::Main: {
             UI::BreadcrumbButton("", Menu::Main, &escape);
             UI::BreadcrumbText("");
-            if (MenuBackButton(Menu::Main, escape)) break;
 
             // This seems dangerous/annoying if user is spamming escape to get back to root menu
             //if (escape) {
@@ -859,35 +852,76 @@ void UI::MainMenu(bool &escape, GameClient &game)
             ImGui::PopFont();
             break;
         } case Menu::Singleplayer: {
-            if (UI::BreadcrumbButton("Main Menu", Menu::Main, &escape)) break;
+            bool back = UI::BreadcrumbButton("Main Menu", Menu::Main, 0);
             UI::BreadcrumbText("Single player");
-            if (MenuBackButton(Menu::Main, escape)) break;
 
             UI::MenuTitle("Choose a world");
 
-            ImGui::PushFont(g_fonts.imFontHack48);
-            if (UI::MenuItemClick("Dandyland")) {
-                // TODO: start GameServer in a new thread, then join it
-                //if (netClient.Connect(args.host, args.port, args.user, args.pass) != ErrorType::Success) {
-                //    TraceLog(LOG_ERROR, "Failed to connect to local server");
-                //}
-                game.localServer = new GameServer(game.args);
-                if (game.netClient.Connect(game.args.host, game.args.port, game.args.user, game.args.pass) != ErrorType::Success) {
-                    TraceLog(LOG_ERROR, "Failed to connect to local server");
+            thread_local const char *message = 0;
+            thread_local bool loading = false;
+            thread_local size_t loadingIdx = 0;
+            thread_local double loadingIdxLastUpdate = 0;
+            thread_local bool reset = false;
+
+            if (game.netClient.IsDisconnected()) {
+                ImGui::PushFont(g_fonts.imFontHack48);
+                if (UI::MenuItemClick("Dandyland")) {
+                    // TODO: start GameServer in a new thread, then join it
+                    //if (netClient.Connect(args.host, args.port, args.user, args.pass) != ErrorType::Success) {
+                    //    TraceLog(LOG_ERROR, "Failed to connect to local server");
+                    //}
+                    game.localServer = new GameServer(game.args);
+                    if (game.netClient.Connect(game.args.host, game.args.port, game.args.user, game.args.pass) != ErrorType::Success) {
+                        TraceLog(LOG_ERROR, "Failed to connect to local server");
+                    }
                 }
+                ImGui::PopFont();
+
+                if (back || escape) {
+                    escape = false;
+                    mainMenu = Menu::Main;
+                    break;
+                }
+            } else if (game.netClient.IsConnecting()) {
+                const char *text[]{
+                    "Loading   ",
+                    "Loading.  ",
+                    "Loading.. ",
+                    "Loading...",
+                };
+                message = text[loadingIdx];
+                loading = true;
+                if (glfwGetTime() - loadingIdxLastUpdate > 0.25) {
+                    loadingIdx = (loadingIdx + 1) % ARRAY_SIZE(text);
+                    loadingIdxLastUpdate = glfwGetTime();
+                }
+
+                if (message) {
+                    CenteredText(message);
+                } else {
+                    ImGui::Text("");
+                }
+
+                if (back || escape || ImGui::Button("Cancel")) {
+                    escape = false;
+                    disconnectRequested = true;
+                    reset = true;
+                }
+            } else if (game.netClient.IsConnected()) {
+                reset = true;
             }
-            ImGui::PopFont();
+
+            if (reset) {
+                message = 0;
+                loading = false;
+                loadingIdx = 0;
+                reset = false;
+            }
+
             break;
         } case Menu::Multiplayer: {
-            if (UI::BreadcrumbButton("Main Menu", Menu::Main, &escape)) {
-                disconnectRequested = true;
-                break;
-            }
+            bool back = UI::BreadcrumbButton("Main Menu", Menu::Main, 0);
             UI::BreadcrumbText("Multiplayer");
-            if (MenuBackButton(Menu::Main, escape)) {
-                disconnectRequested = true;
-                break;
-            }
 
             UI::MenuTitle("Join a server");
 
@@ -897,14 +931,6 @@ void UI::MainMenu(bool &escape, GameClient &game)
             thread_local size_t connectingIdx = 0;
             thread_local double connectingIdxLastUpdate = 0;
             thread_local bool reset = false;
-
-            if (reset) {
-                message = 0;
-                msgIsError = false;
-                connecting = false;
-                connectingIdx = 0;
-                reset = false;
-            }
 
             if (game.netClient.IsDisconnected()) {
                 if (connecting) {
@@ -933,6 +959,12 @@ void UI::MainMenu(bool &escape, GameClient &game)
                         mainMenu = Menu::Multiplayer_New;
                     }
                 }
+
+                if (back || escape) {
+                    escape = false;
+                    mainMenu = Menu::Main;
+                    reset = true;
+                }
             } else if (game.netClient.IsConnecting()) {
                 const char *text[]{
                     "Attempting to connect   ",
@@ -956,12 +988,21 @@ void UI::MainMenu(bool &escape, GameClient &game)
                     ImGui::Text("");
                 }
 
-                if (ImGui::Button("Cancel")) {
+                if (back || escape || ImGui::Button("Cancel")) {
+                    escape = false;
                     disconnectRequested = true;
                     reset = true;
                 }
             } else if (game.netClient.IsConnected()) {
                 reset = true;
+            }
+
+            if (reset) {
+                message = 0;
+                msgIsError = false;
+                connecting = false;
+                connectingIdx = 0;
+                reset = false;
             }
 
             break;
@@ -972,7 +1013,7 @@ void UI::MainMenu(bool &escape, GameClient &game)
             }
             if (UI::BreadcrumbButton("Multiplayer", Menu::Multiplayer, &escape)) break;
             UI::BreadcrumbText("Add Server");
-            if (MenuBackButton(Menu::Multiplayer, escape)) break;
+            if (MenuBackButton(Menu::Multiplayer, &escape)) break;
 
             UI::MenuTitle("Add Server");
 
@@ -1076,7 +1117,7 @@ void UI::MainMenu(bool &escape, GameClient &game)
         } case Menu::Audio: {
             if (UI::BreadcrumbButton("Main Menu", Menu::Main, &escape)) break;
             UI::BreadcrumbText("Audio");
-            if (MenuBackButton(Menu::Main, escape)) break;
+            if (MenuBackButton(Menu::Main, &escape)) break;
 
             UI::MenuTitle("Audio Settings");
 

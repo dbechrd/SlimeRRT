@@ -15,6 +15,7 @@ void Player::Init(const SpriteDef *spriteDef)
     assert(!sprite.spriteDef);
     printf("Init player\n");
 
+    combat.level = 1;
     combat.hitPoints = 100.0f;
     combat.hitPointsMax = 100.0f;
     combat.meleeDamage = 1.0f;
@@ -162,6 +163,11 @@ void Player::Update(InputSample &input, const Tilemap &map)
     }
 
     if (combat.hitPoints) {
+        // TODO(cleanup): jump
+        //if (body.OnGround() && input.dbgJump) {
+        //    body.ApplyForce({ 0, 0, METERS_TO_PIXELS(4.0f) });
+        //}
+
         float playerSpeed = 3.0f;
         Vector2 move{};
 

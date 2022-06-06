@@ -1,17 +1,21 @@
 #pragma once
 #include "loot_table.h"
 #include "GLFW/glfw3.h"
+#include "dlb_types.h"
 
 struct Combat {
+    uint8_t     level            {};
     float       hitPointsMax     {};
     float       hitPoints        {};
     float       meleeDamage      {};  // TODO: add min/max and randomly choose?
+    uint32_t    xpMin            {};
+    uint32_t    xpMax            {};
+    LootTableID lootTableId      {};
+
     double      attackStartedAt  {};
     double      attackDuration   {};
     double      diedAt           {};
     uint32_t    attackFrame      {};
-
-    LootTableID lootTableId      {};
     bool        droppedHitLoot   {};  // loot on hit? could be fun for some slime items to fly off when attacking
     bool        droppedDeathLoot {};  // loot on death, proper loot roll
 

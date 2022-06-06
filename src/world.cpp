@@ -272,6 +272,11 @@ void World::SV_SimPlayers(double dt)
                 if (v3_length_sq(playerToSlime) <= playerAttackReach * playerAttackReach) {
                     player.stats.damageDealt += slime.combat.DealDamage(playerDamage);
                     if (!slime.combat.hitPoints) {
+                        player.xp += dlb_rand32u_range(slime.combat.xpMin, slime.combat.xpMax);
+                        if (player.xp >= player.combat.level * 10u) {
+                            player.combat.level++;
+                            player.xp = 0;
+                        }
                         player.stats.slimesSlain++;
                     }
                 }
@@ -279,7 +284,7 @@ void World::SV_SimPlayers(double dt)
         }
 
         // Try to spawn enemies near player
-        if (dlb_rand32f() < 0.5f * dt) {
+        if (dlb_rand32f() < 1.0f * dt) {
             Slime *slime = SpawnSlime(0, player.body.GroundPosition());
             if (slime) {
                 TraceLog(LOG_DEBUG, "Successfully spawned slime near player");

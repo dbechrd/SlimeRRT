@@ -78,6 +78,6 @@ private:
     static void SliderIntLeft(const char *label, int *v, int min, int max);
     static bool BreadcrumbButton(const char *label, Menu menu, bool *escape);
     static void BreadcrumbText(const char *text);
-    static bool MenuBackButton(Menu menu, bool &escape);
+    static bool MenuBackButton(Menu menu, bool *escape);
     static bool MenuItemClick(const char *label);
 };

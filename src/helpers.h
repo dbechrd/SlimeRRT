@@ -81,7 +81,7 @@
 #define SV_ENEMY_DESPAWN_RADIUS     METERS_TO_PIXELS(10.0f)  // furthest enemies can be from a player before despawning
 #else
 #define SV_ENEMY_MIN_SPAWN_DIST     METERS_TO_PIXELS(15.0f)  // closest enemies can spawn to a player
-#define SV_ENEMY_DESPAWN_RADIUS     METERS_TO_PIXELS(20.0f)  // furthest enemies can be from a player before despawning
+#define SV_ENEMY_DESPAWN_RADIUS     METERS_TO_PIXELS(30.0f)  // furthest enemies can be from a player before despawning
 #endif
 #define SV_ITEM_NEARBY_THRESHOLD    1200.0f  // how close an item has to be to receive a snapshot
 #define SV_ITEM_PICKUP_DELAY        0.5      // how long after an item is spawned before it can be picked up by a player

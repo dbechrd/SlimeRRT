@@ -20,9 +20,12 @@ void Slime::Init(void)
     body.drag = 0.95f;
     body.friction = 0.95f;
 
+    combat.level = 1;
     combat.hitPointsMax = 30.0f;
     combat.hitPoints = combat.hitPointsMax;
     combat.meleeDamage = 10.0f;
+    combat.xpMin = 2;
+    combat.xpMax = 4;
     combat.lootTableId = LootTableID::LT_Slime;
     //combat.droppedHitLoot = false;
     //combat.droppedDeathLoot = false;

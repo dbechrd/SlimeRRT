@@ -517,6 +517,24 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                     //TraceLog(LOG_DEBUG, "Snapshot: healthMax %f", playerSnapshot.hitPointsMax);
                     player->combat.hitPointsMax = playerSnapshot.hitPointsMax;
                 }
+                if (playerSnapshot.flags & PlayerSnapshot::Flags::Level) {
+                    //TraceLog(LOG_DEBUG, "Snapshot: level %u", enemySnapshot.level);
+                    if (playerSnapshot.level && playerSnapshot.level > player->combat.level) {
+                        ParticleEffectParams rainbowParams{};
+                        rainbowParams.durationMin = 3.0f;
+                        rainbowParams.durationMax = rainbowParams.durationMin;
+                        rainbowParams.particleCountMin = 256;
+                        rainbowParams.particleCountMax = rainbowParams.particleCountMin;
+                        ParticleEffect *rainbowFx = serverWorld->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Rainbow, player->body.WorldPosition(), rainbowParams);
+                        if (rainbowFx) {
+                            Catalog::g_sounds.Play(Catalog::SoundID::RainbowSparkles, 1.0f);
+                        }
+                    }
+                    player->combat.level = playerSnapshot.level;
+                }
+                if (playerSnapshot.flags & PlayerSnapshot::Flags::XP) {
+                    player->xp = playerSnapshot.xp;
+                }
                 if (playerSnapshot.flags & PlayerSnapshot::Flags::Inventory) {
                     player->inventory = playerSnapshot.inventory;
                     //player->inventory.selectedSlot = playerSnapshot.inventory.selectedSlot;
@@ -624,6 +642,10 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                 if (enemySnapshot.flags & EnemySnapshot::Flags::HealthMax) {
                     //TraceLog(LOG_DEBUG, "Snapshot: healthMax %f", enemySnapshot.hitPointsMax);
                     slime->combat.hitPointsMax = enemySnapshot.hitPointsMax;
+                }
+                if (enemySnapshot.flags & EnemySnapshot::Flags::Level) {
+                    //TraceLog(LOG_DEBUG, "Snapshot: level %u", enemySnapshot.level);
+                    slime->combat.level = enemySnapshot.level;
                 }
             }
 

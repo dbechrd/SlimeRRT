@@ -342,6 +342,9 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
             if (otherPlayer.combat.hitPointsMax != prevState->second.hitPointsMax) {
                 flags |= PlayerSnapshot::Flags::HealthMax;
             }
+            if (otherPlayer.combat.level != prevState->second.level) {
+                flags |= PlayerSnapshot::Flags::Level;
+            }
         }
 
         if (flags == PlayerSnapshot::Flags::None && otherPlayer.id != player.id) {
@@ -358,6 +361,8 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
         state.direction = otherPlayer.sprite.direction;
         state.hitPoints = otherPlayer.combat.hitPoints;
         state.hitPointsMax = otherPlayer.combat.hitPointsMax;
+        state.level = otherPlayer.combat.level;
+        state.xp = otherPlayer.xp;
         state.inventory = otherPlayer.inventory;
 
         worldSnapshot.players[worldSnapshot.playerCount] = state;
@@ -427,6 +432,7 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
         state.scale = enemy.sprite.scale;
         state.hitPoints = enemy.combat.hitPoints;
         state.hitPointsMax = enemy.combat.hitPointsMax;
+        state.level = enemy.combat.level;
 
         worldSnapshot.enemies[worldSnapshot.enemyCount] = state;
         worldSnapshot.enemyCount++;

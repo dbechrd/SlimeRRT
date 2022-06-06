@@ -41,22 +41,26 @@ struct WorldSnapshot {
 #endif
 
 struct PlayerSnapshot {
-    enum class Flags : char {
+    enum class Flags : uint32_t {
         None      = 0,
         Despawn   = 1 << 0,  // sent when client should despawn a puppet
         Position  = 1 << 1,  // world position
         Direction = 1 << 2,  // facing direction
         Health    = 1 << 3,  // current health, e.g. heal/damage
         HealthMax = 1 << 4,  // max health
+        Level     = 1 << 5,
+        XP        = 1 << 6,
         // TODO: PublicInventory and PrivateInventory to share visible gear without showing inv contents to other players
-        Inventory = 1 << 5,  // player inventory state
+        Inventory = 1 << 7,  // player inventory state
 
         // Fields to always send for puppets (players the client doesn't control) when entering their vicinity
         PuppetSpawn =
             Position
           | Direction
           | Health
-          | HealthMax,
+          | HealthMax
+          | Level
+        ,
 
         // Fields to always send to the owner (the player that the client is controlling)
         Owner =
@@ -64,7 +68,10 @@ struct PlayerSnapshot {
           | Direction
           | Health
           | HealthMax
+          | Level
+          | XP
           | Inventory
+        ,
     };
 
     Flags           flags        {};
@@ -73,6 +80,8 @@ struct PlayerSnapshot {
     Direction       direction    {};  // teleport, move
     float           hitPoints    {};  // heal, damage, die
     float           hitPointsMax {};  // <no events>
+    uint8_t         level        {};  // join, level up
+    uint32_t        xp           {};  // join, kill enemy
     PlayerInventory inventory    {};  // join, inventory update
 };
 
@@ -93,19 +102,21 @@ static inline bool operator&(PlayerSnapshot::Flags lhs, PlayerSnapshot::Flags rh
 }
 
 struct EnemySnapshot {
-    enum class Flags : char {
+    enum class Flags : uint32_t {
         None      = 0,
-        Despawn   = 0x01,  // health = 0
-        Position  = 0x02,  // world position
-        Direction = 0x04,  // facing direction
-        Scale     = 0x08,  // sprite scale, e.g. when slimes combine
-        Health    = 0x10,  // current health, e.g. heal/damage
-        HealthMax = 0x20,  // max health
+        Despawn   = 1 << 0,  // health = 0
+        Position  = 1 << 1,  // world position
+        Direction = 1 << 2,  // facing direction
+        Scale     = 1 << 3,  // sprite scale, e.g. when slimes combine
+        Health    = 1 << 4,  // current health, e.g. heal/damage
+        HealthMax = 1 << 5,  // max health
+        Level     = 1 << 6,  // current level
         All = Position
             | Direction
             | Scale
             | Health
             | HealthMax
+            | Level
     };
 
     Flags     flags        {};
@@ -115,6 +126,7 @@ struct EnemySnapshot {
     float     scale        {};  // combine
     float     hitPoints    {};  // heal, damage, die
     float     hitPointsMax {};  // <no events>
+    uint8_t   level        {};  // spawn, level up
 };
 
 static inline EnemySnapshot::Flags operator|(EnemySnapshot::Flags lhs, EnemySnapshot::Flags rhs)
@@ -134,7 +146,7 @@ static inline bool operator&(EnemySnapshot::Flags lhs, EnemySnapshot::Flags rhs)
 }
 
 struct ItemSnapshot {
-   enum class Flags : char {
+   enum class Flags : uint32_t {
         None       = 0,
         Despawn    = 0x01,  // picked up / stale
         Position   = 0x02,  // world position

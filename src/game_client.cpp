@@ -209,7 +209,7 @@ void GameClient::PlayMode_PollController(PlayerControllerState &input)
     input.Query(processMouse, processKeyboard, spycam.freeRoam);
 }
 
-ErrorType GameClient::PlayMode_Network(double frameDt, PlayerControllerState &input)
+ErrorType GameClient::PlayMode_Network()
 {
     E_ASSERT(netClient.Receive(), "Failed to receive packets");
 
@@ -228,13 +228,13 @@ ErrorType GameClient::PlayMode_Network(double frameDt, PlayerControllerState &in
     return ErrorType::Success;
 }
 
-void GameClient::PlayMode_Audio(double frameDt, PlayerControllerState &input)
+void GameClient::PlayMode_Audio(double frameDt)
 {
     SetMasterVolume(VolumeCorrection(Catalog::g_mixer.masterVolume));
     Catalog::g_tracks.Update((float)frameDt);
 }
 
-void GameClient::PlayMode_HandleInput(double frameDt, PlayerControllerState &input)
+void GameClient::PlayMode_HandleInput(PlayerControllerState &input)
 {
     UI::HandleInput(input);
 
@@ -289,16 +289,6 @@ void GameClient::PlayMode_HandleInput(double frameDt, PlayerControllerState &inp
     }
 
     if (input.dbgChatMessage) {
-        //ParticleEffectParams rainbowParams{};
-        //rainbowParams.durationMin = 3.0f;
-        //rainbowParams.durationMax = rainbowParams.durationMin;
-        //rainbowParams.particleCountMin = 256;
-        //rainbowParams.particleCountMax = rainbowParams.particleCountMin;
-        //ParticleEffect *rainbowFx = world->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Rainbow, player.body.WorldPosition(), rainbowParams);
-        //if (rainbowFx) {
-        //    rainbowFx->particleCallbacks[(size_t)ParticleEffect_ParticleEvent::AfterUpdate] = { RainbowParticlesDamagePlayer, &player };
-        //}
-        //Catalog::g_sounds.Play(Catalog::SoundID::RainbowSparkles, 1.0f);
         //world->chatHistory.PushDebug(CSTR("You pressed the send random chat message button. Congrats."));
     }
 
@@ -338,11 +328,6 @@ void GameClient::PlayMode_HandleInput(double frameDt, PlayerControllerState &inp
 void GameClient::PlayMode_Update(double frameDt, PlayerControllerState &input)
 {
     Player *player = netClient.serverWorld->FindPlayer(netClient.serverWorld->playerId);
-
-    // TODO(cleanup): jump
-    if (player->body.OnGround() && input.dbgJump) {
-        player->body.ApplyForce({ 0, 0, METERS_TO_PIXELS(4.0f) });
-    }
 
     renderAt = 0;
 #if 0
@@ -407,7 +392,7 @@ void GameClient::PlayMode_UpdateCamera(double frameDt, PlayerControllerState &in
     spycam.Update(input, frameDt);
 }
 
-void GameClient::PlayMode_DrawWorld(double frameDt, PlayerControllerState &input)
+void GameClient::PlayMode_DrawWorld(PlayerControllerState &input)
 {
     Camera2D cam = spycam.GetCamera();
     BeginMode2D(cam);
@@ -560,17 +545,15 @@ ErrorType GameClient::Run(void)
         netClient.sendInputAccum += MIN(sendInputDt, sendInputDtMax);
         frameStart = now;
 
-        // Collect input
+        E_ASSERT(PlayMode_Network(), "Failed to do message processing");
+
+        PlayMode_Audio(frameDt);
+
         PlayerControllerState input{};
-        PlayMode_PollController(input);
-
-        // Networking
-        E_ASSERT(PlayMode_Network(frameDt, input), "Failed to do message processing");
-
         bool connected = netClient.ConnectedAndSpawned();
         if (connected) {
-            PlayMode_Audio(frameDt, input);
-            PlayMode_HandleInput(frameDt, input);
+            PlayMode_PollController(input);
+            PlayMode_HandleInput(input);
             PlayMode_Update(frameDt, input);
             PlayMode_UpdateCamera(frameDt, input);
         }
@@ -590,7 +573,7 @@ ErrorType GameClient::Run(void)
 
         // Render game
         if (connected) {
-            PlayMode_DrawWorld(frameDt, input);
+            PlayMode_DrawWorld(input);
             PlayMode_DrawScreen(frameDt, input);
         } else {
             bool escape = IsKeyPressed(KEY_ESCAPE);

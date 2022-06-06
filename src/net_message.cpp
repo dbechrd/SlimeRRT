@@ -152,7 +152,7 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
             for (size_t i = 0; i < worldSnapshot.playerCount; i++) {
                 PlayerSnapshot &player = worldSnapshot.players[i];
                 stream.Process(player.id, 32, 1, UINT32_MAX);
-                stream.Process((uint32_t &)player.flags, 8, 0, UINT8_MAX);
+                stream.Process((uint32_t &)player.flags);
                 if (player.flags & PlayerSnapshot::Flags::Position) {
                     stream.Process(player.position.x);
                     stream.Process(player.position.y);
@@ -167,6 +167,12 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                 }
                 if (player.flags & PlayerSnapshot::Flags::HealthMax) {
                     stream.Process(player.hitPointsMax);
+                }
+                if (player.flags & PlayerSnapshot::Flags::Level) {
+                    stream.Process(player.level);
+                }
+                if (player.flags & PlayerSnapshot::Flags::XP) {
+                    stream.Process(player.xp);
                 }
                 if (player.flags & PlayerSnapshot::Flags::Inventory) {
                     stream.Process((uint8_t &)player.inventory.selectedSlot, 8, 0, (uint8_t)PlayerInventorySlot::Count - 1);
@@ -193,8 +199,7 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
             for (size_t i = 0; i < worldSnapshot.enemyCount; i++) {
                 EnemySnapshot &enemy = worldSnapshot.enemies[i];
                 stream.Process(enemy.id, 32, 1, UINT32_MAX);
-                assert((uint32_t)enemy.flags <= UINT8_MAX);
-                stream.Process((uint8_t &)enemy.flags);
+                stream.Process((uint32_t &)enemy.flags);
                 if (enemy.flags & EnemySnapshot::Flags::Position) {
                     stream.Process(enemy.position.x);
                     stream.Process(enemy.position.y);
@@ -213,13 +218,15 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                 if (enemy.flags & EnemySnapshot::Flags::HealthMax) {
                     stream.Process(enemy.hitPointsMax);
                 }
+                if (enemy.flags & EnemySnapshot::Flags::Level) {
+                    stream.Process(enemy.level);
+                }
             }
 
             for (size_t i = 0; i < worldSnapshot.itemCount; i++) {
                 ItemSnapshot &item = worldSnapshot.items[i];
                 stream.Process(item.id, 32, 1, UINT32_MAX);
-                assert((uint32_t)item.flags <= UINT8_MAX);
-                stream.Process((uint8_t &)item.flags);
+                stream.Process((uint32_t &)item.flags);
                 if (item.flags & ItemSnapshot::Flags::Position) {
                     stream.Process(item.position.x);
                     stream.Process(item.position.y);
