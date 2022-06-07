@@ -165,6 +165,7 @@ void UI::Minimap(const Font &font, World &world)
         }
     }
 #endif
+    rlDrawRenderBatchActive();
 }
 
 void UI::Menubar(const NetClient &netClient)
@@ -191,12 +192,11 @@ void UI::ShowDemoWindow(void)
     ImGui::ShowDemoWindow(&showDemoWindow);
 }
 
-void UI::CenteredText(const char *text)
+static void CenterNextItem(const char *text)
 {
-    float windowWidth = ImGui::GetWindowSize().x;
+    float windowContentWidth = ImGui::GetContentRegionAvail().x;
     float textWidth = ImGui::CalcTextSize(text).x;
-    ImGui::SetCursorPosX((windowWidth - textWidth) * 0.5f);
-    ImGui::Text(text);
+    ImGui::SetCursorPosX((windowContentWidth - textWidth) * 0.5f);
 }
 
 void UI::MenuTitle(const char *text)
@@ -626,6 +626,7 @@ void UI::Chat(const Font &font, int fontSize, World &world, NetClient &netClient
     const float chatWidth = 800.0f;
     const float chatBottom = screenSize.y - margin - inputBoxHeight;
     world.chatHistory.Render(font, fontSize, world, margin, chatBottom, chatWidth, chatActive);
+    rlDrawRenderBatchActive();
 
     // Render chat input box, if open
     thread_local char chatInputText[CHATMSG_LENGTH_MAX]{};
@@ -966,7 +967,7 @@ void UI::MainMenu(bool &escape, GameClient &game)
                 }
 
                 if (message) {
-                    CenteredText(message);
+                    CenterNextItem(message);
                 } else {
                     ImGui::Text("");
                 }
@@ -1009,7 +1010,7 @@ void UI::MainMenu(bool &escape, GameClient &game)
 
                 if (message) {
                     if (msgIsError) ImGui::PushStyleColor(ImGuiCol_Text, ImColor(220, 0, 0, 255).Value);
-                    CenteredText(message);
+                    CenterNextItem(message);
                     if (msgIsError) ImGui::PopStyleColor(1);
                     if (ImGui::Button("Okay")) {
                         reset = true;
@@ -1050,7 +1051,7 @@ void UI::MainMenu(bool &escape, GameClient &game)
 
                 if (message) {
                     if (msgIsError) ImGui::PushStyleColor(ImGuiCol_Text, ImColor(220, 0, 0, 255).Value);
-                    CenteredText(message);
+                    CenterNextItem(message);
                     if (msgIsError) ImGui::PopStyleColor(1);
                     //ImGui::Text(message);
                 } else {
@@ -1134,7 +1135,7 @@ void UI::MainMenu(bool &escape, GameClient &game)
 
             if (message) {
                 ImGui::PushStyleColor(ImGuiCol_Text, ImColor(220, 0, 0, 255).Value);
-                CenteredText(message);
+                CenterNextItem(message);
                 ImGui::PopStyleColor(1);
                 //ImGui::Text(message);
             } else {
@@ -1505,8 +1506,61 @@ void UI::Inventory(const Texture &invItems, Player& player, NetClient &netClient
 #endif
 
                 if (invStack.count && !cursorStack.count) {
+                    Catalog::Item item = invStack.Item();
                     const char *invName = invStack.Name();
-                    ImGui::SetTooltip("%u %s", invStack.count, invName);
+                    char invNameWithCountBuf[64]{};
+                    if (invStack.count > 1) {
+                        snprintf(CSTR0(invNameWithCountBuf), "%s (%u)", invName, invStack.count);
+                        invName = invNameWithCountBuf;
+                    }
+                    const char *itemType = Catalog::ItemTypeToString(item.type);
+                    Color itemTypeColor = Catalog::ItemTypeToColor(item.type);
+                    ImVec4 itemTypeImColor = Catalog::RayToImColor(itemTypeColor);
+                    const char *dmgLabel = "0.0 - 0.0 damage";
+                    const char *valLabel = "sell @ 0.00";
+
+                    float maxWidth = 0.0f;
+                    maxWidth = MAX(maxWidth, ImGui::CalcTextSize(invName).x);
+                    maxWidth = MAX(maxWidth, ImGui::CalcTextSize(itemType).x);
+                    maxWidth = MAX(maxWidth, ImGui::CalcTextSize(dmgLabel).x);
+                    maxWidth = MAX(maxWidth, ImGui::CalcTextSize(valLabel).x);
+                    maxWidth += 8.0f;
+
+                    ImGui::SetNextWindowSize({ maxWidth, 0 });
+
+                    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 0, 2 });
+                    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 0, 4 });
+                    ImGui::BeginTooltip();
+                    //ImGui::SetTooltip("%u %s\n%s\nDamage: %.2f\nValue: %.2f", invStack.count, invName, itemType, item.damage, item.value);
+
+                    // Name (count)
+                    CenterNextItem(invName);
+                    ImGui::Text(invName);
+
+                    // Type
+                    CenterNextItem(itemType);
+                    ImGui::TextColored(itemTypeImColor, itemType);
+
+                    // Damage
+                    CenterNextItem(dmgLabel);
+                    //ImGui::TextColored(Catalog::RayToImColor(WHITE), "Deals ");
+                    //ImGui::SameLine();
+                    ImGui::TextColored(Catalog::RayToImColor(MAROON), "%.1f", item.damage);
+                    ImGui::SameLine();
+                    ImGui::TextColored(Catalog::RayToImColor(WHITE), " - ");
+                    ImGui::SameLine();
+                    ImGui::TextColored(Catalog::RayToImColor(MAROON), "%.1f", item.damage);
+                    ImGui::SameLine();
+                    ImGui::TextColored(Catalog::RayToImColor(WHITE), " damage");
+
+                    // Value
+                    CenterNextItem(valLabel);
+                    ImGui::TextColored(Catalog::RayToImColor(WHITE), "sell @ ");
+                    ImGui::SameLine();
+                    ImGui::TextColored(Catalog::RayToImColor(YELLOW), "%.2f", item.value);
+
+                    ImGui::EndTooltip();
+                    ImGui::PopStyleVar(2);
                 }
             }
 

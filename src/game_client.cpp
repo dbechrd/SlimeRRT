@@ -528,8 +528,6 @@ void GameClient::PlayMode_DrawScreen(double frameDt, PlayerControllerState &inpu
         }
     }
 
-    rlDrawRenderBatchActive();
-
     UI::Menubar(netClient);
     UI::ShowDemoWindow();
     UI::Netstat(netClient, renderAt);

@@ -72,7 +72,6 @@ private:
     };
     static Menu mainMenu;
 
-    static void CenteredText(const char *text);
     static void MenuTitle(const char *text);
     static void SliderFloatLeft(const char *label, float *v, float min, float max);
     static void SliderIntLeft(const char *label, int *v, int min, int max);

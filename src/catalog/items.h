@@ -1,6 +1,7 @@
 #pragma once
 
 #include "csv.h"
+#include "imgui/imgui.h"
 #include <dlb_murmur3.h>
 #include <raylib/raylib.h>
 #include <array>
@@ -245,6 +246,66 @@ namespace Catalog {
         Book,
         Count
     };
+
+    Color ItemTypeToColor(ItemType itemType)
+    {
+        switch (itemType) {
+            case ItemType::Empty    : return DARKGRAY;
+            case ItemType::System   : return PINK    ;
+            case ItemType::Currency : return GOLD    ;
+            case ItemType::Gem      : return BLUE    ;
+            case ItemType::Ring     : return BLUE    ;
+            case ItemType::Amulet   : return BLUE    ;
+            case ItemType::Crown    : return BLUE    ;
+            case ItemType::Key      : return YELLOW  ;
+            case ItemType::Coin     : return GOLD    ;
+            case ItemType::Ore      : return ORANGE  ;
+            case ItemType::Item     : return WHITE   ;
+            case ItemType::Potion   : return PURPLE  ;
+            case ItemType::Ingot    : return ORANGE  ;
+            case ItemType::Nugget   : return ORANGE  ;
+            case ItemType::Tool     : return GRAY    ;
+            case ItemType::Weapon   : return GRAY    ;
+            case ItemType::Armor    : return GRAY    ;
+            case ItemType::Shield   : return GRAY    ;
+            case ItemType::Plant    : return GREEN   ;
+            case ItemType::Book     : return BROWN   ;
+            default                 : return MAGENTA ;
+        }
+    }
+
+    ImVec4 RayToImColor(Color color)
+    {
+        ImColor imColor{ color.r, color.g, color.b, color.a };
+        return imColor.Value;
+    }
+
+    const char *ItemTypeToString(ItemType itemType)
+    {
+        switch (itemType) {
+            case ItemType::Empty    : return "Empty"     ;
+            case ItemType::System   : return "System"    ;
+            case ItemType::Currency : return "Currency"  ;
+            case ItemType::Gem      : return "Gem"       ;
+            case ItemType::Ring     : return "Ring"      ;
+            case ItemType::Amulet   : return "Amulet"    ;
+            case ItemType::Crown    : return "Crown"     ;
+            case ItemType::Key      : return "Key"       ;
+            case ItemType::Coin     : return "Coin"      ;
+            case ItemType::Ore      : return "Ore"       ;
+            case ItemType::Item     : return "Item"      ;
+            case ItemType::Potion   : return "Potion"    ;
+            case ItemType::Ingot    : return "Ingot"     ;
+            case ItemType::Nugget   : return "Nugget"    ;
+            case ItemType::Tool     : return "Tool"      ;
+            case ItemType::Weapon   : return "Weapon"    ;
+            case ItemType::Armor    : return "Armor"     ;
+            case ItemType::Shield   : return "Shield"    ;
+            case ItemType::Plant    : return "Plant"     ;
+            case ItemType::Book     : return "Book"      ;
+            default                 : return "<ItemType>";
+        }
+    }
 
     ItemType ItemTypeFromString(const char *str, size_t length)
     {

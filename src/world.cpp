@@ -306,10 +306,7 @@ void World::SV_SimPlayers(double dt)
 
         // Try to spawn enemies near player
         if (dlb_rand32f() < 2.0f * dt) {
-            Slime *slime = SpawnSlime(0, player.body.GroundPosition());
-            if (slime) {
-                TraceLog(LOG_DEBUG, "Successfully spawned slime near player");
-            }
+            SpawnSlime(0, player.body.GroundPosition());
         }
     }
 }
@@ -708,29 +705,36 @@ size_t World::DrawMap(const Spycam &spycam)
             xx = floorf(xx / TILE_W) * TILE_W;
             yy = floorf(yy / TILE_W) * TILE_W;
 
-            //float chx = map->CalcChunk(xx);
-            //float chy = map->CalcChunk(yy);
-            //float tix = map->CalcChunkTile(xx);
-            //float tiy = map->CalcChunkTile(yy);
-            //float rx = (chx * CHUNK_W + tix) * TILE_W;
-            //float ry = (chy * CHUNK_W + tiy) * TILE_W;
-            //rx -= fmodf(xx, TILE_W);
-            //rx -= fmodf(yy, TILE_W);
-
-            //float rx = xx - fmodf(xx, TILE_W);
-            //float ry = yy - fmodf(yy, TILE_W);
-#if 0
-            // TODO(perf): Don't try to generate chunks EVERY SINGLE TIME we
-            // draw a freaking tile!! Yikes!
-            const int chunkX = map->CalcChunk(tilePos.x);
-            const int chunkY = map->CalcChunk(tilePos.y);
-            map->FindOrGenChunk(1234, chunkX, chunkY);
-#endif
-
+#if 1
             // Draw all tiles as textured rects (looks best, performs worst)
             const Tile *tile = map->TileAtWorld(xx, yy);
             tileset_draw_tile(map->tilesetId, tile ? tile->type : Tile::Type::Void, { xx, yy });
             //tileset_draw_tile(map->tilesetId, tile ? tile->type : Tile::Type::Grass, { xx, yy });
+#else
+            const Tile *tile = map->TileAtWorld(xx, yy);
+            Tileset &tileset = g_tilesets[(size_t)map->tilesetId];
+            Rectangle tileRect = tileset_tile_rect(map->tilesetId, tile ? tile->type : Tile::Type::Void);
+
+            ImVec2 uv0 = {
+                tileRect.x / tileset.texture.width,
+                tileRect.y / tileset.texture.height,
+            };
+            ImVec2 uv1 = {
+                (tileRect.x + tileRect.width ) / tileset.texture.width,
+                (tileRect.y + tileRect.height) / tileset.texture.height,
+            };
+
+            xx -= cx;
+            yy -= cy;
+
+            bgDrawList->AddImage(
+                (ImTextureID)(size_t)tileset.texture.id,
+                ImVec2(xx, yy),
+                ImVec2(xx + tileRect.width, yy + tileRect.height),
+                ImVec2{ uv0.x, uv0.y },
+                ImVec2{ uv1.x, uv1.y }
+            );
+#endif
 #if 0
             if (xx > 20 && yy > 20) {
                 char buf[16]{};
@@ -746,22 +750,10 @@ size_t World::DrawMap(const Spycam &spycam)
                 bgDrawList->AddText({ xx - cx, yy - cy }, IM_COL32_WHITE, bufPtr);
             }
 #endif
-
-            //DrawText(buf, xx, yy, 16, WHITE);
-
-            //if (tile) {
-            //    //tileset_draw_tile(map->tilesetId, tile ? tile->type : Tile::Type::Void, { rx, ry });
-            //    tileset_draw_tile(map->tilesetId, tile ? tile->type : Tile::Type::Void, { xx, yy });
-            //} else {
-            //    int xEven = (int)xx / TILE_W % 2;
-            //    int yEven = (int)yy / TILE_W % 2;
-            //    int black = (xEven + yEven) % 2 == 0;
-            //    DrawRectangle((int)xx, (int)yy, TILE_W, TILE_W, black ? DARKGRAY : LIGHTGRAY);
-            //}
-
             tilesDrawn++;
         }
     }
+
     return tilesDrawn;
 }
 
