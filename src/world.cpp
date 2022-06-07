@@ -88,7 +88,7 @@ Player *World::FindPlayer(uint32_t playerId)
 
 Player *World::FindPlayerByName(const char *name, size_t nameLength)
 {
-    if (!playerId) {
+    if (!name || !nameLength) {
         return 0;
     }
 

@@ -813,6 +813,8 @@ bool NetServer::ParseCommand(SV_Client &client, NetMessage_ChatMessage &chatMsg)
                 float z = strtof(argv[3], 0);
                 printf("Teleported %.*s to %f %f %f\n", player->nameLength, player->name, x, y, z);
                 player->body.Teleport({ x, y, z });
+            } else {
+                SendChatMessage(client, CSTR("[teleport] Player not found."));
             }
         } else {
             SendChatMessage(client, CSTR("[teleport] Invalid arguments."));

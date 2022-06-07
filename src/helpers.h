@@ -138,6 +138,7 @@
 #define ENTITY_POSITION_Y_MAX   UINT32_MAX  // Actually a float, so we need to allow full range
 
 #define CHAT_MAX_MSG_COUNT      20
+#define CHAT_BG_ALPHA           0.5f
 
 //------------------------------------------------------------------------------
 // Helper functions

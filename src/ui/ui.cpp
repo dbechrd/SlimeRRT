@@ -517,20 +517,18 @@ void UI::HUD(const Font &font, World &world, const DebugStats &debugStats)
 
     float xpBarPad = 2.0f;
     float xpBarWidth = screenSize.x / 2.0f;
-    float xpBarHeight = 30.0f;
-    float xpBarLeft = screenSize.x / 2.0f - xpBarWidth / 2.0f;
-    float xpBarTop = screenSize.y - xpBarHeight * 2.0f;
+    float xpBarHeight = 28.0f;
 
     ImVec2 xpBarCenter{
         screenSize.x / 2.0f,
-        screenSize.y - xpBarHeight * 2
+        10.0f
     };
-    ImGui::SetNextWindowPos(xpBarCenter, 0, ImVec2(0.5f, 0.5f));
+    ImGui::SetNextWindowPos(xpBarCenter, 0, ImVec2(0.5f, 0.0f));
     ImGui::SetNextWindowSize(ImVec2(xpBarWidth, xpBarHeight + xpBarPad * 2));
 
     int styleVars = 0;
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(xpBarPad, xpBarPad)); styleVars++;
-    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImColor(50, 50, 50).Value);
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImColor(0.0f, 0.0f, 0.0f, 0.7f).Value);
     //ImGui::PushFont(g_fonts.imFontHack16);
 
     ImGui::Begin("##hud_xp_bar", 0,
@@ -603,64 +601,92 @@ void UI::QuickHUD(const Font &font, const Player &player, const Tilemap &tilemap
     hudCursorY += font.baseSize + pad;
 }
 
-void UI::Chat(const Font &font, int fontSize, World &world, NetClient &netClient, bool processKeyboard, bool &chatActive, bool &escape)
+// NOTE: ImGui trolls us by auto-selecting all text (select_all) when a textbox is focused
+// via code (SetKeyboardFocusHere), so this callback will detect a newly opened chatbox
+// opened via '/' and deselect the slash + ensure cursor is to the right of it.
+static int ChatInputFixSlash(ImGuiInputTextCallbackData *data) {
+    bool *skipSlashSelectAll = (bool *)data->UserData;
+    if (data->BufTextLen == 1 && skipSlashSelectAll && *skipSlashSelectAll) {
+        data->ClearSelection();
+        data->CursorPos = 1;
+        *skipSlashSelectAll = false;
+    }
+    return 0;
+}
+
+void UI::Chat(const Font &font, int fontSize, World &world, NetClient &netClient, bool &escape)
 {
+    const char *chatPopupId = "ChatInput";
+    const bool chatActive = ImGui::IsPopupOpen(chatPopupId);
+
+    // Render chat history
     const float margin = 6.0f;   // xpBarLeft/bottom margin
     const float pad = 4.0f;      // xpBarLeft/bottom pad
     const float inputBoxHeight = fontSize + pad * 2.0f;
     const float chatWidth = 800.0f;
     const float chatBottom = screenSize.y - margin - inputBoxHeight;
-
-    // Render chat history
     world.chatHistory.Render(font, fontSize, world, margin, chatBottom, chatWidth, chatActive);
 
-    // Render chat input box
-    thread_local GuiTextBoxAdvancedState chatInputState;
-    thread_local int chatInputTextLen = 0;
+    // Render chat input box, if open
     thread_local char chatInputText[CHATMSG_LENGTH_MAX]{};
 
-    // HACK: Check for this *after* rendering chat to avoid pressing "t" causing it to show up in the chat box
-    bool addCommandSlash = false;
-    if (!chatActive && processKeyboard && (IsKeyPressed(KEY_T) || IsKeyPressed(KEY_SLASH))) {
+    ImVec2 chatInputPos{
+        margin,
+        screenSize.y - margin - inputBoxHeight
+    };
+    ImGui::SetNextWindowPos(chatInputPos);
+
+    thread_local bool fixSlash = false;
+    if (!ImGui::IsPopupOpen(chatPopupId) && (IsKeyPressed(KEY_T) || IsKeyPressed(KEY_SLASH))) {
+        ImGui::OpenPopup(chatPopupId);
         if (IsKeyPressed(KEY_SLASH)) {
-            addCommandSlash = true;
+            chatInputText[0] = '/';
+            fixSlash = true;
         }
-        processKeyboard = false;
-        chatActive = true;
-        GuiSetActiveTextbox(&chatInputState);
     }
 
-    if (chatActive) {
-        Rectangle chatInputRect = { margin, screenSize.y - margin - inputBoxHeight, chatWidth, inputBoxHeight };
-        if (GuiTextBoxAdvanced(&chatInputState, chatInputRect, chatInputText, &chatInputTextLen, CHATMSG_LENGTH_MAX, !processKeyboard)) {
-            if (chatInputTextLen) {
+    int styleVars = 0;
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0)); styleVars++;
+    ImGui::PushStyleColor(ImGuiCol_ModalWindowDimBg, ImVec4(0, 0, 0, 0));
+    bool chatOpen = ImGui::BeginPopupModal(chatPopupId, 0,
+        //ImGuiWindowFlags_NoTitleBar |
+        //ImGuiWindowFlags_NoResize |
+        //ImGuiWindowFlags_NoCollapse |
+        ImGuiWindowFlags_NoDecoration |
+        ImGuiWindowFlags_NoMove |
+        ImGuiWindowFlags_NoBackground |
+        ImGuiWindowFlags_NoSavedSettings
+    );
+    ImGui::PopStyleColor();
+    ImGui::PopStyleVar(styleVars);
+
+    if (chatOpen) {
+        if (!ImGui::IsAnyItemFocused()) {
+            ImGui::SetKeyboardFocusHere(0);
+        }
+        ImGui::PushItemWidth(chatWidth);
+        ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0, 0, 0, CHAT_BG_ALPHA));
+        const char *chatInputId = "##ui_chat_input";
+        if (ImGui::InputText(chatInputId, chatInputText, sizeof(chatInputText), ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CallbackAlways, ChatInputFixSlash, &fixSlash)) {
+            if (chatInputText[0]) {
+                size_t chatInputTextLen = strnlen(CSTR0(chatInputText));
                 ErrorType sendResult = netClient.SendChatMessage(chatInputText, chatInputTextLen);
                 if (sendResult == ErrorType::NotConnected) {
                     //world.chatHistory.PushSam(CSTR("You're not connected to a server. Nobody is listening. :("));
                     world.chatHistory.PushPlayer(world.playerId, chatInputText, chatInputTextLen);
                 }
-                chatActive = false;
                 memset(chatInputText, 0, sizeof(chatInputText));
-                chatInputTextLen = 0;
             }
         }
+        ImGui::PopStyleColor();
 
-        if (processKeyboard && escape) {
-            chatActive = false;
+        if (escape) {
+            ImGui::CloseCurrentPopup();
             memset(chatInputText, 0, sizeof(chatInputText));
-            chatInputTextLen = 0;
             escape = false;
         }
-    }
 
-    if (addCommandSlash) {
-        GuiTextBoxAdvancedPushCodepoint(&chatInputState, chatInputText, &chatInputTextLen, CHATMSG_LENGTH_MAX, '/');
-        //rstb_String str = { 0 };
-        //str.buffer = chatInputText;
-        //str.used = chatInputTextLen;
-        //str.capacity = CHATMSG_LENGTH_MAX;
-        //stb_textedit_key(&str, (STB_TexteditState *)chatInputState.state, KEY_SLASH);
-        //chatInputTextLen = str.used;
+        ImGui::EndPopup();
     }
 }
 

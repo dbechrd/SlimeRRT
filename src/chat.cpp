@@ -74,7 +74,7 @@ void ChatHistory::Render(const Font &font, int fontSize, World &world, float lef
 
     const float pad = 4.0f;
     const float chatHeight = MIN(CHAT_MAX_MSG_COUNT, (int)chatMsgCount) * (fontSize + pad) + pad;
-    const Color chatBgColor = Fade(BLACK, 0.5f);
+    const Color chatBgColor = Fade(BLACK, CHAT_BG_ALPHA);
     const float chatBgAlpha = chatBgColor.a / 255.0f;
 
     // NOTE: The chat history renders from the bottom up (most recent message first)

@@ -103,28 +103,6 @@ int main(int argc, char *argv[])
 #undef DLB_RAND_TEST
 #undef DLB_RAND_IMPLEMENTATION
 
-#pragma warning(push, 0)
-//#pragma warning(disable:4244)  // converstion from float to int possible loss of data
-//#pragma warning(disable:4303)  // Reading invalid data from guiIconsName
-//#pragma warning(disable:4309)  // Possible buffer overrun
-//#pragma warning(disable:6031)  // Return value ignored
-//#pragma warning(disable:6835)  // Reading invalid data from guiIconsName
-//#pragma warning(disable:26812)
-#define RAYGUI_IMPLEMENTATION
-#include "raylib/raygui.h"
-#undef RAYGUI_IMPLEMENTATION
-#pragma warning(pop)
-
-#if 0
-#pragma warning(push)
-#pragma warning(disable: 4244)  // conversion from 'int' to 'float'
-#pragma warning(disable: 4267)  // conversion from 'size_t' to 'int'
-#define GUI_TEXTBOX_EXTENDED_IMPLEMENTATION
-#include "gui_textbox_extended.h"
-#undef GUI_TEXTBOX_EXTENDED_IMPLEMENTATION
-#pragma warning(pop)
-#endif
-
 #include "args.cpp"
 #include "bit_stream.cpp"
 #include "body.cpp"

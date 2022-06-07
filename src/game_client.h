@@ -1,10 +1,8 @@
 #pragma once
 #include "args.h"
 #include "error.h"
-#include "input_mode.h"
 #include "net_client.h"
 #include "spycam.h"
-#include "raylib/raygui.h"
 
 struct GameServer;
 struct ImFont;
@@ -29,8 +27,6 @@ private:
     const double sendInputDtMax = sendInputDt * 2.0;
 
     // Flags
-    InputMode inputMode = INPUT_MODE_PLAY;
-    bool chatVisible = false;
     bool inventoryActive = false;
 
     // Textures

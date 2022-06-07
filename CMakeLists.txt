@@ -22,12 +22,36 @@ add_executable(${PROJECT_NAME}
     src/jail_imgui.cpp
     src/jail_win32_console.cpp
 )
-target_compile_definitions(${PROJECT_NAME} PRIVATE
-    _DEBUG
-    _CONSOLE
-    _CRT_SECURE_NO_WARNINGS
-    _SILENCE_CXX17_OLD_ALLOCATOR_MEMBERS_DEPRECATION_WARNING
-)
+
+if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+    target_compile_definitions(${PROJECT_NAME} PRIVATE
+        _DEBUG
+        _CONSOLE
+        _CRT_SECURE_NO_WARNINGS
+        _SILENCE_CXX17_OLD_ALLOCATOR_MEMBERS_DEPRECATION_WARNING
+    )
+elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+    #message("Clang detected, setting flags")
+    #add_compile_options(-fcolor-diagnostics)
+    #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-format-security")
+    target_compile_options(${PROJECT_NAME} PRIVATE
+        # All warnings, warnings as errors, be pedantic.
+        -Wall
+        -Wextra
+        -Werror
+        -Wpedantic
+
+        # Disable warnings
+        -Wno-format-security
+        -Wno-deprecated-declarations
+        # Disable warnings about C++98 incompatibility. We're using C++17 features...
+        #-Wno-c++98-compat
+        #-Wno-c++98-compat-pedantic
+    )
+elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    #add_compile_options (-fdiagnostics-color=always)
+endif ()
+
 target_include_directories(${PROJECT_NAME} PRIVATE include src)
 target_link_directories(${PROJECT_NAME} PRIVATE "lib/Debug")
 target_link_libraries(${PROJECT_NAME}

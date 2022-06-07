@@ -8,7 +8,7 @@
 // Save the sea otters. Do not pollute the global namespace with Windows.h bullshit.
 
 // ENet was a bad boy and included Windows.h.
-// He is now in jail a separate compilation unit.
+// He is now in jail in a separate compilation unit.
 // Learn from Enet's mistakes, kids. Don't pollute the global namespace.
 
 // -- windows.h flags --

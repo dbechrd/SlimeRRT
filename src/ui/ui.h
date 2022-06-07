@@ -42,7 +42,7 @@ struct UI {
     static void Netstat(NetClient &netClient, double renderAt);
     static void HUD(const Font &font, World &world, const DebugStats &debugStats);
     static void QuickHUD(const Font &font, const Player &player, const Tilemap &tilemap);
-    static void Chat(const Font &font, int fontSize, World &world, NetClient &netClient, bool processKeyboard, bool &chatActive, bool &escape);
+    static void Chat(const Font &font, int fontSize, World &world, NetClient &netClient, bool &escape);
     static void TileHoverTip(const Font &font, const Tilemap &map);
     static int  OldRaylibMenu(const Font &font, const char **items, size_t itemCount);
     static void MainMenu(bool &escape, GameClient &game);

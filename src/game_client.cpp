@@ -7,7 +7,6 @@
 #include "fx/fx.h"
 #include "game_client.h"
 #include "healthbar.h"
-#include "input_mode.h"
 #include "loot_table.h"
 #include "net_client.h"
 #include "particles.h"
@@ -18,8 +17,6 @@
 #include "dlb_types.h"
 
 #include "raylib/raylib.h"
-#include "raylib/raygui.h"
-//#include "gui_textbox_extended.h"
 #define GRAPHICS_API_OPENGL_33
 #include "raylib/rlgl.h"
 
@@ -101,9 +98,6 @@ void GameClient::Init(void)
     ImGui_ImplGlfw_InitForOpenGL(glfwWindow, true);
     ImGui_ImplOpenGL3_Init("#version 130");
 
-    //assert(fontBig.texture.id);
-    GuiSetFont(g_fonts.fontSmall);
-    //HealthBar::SetFont(GetFontDefault());
     HealthBar::SetFont(g_fonts.fontSmall);
 
     LoadingScreen("Loading Shaders...");
@@ -216,22 +210,8 @@ void GameClient::Init(void)
 void GameClient::PlayMode_PollController(PlayerControllerState &input)
 {
     ImGuiIO &io = ImGui::GetIO();
-    if (io.WantCaptureKeyboard) {
-        inputMode = INPUT_MODE_IMGUI;
-    } else if (chatVisible) {
-        inputMode = INPUT_MODE_CHAT;
-    } else {
-        inputMode = INPUT_MODE_PLAY;
-    }
-
-    //if (inputMode == INPUT_MODE_MENU) {
-    //    io.ConfigFlags |= ImGuiConfigFlags_NoMouse | ImGuiConfigFlags_NavNoCaptureKeyboard;
-    //} else {
-    //    io.ConfigFlags &= ~ImGuiConfigFlags_NoMouse & ~ImGuiConfigFlags_NavNoCaptureKeyboard;
-    //}
-
-    const bool processMouse = inputMode == INPUT_MODE_PLAY && !io.WantCaptureMouse;
-    const bool processKeyboard = inputMode == INPUT_MODE_PLAY;
+    const bool processKeyboard = !io.WantCaptureKeyboard;
+    const bool processMouse = !io.WantCaptureKeyboard && !io.WantCaptureMouse;
     input.Query(processMouse, processKeyboard, spycam.freeRoam);
 }
 
@@ -519,7 +499,7 @@ void GameClient::PlayMode_DrawScreen(double frameDt, PlayerControllerState &inpu
     //    { screenSize.x - 4 - 256, (float)4 + world->map->minimap.height + 4, 256, 256 },
     //    { 0, 0 }, 0, WHITE);
 
-    UI::Chat(g_fonts.fontSdf72, 16, *netClient.serverWorld, netClient, inputMode == INPUT_MODE_PLAY || inputMode == INPUT_MODE_CHAT, chatVisible, input.escape);
+    UI::Chat(g_fonts.fontSdf72, 16, *netClient.serverWorld, netClient, input.escape);
 
     // Render HUD
     UI::DebugStats debugStats{};
