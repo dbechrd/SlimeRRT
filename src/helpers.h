@@ -27,6 +27,7 @@
 #define CL_CURSOR_ITEM_RELATIVE_TERRARIA 0
 #define CL_DEBUG_PLAYER_RECONCILIATION   0
 #define CL_DEBUG_REALLY_LONG_TIMEOUT     0
+#define CV_DEBUG_SHOW_LEVELS             0
 #define CL_DEBUG_SPEEDHAX                1
 #define CL_DEBUG_WORLD_CHUNKS            0
 #define CL_DEBUG_WORLD_ITEMS             0

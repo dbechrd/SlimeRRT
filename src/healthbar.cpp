@@ -26,7 +26,11 @@ void HealthBar::Draw(const Vector2 &topCenter, const char *name, const Combat &c
     } else if (combat.hitPointsMax) {
         hpText = SafeTextFormat("HP: %.f / %.f", combat.hitPoints, combat.hitPointsMax);
     }
+#if CV_DEBUG_SHOW_LEVELS
+    const char *nameText = name ? SafeTextFormat("%s (%u)", name, combat.level) : nullptr;
+#else
     const char *nameText = name ? SafeTextFormat(name) : nullptr;
+#endif
 
 #if 1
     if (combat.hitPointsMax) {

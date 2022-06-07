@@ -269,22 +269,43 @@ void World::SV_SimPlayers(double dt)
                 }
 
                 Vector3 playerToSlime = v3_sub(slime.body.WorldPosition(), player.body.WorldPosition());
-                if (v3_length_sq(playerToSlime) <= playerAttackReach * playerAttackReach) {
+                if (v3_length_sq(playerToSlime) <= SQUARED(playerAttackReach)) {
                     player.stats.damageDealt += slime.combat.DealDamage(playerDamage);
                     if (!slime.combat.hitPoints) {
                         player.xp += dlb_rand32u_range(slime.combat.xpMin, slime.combat.xpMax);
-                        if (player.xp >= player.combat.level * 10u) {
+                        int overflowXp = player.xp - (player.combat.level * 20u);
+                        if (overflowXp >= 0) {
                             player.combat.level++;
-                            player.xp = 0;
+                            player.xp = (uint32_t)overflowXp;
                         }
                         player.stats.slimesSlain++;
+                    }
+                }
+            }
+
+            for (Player &otherPlayer : players) {
+                if (otherPlayer.id == player.id || !otherPlayer.id || otherPlayer.combat.diedAt) {
+                    continue;
+                }
+
+                Vector3 playerToPlayer = v3_sub(otherPlayer.body.WorldPosition(), player.body.WorldPosition());
+                if (v3_length_sq(playerToPlayer) <= SQUARED(playerAttackReach)) {
+                    player.stats.damageDealt += otherPlayer.combat.DealDamage(playerDamage);
+                    if (!otherPlayer.combat.hitPoints) {
+                        player.xp += otherPlayer.combat.level * 10u;
+                        int overflowXp = player.xp - (player.combat.level * 20u);
+                        if (overflowXp >= 0) {
+                            player.combat.level++;
+                            player.xp = (uint32_t)overflowXp;
+                        }
+                        player.stats.playersSlain++;
                     }
                 }
             }
         }
 
         // Try to spawn enemies near player
-        if (dlb_rand32f() < 1.0f * dt) {
+        if (dlb_rand32f() < 2.0f * dt) {
             Slime *slime = SpawnSlime(0, player.body.GroundPosition());
             if (slime) {
                 TraceLog(LOG_DEBUG, "Successfully spawned slime near player");

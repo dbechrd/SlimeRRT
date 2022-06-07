@@ -253,6 +253,7 @@ struct Player : Drawable {
         float    damageDealt     {};
         float    kmWalked        {};
         uint32_t slimesSlain     {};
+        uint32_t playersSlain    {};
         uint32_t timesFistSwung  {};
         uint32_t timesSwordSwung {};
     };

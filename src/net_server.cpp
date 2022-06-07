@@ -324,9 +324,10 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
             // Send delta updates for puppets that the client already knows about
 
             // "Despawn" notification already sent
-            if (prevState->second.flags & PlayerSnapshot::Flags::Despawn) {
-                continue;
-            } else if (!otherPlayer.combat.hitPoints) {
+            if (!otherPlayer.combat.hitPoints) {
+                if (prevState->second.flags & PlayerSnapshot::Flags::Despawn) {
+                    continue;
+                }
                 flags |= PlayerSnapshot::Flags::Despawn;
             }
 
@@ -733,14 +734,17 @@ bool NetServer::ParseCommand(SV_Client &client, NetMessage_ChatMessage &chatMsg)
 
 #define COMMAND_GIVE     "give"
 #define COMMAND_HELP     "help"
+#define COMMAND_NICK     "nick"
 #define COMMAND_TELEPORT "teleport"
 
 #define SUMMARY_GIVE     "[give] Gives an item to the specified player."
 #define SUMMARY_HELP     "[help] Shows the help page for a command."
+#define SUMMARY_NICK     "[nick] Changes a player's nickname."
 #define SUMMARY_TELEPORT "[teleport] Teleports a player to a location."
 
 #define USAGE_GIVE       "/give <player> <item_id> <count>"
 #define USAGE_HELP       "/help <command>"
+#define USAGE_NICK       "/nick [player] nickname"
 #define USAGE_TELEPORT   "/teleport [player] <x> <y> <z>"
 
     if (!strcmp(command, COMMAND_GIVE)) {
@@ -761,6 +765,9 @@ bool NetServer::ParseCommand(SV_Client &client, NetMessage_ChatMessage &chatMsg)
             } else if (!strcmp(argv[0], COMMAND_TELEPORT)) {
                 SendChatMessage(client, CSTR(SUMMARY_TELEPORT));
                 SendChatMessage(client, CSTR(USAGE_TELEPORT));
+            } else if (!strcmp(argv[0], COMMAND_NICK)) {
+                SendChatMessage(client, CSTR(SUMMARY_NICK));
+                SendChatMessage(client, CSTR(USAGE_NICK));
             } else {
                 const char *err = SafeTextFormat("No help page found for '%s'", argv[0]);
                 SendChatMessage(client, err, strlen(err));
@@ -768,6 +775,25 @@ bool NetServer::ParseCommand(SV_Client &client, NetMessage_ChatMessage &chatMsg)
         } else {
             SendChatMessage(client, CSTR("[help] Invalid arguments."));
             SendChatMessage(client, CSTR(USAGE_HELP));
+        }
+    } else if (!strcmp(command, COMMAND_NICK)) {
+        if (argc == 1) {
+            Player *player = serverWorld->FindPlayer(client.playerId);
+            if (player) {
+                uint32_t nameLength = (uint32_t)strnlen(argv[0], USERNAME_LENGTH_MAX);
+                player->nameLength = nameLength;
+                strncpy(player->name, argv[0], player->nameLength);
+            }
+        } else if (argc == 2) {
+            uint32_t nameLength = (uint32_t)strnlen(argv[0], USERNAME_LENGTH_MAX);
+            Player *player = serverWorld->FindPlayerByName(argv[0], nameLength);
+            if (player) {
+                player->nameLength = nameLength;
+                strncpy(player->name, argv[0], player->nameLength);
+            }
+        } else {
+            SendChatMessage(client, CSTR("[nick] Invalid arguments."));
+            SendChatMessage(client, CSTR(USAGE_NICK));
         }
     } else if (!strcmp(command, COMMAND_TELEPORT)) {
         if (argc == 3) {

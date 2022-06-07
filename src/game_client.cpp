@@ -46,52 +46,80 @@ inline void RainbowParticlesDamagePlayer(Particle &particle, void *userData)
     }
 }
 
+void GameClient::LoadingScreen(const char *text)
+{
+    assert(checkboardTexture.id);
+    assert(screenSize.x);
+    assert(g_fonts.fontBig.texture.id);
+
+    BeginDrawing();
+    DrawTexture(checkboardTexture, 0, 0, WHITE);
+    DrawRectangle(0, 0, (int)screenSize.x, (int)screenSize.y, Fade(BLACK, 0.5f));
+    Vector2 size = MeasureTextEx(g_fonts.fontBig, text, (float)g_fonts.fontBig.baseSize, 1.0f);
+    Vector2 pos{ screenSize.x / 2.0f - screenSize.x / 3.0f, screenSize.y / 2.0f - size.y / 2.0f };
+    DrawTextFont(g_fonts.fontBig, text, pos.x, pos.y, -2, -2, g_fonts.fontBig.baseSize, WHITE);
+    EndDrawing();
+}
+
 void GameClient::Init(void)
 {
-    SetWindowState(FLAG_WINDOW_RESIZABLE);
     SetExitKey(0);  // Disable default Escape exit key, we'll handle escape ourselves
     screenSize = { (float)GetRenderWidth(), (float)GetRenderHeight() };
 
-    // Setup Dear ImGui context
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImGuiIO &io = ImGui::GetIO();
-    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+    //const int targetFPS = 60;
+    //SetTargetFPS(targetFPS);
+    SetWindowState(FLAG_VSYNC_HINT);
+    SetWindowState(FLAG_WINDOW_RESIZABLE);
 
     const char *fontName = "C:/Windows/Fonts/consolab.ttf";
     //const char *fontName = "resources/Hack-Bold.ttf";
     //const char *fontName = "resources/PressStart2P-vaV7.ttf";
+    g_fonts.fontSmall = LoadFontEx(fontName, 16, 0, 0);
+    assert(g_fonts.fontSmall.texture.id);
+    g_fonts.fontBig = LoadFontEx(fontName, 72, 0, 0);
+    assert(g_fonts.fontBig.texture.id);
 
-    g_fonts.imFontHack16 = io.Fonts->AddFontFromFileTTF(fontName, 16.0f);
-    g_fonts.imFontHack32 = io.Fonts->AddFontFromFileTTF(fontName, 32.0f);
-    g_fonts.imFontHack48 = io.Fonts->AddFontFromFileTTF(fontName, 48.0f);
-    g_fonts.imFontHack64 = io.Fonts->AddFontFromFileTTF(fontName, 64.0f);
-    io.FontDefault = g_fonts.imFontHack16;
+    // NOTE: There could be other, bigger monitors
+    const int monitorWidth = GetMonitorWidth(0);
+    const int monitorHeight = GetMonitorHeight(0);
+    Image checkerboardImage = GenImageChecked(monitorWidth, monitorHeight, 32, 32, LIGHTGRAY, GRAY);
+    checkboardTexture = LoadTextureFromImage(checkerboardImage);
+    UnloadImage(checkerboardImage);
 
-    // Setup Dear ImGui style
-    ImGui::StyleColorsDark();
-
-    GLFWwindow *glfwWindow = glfwGetCurrentContext();
-    assert(glfwWindow);
+    // Setup Dear ImGui context
+    LoadingScreen("Loading UI...");
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+    ImGui::StyleColorsDark();  // Setup Dear ImGui style
 
     // Setup Platform/Renderer backends
+    LoadingScreen("Loading Renderer...");
+    GLFWwindow *glfwWindow = glfwGetCurrentContext();
+    assert(glfwWindow);
     ImGui_ImplGlfw_InitForOpenGL(glfwWindow, true);
     ImGui_ImplOpenGL3_Init("#version 130");
 
-    g_fonts.fontSmall = LoadFontEx(fontName, 16, 0, 0);
-    //Font fontBig = LoadFontEx(fontName, 72, 0, 0);
-    assert(g_fonts.fontSmall.texture.id);
     //assert(fontBig.texture.id);
     GuiSetFont(g_fonts.fontSmall);
     //HealthBar::SetFont(GetFontDefault());
     HealthBar::SetFont(g_fonts.fontSmall);
 
+    LoadingScreen("Loading Shaders...");
 #if CL_PIXEL_FIXER
     pixelFixer                     = LoadShader("resources/pixelfixer.vs", "resources/pixelfixer.fs");
     pixelFixerScreenSizeUniformLoc = GetShaderLocation(pixelFixer, "screenSize");
     SetShaderValue(pixelFixer, pixelFixerScreenSizeUniformLoc, &screenSize, SHADER_UNIFORM_VEC2);
 #endif
+
+    LoadingScreen("Loading Fonts...");
+    ImGuiIO &io = ImGui::GetIO();
+    g_fonts.imFontHack16 = io.Fonts->AddFontFromFileTTF(fontName, 16.0f);
+    g_fonts.imFontHack32 = io.Fonts->AddFontFromFileTTF(fontName, 32.0f);
+    g_fonts.imFontHack48 = io.Fonts->AddFontFromFileTTF(fontName, 48.0f);
+    g_fonts.imFontHack64 = io.Fonts->AddFontFromFileTTF(fontName, 64.0f);
+    io.FontDefault = g_fonts.imFontHack16;
 
     // SDF font generation from TTF font
     {
@@ -128,33 +156,35 @@ void GameClient::Init(void)
         SetTextureFilter(g_fonts.fontSdf72.texture, TEXTURE_FILTER_BILINEAR);  // Required for SDF font
     }
 
-    // NOTE: There could be other, bigger monitors
-    const int monitorWidth = GetMonitorWidth(0);
-    const int monitorHeight = GetMonitorHeight(0);
-
+    LoadingScreen("Loading Cameras...");
     spycam.Init({ screenSize.x * 0.5f, screenSize.y * 0.5f });
 
+    LoadingScreen("Loading Audio Devices...");
     InitAudioDevice();
     if (!IsAudioDeviceReady()) {
         printf("ERROR: Failed to initialized audio device\n");
     }
 
+    LoadingScreen("Loading Items...");
     Catalog::g_items.LoadTextures();
     Catalog::g_items.LoadData();
-    Catalog::g_particleFx.Load();
-    Catalog::g_sounds.Load();
-    Catalog::g_spritesheets.Load();
-    Catalog::g_tracks.Load();
-    tileset_init();
 
+    LoadingScreen("Loading Particles...");
+    Catalog::g_particleFx.Load();
+
+    LoadingScreen("Loading Sounds...");
+    Catalog::g_sounds.Load();
+    LoadingScreen("Loading Music...");
+    Catalog::g_tracks.Load();
     Catalog::g_mixer.masterVolume = 0.75f;
     Catalog::g_mixer.musicVolume = 0.3f;
     Catalog::g_sounds.mixer.volumeLimit[(size_t)Catalog::SoundID::GemBounce] = 0.8f;
     Catalog::g_sounds.mixer.volumeLimit[(size_t)Catalog::SoundID::Whoosh] = 0.6f;
 
-    Image checkerboardImage = GenImageChecked(monitorWidth, monitorHeight, 32, 32, LIGHTGRAY, GRAY);
-    checkboardTexture = LoadTextureFromImage(checkerboardImage);
-    UnloadImage(checkerboardImage);
+    LoadingScreen("Loading Spritesheets...");
+    Catalog::g_spritesheets.Load();
+    LoadingScreen("Loading Tilesets...");
+    tileset_init();
 
 #if CL_DEMO_VIEW_RTREE
     const int RECT_COUNT = 100;
@@ -181,10 +211,6 @@ void GameClient::Init(void)
         }
     }
 #endif
-
-    //const int targetFPS = 60;
-    //SetTargetFPS(targetFPS);
-    SetWindowState(FLAG_VSYNC_HINT);
 }
 
 void GameClient::PlayMode_PollController(PlayerControllerState &input)

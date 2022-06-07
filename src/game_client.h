@@ -48,6 +48,7 @@ private:
     size_t tilesDrawn {};
     double renderAt   {};
 
+    void LoadingScreen           (const char *text);
     void Init                    (void);
     void PlayMode_PollController (PlayerControllerState &input);
     ErrorType PlayMode_Network   (void);

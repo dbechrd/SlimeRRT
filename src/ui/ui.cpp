@@ -366,15 +366,15 @@ void UI::HUD(const Font &font, World &world, const DebugStats &debugStats)
     DrawTextFont(font, text, margin + pad, hudCursorY, 0, 0, font.baseSize, color); \
     hudCursorY += font.baseSize + pad;
 
-    int linesOfText = 12;
+    int linesOfText = 13;
     if (debugStats.tick) {
         linesOfText += 10;
     }
     if (debugStats.rtt) {
         linesOfText += 5;
     }
-    const float margin = 6.0f;   // left/top margin
-    const float pad = 4.0f;      // left/top pad
+    const float margin = 6.0f;   // xpBarLeft/xpBarTop margin
+    const float pad = 4.0f;      // xpBarLeft/xpBarTop pad
     const float hudWidth = 240.0f;
     const float hudHeight = linesOfText * (font.baseSize + pad) + pad;
 
@@ -489,8 +489,8 @@ void UI::HUD(const Font &font, World &world, const DebugStats &debugStats)
     if (args.server) {
         int linesOfText = 1 + (int)gameServer.clients.size();
 
-        const float margin = 6.0f;   // left/top margin
-        const float pad = 4.0f;      // left/top pad
+        const float margin = 6.0f;   // xpBarLeft/xpBarTop margin
+        const float pad = 4.0f;      // xpBarLeft/xpBarTop pad
         const float hudWidth = 200.0f;
         const float hudHeight = linesOfText * (fontHeight + pad) + pad;
 
@@ -512,6 +512,49 @@ void UI::HUD(const Font &font, World &world, const DebugStats &debugStats)
     }
 #endif
 #undef PUSH_TEXT
+
+    rlDrawRenderBatchActive();
+
+    float xpBarPad = 2.0f;
+    float xpBarWidth = screenSize.x / 2.0f;
+    float xpBarHeight = 30.0f;
+    float xpBarLeft = screenSize.x / 2.0f - xpBarWidth / 2.0f;
+    float xpBarTop = screenSize.y - xpBarHeight * 2.0f;
+
+    ImVec2 xpBarCenter{
+        screenSize.x / 2.0f,
+        screenSize.y - xpBarHeight * 2
+    };
+    ImGui::SetNextWindowPos(xpBarCenter, 0, ImVec2(0.5f, 0.5f));
+    ImGui::SetNextWindowSize(ImVec2(xpBarWidth, xpBarHeight + xpBarPad * 2));
+
+    int styleVars = 0;
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(xpBarPad, xpBarPad)); styleVars++;
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImColor(50, 50, 50).Value);
+    //ImGui::PushFont(g_fonts.imFontHack16);
+
+    ImGui::Begin("##hud_xp_bar", 0,
+        //ImGuiWindowFlags_NoTitleBar |
+        //ImGuiWindowFlags_NoResize |
+        //ImGuiWindowFlags_NoCollapse |
+        ImGuiWindowFlags_NoDecoration |
+        ImGuiWindowFlags_NoMove |
+        //ImGuiWindowFlags_NoBackground |
+        ImGuiWindowFlags_NoSavedSettings
+    );
+
+    uint32_t xpNextLevel = player->combat.level * 20u;
+    float xpProgress = (float)player->xp / xpNextLevel;
+    //xpProgress = sinf(glfwGetTime()) / 2.0f + 0.5f;
+    char buf[32]{};
+    snprintf(buf, sizeof(buf), "%u / %u", player->xp, xpNextLevel);
+    ImGui::ProgressBar(xpProgress, ImVec2(-FLT_MIN, xpBarHeight), buf);
+
+    ImGui::End();
+    //ImGui::PopFont();
+    ImGui::PopStyleColor();
+    ImGui::PopStyleVar(styleVars);
+
 }
 
 void UI::QuickHUD(const Font &font, const Player &player, const Tilemap &tilemap)
@@ -519,8 +562,8 @@ void UI::QuickHUD(const Font &font, const Player &player, const Tilemap &tilemap
     const char *text = 0;
 
     int linesOfText = 1;
-    const float margin = 6.0f;   // left/top margin
-    const float pad = 4.0f;      // left/top pad
+    const float margin = 6.0f;   // xpBarLeft/xpBarTop margin
+    const float pad = 4.0f;      // xpBarLeft/xpBarTop pad
     const float hudWidth = 240.0f;
     const float hudHeight = linesOfText * (font.baseSize + pad) + pad;
 
@@ -562,8 +605,8 @@ void UI::QuickHUD(const Font &font, const Player &player, const Tilemap &tilemap
 
 void UI::Chat(const Font &font, int fontSize, World &world, NetClient &netClient, bool processKeyboard, bool &chatActive, bool &escape)
 {
-    const float margin = 6.0f;   // left/bottom margin
-    const float pad = 4.0f;      // left/bottom pad
+    const float margin = 6.0f;   // xpBarLeft/bottom margin
+    const float pad = 4.0f;      // xpBarLeft/bottom pad
     const float inputBoxHeight = fontSize + pad * 2.0f;
     const float chatWidth = 800.0f;
     const float chatBottom = screenSize.y - margin - inputBoxHeight;
@@ -678,7 +721,7 @@ int UI::OldRaylibMenu(const Font &font, const char **items, size_t itemCount)
     struct MenuItem {
         const char *text;
         Vector2 size;
-        Vector2 offset;  // offset itemX from center line and itemY from top
+        Vector2 offset;  // offset itemX from center line and itemY from xpBarTop
     } menuItems[UI_MENU_ITEMS_MAX]{};
     assert(itemCount < ARRAY_SIZE(menuItems));
 
@@ -1391,20 +1434,20 @@ void UI::Inventory(const Texture &invItems, Player& player, NetClient &netClient
             // Terraria:
             //   on mouse down
             //   always bottom right of cursor
-            //   left mouse down = take/swap/combine/drop stack
+            //   xpBarLeft mouse down = take/swap/combine/drop stack
             //   right mouse down = if stack is same (or cursor empty), take 1 item immediately, then repeat with acceleration
             //   sin wave scale bobbing
             //   can use held item as if equipped
             // D2R:
             //   Always centers item on cursor
             //   empty cursor:
-            //     left mouse down = take/swap/drop stack (or combine for rare cases like keys)
+            //     xpBarLeft mouse down = take/swap/drop stack (or combine for rare cases like keys)
             // Minecraft:
             //   empty cursor:
-            //     left mouse down = pick up stack
+            //     xpBarLeft mouse down = pick up stack
             //     right mouse down = pick up bigger half of stack [(int)ceilf(count / 2.0f)]
             //   filled cursor:
-            //     left mouse down + drag split stack evenly
+            //     xpBarLeft mouse down + drag split stack evenly
             //     right mouse down + drag 1 item piles
             //     mouse up = keep remainder on cursor
             //   Always centers item on cursor
