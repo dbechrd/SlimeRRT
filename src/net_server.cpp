@@ -737,10 +737,10 @@ bool NetServer::ParseCommand(SV_Client &client, NetMessage_ChatMessage &chatMsg)
 #define COMMAND_NICK     "nick"
 #define COMMAND_TELEPORT "teleport"
 
-#define SUMMARY_GIVE     "[give] Gives an item to the specified player."
-#define SUMMARY_HELP     "[help] Shows the help page for a command."
-#define SUMMARY_NICK     "[nick] Changes a player's nickname."
-#define SUMMARY_TELEPORT "[teleport] Teleports a player to a location."
+#define SUMMARY_GIVE     "Gives an item to the specified player."
+#define SUMMARY_HELP     "Shows the help page for a command."
+#define SUMMARY_NICK     "Changes a player's nickname."
+#define SUMMARY_TELEPORT "Teleports a player to a location."
 
 #define USAGE_GIVE       "/give <player> <item_id> <count>"
 #define USAGE_HELP       "/help <command>"
@@ -749,51 +749,67 @@ bool NetServer::ParseCommand(SV_Client &client, NetMessage_ChatMessage &chatMsg)
 
     if (!strcmp(command, COMMAND_GIVE)) {
         if (argc == 3) {
-
+            SendChatMessage(client, CSTR("[give] Not yet implemented."));
         } else {
-            SendChatMessage(client, CSTR("[give] Invalid arguments."));
-            SendChatMessage(client, CSTR(USAGE_GIVE));
+            SendChatMessage(client, CSTR("Usage: " USAGE_GIVE));
         }
     } else if (!strcmp(command, COMMAND_HELP)) {
-        if (argc == 1) {
+        if (argc == 0) {
+            SendChatMessage(client, CSTR(USAGE_GIVE));
+            SendChatMessage(client, CSTR("  " SUMMARY_GIVE));
+            SendChatMessage(client, CSTR(USAGE_HELP));
+            SendChatMessage(client, CSTR("  " SUMMARY_HELP));
+            SendChatMessage(client, CSTR(USAGE_TELEPORT));
+            SendChatMessage(client, CSTR("  " SUMMARY_TELEPORT));
+            SendChatMessage(client, CSTR(USAGE_NICK));
+            SendChatMessage(client, CSTR("  " SUMMARY_NICK));
+        } else if (argc == 1) {
             if (!strcmp(argv[0], COMMAND_GIVE)) {
-                SendChatMessage(client, CSTR(SUMMARY_GIVE));
                 SendChatMessage(client, CSTR(USAGE_GIVE));
+                SendChatMessage(client, CSTR("  " SUMMARY_GIVE));
             } else if (!strcmp(argv[0], COMMAND_HELP)) {
-                SendChatMessage(client, CSTR(SUMMARY_HELP));
                 SendChatMessage(client, CSTR(USAGE_HELP));
+                SendChatMessage(client, CSTR("  " SUMMARY_HELP));
             } else if (!strcmp(argv[0], COMMAND_TELEPORT)) {
-                SendChatMessage(client, CSTR(SUMMARY_TELEPORT));
                 SendChatMessage(client, CSTR(USAGE_TELEPORT));
+                SendChatMessage(client, CSTR("  " SUMMARY_TELEPORT));
             } else if (!strcmp(argv[0], COMMAND_NICK)) {
-                SendChatMessage(client, CSTR(SUMMARY_NICK));
                 SendChatMessage(client, CSTR(USAGE_NICK));
+                SendChatMessage(client, CSTR("  " SUMMARY_NICK));
             } else {
-                const char *err = SafeTextFormat("No help page found for '%s'", argv[0]);
+                const char *err = SafeTextFormat("[help] No help page found for '%s'", argv[0]);
                 SendChatMessage(client, err, strlen(err));
             }
         } else {
-            SendChatMessage(client, CSTR("[help] Invalid arguments."));
-            SendChatMessage(client, CSTR(USAGE_HELP));
+            SendChatMessage(client, CSTR("Usage: " USAGE_HELP));
         }
     } else if (!strcmp(command, COMMAND_NICK)) {
         if (argc == 1) {
+#if 0
             Player *player = serverWorld->FindPlayer(client.playerId);
             if (player) {
                 uint32_t nameLength = (uint32_t)strnlen(argv[0], USERNAME_LENGTH_MAX);
                 player->nameLength = nameLength;
                 strncpy(player->name, argv[0], player->nameLength);
             }
+#else
+            SendChatMessage(client, CSTR("[nick] Not yet implemented."));
+#endif
         } else if (argc == 2) {
             uint32_t nameLength = (uint32_t)strnlen(argv[0], USERNAME_LENGTH_MAX);
             Player *player = serverWorld->FindPlayerByName(argv[0], nameLength);
             if (player) {
+#if 0
                 player->nameLength = nameLength;
                 strncpy(player->name, argv[0], player->nameLength);
+#else
+                SendChatMessage(client, CSTR("[nick] Not yet implemented."));
+#endif
+            } else {
+                SendChatMessage(client, CSTR("[nick] Player not found."));
             }
         } else {
-            SendChatMessage(client, CSTR("[nick] Invalid arguments."));
-            SendChatMessage(client, CSTR(USAGE_NICK));
+            SendChatMessage(client, CSTR("Usage: " USAGE_NICK));
         }
     } else if (!strcmp(command, COMMAND_TELEPORT)) {
         if (argc == 3) {
@@ -802,7 +818,7 @@ bool NetServer::ParseCommand(SV_Client &client, NetMessage_ChatMessage &chatMsg)
                 float x = strtof(argv[0], 0);
                 float y = strtof(argv[1], 0);
                 float z = strtof(argv[2], 0);
-                printf("Teleported %.*s to %f %f %f\n", player->nameLength, player->name, x, y, z);
+                printf("[teleport] Teleported %.*s to %f %f %f\n", player->nameLength, player->name, x, y, z);
                 player->body.Teleport({ x, y, z });
             }
         } else if (argc == 4) {
@@ -811,14 +827,13 @@ bool NetServer::ParseCommand(SV_Client &client, NetMessage_ChatMessage &chatMsg)
                 float x = strtof(argv[1], 0);
                 float y = strtof(argv[2], 0);
                 float z = strtof(argv[3], 0);
-                printf("Teleported %.*s to %f %f %f\n", player->nameLength, player->name, x, y, z);
+                printf("[teleport] Teleported %.*s to %f %f %f\n", player->nameLength, player->name, x, y, z);
                 player->body.Teleport({ x, y, z });
             } else {
                 SendChatMessage(client, CSTR("[teleport] Player not found."));
             }
         } else {
-            SendChatMessage(client, CSTR("[teleport] Invalid arguments."));
-            SendChatMessage(client, CSTR(USAGE_TELEPORT));
+            SendChatMessage(client, CSTR("Usage: " USAGE_TELEPORT));
         }
     } else {
         const char *err = SafeTextFormat("Unsupported command '%s'", command);
