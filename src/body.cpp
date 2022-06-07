@@ -15,26 +15,36 @@ Body3D::Body3D(void)
 
 inline Vector3 Body3D::WorldPosition(void) const
 {
-    return position;
+    Vector3 worldPosition = position;
+    worldPosition.x = floorf(worldPosition.x);
+    worldPosition.y = floorf(worldPosition.y);
+    worldPosition.z = floorf(worldPosition.z);
+    return worldPosition;
 }
 
 inline Vector2 Body3D::GroundPosition(void) const
 {
     Vector2 groundPosition = { position.x, position.y };
+    groundPosition.x = floorf(groundPosition.x);
+    groundPosition.y = floorf(groundPosition.y);
     return groundPosition;
 }
 
 inline Vector2 Body3D::PrevGroundPosition(void) const
 {
     Vector2 prevGroundPosition = { prevPosition.x, prevPosition.y };
+    prevGroundPosition.x = floorf(prevGroundPosition.x);
+    prevGroundPosition.y = floorf(prevGroundPosition.y);
     return prevGroundPosition;
 }
 
 inline Vector2 Body3D::VisualPosition(void) const
 {
-    Vector2 result = GroundPosition();
-    result.y -= position.z;
-    return result;
+    Vector2 visualPosition = GroundPosition();
+    visualPosition.y -= position.z;
+    visualPosition.x = floorf(visualPosition.x);
+    visualPosition.y = floorf(visualPosition.y);
+    return visualPosition;
 }
 
 inline void Body3D::Teleport(Vector3 pos)

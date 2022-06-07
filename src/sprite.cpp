@@ -103,10 +103,10 @@ void sprite_update(Sprite &sprite, double dt)
     }
 }
 
-bool sprite_cull_body(const Sprite &sprite, const Body3D &body, Rectangle cullRect, const Vector3 &offset)
+bool sprite_cull_body(const Sprite &sprite, const Body3D &body, Rectangle cullRect)
 {
     const Vector3 worldPos = body.WorldPosition();
-    const Rectangle bodyRect = sprite_world_rect(sprite, v3_add(worldPos, offset));
+    const Rectangle bodyRect = sprite_world_rect(sprite, worldPos);
     bool cull = !CheckCollisionRecs(bodyRect, cullRect);
     return cull;
 }
@@ -135,10 +135,10 @@ static void sprite_draw(const Sprite &sprite, Rectangle screenRect, Color color)
 #endif
 }
 
-void sprite_draw_body(const Sprite &sprite, const Body3D &body, const Color &color, const Vector3 &offset)
+void sprite_draw_body(const Sprite &sprite, const Body3D &body, const Color &color)
 {
     const Vector3 worldPos = body.WorldPosition();
     //DrawCircle(worldPos.x, worldPos.y - worldPos.z, 3.0f, RED);
-    const Rectangle bodyRect = sprite_world_rect(sprite, v3_add(worldPos, offset));
+    const Rectangle bodyRect = sprite_world_rect(sprite, worldPos);
     sprite_draw(sprite, bodyRect, color);
 }

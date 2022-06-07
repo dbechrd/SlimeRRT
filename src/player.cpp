@@ -431,7 +431,7 @@ void Player::Draw(const World &world) const
     // TODO: Shadow size based on height from ground
     // https://yal.cc/top-down-bouncing-loot-effects/
     //const float shadowScale = 1.0f + slime->transform.position.z / 20.0f;
-    const Vector2 playerGroundPos = body.GroundPosition();
+    Vector2 playerGroundPos = body.GroundPosition();
     Shadow::Draw((int)playerGroundPos.x, (int)playerGroundPos.y, 16.0f, -6.0f);
 
     sprite_draw_body(sprite, body, combat.hitPoints ? WHITE : GRAY);

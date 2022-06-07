@@ -99,6 +99,8 @@ void Spycam::Update(const PlayerControllerState &input, double dt)
         }
     }
     camera.target = v2_add(camera.target, v2_scale(v2_sub(cameraGoal, camera.target), smoothing));
+    camera.target.x = floorf(camera.target.x);
+    camera.target.y = floorf(camera.target.y);
 
     cameraRect.x = camera.target.x - camera.offset.x * invZoom;
     cameraRect.y = camera.target.y - camera.offset.y * invZoom;
