@@ -1449,8 +1449,8 @@ void UI::InventorySlot(bool inventoryActive, int slot, const Texture &invItems, 
                 const char *itemClass = Catalog::ItemClassToString(item.itemClass);
                 Color itemClassColor = Catalog::ItemClassToColor(item.itemClass);
                 ImVec4 itemClassImColor = Catalog::RayToImColor(itemClassColor);
-                const char *dmgLabel = "0.0 - 0.0 damage";
-                const char *valLabel = "sell @ 0.00";
+                const char *dmgLabel = "000 - 000 damage";
+                const char *valLabel = "sell @ 000";
 
                 float maxWidth = 0.0f;
                 maxWidth = MAX(maxWidth, ImGui::CalcTextSize(invName).x);
@@ -1478,11 +1478,11 @@ void UI::InventorySlot(bool inventoryActive, int slot, const Texture &invItems, 
                 CenterNextItem(dmgLabel);
                 //ImGui::TextColored(Catalog::RayToImColor(WHITE), "Deals ");
                 //ImGui::SameLine();
-                ImGui::TextColored(Catalog::RayToImColor(MAROON), "%.1f", item.damage);
+                ImGui::TextColored(Catalog::RayToImColor(MAROON), "%3u", item.damage);
                 ImGui::SameLine();
                 ImGui::TextColored(Catalog::RayToImColor(WHITE), " - ");
                 ImGui::SameLine();
-                ImGui::TextColored(Catalog::RayToImColor(MAROON), "%.1f", item.damage);
+                ImGui::TextColored(Catalog::RayToImColor(MAROON), "%-3u", item.damage);
                 ImGui::SameLine();
                 ImGui::TextColored(Catalog::RayToImColor(WHITE), " damage");
 
@@ -1490,7 +1490,7 @@ void UI::InventorySlot(bool inventoryActive, int slot, const Texture &invItems, 
                 CenterNextItem(valLabel);
                 ImGui::TextColored(Catalog::RayToImColor(WHITE), "sell @ ");
                 ImGui::SameLine();
-                ImGui::TextColored(Catalog::RayToImColor(YELLOW), "%.2f", item.value);
+                ImGui::TextColored(Catalog::RayToImColor(YELLOW), "%-3u", item.value);
 
                 ImGui::EndTooltip();
                 ImGui::PopStyleVar(2);
