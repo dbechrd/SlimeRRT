@@ -32,7 +32,7 @@ void Spycam::SetZoom(float zoom)
     camera.zoom = zoom;
     invZoom = 1.0f / camera.zoom;
     // TODO: Calculate this based on how many tiles will appear on the screen, rather than camera zoom
-    // Alternatively, we could group nearby tiles of the same type together into large quads?
+    // Alternatively, we could group nearby tiles of the same itemClass together into large quads?
     zoomMipLevel = MAX(1, (int)invZoom / 8);
 }
 

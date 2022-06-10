@@ -39,16 +39,16 @@ bool ItemWorld::Cull(const Rectangle& cullRect) const
 
 void ItemWorld::Update(double dt)
 {
-    assert((int)stack.id);
+    assert((int)stack.itemType);
     assert(stack.count);
-    if (stack.id != namedStack.id || stack.count != namedStack.count) {
+    if (stack.itemType != namedStack.itemType || stack.count != namedStack.count) {
         const char *itemName = stack.Name();
         if (stack.count > 1) {
             snprintf(name, sizeof(name), "%s (%u)", itemName, stack.count);
         } else {
             snprintf(name, sizeof(name), "%s", itemName);
         }
-        namedStack.id = stack.id;
+        namedStack.itemType = stack.itemType;
         namedStack.count = stack.count;
     }
 }
@@ -64,7 +64,7 @@ void ItemWorld::Draw(const World &world) const
             const Texture tex = Catalog::g_items.Tex();
             const int texItemsWide = tex.width / 32;
 
-            const int texIdx = (int)stack.id;
+            const int texIdx = (int)stack.itemType;
             const ImVec2 size = ImVec2(32.0f, 32.0f);
             const float texX = (texIdx % texItemsWide) * size.x;
             const float texY = (texIdx / texItemsWide) * size.y;

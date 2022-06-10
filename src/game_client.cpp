@@ -470,7 +470,7 @@ void GameClient::PlayMode_DrawWorld(PlayerControllerState &input)
     {
         for (size_t i = 0; i < ARRAY_SIZE(world->slimes); i++) {
             const Slime &slime = world->slimes[i];
-            if (slime.id) {
+            if (slime.type) {
                 Vector3 center = sprite_world_center(slime.sprite, slime.body.position, slime.sprite.scale);
                 DrawCircle((int)center.x, (int)center.y, METERS_TO_PIXELS(10.0f), Fade(ORANGE, 0.3f));
             }
@@ -521,11 +521,9 @@ void GameClient::PlayMode_DrawScreen(double frameDt, PlayerControllerState &inpu
     }
     UI::HUD(g_fonts.fontSmall, *netClient.serverWorld, debugStats);
     //UI::QuickHUD(fontSdf24, player, *world->map);
-    if (inventoryActive) {
-        Player *player = netClient.serverWorld->FindPlayer(netClient.serverWorld->playerId);
-        if (player) {
-            UI::Inventory(Catalog::g_items.Tex(), *player, netClient, input.escape, inventoryActive);
-        }
+    Player *player = netClient.serverWorld->FindPlayer(netClient.serverWorld->playerId);
+    if (player) {
+        UI::Inventory(Catalog::g_items.Tex(), *player, netClient, input.escape, inventoryActive);
     }
 
     UI::Menubar(netClient);

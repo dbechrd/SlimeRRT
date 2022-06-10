@@ -104,7 +104,7 @@ struct NetMessage_GlobalEvent {
     ITEM_PICKED_UP
     ITEM_EXISTS_ON_GROUND (up to 8 items per packet)
 
-    CHUNK_DATA: includes array of tile entities, with coords (relative to chunk), type and data
+    CHUNK_DATA: includes array of tile entities, with coords (relative to chunk), itemClass and data
 
     Minecraft
     SPAWN_ENTITY (e.g. position = chest/player(for loot/drop).ground_position, velocity = Y_UP)

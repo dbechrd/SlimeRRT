@@ -5,16 +5,16 @@
 
 LootSystem::LootSystem(void)
 {
-    AddDropToTable(LootTableID::LT_Sam, Catalog::ItemType::Currency, 1, 4);
-    AddDropToTable(LootTableID::LT_Slime, Catalog::ItemType::Currency, 1, 4);
+    AddDropToTable(LootTableID::LT_Sam,   ItemClass_Currency, 1, 4);
+    AddDropToTable(LootTableID::LT_Slime, ItemClass_Currency, 1, 4);
 }
 
-void LootSystem::AddDropToTable(LootTableID lootTableId, Catalog::ItemType itemType, uint32_t min, uint32_t max)
+void LootSystem::AddDropToTable(LootTableID lootTableId, ItemClass itemClass, uint32_t min, uint32_t max)
 {
     LootTable &lootTable = lootTableRegistry[(size_t)lootTableId];
     LootDrop *drop = 0;
     for (int i = 0; i < ARRAY_SIZE(lootTable.drops); i++) {
-        if (lootTable.drops[i].itemType == Catalog::ItemType::Empty) {
+        if (lootTable.drops[i].maxCount == 0) {
             drop = &lootTable.drops[i];
             break;
         }
@@ -22,7 +22,7 @@ void LootSystem::AddDropToTable(LootTableID lootTableId, Catalog::ItemType itemT
     assert(drop);  // outta space yo
 
     if (drop) {
-        drop->itemType = itemType;
+        drop->itemClass = itemClass;
         drop->minCount = min;
         drop->maxCount = max;
     }
@@ -33,7 +33,7 @@ uint32_t LootSystem::RollCoins(LootTableID lootTableId, int monster_lvl)
     LootTable &table = lootTableRegistry[(size_t)lootTableId];
     uint32_t coins = 0;
     for (uint32_t i = 0; i < ARRAY_SIZE(table.drops); i++) {
-        if (table.drops[i].itemType == Catalog::ItemType::Currency) {
+        if (table.drops[i].itemClass == ItemClass_Currency) {
             LootDrop &drop = table.drops[i];
             coins += dlb_rand32u_range(drop.minCount, drop.maxCount) * monster_lvl;
         }

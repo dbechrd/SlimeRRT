@@ -90,7 +90,7 @@ ErrorType GameServer::Run(const Args &args)
                     continue;
                 }
 
-                assert(client->playerId == player->id);
+                assert(client->playerId == player->type);
                 assert(world->map);
                 player->Update(tickDt, sample, *world->map);
 

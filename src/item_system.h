@@ -8,14 +8,14 @@ struct ItemSystem {
     ItemSystem(void) { items.reserve(SV_MAX_ITEMS); };
     ~ItemSystem(void) {};
 
-    ItemWorld *SpawnItem(Vector3 pos, Catalog::ItemID catalogId, uint32_t stackCount, uint32_t id = 0);
+    ItemWorld *SpawnItem(Vector3 pos, ItemType itemId, uint32_t stackCount, uint32_t uid = 0);
     const std::vector<ItemWorld> &Items() const;
-    ItemWorld *Find(uint32_t id);
-    bool Remove(uint32_t itemId);
+    ItemWorld *Find(uint32_t uid);
+    bool Remove(uint32_t uid);
     void Update(double dt);
     void DespawnDeadEntities(double pickupDespawnDelay = 0);
     void PushAll(DrawList& drawList);
 
     std::vector<ItemWorld> items{};
-    std::unordered_map<uint32_t, uint32_t> byId{};  // map of item.id -> items[] index
+    std::unordered_map<uint32_t, uint32_t> byUid{};  // map of item.uid -> items[] index
 };

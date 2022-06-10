@@ -66,7 +66,7 @@ struct ParticleEffectParams {
 };
 
 struct ParticleEffect {
-    Catalog::ParticleEffectID id            {};  // type of particle effect
+    Catalog::ParticleEffectID id            {};  // itemClass of particle effect
     size_t                    particlesLeft {};  // number of particles that are pending or alive (i.e. not dead)
     Vector3                   origin        {};  // origin of particle effect
     double                    duration      {};  // time to play effect for

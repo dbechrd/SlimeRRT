@@ -44,11 +44,13 @@ namespace Catalog {
             CSV::Value vName       = csv.values[i * csv.columns + 5];
             CSV::Value vPlural     = csv.values[i * csv.columns + 6];
 
-            item.id = (ItemID)vId.toInt();
-            item.type = ItemTypeFromString((char *)vCategory.data, vCategory.length);
-            item.stackLimit = vStackLimit.toInt();
-            item.value = vValue.toFloat();
-            item.damage = vDamage.toFloat();
+            item.itemType = vId.toUint();
+            DLB_ASSERT(item.itemType < ITEMTYPE_COUNT);
+            item.itemClass = ItemClassFromString((char *)vCategory.data, vCategory.length);
+            DLB_ASSERT(item.itemClass < ITEMCLASS_COUNT);
+            item.stackLimit = vStackLimit.toUint();
+            item.value = vValue.toUint();
+            item.damage = vDamage.toUint();
             item.nameSingular = (char *)vName.data;
             item.namePlural = (char *)vPlural.data;
 
@@ -56,8 +58,8 @@ namespace Catalog {
             DLB_ASSERT(vPlural.data[vPlural.length] == 0);
 #if CSV_DEBUG_PRINT
             printf("%d, %d, %u, %f, %f, %s, %s\n",
-                item.id          ,
-                item.type        ,
+                item.type          ,
+                item.itemClass        ,
                 item.stackLimit  ,
                 item.value       ,
                 item.damage      ,
@@ -65,13 +67,13 @@ namespace Catalog {
                 item.namePlural
             );
 #endif
-            byId[(size_t)item.id] = item;
+            byId[item.itemType] = item;
         }
     }
 
-    const Item &Items::FindById(ItemID id) const
+    const Item &Items::Find(ItemType itemType) const
     {
-        return byId[(size_t)id];
+        return byId[itemType];
     }
 
     const Texture Items::Tex(void) const

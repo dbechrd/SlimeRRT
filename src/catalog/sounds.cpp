@@ -66,7 +66,7 @@ namespace Catalog {
             return;
         }
 
-        //if (!multi && IsSoundPlaying(byId[(size_t)id])) {
+        //if (!multi && IsSoundPlaying(byUid[(size_t)type])) {
         //    return;
         //}
 

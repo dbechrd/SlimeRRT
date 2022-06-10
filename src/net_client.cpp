@@ -138,7 +138,7 @@ ErrorType NetClient::SendChatMessage(const char *message, size_t messageLength)
     assert(messageLength <= CHATMSG_LENGTH_MAX);
     size_t messageLengthSafe = MIN(messageLength, CHATMSG_LENGTH_MAX);
 
-    // If we don't have a username yet (salt, client id, etc.) then we're not connected and can't send chat messages!
+    // If we don't have a username yet (salt, client type, etc.) then we're not connected and can't send chat messages!
     // This would be weird since if we're not connected how do we see the chat box?
 
     memset(&tempMsg, 0, sizeof(tempMsg));
@@ -154,7 +154,7 @@ ErrorType NetClient::SendChatMessage(const char *message, size_t messageLength)
 ErrorType NetClient::SendSlotClick(int slot, bool doubleClicked)
 {
     assert(slot >= 0);
-    assert(slot < (int)PlayerInventorySlot::Count);
+    assert(slot < PlayerInvSlot_Count);
 
     memset(&tempMsg, 0, sizeof(tempMsg));
     tempMsg.type = NetMessage::Type::SlotClick;
@@ -167,7 +167,7 @@ ErrorType NetClient::SendSlotClick(int slot, bool doubleClicked)
 ErrorType NetClient::SendSlotScroll(int slot, int scrollY)
 {
     assert(slot >= 0);
-    assert(slot < (int)PlayerInventorySlot::Count);
+    assert(slot < PlayerInvSlot_Count);
 
     memset(&tempMsg, 0, sizeof(tempMsg));
     tempMsg.type = NetMessage::Type::SlotScroll;
@@ -181,7 +181,7 @@ ErrorType NetClient::SendSlotScroll(int slot, int scrollY)
 ErrorType NetClient::SendSlotDrop(int slot, uint32_t count)
 {
     assert(slot >= 0);
-    assert(slot < (int)PlayerInventorySlot::Count);
+    assert(slot < PlayerInvSlot_Count);
 
     memset(&tempMsg, 0, sizeof(tempMsg));
     tempMsg.type = NetMessage::Type::SlotDrop;
@@ -398,7 +398,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
 #if 0
             for (size_t i = 0; i < worldSnapshot.playerCount; i++) {
                 const PlayerSnapshot &playerSnapshot = worldSnapshot.players[i];
-                Player *player = serverWorld->FindPlayer(playerSnapshot.id);
+                Player *player = serverWorld->FindPlayer(playerSnapshot.type);
                 if (!player) {
                     continue;
                 }
@@ -421,7 +421,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                         player->combat.hitPointsMax = playerSnapshot.hitPointsMax;
                     }
                 } else {
-                    serverWorld->DespawnPlayer(playerSnapshot.id);
+                    serverWorld->DespawnPlayer(playerSnapshot.type);
                 }
             }
 #else
@@ -434,7 +434,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                 }
 
                 if (playerSnapshot.flags != PlayerSnapshot::Flags::None) {
-                    //TraceLog(LOG_DEBUG, "Snapshot: player #%u", playerSnapshot.id);
+                    //TraceLog(LOG_DEBUG, "Snapshot: player #%u", playerSnapshot.type);
                 }
 
                 const bool posChanged = playerSnapshot.flags & PlayerSnapshot::Flags::Position;
@@ -559,7 +559,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                 }
 
                 if (enemySnapshot.flags != EnemySnapshot::Flags::None) {
-                    //TraceLog(LOG_DEBUG, "Snapshot: enemy #%u", enemySnapshot.id);
+                    //TraceLog(LOG_DEBUG, "Snapshot: enemy #%u", enemySnapshot.type);
                 }
 
                 const bool posChanged = enemySnapshot.flags & EnemySnapshot::Flags::Position;
@@ -658,7 +658,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                     }
 #if CL_DEBUG_WORLD_ITEMS
                     TraceLog(LOG_DEBUG, "Trying to spawn item: item #%u, catalog #%u, count %u",
-                        itemSnapshot.id,
+                        itemSnapshot.type,
                         itemSnapshot.catalogId,
                         itemSnapshot.stackCount);
 #endif
@@ -675,7 +675,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                 }
 #if CL_DEBUG_WORLD_ITEMS
                 if (itemSnapshot.flags != ItemSnapshot::Flags::None) {
-                    TraceLog(LOG_DEBUG, "Snapshot: item #%u", itemSnapshot.id);
+                    TraceLog(LOG_DEBUG, "Snapshot: item #%u", itemSnapshot.type);
                 }
 #endif
                 const bool posChanged = itemSnapshot.flags & ItemSnapshot::Flags::Position;
@@ -709,7 +709,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                 //    item->body.Teleport(itemSnapshot.position);
                 //}
                 if (itemSnapshot.flags & ItemSnapshot::Flags::CatalogId) {
-                    item->stack.id = itemSnapshot.catalogId;
+                    item->stack.itemType = itemSnapshot.catalogId;
                 }
                 if (itemSnapshot.flags & ItemSnapshot::Flags::StackCount) {
                     item->stack.count = itemSnapshot.stackCount;
@@ -718,7 +718,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                         Catalog::g_sounds.Play(Catalog::SoundID::Gold, 1.0f + dlb_rand32f_variance(0.2f), true);
                     }
 #if CL_DEBUG_WORLD_ITEMS
-                    TraceLog(LOG_DEBUG, "Snapshot: item #%u stack count = %u", item->id, item->stack.count);
+                    TraceLog(LOG_DEBUG, "Snapshot: item #%u stack count = %u", item->type, item->stack.count);
 #endif
                 }
             }
@@ -752,11 +752,11 @@ void NetClient::ProcessMsg(ENetPacket &packet)
 #if 0
                     const NetMessage_NearbyEvent::PlayerState &state = nearbyEvent.data.playerState;
 
-                    Player *player = serverWorld->FindPlayer(state.id);
+                    Player *player = serverWorld->FindPlayer(state.type);
                     if (player) {
                         if (state.nearby) {
                             if (state.spawned) {
-                                serverWorld->SpawnPlayer(player->id);
+                                serverWorld->SpawnPlayer(player->type);
                             }
                             if (state.attacked) {
                                 player->actionState = Player::ActionState::Attacking;
@@ -770,10 +770,10 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                                 player->combat.hitPointsMax = state.hitPointsMax;
                             }
                         } else {
-                            serverWorld->DespawnPlayer(state.id);
+                            serverWorld->DespawnPlayer(state.type);
                         }
                     } else {
-                        TraceLog(LOG_ERROR, "Could not find player to update state. playerId: %u", state.id);
+                        TraceLog(LOG_ERROR, "Could not find player to update state. playerId: %u", state.type);
                     }
 #else
                     assert(!"Deprecated");
@@ -784,9 +784,9 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                     const NetMessage_NearbyEvent::EnemyState &state = nearbyEvent.data.enemyState;
 
                     if (state.nearby) {
-                        Slime *enemy = serverWorld->FindSlime(state.id);
+                        Slime *enemy = serverWorld->FindSlime(state.type);
                         if (!enemy) {
-                            enemy = serverWorld->SpawnSlime(state.id);
+                            enemy = serverWorld->SpawnSlime(state.type);
                         }
                         if (enemy) {
                             if (state.spawned) {
@@ -804,11 +804,11 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                                 enemy->combat.hitPointsMax = state.hitPointsMax;
                             }
                         } else {
-                            TraceLog(LOG_ERROR, "Could not find enemy to update state. enemyId: %u", state.id);
+                            TraceLog(LOG_ERROR, "Could not find enemy to update state. enemyId: %u", state.type);
                         }
                     } else {
                         // TODO: Set actionState to despawning and play animation instead?
-                        serverWorld->DespawnSlime(state.id);
+                        serverWorld->DespawnSlime(state.type);
                     }
 #else
                     assert(!"Deprecated");
@@ -818,7 +818,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
             }
             break;
         } default: {
-            E_INFO("Unexpected netMsg type: %s", tempMsg.TypeString());
+            E_INFO("Unexpected netMsg itemClass: %s", tempMsg.TypeString());
             break;
         }
     }
@@ -916,7 +916,7 @@ ErrorType NetClient::Receive(void)
                     //serverWorld->chatHistory.PushMessage(CSTR("Sam"), CSTR("Your connection to the server timed out. :("));
                     break;
                 } default: {
-                    assert(!"unhandled event type");
+                    assert(!"unhandled event itemClass");
                 }
             }
         }

@@ -10,30 +10,35 @@
 
 struct Tilemap;
 
-#define PLAYER_INV_ROWS 6
+#define PLAYER_INV_ROWS 4
 #define PLAYER_INV_COLS 10
+#define PLAYER_INV_REG_COUNT (PLAYER_INV_ROWS * PLAYER_INV_COLS)
 
-enum class PlayerInventorySlot : uint8_t {
-    Coin_Copper = (PLAYER_INV_ROWS * PLAYER_INV_COLS),
-    Coin_Silver,
-    Coin_Gilded,
-    Hotbar_1,
-    Hotbar_2,
-    Hotbar_3,
-    Hotbar_4,
-    Hotbar_5,
-    Hotbar_6,
-    Hotbar_7,
-    Hotbar_8,
-    Cursor,
-    Count
+typedef uint8_t PlayerInvSlot;
+
+enum : PlayerInvSlot {
+    PlayerInvSlot_Coin_Copper = PLAYER_INV_REG_COUNT,
+    PlayerInvSlot_Coin_Silver,
+    PlayerInvSlot_Coin_Gilded,
+    PlayerInvSlot_Hotbar_0,
+    PlayerInvSlot_Hotbar_1,
+    PlayerInvSlot_Hotbar_2,
+    PlayerInvSlot_Hotbar_3,
+    PlayerInvSlot_Hotbar_4,
+    PlayerInvSlot_Hotbar_5,
+    PlayerInvSlot_Hotbar_6,
+    PlayerInvSlot_Hotbar_7,
+    PlayerInvSlot_Hotbar_8,
+    PlayerInvSlot_Hotbar_9,
+    PlayerInvSlot_Cursor,
+    PlayerInvSlot_Count
 };
 
 struct PlayerInventory {
-    PlayerInventorySlot selectedSlot {};  // NOTE: for hotbar, needs rework
-    ItemStack           slots        [(int)PlayerInventorySlot::Count]{};
+    PlayerInvSlot selectedSlot {};  // NOTE: for hotbar, needs rework
+    ItemStack     slots        [PlayerInvSlot_Count]{};
 
-    void TexRect(const Texture &invItems, Catalog::ItemID itemId, Vector2 &min, Vector2 &max)
+    void TexRect(const Texture &invItems, ItemType itemId, Vector2 &min, Vector2 &max)
     {
         const int texIdx = (int)itemId;
         const int texItemsWide = invItems.width / ITEM_W;
@@ -48,7 +53,7 @@ struct PlayerInventory {
     bool PickUp(ItemStack &srcStack)
     {
         uint32_t origCount = srcStack.count;
-        for (int slot = 0; slot < (int)PlayerInventorySlot::Count; slot++) {
+        for (int slot = 0; slot < PlayerInvSlot_Count; slot++) {
             ItemStack &invStack = GetInvStack(slot);
             TransferStack(srcStack, invStack);
             if (!srcStack.count) {
@@ -60,14 +65,14 @@ struct PlayerInventory {
 
     ItemStack &CursorStack()
     {
-        ItemStack &cursor = slots[(int)PlayerInventorySlot::Cursor];
+        ItemStack &cursor = slots[PlayerInvSlot_Cursor];
         return cursor;
     }
 
     ItemStack &GetInvStack(int slot)
     {
         assert(slot >= 0);
-        assert(slot < (int)PlayerInventorySlot::Count);
+        assert(slot < PlayerInvSlot_Count);
         ItemStack &stack = slots[slot];
         return stack;
     }
@@ -82,8 +87,8 @@ struct PlayerInventory {
     // Transfer as many items as possible from cursor to inv stack
     bool TransferStack(ItemStack &src, ItemStack &dst, bool skipFull = false, uint32_t transferLimit = UINT32_MAX)
     {
-        if (!dst.count || src.id == dst.id) {
-            const Catalog::Item &item = Catalog::g_items.FindById(src.id);
+        if (!dst.count || src.itemType == dst.itemType) {
+            const Catalog::Item &item = Catalog::g_items.Find(src.itemType);
 
             // Don't transfer full stacks (e.g. when collecting items on double-click)
             if (skipFull && src.count == item.stackLimit) {
@@ -94,11 +99,11 @@ struct PlayerInventory {
             uint32_t transferCount = MIN(MIN(src.count, item.stackLimit - dst.count), transferLimit);
             dst.count += transferCount;
             if (dst.count) {
-                dst.id = src.id;
+                dst.itemType = src.itemType;
             }
             src.count -= transferCount;
             if (!src.count) {
-                src.id = Catalog::ItemID::Empty;
+                src.itemType = ITEMTYPE_EMPTY;
             }
             return dst.count == item.stackLimit;
         }
@@ -114,15 +119,15 @@ struct PlayerInventory {
             if (!cursor.count) {
                 SwapStack(cursor, invStack);
             }
-            if (!invStack.count || (invStack.id == cursor.id)) {
+            if (!invStack.count || (invStack.itemType == cursor.itemType)) {
                 bool done = false;
-                for (int slot = (int)PlayerInventorySlot::Count - 1; slot >= 0 && !done; slot--) {
+                for (int slot = PlayerInvSlot_Count - 1; slot >= 0 && !done; slot--) {
                     ItemStack &srcStack = GetInvStack(slot);
                     done = TransferStack(srcStack, cursor, true);
                 }
             }
         } else {
-            if (cursor.count && cursor.id == invStack.id) {
+            if (cursor.count && cursor.itemType == invStack.itemType) {
                 TransferStack(cursor, invStack);
             } else {
                 SwapStack(cursor, invStack);
@@ -154,25 +159,25 @@ struct PlayerInventory {
 
     static int Compare(ItemStack &a, ItemStack &b, bool ignoreEmpty = false)
     {
-        if (a.id == b.id) {
+        if (a.itemType == b.itemType) {
             return 0;
-        } else if (a.id == Catalog::ItemID::Empty) {
+        } else if (a.itemType == ITEMTYPE_EMPTY) {
             return ignoreEmpty ? 0 : 1;
-        } else if (b.id == Catalog::ItemID::Empty) {
+        } else if (b.itemType == ITEMTYPE_EMPTY) {
             return ignoreEmpty ? 0 : -1;
         //} else if (onlySameType && a.Type() != b.Type()) {
         //    return 0;
         } else {
-            return (int)a.id < (int)b.id ? -1 : 1;
+            return (int)a.itemType < (int)b.itemType ? -1 : 1;
         }
     }
 
     void Sort(bool ignoreEmpty = false)
     {
-        for (int slotA = 0; slotA < (int)PlayerInventorySlot::Count; slotA++) {
+        for (int slotA = 0; slotA < PLAYER_INV_REG_COUNT; slotA++) {
             ItemStack &invStackA = GetInvStack(slotA);
 
-            for (int slotB = slotA + 1; slotB < (int)PlayerInventorySlot::Count; slotB++) {
+            for (int slotB = slotA + 1; slotB < PLAYER_INV_REG_COUNT; slotB++) {
                 ItemStack &invStackB = GetInvStack(slotB);
 
                 if (Compare(invStackA, invStackB, ignoreEmpty) > 0) {
@@ -184,15 +189,15 @@ struct PlayerInventory {
 
     void Combine(bool ignoreEmpty = false)
     {
-        for (int slotA = 0; slotA < (int)PlayerInventorySlot::Count; slotA++) {
+        for (int slotA = 0; slotA < PLAYER_INV_REG_COUNT; slotA++) {
             ItemStack &invStackA = GetInvStack(slotA);
-            const Catalog::ItemType typeA = invStackA.Type();
-            if (ignoreEmpty && invStackA.id == Catalog::ItemID::Empty) continue;
+            const ItemClass typeA = invStackA.Type();
+            if (ignoreEmpty && invStackA.itemType == ITEMTYPE_EMPTY) continue;
 
-            for (int slotB = slotA + 1; slotB < (int)PlayerInventorySlot::Count; slotB++) {
+            for (int slotB = slotA + 1; slotB < PLAYER_INV_REG_COUNT; slotB++) {
                 ItemStack &invStackB = GetInvStack(slotB);
-                const Catalog::ItemType typeB = invStackB.Type();
-                if (ignoreEmpty && invStackB.id == Catalog::ItemID::Empty) continue;
+                const ItemClass typeB = invStackB.Type();
+                if (ignoreEmpty && invStackB.itemType == ITEMTYPE_EMPTY) continue;
                 //if (onlySameType && typeA != typeB) continue;
 
                 TransferStack(invStackB, invStackA);
@@ -205,31 +210,6 @@ struct PlayerInventory {
         Sort(ignoreEmpty);
         Combine(ignoreEmpty);
     }
-
-#if _DEBUG
-    void Randomize()
-    {
-        for (int row = 0; row < PLAYER_INV_ROWS; row++) {
-            for (int col = 0; col < PLAYER_INV_COLS; col++) {
-                int slot = row * PLAYER_INV_COLS + col;
-                ItemStack &stack = GetInvStack(slot);
-                stack.id = (Catalog::ItemID)dlb_rand32i_range(
-                    0, 6
-                    //(int)Catalog::ItemID::Empty,
-                    //(int)Catalog::ItemID::Count - 1
-                );
-                const Catalog::ItemType type = stack.Type();
-                if (type == Catalog::ItemType::System) {
-                    stack.id = Catalog::ItemID::Empty;
-                }
-                stack.count = (int)stack.id != 0;
-            }
-        }
-        //ItemStack &stack = GetInvStack(0, 0);
-        //stack.count = 1;
-        //stack.id = Catalog::ItemID::Weapon_Long_Sword;
-    }
-#endif
 };
 
 struct Player : Drawable {

@@ -47,6 +47,7 @@ struct UI {
     static int  OldRaylibMenu(const Font &font, const char **items, size_t itemCount);
     static void MainMenu(bool &escape, GameClient &game);
     static void InGameMenu(bool &escape, bool connectedToServer);
+    static void InventorySlot(bool inventoryActive, int slot, const Texture &invItems, Player &player, NetClient &netClient);
     static void Inventory(const Texture &invItems, Player &player, NetClient &netClient, bool &escape, bool &inventoryActive);
 
 private:

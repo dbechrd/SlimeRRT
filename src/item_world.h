@@ -6,7 +6,7 @@
 #define ITEM_WORLD_RADIUS 10.0f
 
 struct ItemWorld : Drawable {
-    uint32_t  id         {};
+    uint32_t  uid        {};  // TODO: rename back to "type" and make stack.type be called "itemClass" and itemClass be called "class"
     ItemStack stack      {};
     Body3D    body       {};
     Sprite    sprite     {};

@@ -24,15 +24,15 @@ void Player::Init(const SpriteDef *spriteDef)
     sprite.spriteDef = spriteDef;
 
     // TODO: Load selected slot from save file / server
-    inventory.selectedSlot = PlayerInventorySlot::Hotbar_1;
+    inventory.selectedSlot = PlayerInvSlot_Hotbar_0;
 
     // TODO: Load inventory from save file / server
-    inventory.slots[(int)PlayerInventorySlot::Hotbar_1] = { Catalog::ItemID::Weapon_Long_Sword , 1 };
-    inventory.slots[(int)PlayerInventorySlot::Coin_Copper] = { Catalog::ItemID::Currency_Copper, 0 };
-    inventory.slots[(int)PlayerInventorySlot::Coin_Silver] = { Catalog::ItemID::Currency_Silver, 0 };
-    inventory.slots[(int)PlayerInventorySlot::Coin_Gilded] = { Catalog::ItemID::Currency_Gilded, 0 };
-    inventory.slots[0] = { Catalog::ItemID::Weapon_Dagger, 1 };
-    inventory.slots[1] = { Catalog::ItemID::Book_BlackSkull, 3 };
+    inventory.slots[PlayerInvSlot_Hotbar_0   ] = { ItemType_Weapon_Long_Sword , 1 };
+    inventory.slots[PlayerInvSlot_Coin_Copper] = { ItemType_Currency_Copper, 0 };
+    inventory.slots[PlayerInvSlot_Coin_Silver] = { ItemType_Currency_Silver, 0 };
+    inventory.slots[PlayerInvSlot_Coin_Gilded] = { ItemType_Currency_Gilded, 0 };
+    inventory.slots[0] = { ItemType_Weapon_Dagger, 1 };
+    inventory.slots[1] = { ItemType_Book_BlackSkull, 3 };
 
     // TODO: Load stats from save file / server
     //stats.coinsCollected = 33;
@@ -138,8 +138,8 @@ bool Player::Attack(void)
         combat.attackDuration = 0.2;
 
         const ItemStack &selectedStack = GetSelectedItem();
-        switch (selectedStack.id) {
-            case Catalog::ItemID::Weapon_Long_Sword: {
+        switch (selectedStack.itemType) {
+            case ItemClass_Weapon: {
                 stats.timesSwordSwung++;
                 break;
             } default: {
@@ -161,7 +161,7 @@ void Player::Update(InputSample &input, const Tilemap &map)
     float dt = input.msec / 1000.0f;
 
     if (input.selectSlot) {
-        inventory.selectedSlot = (PlayerInventorySlot)input.selectSlot;
+        inventory.selectedSlot = input.selectSlot;
     }
 
     if (combat.hitPoints) {
@@ -276,12 +276,12 @@ void Player::Update(InputSample &input, const Tilemap &map)
     }
 
     if (sprite.spriteDef) {
-        // TODO: Less hard-coded way to look up player sprite based on selected item id
+        // TODO: Less hard-coded way to look up player sprite based on selected item type
         const Spritesheet *sheet = sprite.spriteDef->spritesheet;
         assert(sheet->sprites.size() == 5);
 
         const ItemStack &selectedStack = GetSelectedItem();
-        if (selectedStack.id == Catalog::ItemID::Weapon_Long_Sword) {
+        if (selectedStack.Item().itemClass == ItemClass_Weapon) {
             switch (actionState) {
                 case ActionState::None: {
                     switch ((int)body.Idle()) {

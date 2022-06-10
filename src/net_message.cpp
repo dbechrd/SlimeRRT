@@ -118,8 +118,8 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                     stream.Process(sample.walkWest);
                     stream.Process(sample.run);
                     stream.Process(sample.attack);
-                    assert((int)PlayerInventorySlot::Count > 0);
-                    stream.Process(sample.selectSlot, 8, 0, (uint32_t)PlayerInventorySlot::Count - 1);
+                    assert(PlayerInvSlot_Count > 0);
+                    stream.Process(sample.selectSlot, 8, 0, PlayerInvSlot_Count - 1);
                 }
             }
             stream.Align();
@@ -175,7 +175,7 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                     stream.Process(player.xp);
                 }
                 if (player.flags & PlayerSnapshot::Flags::Inventory) {
-                    stream.Process((uint8_t &)player.inventory.selectedSlot, 8, 0, (uint8_t)PlayerInventorySlot::Count - 1);
+                    stream.Process((uint8_t &)player.inventory.selectedSlot, 8, 0, PlayerInvSlot_Count - 1);
                     const size_t slotCount = ARRAY_SIZE(player.inventory.slots);
                     thread_local bool slotMap[slotCount];
                     memset(slotMap, 0, sizeof(slotMap));
@@ -188,9 +188,9 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                     for (size_t i = 0; i < slotCount; i++) {
                         if (slotMap[i]) {
                             ItemStack &invStack = player.inventory.slots[i];
-                            stream.Process((uint16_t &)invStack.id, 8, 0, (uint16_t)Catalog::ItemID::Count - 1);
+                            stream.Process((uint16_t &)invStack.itemType, 8, 0, (uint16_t)ITEMTYPE_COUNT - 1);
                             stream.Process(invStack.count);
-                            assert(invStack.id != Catalog::ItemID::Empty);  // ensure stack with count > 0 has valid item ID
+                            assert(invStack.itemType != ITEMTYPE_EMPTY);  // ensure stack with count > 0 has valid item ID
                         }
                     }
                 }
@@ -233,7 +233,7 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                     stream.Process(item.position.z);
                 }
                 if (item.flags & ItemSnapshot::Flags::CatalogId) {
-                    stream.Process((uint32_t &)item.catalogId, 8, (uint32_t)Catalog::ItemID::Empty, (uint32_t)Catalog::ItemID::Count - 1);
+                    stream.Process((uint32_t &)item.catalogId, 8, ITEMTYPE_EMPTY, ITEMTYPE_COUNT - 1);
                 }
                 if (item.flags & ItemSnapshot::Flags::StackCount) {
                     stream.Process(item.stackCount);
@@ -282,7 +282,7 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                 case NetMessage_NearbyEvent::Type::PlayerState: {
 #if 0
                     NetMessage_NearbyEvent::PlayerState &state = nearbyEvent.data.playerState;
-                    stream.Process(state.id, 32, 1, UINT32_MAX);
+                    stream.Process(state.type, 32, 1, UINT32_MAX);
                     stream.ProcessBool(state.nearby);
                     if (state.nearby) {
                         stream.ProcessBool(state.spawned);
@@ -313,7 +313,7 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                 } case NetMessage_NearbyEvent::Type::EnemyState: {
 #if 0
                     NetMessage_NearbyEvent::EnemyState &state = nearbyEvent.data.enemyState;
-                    stream.Process(state.id, 32, 1, UINT32_MAX);
+                    stream.Process(state.type, 32, 1, UINT32_MAX);
                     stream.Process(state.nearby);
                     if (state.nearby) {
                         stream.Process(state.spawned);
@@ -341,7 +341,7 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                 } case NetMessage_NearbyEvent::Type::ItemState: {
 #if 0
                     NetMessage_NearbyEvent::ItemState &state = nearbyEvent.data.itemState;
-                    stream.Process(state.id, 32, 1, UINT32_MAX);
+                    stream.Process(state.type, 32, 1, UINT32_MAX);
                     stream.ProcessBool(state.nearby);
                     if (state.nearby) {
                         stream.ProcessBool(state.spawned);
@@ -366,19 +366,19 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
             break;
         } case NetMessage::Type::SlotClick: {
             NetMessage_SlotClick &slotClick = data.slotClick;
-            stream.Process((uint8_t &)slotClick.slotId, 8, 0, (uint32_t)PlayerInventorySlot::Count - 1);
+            stream.Process((uint8_t &)slotClick.slotId, 8, 0, PlayerInvSlot_Count - 1);
             stream.Align();
             stream.Process(slotClick.doubleClick);
             break;
         } case NetMessage::Type::SlotScroll: {
             NetMessage_SlotScroll &slotScroll = data.slotScroll;
-            stream.Process((uint8_t &)slotScroll.slotId, 8, 0, (uint32_t)PlayerInventorySlot::Count - 1);
+            stream.Process((uint8_t &)slotScroll.slotId, 8, 0, PlayerInvSlot_Count - 1);
             stream.Align();
             stream.Process(slotScroll.scrollY);
             break;
         } case NetMessage::Type::SlotDrop: {
             NetMessage_SlotDrop &slotDrop = data.slotDrop;
-            stream.Process((uint8_t &)slotDrop.slotId, 8, 0, (uint32_t)PlayerInventorySlot::Count - 1);
+            stream.Process((uint8_t &)slotDrop.slotId, 8, 0, PlayerInvSlot_Count - 1);
             stream.Align();
             stream.Process(slotDrop.count);
             break;
@@ -391,7 +391,7 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
     buffer.dataLength = stream.BytesProcessed();
 
 #if _DEBUG && 0
-    if (type == NetMessage::Type::WorldSnapshot) {
+    if (itemClass == NetMessage::Type::WorldSnapshot) {
         thread_local FILE *sendLog = fopen("send.log", "w");
         fprintf(sendLog, "Snapshot #%u: ", data.worldSnapshot.tick);
         for (size_t i = 0; i < buffer.dataLength; i++) {

@@ -3,18 +3,18 @@
 #include <cstdint>
 
 struct ItemStack {
-    Catalog::ItemID id    {};
-    uint32_t        count {};  // TODO: Check this is < itemCatalog[id].stackLimit
+    ItemType itemType {};
+    uint32_t count    {};  // TODO: Check this is < itemCatalog[type].stackLimit
 
     inline const Catalog::Item Item() const
     {
-        const Catalog::Item item = Catalog::g_items.FindById(id);
+        const Catalog::Item item = Catalog::g_items.Find(itemType);
         return item;
     }
 
-    inline const Catalog::ItemType Type() {
+    inline const ItemClass Type() {
         const Catalog::Item item = Item();
-        return item.type;
+        return item.itemClass;
     }
 
     inline const char *Name() const

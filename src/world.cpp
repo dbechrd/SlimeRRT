@@ -190,7 +190,7 @@ Slime *World::SpawnSlime(uint32_t slimeId, Vector2 origin)
 
             slime.Init();
             slime.body.Teleport(spawnPos);
-            //TraceLog(LOG_DEBUG, "Spawned enemy %u", slime.id);
+            //TraceLog(LOG_DEBUG, "Spawned enemy %u", slime.type);
             return &slime;
         }
     }
@@ -257,9 +257,9 @@ void World::SV_SimPlayers(double dt)
             float playerDamage;
 
             const ItemStack &selectedStack = player.GetSelectedItem();
-            const Catalog::Item &selectedItem = Catalog::g_items.FindById(selectedStack.id);
+            const Catalog::Item &selectedItem = Catalog::g_items.Find(selectedStack.itemType);
             playerDamage = selectedItem.damage;
-            if (selectedItem.id == Catalog::ItemID::Empty) {
+            if (selectedItem.itemType == ITEMTYPE_EMPTY) {
                 playerDamage = player.combat.meleeDamage;
             }
 
@@ -324,19 +324,19 @@ void World::SV_SimSlimes(double dt)
                 uint32_t coins = lootSystem.RollCoins(slime.combat.lootTableId, (int)slime.sprite.scale);
                 assert(coins);
 
-                Catalog::ItemID coinType{};
-                const float chance = dlb_rand32f_range(0, 1);
-                if (chance < 100.0f / 111.0f) {
-                    coinType = Catalog::ItemID::Currency_Copper;
-                } else if (chance < 10.0f / 111.0f) {
-                    coinType = Catalog::ItemID::Currency_Silver;
-                } else {
-                    coinType = Catalog::ItemID::Currency_Gilded;
-                }
+                //ItemType coinType{};
+                //const float chance = dlb_rand32f_range(0, 1);
+                //if (chance < 100.0f / 111.0f) {
+                //    coinType = ItemType::Currency_Copper;
+                //} else if (chance < 10.0f / 111.0f) {
+                //    coinType = ItemType::Currency_Silver;
+                //} else {
+                //    coinType = ItemType::Currency_Gilded;
+                //}
 
-                Catalog::ItemID itemId = (Catalog::ItemID)dlb_rand32i_range(2, (int)Catalog::ItemID::Count - 1);
+                ItemType itemId = dlb_rand32u_range(2, ITEMTYPE_COUNT - 1);
                 uint32_t rndCount = dlb_rand32u_range(1, 4);
-                uint32_t itemCount = MIN(rndCount, Catalog::g_items.FindById(itemId).stackLimit);
+                uint32_t itemCount = MIN(rndCount, Catalog::g_items.Find(itemId).stackLimit);
                 itemSystem.SpawnItem(slime.WorldCenter(), itemId, itemCount);
                 //itemSystem.SpawnItem(slime.WorldCenter(), coinType, coins);
                 slime.combat.droppedDeathLoot = true;
@@ -406,11 +406,11 @@ void World::SV_SimItems(double dt)
     const float playerItemPickupDist = METERS_TO_PIXELS(0.4f);
 
     for (ItemWorld &item : itemSystem.items) {
-        if (!item.id || item.pickedUpAt || glfwGetTime() < item.spawnedAt + SV_ITEM_PICKUP_DELAY) {
+        if (!item.uid || item.pickedUpAt || glfwGetTime() < item.spawnedAt + SV_ITEM_PICKUP_DELAY) {
             continue;
         }
 
-        assert(item.stack.id != Catalog::ItemID::Empty);
+        assert(item.stack.itemType != ITEMTYPE_EMPTY);
 
         Player *closestPlayer = FindClosestPlayer(item.body.GroundPosition(), playerItemPickupReach);
         if (!closestPlayer || !closestPlayer->id) {
@@ -424,7 +424,7 @@ void World::SV_SimItems(double dt)
                 if (!item.stack.count) {
                     item.pickedUpAt = glfwGetTime();
 #if SV_DEBUG_WORLD_ITEMS
-                    TraceLog(LOG_DEBUG, "Sim: Item picked up %u", item.id);
+                    TraceLog(LOG_DEBUG, "Sim: Item picked up %u", item.type);
 #endif
                 } else {
                     // TODO: Send item update message so other players know stack was partially picked up
@@ -432,22 +432,12 @@ void World::SV_SimItems(double dt)
                 }
             }
         } else {
-             switch (item.stack.id) {
-                case Catalog::ItemID::Currency_Copper:
-                case Catalog::ItemID::Currency_Silver:
-                case Catalog::ItemID::Currency_Gilded:
-                {
-                    const Vector2 itemToPlayerDir = v2_normalize(itemToPlayer);
-                    const float speed = MAX(0, 1.0f / PIXELS_TO_METERS(sqrtf(itemToPlayerDistSq)));
-                    const Vector2 itemVel = v2_scale(itemToPlayerDir, METERS_TO_PIXELS(speed));
-                    item.body.velocity.x = itemVel.x;
-                    item.body.velocity.y = itemVel.y;
-                    //item.body.velocity.z = MAX(item.body.velocity.z, itemVel.z);
-                    break;
-                } default: {
-                    break;
-                }
-            }
+            const Vector2 itemToPlayerDir = v2_normalize(itemToPlayer);
+            const float speed = MAX(0, 1.0f / PIXELS_TO_METERS(sqrtf(itemToPlayerDistSq)));
+            const Vector2 itemVel = v2_scale(itemToPlayerDir, METERS_TO_PIXELS(speed));
+            item.body.velocity.x = itemVel.x;
+            item.body.velocity.y = itemVel.y;
+            //item.body.velocity.z = MAX(item.body.velocity.z, itemVel.z);
         }
     }
 
@@ -461,14 +451,14 @@ void World::DespawnDeadEntities(void)
 #if 0
     for (size_t i = 0; i < SV_MAX_PLAYERS; i++) {
         Player &player = players[i];
-        if (!player.id) {
+        if (!player.type) {
             continue;
         }
 
         // NOTE: Player is likely going to respawn very quickly, so this may not be useful
         if (!player.combat.hitPoints && glfwGetTime() - player.combat.diedAt > SV_PLAYER_CORPSE_LIFETIME) {
-            TraceLog(LOG_DEBUG, "Despawn stale player corpse %u", player.id);
-            DespawnPlayer(player.id);
+            TraceLog(LOG_DEBUG, "Despawn stale player corpse %u", player.type);
+            DespawnPlayer(player.type);
         }
     }
 #endif
@@ -480,7 +470,7 @@ void World::DespawnDeadEntities(void)
 
         // Check if enemy has been dead for awhile
         if (enemy.combat.diedAt && now - enemy.combat.diedAt > SV_ENEMY_CORPSE_LIFETIME) {
-            //TraceLog(LOG_DEBUG, "Despawn stale enemy corpse %u", enemy.id);
+            //TraceLog(LOG_DEBUG, "Despawn stale enemy corpse %u", enemy.type);
             RemoveSlime(enemy.id);
         }
     }
@@ -570,7 +560,7 @@ void World::CL_Interpolate(double renderAt)
         CL_InterpolateBody(enemy.body, renderAt, enemy.sprite.direction);
     }
     for (ItemWorld &item : itemSystem.items) {
-        if (!item.id) {
+        if (!item.uid) {
             continue;
         }
         CL_InterpolateBody(item.body, renderAt, item.sprite.direction);
@@ -605,7 +595,7 @@ void World::CL_Extrapolate(double dt)
         enemy.Update(dt);
     }
     for (ItemWorld &item : itemSystem.items) {
-        if (!item.id) {
+        if (!item.uid) {
             continue;
         }
         item.Update(dt);
@@ -624,15 +614,15 @@ void World::CL_DespawnStaleEntities(void)
 
 #if 0
     for (const Player &otherPlayer : players) {
-        if (!otherPlayer.id || otherPlayer.id == playerId) {
+        if (!otherPlayer.type || otherPlayer.type == playerId) {
             continue;
         }
 
         const float distSq = v3_length_sq(v3_sub(player->body.WorldPosition(), otherPlayer.body.WorldPosition()));
         const bool faraway = distSq >= SQUARED(CL_PLAYER_FARAWAY_THRESHOLD);
         if (faraway) {
-            TraceLog(LOG_DEBUG, "Despawn far away player %u", otherPlayer.id);
-            DespawnPlayer(otherPlayer.id);
+            TraceLog(LOG_DEBUG, "Despawn far away player %u", otherPlayer.type);
+            DespawnPlayer(otherPlayer.type);
         }
     }
 #endif
@@ -647,7 +637,7 @@ void World::CL_DespawnStaleEntities(void)
             const float distSq = v3_length_sq(v3_sub(player->body.WorldPosition(), lastPos.v));
             const bool faraway = distSq >= SQUARED(CL_ENEMY_FARAWAY_THRESHOLD);
             if (faraway) {
-                //TraceLog(LOG_DEBUG, "Despawn far away enemy %u", enemy.id);
+                //TraceLog(LOG_DEBUG, "Despawn far away enemy %u", enemy.type);
                 RemoveSlime(enemy.id);
                 continue;
             }
@@ -709,11 +699,11 @@ size_t World::DrawMap(const Spycam &spycam)
             // Draw all tiles as textured rects (looks best, performs worst)
             const Tile *tile = map->TileAtWorld(xx, yy);
             tileset_draw_tile(map->tilesetId, tile ? tile->type : Tile::Type::Void, { xx, yy });
-            //tileset_draw_tile(map->tilesetId, tile ? tile->type : Tile::Type::Grass, { xx, yy });
+            //tileset_draw_tile(map->tilesetId, tile ? tile->itemClass : Tile::Type::Grass, { xx, yy });
 #else
             const Tile *tile = map->TileAtWorld(xx, yy);
             Tileset &tileset = g_tilesets[(size_t)map->tilesetId];
-            Rectangle tileRect = tileset_tile_rect(map->tilesetId, tile ? tile->type : Tile::Type::Void);
+            Rectangle tileRect = tileset_tile_rect(map->tilesetId, tile ? tile->itemClass : Tile::Type::Void);
 
             ImVec2 uv0 = {
                 tileRect.x / tileset.texture.width,
@@ -728,7 +718,7 @@ size_t World::DrawMap(const Spycam &spycam)
             yy -= cy;
 
             bgDrawList->AddImage(
-                (ImTextureID)(size_t)tileset.texture.id,
+                (ImTextureID)(size_t)tileset.texture.type,
                 ImVec2(xx, yy),
                 ImVec2(xx + tileRect.width, yy + tileRect.height),
                 ImVec2{ uv0.x, uv0.y },
@@ -825,7 +815,7 @@ void World::DrawNoiseDebug(const Spycam &spycam)
             tileset_draw_tile(map->tilesetId, tileType, { xx, yy });
 
 #define PAD 8
-            uint8_t tileColor = (uint8_t)CLAMP(baseNoise * 256, 0, 255.999); // tileColors[(int)tile.type];
+            uint8_t tileColor = (uint8_t)CLAMP(baseNoise * 256, 0, 255.999); // tileColors[(int)tile.itemClass];
             //DrawRectangle((int)xx + PAD, (int)yy + PAD, TILE_W - PAD*2, TILE_W - PAD*2, { tileColor, tileColor, tileColor, 255 });
 #undef PAD
         }

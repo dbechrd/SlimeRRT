@@ -16,9 +16,9 @@ enum class LootTableID {
 };
 
 struct LootDrop {
-    Catalog::ItemType itemType {};
-    uint32_t minCount {};
-    uint32_t maxCount {};
+    ItemClass itemClass {};
+    uint32_t  minCount  {};
+    uint32_t  maxCount  {};
 };
 
 struct LootTable {
@@ -32,7 +32,7 @@ struct LootSystem {
     void     RollDrops  (LootTableID lootTableId);
 
 private:
-    void AddDropToTable (LootTableID lootTableId, Catalog::ItemType itemType, uint32_t min, uint32_t max);
+    void AddDropToTable(LootTableID lootTableId, ItemClass itemClass, uint32_t min, uint32_t max);
 
     LootTable lootTableRegistry[(size_t)LootTableID::Count]{};
 };

@@ -14,7 +14,7 @@
 // Server sends InventoryUpdate event
 // Server broadcasts ItemPickup event
 
-ItemWorld *ItemSystem::SpawnItem(Vector3 pos, Catalog::ItemID catalogId, uint32_t count, uint32_t id)
+ItemWorld *ItemSystem::SpawnItem(Vector3 pos, ItemType itemId, uint32_t count, uint32_t uid)
 {
     assert(count >= 0);
 
@@ -30,21 +30,21 @@ ItemWorld *ItemSystem::SpawnItem(Vector3 pos, Catalog::ItemID catalogId, uint32_
     }
     ItemWorld item{};
 
-    if (id) {
-        item.id = id;
+    if (uid) {
+        item.uid = uid;
     } else {
-        thread_local uint32_t nextId = 0;
-        nextId = MAX(1, nextId + 1); // Prevent ID zero from being used on overflow
-        item.id = nextId;
+        thread_local uint32_t nextUid = 0;
+        nextUid = MAX(1, nextUid + 1); // Prevent ID zero from being used on overflow
+        item.uid = nextUid;
     }
 
-    ItemWorld *existingItemWithId = Find(item.id);
+    ItemWorld *existingItemWithId = Find(item.uid);
     if (existingItemWithId) {
-        TraceLog(LOG_ERROR, "Trying to spawn an item with id of an already existing item.");
+        TraceLog(LOG_ERROR, "Trying to spawn an item with type of an already existing item.");
         return 0;
     }
 
-    item.stack.id = catalogId;
+    item.stack.itemType = itemId;
     item.stack.count = count;
 
     Vector3 itemPos = pos;
@@ -59,11 +59,11 @@ ItemWorld *ItemSystem::SpawnItem(Vector3 pos, Catalog::ItemID catalogId, uint32_
     item.body.friction = 0.2f;
 
     Catalog::SpritesheetID spritesheetId = Catalog::SpritesheetID::Empty;
-    switch (catalogId) {
-        case Catalog::ItemID::Currency_Copper: spritesheetId = Catalog::SpritesheetID::Coin_Copper; break;
-        case Catalog::ItemID::Currency_Silver: spritesheetId = Catalog::SpritesheetID::Coin_Silver; break;
-        case Catalog::ItemID::Currency_Gilded: spritesheetId = Catalog::SpritesheetID::Coin_Gilded; break;
-    }
+    //switch (uid) {
+    //    case ItemID_Currency_Copper: spritesheetId = Catalog::SpritesheetID::Coin_Copper; break;
+    //    case ItemID_Currency_Silver: spritesheetId = Catalog::SpritesheetID::Coin_Silver; break;
+    //    case ItemID_Currency_Gilded: spritesheetId = Catalog::SpritesheetID::Coin_Gilded; break;
+    //}
     if (spritesheetId != Catalog::SpritesheetID::Empty) {
         const Spritesheet &spritesheet = Catalog::g_spritesheets.FindById(spritesheetId);
         item.sprite.spriteDef = spritesheet.FindSprite("coin");
@@ -71,18 +71,18 @@ ItemWorld *ItemSystem::SpawnItem(Vector3 pos, Catalog::ItemID catalogId, uint32_
     item.sprite.scale = 1.0f;
     item.spawnedAt = glfwGetTime();
 
-    byId[item.id] = (uint32_t)items.size();
+    byUid[item.uid] = (uint32_t)items.size();
     return &items.emplace_back(item);
 }
 
-ItemWorld *ItemSystem::Find(uint32_t itemId)
+ItemWorld *ItemSystem::Find(uint32_t uid)
 {
-    if (!itemId) {
+    if (!uid) {
         return 0;
     }
 
-    auto elem = byId.find(itemId);
-    if (elem == byId.end()) {
+    auto elem = byUid.find(uid);
+    if (elem == byUid.end()) {
         return 0;
     }
 
@@ -91,14 +91,14 @@ ItemWorld *ItemSystem::Find(uint32_t itemId)
     return &items[idx];
 }
 
-bool ItemSystem::Remove(uint32_t itemId)
+bool ItemSystem::Remove(uint32_t uid)
 {
 #if SV_DEBUG_WORLD_ITEMS
-    TraceLog(LOG_DEBUG, "Despawning item %u", itemId);
+    TraceLog(LOG_DEBUG, "Despawning item %u", uid);
 #endif
-    auto elem = byId.find(itemId);
-    if (elem == byId.end()) {
-        TraceLog(LOG_WARNING, "Cannot remove an item that doesn't exist. itemId: %u", itemId);
+    auto elem = byUid.find(uid);
+    if (elem == byUid.end()) {
+        TraceLog(LOG_WARNING, "Cannot remove an item that doesn't exist. uid: %u", uid);
         return false;
     }
 
@@ -112,7 +112,7 @@ bool ItemSystem::Remove(uint32_t itemId)
             // Copy last item to empty slot to keep densely packed
             items[idx] = items.back();
             // Update hash table
-            byId[items[idx].id] = idx;
+            byUid[items[idx].uid] = idx;
             // Zero free slot
             items[items.size() - 1] = {};
             // Update size
@@ -120,12 +120,12 @@ bool ItemSystem::Remove(uint32_t itemId)
         }
         success = true;
     } else {
-        TraceLog(LOG_ERROR, "Item index out of range. itemId: %u idx: %zu size: %zu", itemId, idx, items.size());
+        TraceLog(LOG_ERROR, "Item index out of range. uid: %u idx: %zu size: %zu", uid, idx, items.size());
     }
-    byId.erase(itemId);
+    byUid.erase(uid);
 
 #if SV_DEBUG_WORLD_ITEMS
-    TraceLog(LOG_DEBUG, "Despawned item %u", itemId);
+    TraceLog(LOG_DEBUG, "Despawned item %u", uid);
 #endif
     return success;
 }
@@ -133,7 +133,9 @@ bool ItemSystem::Remove(uint32_t itemId)
 void ItemSystem::Update(double dt)
 {
     for (ItemWorld &item : items) {
-        if (item.stack.id == Catalog::ItemID::Empty) continue;
+        if (!item.stack.itemType) {
+            continue;
+        }
 
         item.body.Update(dt);
         sprite_update(item.sprite, dt);
@@ -147,45 +149,31 @@ void ItemSystem::Update(double dt)
 void ItemSystem::DespawnDeadEntities(double pickupDespawnDelay)
 {
     const double now = glfwGetTime();
-#if 1
     size_t i = 0;
     while (i < items.size()) {
         ItemWorld &item = items[i];
 
         // NOTE: Server adds extra pickupDespawnDelay to ensure all clients receive a snapshot
         // containing the pickup flag before despawning the item. This may not be necessary
-        // one nearby_events are implemented and send item pickup notifications.
-        if (item.stack.id != Catalog::ItemID::Empty &&
-            (
-                (item.pickedUpAt && ((now - item.pickedUpAt) > pickupDespawnDelay)) ||
-                (item.spawnedAt && ((now - item.spawnedAt) > SV_WORLD_ITEM_LIFETIME))
-            )
-        ) {
+        // once nearby_events are implemented and send item pickup notifications.
+        if (item.stack.itemType && (
+            (item.pickedUpAt && ((now - item.pickedUpAt) > pickupDespawnDelay)) ||
+            (item.spawnedAt && ((now - item.spawnedAt) > SV_WORLD_ITEM_LIFETIME))
+        )) {
             // NOTE: If remove succeeds, don't increment index, next element to check is in the
             // same slot now.
-            i += !Remove(item.id);
+            i += !Remove(item.uid);
         } else {
             i++;
         }
     }
-#else
-    items.erase(std::remove_if(items.begin(), items.end(), [pickupDespawnDelay](const ItemWorld &item) {
-        assert(item.stack.id != Catalog::ItemID::Empty);
-
-        // NOTE: Server adds extra pickupDespawnDelay to ensure all clients receive a snapshot
-        // containing the pickup flag before despawning the item. This may not be necessary
-        // one nearby_events are implemented and send item pickup notifications.
-        return ((item.pickedUpAt && ((now - item.pickedUpAt) > pickupDespawnDelay)) ||
-                (item.spawnedAt && ((now - item.spawnedAt) > SV_WORLD_ITEM_LIFETIME)));
-    }));
-#endif
 }
 
 void ItemSystem::PushAll(DrawList &drawList)
 {
     for (const ItemWorld &item : items) {
-        if (item.stack.id == Catalog::ItemID::Empty) continue;
-
-        drawList.Push(item);
+        if (item.stack.itemType) {
+            drawList.Push(item);
+        }
     }
 }

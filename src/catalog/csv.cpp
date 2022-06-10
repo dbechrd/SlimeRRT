@@ -7,6 +7,12 @@ int CSV::Value::toInt()
     return i;
 }
 
+unsigned int CSV::Value::toUint()
+{
+    unsigned int u = strtoul((char *)data, 0, 10);
+    return u;
+}
+
 float CSV::Value::toFloat()
 {
     float f = strtof((char *)data, 0);
@@ -57,18 +63,15 @@ const char *CSV::Reader::StatusMsg()
 {
     if (!msg[0]) {
         switch (err) {
-            case Error::SUCCESS:
-            {
+            case Error::SUCCESS: {
                 snprintf(msg, sizeof(msg), "SUCCESS: Successfully parsed %u rows with %u columns each.\n", row, columns);
                 break;
             }
-            case Error::ERR_COLUMN_MISTMATCH:
-            {
+            case Error::ERR_COLUMN_MISTMATCH: {
                 snprintf(msg, sizeof(msg), "ERR_COLUMN_MISMATCH: Row %u has %u columns, expected %u.\n", row, column, columns);
                 break;
             }
-            default:
-            {
+            default: {
                 snprintf(msg, sizeof(msg), "ERR_UNKNOWN: Unexpected error code %d.\n", err);
                 break;
             }

@@ -302,7 +302,7 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
         bool nearby = distSq <= SQUARED(SV_PLAYER_NEARBY_THRESHOLD);
         if (!nearby) {
 #if SV_DEBUG_WORLD_PLAYERS
-            TraceLog(LOG_DEBUG, "Left vicinity of player #%u", otherPlayer.id);
+            TraceLog(LOG_DEBUG, "Left vicinity of player #%u", otherPlayer.type);
 #endif
             client.playerHistory.erase(otherPlayer.id);
             continue;
@@ -318,7 +318,7 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
         } else if (prevState == client.playerHistory.end()) {
             flags = PlayerSnapshot::Flags::PuppetSpawn;
 #if SV_DEBUG_WORLD_PLAYERS
-            TraceLog(LOG_DEBUG, "Entered vicinity of player #%u", otherPlayer.id);
+            TraceLog(LOG_DEBUG, "Entered vicinity of player #%u", otherPlayer.type);
 #endif
         } else {
             // Send delta updates for puppets that the client already knows about
@@ -391,7 +391,7 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
         if (prevState == client.enemyHistory.end()) {
             flags = EnemySnapshot::Flags::All;
 #if SV_DEBUG_WORLD_ENEMIES
-            TraceLog(LOG_DEBUG, "Entered vicinity of enemy #%u", enemy.id);
+            TraceLog(LOG_DEBUG, "Entered vicinity of enemy #%u", enemy.type);
 #endif
         } else {
             // "Despawn" notification already sent
@@ -445,23 +445,23 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
         if (worldSnapshot.itemCount == ARRAY_SIZE(worldSnapshot.items)) {
             break;
         }
-        if (!item.id) {
+        if (!item.uid) {
             continue;
         }
 
         const float distSq = v3_length_sq(v3_sub(player.body.WorldPosition(), item.body.WorldPosition()));
         const bool nearby = distSq <= SQUARED(SV_ITEM_NEARBY_THRESHOLD);
         if (!nearby) {
-            client.itemHistory.erase(item.id);
+            client.itemHistory.erase(item.uid);
             continue;
         }
 
-        auto prevState = client.itemHistory.find(item.id);
+        auto prevState = client.itemHistory.find(item.uid);
         ItemSnapshot::Flags flags = ItemSnapshot::Flags::None;
         if (prevState == client.itemHistory.end()) {
             flags = ItemSnapshot::Flags::All;
 #if SV_DEBUG_WORLD_ITEMS
-            TraceLog(LOG_DEBUG, "Entered vicinity of item #%u", item.id);
+            TraceLog(LOG_DEBUG, "Entered vicinity of item #%u", item.type);
 #endif
         } else {
             // "Despawn" notification already sent
@@ -474,7 +474,7 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
             if (!v3_equal(item.body.WorldPosition(), prevState->second.position, POSITION_EPSILON)) {
                 flags |= ItemSnapshot::Flags::Position;
             }
-            if (item.stack.id != prevState->second.catalogId) {
+            if (item.stack.itemType != prevState->second.catalogId) {
                 flags |= ItemSnapshot::Flags::CatalogId;
             }
             if (item.stack.count != prevState->second.stackCount) {
@@ -489,17 +489,17 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
         // TODO: Let Item serialize itself by storing a reference in the Snapshot, then
         // having NetMessage::Process call a serialize method and forwarding the BitStream
         // and state flags to it.
-        ItemSnapshot &state = client.itemHistory[item.id];
+        ItemSnapshot &state = client.itemHistory[item.uid];
         state.flags = flags;
-        state.id = item.id;
+        state.id = item.uid;
         state.position = item.body.WorldPosition();
-        state.catalogId = item.stack.id;
+        state.catalogId = item.stack.itemType;
         state.stackCount = item.stack.count;
 
         // DEBUG(cleanup): FPSDfasdf
         const Vector3 worldPos = item.body.WorldPosition();
 #if SV_DEBUG_WORLD_ITEMS
-        TraceLog(LOG_DEBUG, "Sending snapshot for Item #%u: itemId: %u count: %u pos: %f %f %f", item.id, item.stack.id, item.stack.count, worldPos.x, worldPos.y, worldPos.z);
+        TraceLog(LOG_DEBUG, "Sending snapshot for Item #%u: itemId: %u count: %u pos: %f %f %f", item.type, item.stack.type, item.stack.count, worldPos.x, worldPos.y, worldPos.z);
 #endif
         worldSnapshot.items[worldSnapshot.itemCount] = state;
         worldSnapshot.itemCount++;
@@ -522,7 +522,7 @@ ErrorType NetServer::SendNearbyEvents(const SV_Client &client)
 
     for (size_t i = 0; i < SV_MAX_SLIMES; i++) {
         Slime &enemy = serverWorld->slimes[i];
-        if (!enemy.id) {
+        if (!enemy.type) {
             continue;
         }
 
@@ -536,11 +536,11 @@ ErrorType NetServer::SendNearbyEvents(const SV_Client &client)
         }
 
         if (nearby && !wasNearby) {
-            TraceLog(LOG_DEBUG, "Entered vicinity of enemy #%u", enemy.id);
+            TraceLog(LOG_DEBUG, "Entered vicinity of enemy #%u", enemy.type);
         }
 
         if (!nearby && wasNearby) {
-            TraceLog(LOG_DEBUG, "Left vicinity of enemy #%u", enemy.id);
+            TraceLog(LOG_DEBUG, "Left vicinity of enemy #%u", enemy.type);
         }
 
         E_ASSERT(SendEnemyState(client, enemy, nearby, nearby && !wasNearby), "Failed to send nearby enemy state in welcome basket");
@@ -549,7 +549,7 @@ ErrorType NetServer::SendNearbyEvents(const SV_Client &client)
 #if 0
     for (size_t i = 0; i < SV_MAX_PLAYERS; i++) {
         Player &otherPlayer = serverWorld->players[i];
-        if (!otherPlayer.id) {
+        if (!otherPlayer.type) {
             continue;
         }
 
@@ -569,7 +569,7 @@ ErrorType NetServer::SendNearbyEvents(const SV_Client &client)
 
     for (size_t i = 0; i < SV_MAX_SLIMES; i++) {
         Slime &enemy = serverWorld->slimes[i];
-        if (!enemy.id) {
+        if (!enemy.type) {
             continue;
         }
 
@@ -594,13 +594,13 @@ ErrorType NetServer::SendNearbyEvents(const SV_Client &client)
 ErrorType NetServer::SendPlayerState(const SV_Client &client, const Player &otherPlayer, bool nearby, bool spawned)
 {
     NetMessage netMsg{};
-    netMsg.type = NetMessage::Type::NearbyEvent;
+    netMsg.itemClass = NetMessage::Type::NearbyEvent;
 
     NetMessage_NearbyEvent &nearbyEvent = netMsg.data.nearbyEvent;
-    nearbyEvent.type = NetMessage_NearbyEvent::Type::PlayerState;
+    nearbyEvent.itemClass = NetMessage_NearbyEvent::Type::PlayerState;
 
     NetMessage_NearbyEvent::PlayerState &state = netMsg.data.nearbyEvent.data.playerState;
-    state.id = otherPlayer.id;
+    state.type = otherPlayer.type;
     state.nearby = nearby;
     state.spawned = spawned;
     state.attacked = otherPlayer.actionState == Player::ActionState::Attacking;
@@ -623,13 +623,13 @@ ErrorType NetServer::SendPlayerState(const SV_Client &client, const Player &othe
 ErrorType NetServer::SendEnemyState(const SV_Client &client, const Slime &enemy, bool nearby, bool spawned)
 {
     NetMessage netMsg{};
-    netMsg.type = NetMessage::Type::NearbyEvent;
+    netMsg.itemClass = NetMessage::Type::NearbyEvent;
 
     NetMessage_NearbyEvent &nearbyEvent = netMsg.data.nearbyEvent;
-    nearbyEvent.type = NetMessage_NearbyEvent::Type::EnemyState;
+    nearbyEvent.itemClass = NetMessage_NearbyEvent::Type::EnemyState;
 
     NetMessage_NearbyEvent::EnemyState &state = netMsg.data.nearbyEvent.data.enemyState;
-    state.id = enemy.id;
+    state.type = enemy.type;
     state.nearby = nearby;
     state.spawned = spawned;
     state.attacked = enemy.actionState == Slime::ActionState::Attacking;
@@ -891,7 +891,7 @@ void NetServer::ProcessMsg(SV_Client &client, ENetPacket &packet)
         } case NetMessage::Type::ChatMessage: {
             NetMessage_ChatMessage &chatMsg = netMsg.data.chatMsg;
 
-            // TODO(security): Detect someone sending packets with wrong source/id and PUNISH THEM (.. or wutevs)
+            // TODO(security): Detect someone sending packets with wrong source/type and PUNISH THEM (.. or wutevs)
             chatMsg.source = NetMessage_ChatMessage::Source::Client;
             chatMsg.id = client.playerId;
 
@@ -946,12 +946,12 @@ void NetServer::ProcessMsg(SV_Client &client, ENetPacket &packet)
                 // TODO(security): Validate params, discard if invalid
                 TraceLog(LOG_DEBUG, "[SRV] SlotDrop  slotId: %u, count: %u", slotDrop.slotId, slotDrop.count);
                 ItemStack dropStack = player->inventory.SlotDrop(slotDrop.slotId, slotDrop.count);
-                TraceLog(LOG_DEBUG, "[SRV] SpawnItem itemId: %u, count: %u", dropStack.id, dropStack.count);
-                serverWorld->itemSystem.SpawnItem(player->body.WorldPosition(), dropStack.id, dropStack.count);
+                TraceLog(LOG_DEBUG, "[SRV] SpawnItem itemId: %u, count: %u", dropStack.itemType, dropStack.count);
+                serverWorld->itemSystem.SpawnItem(player->body.WorldPosition(), dropStack.itemType, dropStack.count);
             }
             break;
         } default: {
-            E_INFO("Unexpected netMsg type: %s", netMsg.TypeString());
+            E_INFO("Unexpected netMsg itemClass: %s", netMsg.TypeString());
             break;
         }
     }
@@ -1056,7 +1056,7 @@ ErrorType NetServer::Listen(void)
                 RemoveClient(event.peer);
                 break;
             } default: {
-                E_WARN("Unhandled event type: %d", event.type);
+                E_WARN("Unhandled event itemClass: %d", event.type);
                 break;
             }
         }

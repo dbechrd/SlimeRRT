@@ -49,7 +49,7 @@ bool Tilemap::GenerateNoise(Texture &tex)
             const double noise = noise2(ose, osg, (x + OFF_X) * FREQ, (y + OFF_Y) * FREQ);
             //printf("%0.2f ", noise);
 
-            *noisePixel = (uint8_t)(128.0 + noise * 128.0); // tileColors[(int)tile.type];
+            *noisePixel = (uint8_t)(128.0 + noise * 128.0); // tileColors[(int)tile.itemClass];
             //printf("%d ", *minimapPixel);
             noisePixel++;
         }

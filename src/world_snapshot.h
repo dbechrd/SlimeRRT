@@ -5,7 +5,7 @@
 
 #if 0
 struct PlayerSnapshot {
-    uint32_t  id           {};
+    uint32_t  type           {};
     Vector3   position     {};
     Direction direction    {};
     float     hitPoints    {};
@@ -13,7 +13,7 @@ struct PlayerSnapshot {
 };
 
 struct SlimeSnapshot {
-    uint32_t  id           {};
+    uint32_t  type           {};
     Vector3   position     {};
     Direction direction    {};
     float     hitPoints    {};
@@ -22,12 +22,12 @@ struct SlimeSnapshot {
 };
 
 struct WorldItemSnapshot {
-    uint32_t  id       {};
+    uint32_t  type       {};
     Vector3   position {};
 };
 
 struct WorldSnapshot {
-    uint32_t          playerId     {};  // id of player this snapshot is intended for
+    uint32_t          playerId     {};  // type of player this snapshot is intended for
     uint32_t          lastInputAck {};  // sequence # of last processed input
     uint32_t          tick         {};
     double            recvAt       {};  // not sent over network, auto-populated when received
@@ -150,18 +150,18 @@ struct ItemSnapshot {
         None       = 0,
         Despawn    = 0x01,  // picked up / stale
         Position   = 0x02,  // world position
-        CatalogId  = 0x04,  // type of item
+        CatalogId  = 0x04,  // itemClass of item
         StackCount = 0x08,  // size of item stack (if 0, item is picked up entirely)
         All = Position
             | CatalogId
             | StackCount
     };
 
-    Flags           flags      {};
-    uint32_t        id         {};
-    Vector3         position   {};  // spawn, move
-    Catalog::ItemID catalogId  {};  // spawn
-    uint32_t        stackCount {};  // spawn, partial pickup, combine nearby stacks (future)
+    Flags    flags      {};
+    uint32_t id         {};
+    Vector3  position   {};  // spawn, move
+    ItemType   catalogId  {};  // spawn
+    uint32_t stackCount {};  // spawn, partial pickup, combine nearby stacks (future)
 };
 
 static inline ItemSnapshot::Flags operator|(ItemSnapshot::Flags lhs, ItemSnapshot::Flags rhs)

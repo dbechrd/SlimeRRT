@@ -144,7 +144,7 @@ void UI::Minimap(const Font &font, World &world)
     // Draw slimes on map
     for (size_t i = 0; i < ARRAY_SIZE(world.slimes); i++) {
         const Slime &s = world.slimes[i];
-        if (s.id) {
+        if (s.type) {
             float x = (s.body.WorldPosition().x / camRect.width) * minimapW + minimapX;
             float y = (s.body.WorldPosition().y / camRect.height) * minimapH + minimapY;
             DrawCircle((int)x, (int)y, 2.0f, Color{ 0, 170, 80, 255 });
@@ -154,7 +154,7 @@ void UI::Minimap(const Font &font, World &world)
     // Draw players on map
     for (size_t i = 0; i < ARRAY_SIZE(world.players); i++) {
         const Player &p = world.players[i];
-        if (p.id) {
+        if (p.type) {
             float x = (p.body.WorldPosition().x / camRect.width) * minimapW + minimapX;
             float y = (p.body.WorldPosition().y / camRect.height) * minimapH + minimapY;
             const Color playerColor{ 220, 90, 20, 255 };
@@ -373,8 +373,8 @@ void UI::HUD(const Font &font, World &world, const DebugStats &debugStats)
     if (debugStats.rtt) {
         linesOfText += 5;
     }
-    const float margin = 6.0f;   // xpBarLeft/xpBarTop margin
-    const float pad = 4.0f;      // xpBarLeft/xpBarTop pad
+    const float margin = 6.0f;   // margin
+    const float pad = 4.0f;      // pad
     const float hudWidth = 240.0f;
     const float hudHeight = linesOfText * (font.baseSize + pad) + pad;
 
@@ -389,7 +389,7 @@ void UI::HUD(const Font &font, World &world, const DebugStats &debugStats)
 
     text = SafeTextFormat("%2i fps (%.02f ms)", GetFPS(), GetFrameTime() * 1000.0f);
     PUSH_TEXT(text, WHITE);
-    text = SafeTextFormat("Coins: %d", player->inventory.slots[(int)PlayerInventorySlot::Coin_Copper].count);
+    text = SafeTextFormat("Coins: %d", player->inventory.slots[PlayerInvSlot_Coin_Copper].count);
     PUSH_TEXT(text, YELLOW);
     text = SafeTextFormat("XP: %u", player->xp);
     PUSH_TEXT(text, GREEN);
@@ -489,8 +489,8 @@ void UI::HUD(const Font &font, World &world, const DebugStats &debugStats)
     if (args.server) {
         int linesOfText = 1 + (int)gameServer.clients.size();
 
-        const float margin = 6.0f;   // xpBarLeft/xpBarTop margin
-        const float pad = 4.0f;      // xpBarLeft/xpBarTop pad
+        const float margin = 6.0f;   // margin
+        const float pad = 4.0f;      // pad
         const float hudWidth = 200.0f;
         const float hudHeight = linesOfText * (fontHeight + pad) + pad;
 
@@ -515,21 +515,21 @@ void UI::HUD(const Font &font, World &world, const DebugStats &debugStats)
 
     rlDrawRenderBatchActive();
 
-    float xpBarPad = 2.0f;
-    float xpBarWidth = screenSize.x / 2.0f;
-    float xpBarHeight = 28.0f;
-
-    ImVec2 xpBarCenter{
-        screenSize.x / 2.0f,
-        10.0f
-    };
+    float xpBarWidth = 512.0f;
+    ImVec2 xpBarCenter{ screenSize.x / 2.0f, 2.0f };
     ImGui::SetNextWindowPos(xpBarCenter, 0, ImVec2(0.5f, 0.0f));
-    ImGui::SetNextWindowSize(ImVec2(xpBarWidth, xpBarHeight + xpBarPad * 2));
+    ImGui::SetNextWindowSize(ImVec2(xpBarWidth, 0));
 
     int styleVars = 0;
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(xpBarPad, xpBarPad)); styleVars++;
-    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImColor(0.0f, 0.0f, 0.0f, 0.7f).Value);
-    //ImGui::PushFont(g_fonts.imFontHack16);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(4, 4)); styleVars++;
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 4.0f); styleVars++;
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 4.0f); styleVars++;
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f); styleVars++;
+    int styleCols = 0;
+    ImGui::PushStyleColor(ImGuiCol_Border, ImColor(0, 0, 0, 255).Value); styleCols++;
+    ImGui::PushStyleColor(ImGuiCol_FrameBg, ImColor(160, 160, 160, 255).Value); styleCols++;
+    ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ImColor(140, 230, 30, 255).Value); styleCols++;
+    ImGui::PushFont(g_fonts.imFontHack16);
 
     ImGui::Begin("##hud_xp_bar", 0,
         //ImGuiWindowFlags_NoTitleBar |
@@ -537,7 +537,7 @@ void UI::HUD(const Font &font, World &world, const DebugStats &debugStats)
         //ImGuiWindowFlags_NoCollapse |
         ImGuiWindowFlags_NoDecoration |
         ImGuiWindowFlags_NoMove |
-        //ImGuiWindowFlags_NoBackground |
+        ImGuiWindowFlags_NoBackground |
         ImGuiWindowFlags_NoSavedSettings
     );
 
@@ -546,13 +546,12 @@ void UI::HUD(const Font &font, World &world, const DebugStats &debugStats)
     //xpProgress = sinf(glfwGetTime()) / 2.0f + 0.5f;
     char buf[32]{};
     snprintf(buf, sizeof(buf), "%u / %u", player->xp, xpNextLevel);
-    ImGui::ProgressBar(xpProgress, ImVec2(-FLT_MIN, xpBarHeight), buf);
+    ImGui::ProgressBar(xpProgress, ImVec2(-FLT_MIN, 0), buf);
 
     ImGui::End();
-    //ImGui::PopFont();
-    ImGui::PopStyleColor();
+    ImGui::PopFont();
+    ImGui::PopStyleColor(styleCols);
     ImGui::PopStyleVar(styleVars);
-
 }
 
 void UI::QuickHUD(const Font &font, const Player &player, const Tilemap &tilemap)
@@ -560,8 +559,8 @@ void UI::QuickHUD(const Font &font, const Player &player, const Tilemap &tilemap
     const char *text = 0;
 
     int linesOfText = 1;
-    const float margin = 6.0f;   // xpBarLeft/xpBarTop margin
-    const float pad = 4.0f;      // xpBarLeft/xpBarTop pad
+    const float margin = 6.0f;   // margin
+    const float pad = 4.0f;      // pad
     const float hudWidth = 240.0f;
     const float hudHeight = linesOfText * (font.baseSize + pad) + pad;
 
@@ -578,7 +577,7 @@ void UI::QuickHUD(const Font &font, const Player &player, const Tilemap &tilemap
     frameRect.height = (float)gildedSpriteDef->spritesheet->frames[3].height;
     DrawTextureRec(gildedSpriteDef->spritesheet->texture, frameRect, { margin + pad, hudCursorY }, WHITE);
 
-    text = SafeTextFormat("%d", player.inventory.slots[(int)PlayerInventorySlot::Coin_Copper].count);
+    text = SafeTextFormat("%d", player.inventory.slots[PlayerInvSlot_Coin_Copper].count);
     DrawTextFont(font, text, margin + pad + frameRect.width + pad, hudCursorY, 0, 0, font.baseSize, WHITE);
     hudCursorY += font.baseSize + pad;
 
@@ -726,7 +725,7 @@ void UI::TileHoverTip(const Font &font, const Tilemap &map)
     DrawTextFont(font, SafeTextFormat("tile : %d, %d", mouseTileX, mouseTileY),
         tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, 0, 0, font.baseSize, WHITE);
     lineOffset += font.baseSize;
-    DrawTextFont(font, SafeTextFormat("type : %d", mouseTile->type),
+    DrawTextFont(font, SafeTextFormat("itemClass : %d", mouseTile->type),
         tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, 0, 0, font.baseSize, WHITE);
     lineOffset += font.baseSize;
 }
@@ -1360,220 +1359,253 @@ void UI::InGameMenu(bool &escape, bool connectedToServer)
     }
 }
 
-void UI::Inventory(const Texture &invItems, Player& player, NetClient &netClient, bool &escape, bool &inventoryActive)
+void UI::InventorySlot(bool inventoryActive, int slot, const Texture &invItems, Player &player, NetClient &netClient)
 {
-    if (!inventoryActive) {
-        return;
-    } else if (escape) {
-        inventoryActive = false;
-        escape = false;
-        return;
+    ItemStack &invStack = player.inventory.GetInvStack(slot);
+
+    if (invStack.count) {
+        Vector2 uv0{};
+        Vector2 uv1{};
+        player.inventory.TexRect(invItems, invStack.itemType, uv0, uv1);
+        ImGui::ImageButton((ImTextureID)(size_t)invItems.id, ImVec2(ITEM_W, ITEM_H),
+            ImVec2{ uv0.x, uv0.y }, ImVec2{ uv1.x, uv1.y });
+
+        const ImVec2 topLeft = ImGui::GetItemRectMin();
+        ImDrawList *drawList = ImGui::GetWindowDrawList();
+
+        char countBuf[16]{};
+        snprintf(countBuf, sizeof(countBuf), "%d", invStack.count);
+        //snprintf(countBuf, sizeof(countBuf), "%d", newInvStack.count);
+        drawList->AddText(
+            { topLeft.x + 4, topLeft.y + 2 },
+            IM_COL32_WHITE,
+            countBuf
+        );
+    } else {
+        ImGui::Button("##inv_slot", ImVec2(48, 48));
+
+        // TODO: Add inv placeholder icon (was grayed out sword in items.png)
+        //ImGui::ImageButton((ImTextureID)(size_t)invItems.type, size, uv0, uv1, -1,
+        //    ImVec4(0, 0, 0, 0), ImVec4(1, 1, 1, 0.5f));
     }
 
-    const ImVec2 inventorySize{ 540.0, 360.0f };
-    const float pad = 80.0f;
-    const float left = screenSize.x - pad - inventorySize.x;
-    const float top = pad;
-    ImGui::SetNextWindowPos(ImVec2(left, top), ImGuiCond_Once);
-    ImGui::SetNextWindowSize(inventorySize);
+    if (inventoryActive) {
+        // Terraria:
+        //   on mouse down
+        //   always bottom right of cursor
+        //   xpBarLeft mouse down = take/swap/combine/drop stack
+        //   right mouse down = if stack is same (or cursor empty), take 1 item immediately, then repeat with acceleration
+        //   sin wave scale bobbing
+        //   can use held item as if equipped
+        // D2R:
+        //   Always centers item on cursor
+        //   empty cursor:
+        //     xpBarLeft mouse down = take/swap/drop stack (or combine for rare cases like keys)
+        // Minecraft:
+        //   empty cursor:
+        //     xpBarLeft mouse down = pick up stack
+        //     right mouse down = pick up bigger half of stack [(int)ceilf(count / 2.0f)]
+        //   filled cursor:
+        //     xpBarLeft mouse down + drag split stack evenly
+        //     right mouse down + drag 1 item piles
+        //     mouse up = keep remainder on cursor
+        //   Always centers item on cursor
+        //   squish (less width, more height) animation on pick-up
+        if (ImGui::IsItemHovered()) {
+            const int scrollY = (int)GetMouseWheelMove();
+            if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
+                const bool doubleClick = ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left);
+                netClient.SendSlotClick(slot, doubleClick);
+            } else if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
+                // if cursor empty, pick up half (or 1 like terraria? hmm..)
+                // else, pick up 1 more (repeat w/ acceleration)
+            } else if (scrollY) {
+                // TODO(dlb): This will break if the window has any scrolling controls
+                netClient.SendSlotScroll(slot, scrollY);
+            } else if (IsKeyPressed(KEY_Q)) {
+                uint32_t dropCount = 1;
+                if (IsKeyDown(KEY_LEFT_CONTROL)) {
+                    dropCount = invStack.count;
+                }
+                netClient.SendSlotDrop(slot, dropCount);
+            }
+    #if _DEBUG
+            else if (IsKeyPressed(KEY_KP_ADD)) {
+                invStack.itemType = (invStack.itemType + 1) % ITEMTYPE_COUNT;
+            } else if (IsKeyPressed(KEY_KP_SUBTRACT)) {
+                invStack.itemType = (invStack.itemType + ITEMTYPE_COUNT - 1) % ITEMTYPE_COUNT;
+            }
+    #endif
 
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 2.0f);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 2.0f);
+            ItemStack &cursorStack = player.inventory.CursorStack();
+            if (invStack.count && !cursorStack.count) {
+                Catalog::Item item = invStack.Item();
+                const char *invName = invStack.Name();
+                char invNameWithCountBuf[64]{};
+                if (invStack.count > 1) {
+                    snprintf(CSTR0(invNameWithCountBuf), "%s (%u)", invName, invStack.count);
+                    invName = invNameWithCountBuf;
+                }
+                const char *itemClass = Catalog::ItemClassToString(item.itemClass);
+                Color itemClassColor = Catalog::ItemClassToColor(item.itemClass);
+                ImVec4 itemClassImColor = Catalog::RayToImColor(itemClassColor);
+                const char *dmgLabel = "0.0 - 0.0 damage";
+                const char *valLabel = "sell @ 0.00";
 
+                float maxWidth = 0.0f;
+                maxWidth = MAX(maxWidth, ImGui::CalcTextSize(invName).x);
+                maxWidth = MAX(maxWidth, ImGui::CalcTextSize(itemClass).x);
+                maxWidth = MAX(maxWidth, ImGui::CalcTextSize(dmgLabel).x);
+                maxWidth = MAX(maxWidth, ImGui::CalcTextSize(valLabel).x);
+                maxWidth += 8.0f;
+
+                ImGui::SetNextWindowSize({ maxWidth, 0 });
+
+                ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 0, 2 });
+                ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 0, 4 });
+                ImGui::BeginTooltip();
+                //ImGui::SetTooltip("%u %s\n%s\nDamage: %.2f\nValue: %.2f", invStack.count, invName, itemClass, item.damage, item.value);
+
+                // Name (count)
+                CenterNextItem(invName);
+                ImGui::Text(invName);
+
+                // Type
+                CenterNextItem(itemClass);
+                ImGui::TextColored(itemClassImColor, itemClass);
+
+                // Damage
+                CenterNextItem(dmgLabel);
+                //ImGui::TextColored(Catalog::RayToImColor(WHITE), "Deals ");
+                //ImGui::SameLine();
+                ImGui::TextColored(Catalog::RayToImColor(MAROON), "%.1f", item.damage);
+                ImGui::SameLine();
+                ImGui::TextColored(Catalog::RayToImColor(WHITE), " - ");
+                ImGui::SameLine();
+                ImGui::TextColored(Catalog::RayToImColor(MAROON), "%.1f", item.damage);
+                ImGui::SameLine();
+                ImGui::TextColored(Catalog::RayToImColor(WHITE), " damage");
+
+                // Value
+                CenterNextItem(valLabel);
+                ImGui::TextColored(Catalog::RayToImColor(WHITE), "sell @ ");
+                ImGui::SameLine();
+                ImGui::TextColored(Catalog::RayToImColor(YELLOW), "%.2f", item.value);
+
+                ImGui::EndTooltip();
+                ImGui::PopStyleVar(2);
+            }
+        }
+    }
+}
+
+void UI::Inventory(const Texture &invItems, Player& player, NetClient &netClient, bool &escape, bool &inventoryActive)
+{
+    if (inventoryActive && escape) {
+        inventoryActive = false;
+        escape = false;
+    }
+
+    int styleVars = 0;
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 4.0f); styleVars++;
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 2.0f); styleVars++;
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(4, 4)); styleVars++;
+    int styleCols = 0;
     auto bgWindow = BLACK;
-    ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(bgWindow.r, bgWindow.g, bgWindow.b, 0.7f * 255.0f));
-    ImGui::PushStyleColor(ImGuiCol_Border, IM_COL32_BLACK);
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(bgWindow.r, bgWindow.g, bgWindow.b, 0.7f * 255.0f)); styleCols++;
+    ImGui::PushStyleColor(ImGuiCol_Border, IM_COL32_BLACK); styleCols++;
+
+    ImVec2 invCenter{ screenSize.x / 2.0f, 32.0f };
+    ImGui::SetNextWindowPos(invCenter, 0, ImVec2(0.5f, 0.0f));
 
     ImGui::Begin("##inventory", 0,
         ImGuiWindowFlags_NoDecoration |
         ImGuiWindowFlags_NoMove |
+        ImGuiWindowFlags_AlwaysAutoResize |
         //ImGuiWindowFlags_NoBackground |
         ImGuiWindowFlags_NoSavedSettings
     );
 
-    thread_local bool ignoreEmpty = false;
-    ImGui::Text("Your stuffs:");
-    ImGui::SameLine();
-    if (ImGui::Button("Sort")) player.inventory.Sort(ignoreEmpty);
-    ImGui::SameLine();
-    if (ImGui::Button("Sort & Combine")) player.inventory.SortAndCombine(ignoreEmpty);
-#if _DEBUG
-    auto dbgColor = PINK;
-    ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(dbgColor.r, dbgColor.g, dbgColor.b, 0.7f * 255.0f));
-    ImGui::SameLine();
-    if (ImGui::Button("Combine")) player.inventory.Combine(ignoreEmpty);
-    ImGui::SameLine();
-    if (ImGui::Button("Randomize")) player.inventory.Randomize();
-    ImGui::SameLine();
-    ImGui::Checkbox("Ignore empty", &ignoreEmpty);
-    ImGui::PopStyleColor();
-#endif
-
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(2, 2)); styleVars++;
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 5.0f); styleVars++;
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f); styleVars++;
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8.0f, 8.0f)); styleVars++;
     auto bgColor = DARKBLUE;
-    ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(bgColor.r, bgColor.g, bgColor.b, 0.7f * 255.0f));
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(0, 255, 0, 255));
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32(0, 0, 255, 255));
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(4, 4));
-    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 5.0f);
-    ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 3.0f);
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8.0f, 8.0f));
+    ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(bgColor.r, bgColor.g, bgColor.b, 0.7f * 255.0f)); styleCols++;
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(0, 255, 0, 255)); styleCols++;
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32(0, 0, 255, 255)); styleCols++;
 
-    dlb_rand32_t invRand{};
-    dlb_rand32_seed_r(&invRand, 2, 2);
+    ImGui::PushID("inv_hotbar");
+    for (int hotbarSlot = PlayerInvSlot_Hotbar_0; hotbarSlot <= PlayerInvSlot_Hotbar_9; hotbarSlot++) {
+        ImGui::PushID(hotbarSlot);
 
-    ItemStack &cursorStack = player.inventory.CursorStack();
+        if (hotbarSlot == player.inventory.selectedSlot) {
+            ImGui::PushStyleColor(ImGuiCol_Button, ImColor(170, 170, 0, 255).Value);
+        }
+        UI::InventorySlot(inventoryActive, hotbarSlot, invItems, player, netClient);
+        if (hotbarSlot == player.inventory.selectedSlot) {
+            ImGui::PopStyleColor();
+        }
 
-    int id = 0;
-    for (int row = 0; row < PLAYER_INV_ROWS; row++) {
-        ImGui::PushID(row);
-        for (int col = 0; col < PLAYER_INV_COLS; col++) {
-            ImGui::PushID(col);
+        if (hotbarSlot < PlayerInvSlot_Hotbar_9) {
+            ImGui::SameLine();
+        }
+        ImGui::PopID();
+    }
+    ImGui::PopID();
 
-            int slot = row * PLAYER_INV_COLS + col;
-            ItemStack &invStack = player.inventory.GetInvStack(slot);
-
-            if (invStack.count) {
-                Vector2 uv0{};
-                Vector2 uv1{};
-                player.inventory.TexRect(invItems, invStack.id, uv0, uv1);
-                ImGui::ImageButton((ImTextureID)(size_t)invItems.id, ImVec2(ITEM_W, ITEM_H),
-                    ImVec2{ uv0.x, uv0.y }, ImVec2{ uv1.x, uv1.y });
-
-                const ImVec2 topLeft = ImGui::GetItemRectMin();
-                ImDrawList *drawList = ImGui::GetWindowDrawList();
-
-                char countBuf[16]{};
-                snprintf(countBuf, sizeof(countBuf), "%d", invStack.count);
-                //snprintf(countBuf, sizeof(countBuf), "%d", newInvStack.count);
-                drawList->AddText(
-                    { topLeft.x + 4, topLeft.y + 2 },
-                    IM_COL32_WHITE,
-                    countBuf
-                );
-            } else {
-                ImGui::Button("##inv_slot", ImVec2(48, 48));
-
-                // TODO: Add inv placeholder icon (was grayed out sword in items.png)
-                //ImGui::ImageButton((ImTextureID)(size_t)invItems.id, size, uv0, uv1, -1,
-                //    ImVec4(0, 0, 0, 0), ImVec4(1, 1, 1, 0.5f));
-            }
-
-            // Terraria:
-            //   on mouse down
-            //   always bottom right of cursor
-            //   xpBarLeft mouse down = take/swap/combine/drop stack
-            //   right mouse down = if stack is same (or cursor empty), take 1 item immediately, then repeat with acceleration
-            //   sin wave scale bobbing
-            //   can use held item as if equipped
-            // D2R:
-            //   Always centers item on cursor
-            //   empty cursor:
-            //     xpBarLeft mouse down = take/swap/drop stack (or combine for rare cases like keys)
-            // Minecraft:
-            //   empty cursor:
-            //     xpBarLeft mouse down = pick up stack
-            //     right mouse down = pick up bigger half of stack [(int)ceilf(count / 2.0f)]
-            //   filled cursor:
-            //     xpBarLeft mouse down + drag split stack evenly
-            //     right mouse down + drag 1 item piles
-            //     mouse up = keep remainder on cursor
-            //   Always centers item on cursor
-            //   squish (less width, more height) animation on pick-up
-            if (ImGui::IsItemHovered()) {
-                const int scrollY = (int)GetMouseWheelMove();
-                if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
-                    const bool doubleClick = ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left);
-                    netClient.SendSlotClick(slot, doubleClick);
-                } else if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
-                    // if cursor empty, pick up half (or 1 like terraria? hmm..)
-                    // else, pick up 1 more (repeat w/ acceleration)
-                } else if (scrollY) {
-                    // TODO(dlb): This will break if the window has any scrolling controls
-                    netClient.SendSlotScroll(slot, scrollY);
-                } else if (IsKeyPressed(KEY_Q)) {
-                    uint32_t dropCount = 1;
-                    if (IsKeyDown(KEY_LEFT_CONTROL)) {
-                        dropCount = invStack.count;
-                    }
-                    netClient.SendSlotDrop(slot, dropCount);
-                }
+    if (inventoryActive) {
+        thread_local bool ignoreEmpty = false;
+        if (ImGui::Button("Sort")) player.inventory.Sort(ignoreEmpty);
+        ImGui::SameLine();
+        if (ImGui::Button("Sort & Combine")) player.inventory.SortAndCombine(ignoreEmpty);
 #if _DEBUG
-                else if (IsKeyPressed(KEY_KP_ADD)) {
-                    invStack.id = (Catalog::ItemID)(((int)invStack.id + 1) % (int)Catalog::ItemID::Count);
-                } else if (IsKeyPressed(KEY_KP_SUBTRACT)) {
-                    invStack.id = (Catalog::ItemID)(((int)invStack.id - 1 + (int)Catalog::ItemID::Count) % (int)Catalog::ItemID::Count);
-                }
+        auto dbgColor = PINK;
+        ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(dbgColor.r, dbgColor.g, dbgColor.b, 0.7f * 255.0f));
+        ImGui::SameLine();
+        if (ImGui::Button("Combine")) player.inventory.Combine(ignoreEmpty);
+        ImGui::SameLine();
+        ImGui::Checkbox("Ignore empty", &ignoreEmpty);
+        ImGui::PopStyleColor();
 #endif
 
-                if (invStack.count && !cursorStack.count) {
-                    Catalog::Item item = invStack.Item();
-                    const char *invName = invStack.Name();
-                    char invNameWithCountBuf[64]{};
-                    if (invStack.count > 1) {
-                        snprintf(CSTR0(invNameWithCountBuf), "%s (%u)", invName, invStack.count);
-                        invName = invNameWithCountBuf;
-                    }
-                    const char *itemType = Catalog::ItemTypeToString(item.type);
-                    Color itemTypeColor = Catalog::ItemTypeToColor(item.type);
-                    ImVec4 itemTypeImColor = Catalog::RayToImColor(itemTypeColor);
-                    const char *dmgLabel = "0.0 - 0.0 damage";
-                    const char *valLabel = "sell @ 0.00";
+#if 0
+        ImGui::PushID("inv_coinage");
+        for (int coinSlot = PlayerInvSlot_Coin_Copper; coinSlot <= PlayerInvSlot_Coin_Gilded; coinSlot++) {
+            ImGui::PushID(coinSlot);
 
-                    float maxWidth = 0.0f;
-                    maxWidth = MAX(maxWidth, ImGui::CalcTextSize(invName).x);
-                    maxWidth = MAX(maxWidth, ImGui::CalcTextSize(itemType).x);
-                    maxWidth = MAX(maxWidth, ImGui::CalcTextSize(dmgLabel).x);
-                    maxWidth = MAX(maxWidth, ImGui::CalcTextSize(valLabel).x);
-                    maxWidth += 8.0f;
+            UI::InventorySlot(inventoryActive, coinSlot, invItems, player, netClient);
 
-                    ImGui::SetNextWindowSize({ maxWidth, 0 });
-
-                    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 0, 2 });
-                    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 0, 4 });
-                    ImGui::BeginTooltip();
-                    //ImGui::SetTooltip("%u %s\n%s\nDamage: %.2f\nValue: %.2f", invStack.count, invName, itemType, item.damage, item.value);
-
-                    // Name (count)
-                    CenterNextItem(invName);
-                    ImGui::Text(invName);
-
-                    // Type
-                    CenterNextItem(itemType);
-                    ImGui::TextColored(itemTypeImColor, itemType);
-
-                    // Damage
-                    CenterNextItem(dmgLabel);
-                    //ImGui::TextColored(Catalog::RayToImColor(WHITE), "Deals ");
-                    //ImGui::SameLine();
-                    ImGui::TextColored(Catalog::RayToImColor(MAROON), "%.1f", item.damage);
-                    ImGui::SameLine();
-                    ImGui::TextColored(Catalog::RayToImColor(WHITE), " - ");
-                    ImGui::SameLine();
-                    ImGui::TextColored(Catalog::RayToImColor(MAROON), "%.1f", item.damage);
-                    ImGui::SameLine();
-                    ImGui::TextColored(Catalog::RayToImColor(WHITE), " damage");
-
-                    // Value
-                    CenterNextItem(valLabel);
-                    ImGui::TextColored(Catalog::RayToImColor(WHITE), "sell @ ");
-                    ImGui::SameLine();
-                    ImGui::TextColored(Catalog::RayToImColor(YELLOW), "%.2f", item.value);
-
-                    ImGui::EndTooltip();
-                    ImGui::PopStyleVar(2);
-                }
-            }
-
-            if (col < PLAYER_INV_COLS - 1) {
+            if (coinSlot < PlayerInvSlot_Coin_Gilded) {
                 ImGui::SameLine();
             }
             ImGui::PopID();
         }
         ImGui::PopID();
-    }
-    ImGui::PopStyleColor(5);
-    ImGui::PopStyleVar(6);
+#endif
+        ImGui::PushID("inv_slots");
+        for (int row = 0; row < PLAYER_INV_ROWS; row++) {
+            ImGui::PushID(row);
+            for (int col = 0; col < PLAYER_INV_COLS; col++) {
+                ImGui::PushID(col);
 
+                int slot = row * PLAYER_INV_COLS + col;
+                UI::InventorySlot(inventoryActive, slot, invItems, player, netClient);
+
+                if (col < PLAYER_INV_COLS - 1) {
+                    ImGui::SameLine();
+                }
+                ImGui::PopID();
+            }
+            ImGui::PopID();
+        }
+        ImGui::PopID();
+    }
+
+    ImGui::PopStyleColor(styleCols);
+    ImGui::PopStyleVar(styleVars);
+
+    ItemStack &cursorStack = player.inventory.CursorStack();
     if (cursorStack.count) {
 #if CL_CURSOR_ITEM_HIDES_POINTER
         HideCursor();
@@ -1584,7 +1616,7 @@ void UI::Inventory(const Texture &invItems, Player& player, NetClient &netClient
 
         Vector2 uv0{};
         Vector2 uv1{};
-        player.inventory.TexRect(invItems, cursorStack.id, uv0, uv1);
+        player.inventory.TexRect(invItems, cursorStack.itemType, uv0, uv1);
 
         Vector2 cursorOffset{};
 #if CL_CURSOR_ITEM_RELATIVE_TERRARIA
@@ -1639,7 +1671,7 @@ void UI::Inventory(const Texture &invItems, Player& player, NetClient &netClient
         }
 #else
         drawList->AddImage(
-            (ImTextureID)(size_t)invItems.id,
+            (ImTextureID)(size_t)invItems.type,
             ImVec2(dstRect.x, dstRect.y),
             ImVec2(dstRect.x + dstRect.width, dstRect.y + dstRect.height),
             ImVec2{ uv0.x, uv0.y }, ImVec2{ uv1.x, uv1.y }

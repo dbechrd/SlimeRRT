@@ -10,11 +10,12 @@ struct CSV {
     };
 
     struct Value {
-        u8 *data;
-        u32 length;
+        u8  *data  {};
+        u32 length {};
 
-        int toInt();
-        float toFloat();
+        int          toInt   ();
+        unsigned int toUint  ();
+        float        toFloat ();
     };
 
     u8  *data     {};  // Raw bytes of CSV data
