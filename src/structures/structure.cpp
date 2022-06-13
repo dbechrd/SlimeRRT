@@ -12,9 +12,9 @@ void Structure::Spawn(Tilemap &map, float x, float y)
             if (tile) {
                 switch (g_structure_vault[j * g_structure_vault_w + i]) {
                     case '.': continue;
-                    case 'g': tile->type = Tile::Type::Grass; break;
-                    case 'w': tile->type = Tile::Type::Water; break;
-                    case 'x': tile->type = Tile::Type::Wood;  break;
+                    case 'g': tile->type = TileType_Grass; break;
+                    case 'w': tile->type = TileType_Water; break;
+                    case 'x': tile->type = TileType_Wood;  break;
                 }
             }
         }

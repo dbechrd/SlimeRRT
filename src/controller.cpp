@@ -38,8 +38,12 @@ void PlayerControllerState::Query(bool processMouse, bool processKeyboard, bool 
     // Normal gameplay events
     } else {
         if (processMouse) {
+            if (IsKeyDown(KEY_LEFT_CONTROL)) {
+                cameraZoomDelta = GetMouseWheelMove();
+            } else {
+                cameraSpeedDelta = GetMouseWheelMove();
+            }
             attack = IsMouseButtonDown(MOUSE_LEFT_BUTTON);
-            cameraZoomDelta = GetMouseWheelMove();
         }
         if (processKeyboard) {
             walkNorth = IsKeyDown(KEY_W) && !IsKeyDown(KEY_S);
@@ -57,7 +61,7 @@ void PlayerControllerState::Query(bool processMouse, bool processKeyboard, bool 
             if (IsKeyPressed(KEY_EIGHT)) { selectSlot = PlayerInvSlot_Hotbar_7; }
             if (IsKeyPressed(KEY_NINE))  { selectSlot = PlayerInvSlot_Hotbar_8; }
             if (IsKeyPressed(KEY_ZERO))  { selectSlot = PlayerInvSlot_Hotbar_9; }
-            toggleInventory  = IsKeyPressed(KEY_I);
+            toggleInventory  = IsKeyPressed(KEY_E);
             dbgFindMouseTile = IsKeyDown(KEY_LEFT_ALT);
             dbgChatMessage   = IsKeyPressed(KEY_C);
             dbgTeleport      = IsKeyPressed(KEY_F5);

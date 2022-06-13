@@ -12,6 +12,7 @@ struct ItemWorld : Drawable {
     Sprite    sprite     {};
     double    spawnedAt  {};
     double    pickedUpAt {};
+    uint32_t  droppedByPlayerId {};
     ItemWorld *next      {};
 
     Vector3 WorldCenter(void) const;

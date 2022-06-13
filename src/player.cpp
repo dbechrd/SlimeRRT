@@ -27,12 +27,12 @@ void Player::Init(const SpriteDef *spriteDef)
     inventory.selectedSlot = PlayerInvSlot_Hotbar_0;
 
     // TODO: Load inventory from save file / server
-    inventory.slots[PlayerInvSlot_Hotbar_0   ] = { ItemType_Weapon_Long_Sword , 1 };
-    inventory.slots[PlayerInvSlot_Coin_Copper] = { ItemType_Currency_Copper, 0 };
-    inventory.slots[PlayerInvSlot_Coin_Silver] = { ItemType_Currency_Silver, 0 };
-    inventory.slots[PlayerInvSlot_Coin_Gilded] = { ItemType_Currency_Gilded, 0 };
-    inventory.slots[0] = { ItemType_Weapon_Dagger, 1 };
-    inventory.slots[1] = { ItemType_Book_BlackSkull, 3 };
+    inventory.slots[PlayerInvSlot_Hotbar_0   ].stack = { ItemType_Weapon_Long_Sword , 1 };
+    inventory.slots[PlayerInvSlot_Coin_Copper].stack = { ItemType_Currency_Copper, 0 };
+    inventory.slots[PlayerInvSlot_Coin_Silver].stack = { ItemType_Currency_Silver, 0 };
+    inventory.slots[PlayerInvSlot_Coin_Gilded].stack = { ItemType_Currency_Gilded, 0 };
+    inventory.slots[0].stack = { ItemType_Weapon_Dagger, 1 };
+    inventory.slots[1].stack = { ItemType_Book_BlackSkull, 3 };
 
     // TODO: Load stats from save file / server
     //stats.coinsCollected = 33;
@@ -75,7 +75,7 @@ Vector3 Player::GetAttachPoint(AttachPoint attachPoint) const
 
 const ItemStack &Player::GetSelectedItem() const
 {
-    const ItemStack &selectedStack = inventory.slots[(size_t)inventory.selectedSlot];
+    const ItemStack &selectedStack = inventory.slots[(size_t)inventory.selectedSlot].stack;
     return selectedStack;
 }
 
@@ -190,7 +190,7 @@ void Player::Update(InputSample &input, const Tilemap &map)
 
         const Vector2 pos = body.GroundPosition();
         const Tile *tile = map.TileAtWorld(pos.x, pos.y);
-        if (tile && tile->type == Tile::Type::Water) {
+        if (tile && tile->type == TileType_Water) {
             playerSpeed *= 0.5f;
             // TODO: moveState = Player::MoveState::Swimming;
         }
@@ -345,11 +345,11 @@ void Player::DrawSwimOverlay(const World &world) const
     Vector2 groundPos = body.GroundPosition();
     const Tile *tileLeft = world.map->TileAtWorld(groundPos.x - 15.0f, groundPos.y);
     const Tile *tileRight = world.map->TileAtWorld(groundPos.x + 15.0f, groundPos.y);
-    if (tileLeft && tileLeft->type == Tile::Type::Water ||
-        tileRight && tileRight->type == Tile::Type::Water) {
+    if (tileLeft && tileLeft->type == TileType_Water ||
+        tileRight && tileRight->type == TileType_Water) {
         auto tilesetId = world.map->tilesetId;
         Tileset &tileset = g_tilesets[(size_t)tilesetId];
-        Rectangle tileRect = tileset_tile_rect(tilesetId, Tile::Type::Water);
+        Rectangle tileRect = tileset_tile_rect(tilesetId, TileType_Water);
         assert(tileRect.width == TILE_W);
         assert(tileRect.height == TILE_W);
 
@@ -389,7 +389,7 @@ void Player::DrawSwimOverlay(const World &world) const
 
 #define CHECK_AND_DRAW(src, dst) \
             tile = world.map->TileAtWorld((dst).x, (dst).y);                                  \
-            if (tile && tile->type == Tile::Type::Water) {                                   \
+            if (tile && tile->type == TileType_Water) {                                   \
                 DrawTexturePro(tileset.texture, (src), (dst), { 0, 0 }, 0, Fade(WHITE, 0.8f)); \
                 minXWater = MIN(minXWater, (dst).x);                                           \
                 maxXWater = MAX(maxXWater, (dst).x + (dst).width);                             \
@@ -404,7 +404,7 @@ void Player::DrawSwimOverlay(const World &world) const
 #undef CHECK_AND_DRAW
 
         const Tile *playerGutTile = world.map->TileAtWorld(gut2d.x, gut2d.y);
-        if (playerGutTile && playerGutTile->type == Tile::Type::Water) {
+        if (playerGutTile && playerGutTile->type == TileType_Water) {
             Rectangle bubblesDstTopMid{
                 gut2d.x - 20.0f,
                 gut2d.y,

@@ -260,7 +260,7 @@ void NetServer::SendNearbyChunks(SV_Client &client)
             for (int x = chunkX - 2; x <= chunkX + 2; x++) {
                 const ChunkHash chunkHash = Chunk::Hash(x, y);
                 if (!client.chunkHistory.contains(chunkHash)) {
-                    const Chunk &chunk = serverWorld->map->FindOrGenChunk(serverWorld->rtt_seed, x, y);
+                    const Chunk &chunk = serverWorld->map->FindOrGenChunk(*serverWorld, serverWorld->rtt_seed, x, y);
                     SendWorldChunk(client, chunk);
                     client.chunkHistory.insert(chunk.Hash());
                 }
@@ -947,7 +947,10 @@ void NetServer::ProcessMsg(SV_Client &client, ENetPacket &packet)
                 TraceLog(LOG_DEBUG, "[SRV] SlotDrop  slotId: %u, count: %u", slotDrop.slotId, slotDrop.count);
                 ItemStack dropStack = player->inventory.SlotDrop(slotDrop.slotId, slotDrop.count);
                 TraceLog(LOG_DEBUG, "[SRV] SpawnItem itemId: %u, count: %u", dropStack.itemType, dropStack.count);
-                serverWorld->itemSystem.SpawnItem(player->body.WorldPosition(), dropStack.itemType, dropStack.count);
+                ItemWorld *item = serverWorld->itemSystem.SpawnItem(player->body.WorldPosition(), dropStack.itemType, dropStack.count);
+                if (item) {
+                    item->droppedByPlayerId = player->id;
+                }
             }
             break;
         } default: {

@@ -188,6 +188,7 @@ Slime *World::SpawnSlime(uint32_t slimeId, Vector2 origin)
                 slime.id = nextId;
             }
 
+            TraceLog(LOG_DEBUG, "SpawnSlime [%u]", slime.id);
             slime.Init();
             slime.body.Teleport(spawnPos);
             //TraceLog(LOG_DEBUG, "Spawned enemy %u", slime.type);
@@ -221,7 +222,7 @@ void World::RemoveSlime(uint32_t slimeId)
         return;
     }
 
-    //TraceLog(LOG_DEBUG, "Despawn enemy %u", slimeId);
+    TraceLog(LOG_DEBUG, "RemoveSlime [%u]", slime->id);
     *slime = {};
 }
 
@@ -401,28 +402,28 @@ void World::SV_SimSlimes(double dt)
 
 void World::SV_SimItems(double dt)
 {
-    // TODO: Move these to somewhere
-    const float playerItemPickupReach = METERS_TO_PIXELS(1.5f);
-    const float playerItemPickupDist = METERS_TO_PIXELS(0.4f);
+    const double now = glfwGetTime();
 
     for (ItemWorld &item : itemSystem.items) {
-        if (!item.uid || item.pickedUpAt || glfwGetTime() < item.spawnedAt + SV_ITEM_PICKUP_DELAY) {
+        if (!item.uid || item.pickedUpAt || now < item.spawnedAt + SV_ITEM_PICKUP_DELAY) {
             continue;
         }
 
         assert(item.stack.itemType != ITEMTYPE_EMPTY);
 
-        Player *closestPlayer = FindClosestPlayer(item.body.GroundPosition(), playerItemPickupReach);
-        if (!closestPlayer || !closestPlayer->id) {
+        Player *closestPlayer = FindClosestPlayer(item.body.GroundPosition(), SV_ITEM_ATTRACT_DIST);
+        if (!closestPlayer || !closestPlayer->id ||
+            (item.droppedByPlayerId == closestPlayer->id && now < item.spawnedAt + SV_ITEM_REPICKUP_DELAY)
+        ) {
             continue;
         }
 
         Vector2 itemToPlayer = v2_sub(closestPlayer->body.GroundPosition(), item.body.GroundPosition());
         const float itemToPlayerDistSq = v2_length_sq(itemToPlayer);
-        if (itemToPlayerDistSq < SQUARED(playerItemPickupDist)) {
+        if (itemToPlayerDistSq < SQUARED(SV_ITEM_PICKUP_DIST)) {
             if (closestPlayer->inventory.PickUp(item.stack)) {
                 if (!item.stack.count) {
-                    item.pickedUpAt = glfwGetTime();
+                    item.pickedUpAt = now;
 #if SV_DEBUG_WORLD_ITEMS
                     TraceLog(LOG_DEBUG, "Sim: Item picked up %u", item.type);
 #endif
@@ -433,7 +434,7 @@ void World::SV_SimItems(double dt)
             }
         } else {
             const Vector2 itemToPlayerDir = v2_normalize(itemToPlayer);
-            const float speed = MAX(0, 1.0f / PIXELS_TO_METERS(sqrtf(itemToPlayerDistSq)));
+            const float speed = MAX(0, 5.0f / PIXELS_TO_METERS(sqrtf(itemToPlayerDistSq)));
             const Vector2 itemVel = v2_scale(itemToPlayerDir, METERS_TO_PIXELS(speed));
             item.body.velocity.x = itemVel.x;
             item.body.velocity.y = itemVel.y;
@@ -470,7 +471,7 @@ void World::DespawnDeadEntities(void)
 
         // Check if enemy has been dead for awhile
         if (enemy.combat.diedAt && now - enemy.combat.diedAt > SV_ENEMY_CORPSE_LIFETIME) {
-            //TraceLog(LOG_DEBUG, "Despawn stale enemy corpse %u", enemy.type);
+            //TraceLog(LOG_DEBUG, "Despawn stale enemy corpse %u", enemy.id);
             RemoveSlime(enemy.id);
         }
     }
@@ -634,10 +635,19 @@ void World::CL_DespawnStaleEntities(void)
 
         if (enemy.body.positionHistory.Count()) {
             auto &lastPos = enemy.body.positionHistory.Last();
+
             const float distSq = v3_length_sq(v3_sub(player->body.WorldPosition(), lastPos.v));
             const bool faraway = distSq >= SQUARED(CL_ENEMY_FARAWAY_THRESHOLD);
             if (faraway) {
                 //TraceLog(LOG_DEBUG, "Despawn far away enemy %u", enemy.type);
+                RemoveSlime(enemy.id);
+                continue;
+            }
+
+            // HACK: Figure out WHY this is happening instead of just despawning. I'm assuming the server just didn't
+            // send me a despawn packet for this slime (e.g. because I'm too far away from it??)
+            if (glfwGetTime() - enemy.body.positionHistory.Last().recvAt > SV_ENEMY_STALE_LIFETIME) {
+                TraceLog(LOG_WARNING, "Despawn stale enemy %u", enemy.id);
                 RemoveSlime(enemy.id);
                 continue;
             }
@@ -679,8 +689,7 @@ size_t World::DrawMap(const Spycam &spycam)
         return 0;
     }
 
-    bool debugPrint = IsKeyPressed(KEY_F9);
-    ImDrawList *bgDrawList = ImGui::GetBackgroundDrawList();
+    //ImDrawList *bgDrawList = ImGui::GetBackgroundDrawList();
 
     size_t tilesDrawn = 0;
     const Rectangle &camRect = spycam.GetRect();
@@ -695,15 +704,26 @@ size_t World::DrawMap(const Spycam &spycam)
             xx = floorf(xx / TILE_W) * TILE_W;
             yy = floorf(yy / TILE_W) * TILE_W;
 
-#if 1
-            // Draw all tiles as textured rects (looks best, performs worst)
             const Tile *tile = map->TileAtWorld(xx, yy);
-            tileset_draw_tile(map->tilesetId, tile ? tile->type : Tile::Type::Void, { xx, yy });
-            //tileset_draw_tile(map->tilesetId, tile ? tile->itemClass : Tile::Type::Grass, { xx, yy });
-#else
+            if (tile) {
+                tileset_draw_tile(map->tilesetId, tile->type, { xx, yy }, WHITE);
+
+                //uint8_t r = tile->base;
+                //uint8_t g = tile->baseNoise;
+                //const int xxi = (int)xx;
+                //const int yyi = (int)yy;
+                //DrawRectangle(xxi    , yyi     , SUBTILE_W, SUBTILE_H, { r, 0, 0, 255 });  // Top left
+                //DrawRectangle(xxi + 8, yyi     , SUBTILE_W, SUBTILE_H, { 0, g, 0, 255 });  // Top right
+
+                //DrawRectangle(xxi    , yyi + 16, SUBTILE_W, SUBTILE_H, { 0, 0, 0, 255 });  // Bottom left
+                //DrawRectangle(xxi + 8, yyi + 16, SUBTILE_W, SUBTILE_H, { 0, 0, 0, 255 });  // Bottom right
+            } else {
+                tileset_draw_tile(map->tilesetId, TileType_Void, { xx, yy }, WHITE);
+            }
+#if 0
             const Tile *tile = map->TileAtWorld(xx, yy);
             Tileset &tileset = g_tilesets[(size_t)map->tilesetId];
-            Rectangle tileRect = tileset_tile_rect(map->tilesetId, tile ? tile->itemClass : Tile::Type::Void);
+            Rectangle tileRect = tileset_tile_rect(map->tilesetId, tile ? tile->type : TileType_Void);
 
             ImVec2 uv0 = {
                 tileRect.x / tileset.texture.width,
@@ -745,81 +765,6 @@ size_t World::DrawMap(const Spycam &spycam)
     }
 
     return tilesDrawn;
-}
-
-void World::DrawNoiseDebug(const Spycam &spycam)
-{
-    const int zoomMipLevel = spycam.GetZoomMipLevel();
-    assert(zoomMipLevel > 0);
-    if (!map || zoomMipLevel <= 0) {
-        return;
-    }
-
-    const int seed = 1234;
-    thread_local OpenSimplexEnv *ose = 0;
-    if (!ose) ose = initOpenSimplex();
-    thread_local OpenSimplexGradients *osg = 0;
-    if (!osg) osg = newOpenSimplexGradients(ose, seed);
-    thread_local OpenSimplexGradients *osg2 = 0;
-    if (!osg2) osg2 = newOpenSimplexGradients(ose, seed + 1);
-
-    const Rectangle &cameraRect = spycam.GetRect();
-    const float cx = cameraRect.x;
-    const float cy = cameraRect.y;
-    const float tilesW = cameraRect.width / TILE_W;
-    const float tilesH = cameraRect.height / TILE_W;
-    for (float y = -1; y < tilesH + 2; y += zoomMipLevel) {
-        for (float x = -1; x < tilesW + 2; x += zoomMipLevel) {
-            float xx = cx + x * TILE_W;
-            float yy = cy + y * TILE_W;
-            xx -= fmodf(xx, TILE_W);
-            yy -= fmodf(yy, TILE_W);
-            Tile::Type tileType{};
-#if 1
-#define FREQ_BASE_LAYER 1.0 / 8000
-#define FREQ_BASE_NOISE 1.0 / 600
-            const double base = 0.5 + noise2(ose, osg, xx * FREQ_BASE_LAYER, yy * FREQ_BASE_LAYER) / 2.0;
-            const double baseNoise = 0.5 + noise2(ose, osg2, xx * FREQ_BASE_NOISE, yy * FREQ_BASE_NOISE) / 2.0;
-            if (base < 0.15 || (base < 0.25 && baseNoise < 0.7) || (base < 0.35 && baseNoise < 0.3)) {
-                tileType = Tile::Type::Water;
-            } else if (base < 0.4 || (base < 0.5 && baseNoise < 0.7) || (base < 0.55 && baseNoise < 0.3)) {
-                tileType = Tile::Type::Concrete;
-            } else if (base < 0.6 || (base < 0.7 && baseNoise < 0.7) || (base < 0.8 && baseNoise < 0.3)) {
-                tileType = Tile::Type::Grass;
-            } else if (base < 0.9) {
-                tileType = Tile::Type::Forest;
-            } else {
-                tileType = Tile::Type::Concrete;
-                tileType = Tile::Type::Forest;
-            }
-#else
-#define FREQ_BASE_LAYER 1.0 / 10000
-#define FREQ_BASE_NOISE 1.0 / 3000
-            const double base = 0.5 + noise2(ose, osg, xx * FREQ_BASE_LAYER, yy * FREQ_BASE_LAYER) / 2.0;
-            const double baseNoise = 0.5 + noise2(ose, osg2, xx * FREQ_BASE_NOISE, yy * FREQ_BASE_NOISE) / 2.0;
-            if (base + baseNoise < 0.8) {
-                tileType = Tile::Type::Water;
-            } else if (base + baseNoise < 0.86) {
-                tileType = Tile::Type::Concrete;
-            } else if (base + baseNoise < 1.5) {
-                tileType = Tile::Type::Grass;
-            } else if (base + baseNoise < 1.8) {
-                tileType = Tile::Type::Forest;
-            } else {
-                tileType = Tile::Type::Concrete;
-            }
-#endif
-#undef PERIOD
-#undef FREQ
-
-            tileset_draw_tile(map->tilesetId, tileType, { xx, yy });
-
-#define PAD 8
-            uint8_t tileColor = (uint8_t)CLAMP(baseNoise * 256, 0, 255.999); // tileColors[(int)tile.itemClass];
-            //DrawRectangle((int)xx + PAD, (int)yy + PAD, TILE_W - PAD*2, TILE_W - PAD*2, { tileColor, tileColor, tileColor, 255 });
-#undef PAD
-        }
-    }
 }
 
 void World::DrawItems(void)

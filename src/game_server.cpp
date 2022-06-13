@@ -45,7 +45,7 @@ ErrorType GameServer::Run(const Args &args)
 
     for (short y = -2; y <= 2; y++) {
         for (short x = -2; x <= 2; x++) {
-            world->map->FindOrGenChunk(world->rtt_seed, x, y);
+            world->map->FindOrGenChunk(*world, world->rtt_seed, x, y);
         }
     }
 

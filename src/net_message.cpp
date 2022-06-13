@@ -134,7 +134,9 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
             // TODO(perf): RLE compression
             // https://moddingwiki.shikadi.net/wiki/RLE_Compression#Code
             for (size_t i = 0; i < ARRAY_SIZE(worldChunk.chunk.tiles); i++) {
-                stream.Process((uint8_t &)worldChunk.chunk.tiles[i].type, 4, (uint8_t)Tile::Type::Grass, (uint8_t)Tile::Type::Count);
+                stream.Process(worldChunk.chunk.tiles[i].type, 4, TileType_Grass, TileType_Count);
+                stream.Process(worldChunk.chunk.tiles[i].base);
+                stream.Process(worldChunk.chunk.tiles[i].baseNoise);
             }
             stream.Align();
 
@@ -180,14 +182,14 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
                     thread_local bool slotMap[slotCount];
                     memset(slotMap, 0, sizeof(slotMap));
                     for (size_t i = 0; i < slotCount; i++) {
-                        ItemStack &invStack = player.inventory.slots[i];
+                        ItemStack &invStack = player.inventory.slots[i].stack;
                         slotMap[i] = invStack.count > 0;
                         stream.Process(slotMap[i]);
                     }
                     stream.Align();
                     for (size_t i = 0; i < slotCount; i++) {
                         if (slotMap[i]) {
-                            ItemStack &invStack = player.inventory.slots[i];
+                            ItemStack &invStack = player.inventory.slots[i].stack;
                             stream.Process((uint16_t &)invStack.itemType, 8, 0, (uint16_t)ITEMTYPE_COUNT - 1);
                             stream.Process(invStack.count);
                             assert(invStack.itemType != ITEMTYPE_EMPTY);  // ensure stack with count > 0 has valid item ID

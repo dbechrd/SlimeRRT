@@ -389,7 +389,7 @@ void UI::HUD(const Font &font, World &world, const DebugStats &debugStats)
 
     text = SafeTextFormat("%2i fps (%.02f ms)", GetFPS(), GetFrameTime() * 1000.0f);
     PUSH_TEXT(text, WHITE);
-    text = SafeTextFormat("Coins: %d", player->inventory.slots[PlayerInvSlot_Coin_Copper].count);
+    text = SafeTextFormat("Coins: %d", player->inventory.slots[PlayerInvSlot_Coin_Copper].stack.count);
     PUSH_TEXT(text, YELLOW);
     text = SafeTextFormat("XP: %u", player->xp);
     PUSH_TEXT(text, GREEN);
@@ -577,7 +577,7 @@ void UI::QuickHUD(const Font &font, const Player &player, const Tilemap &tilemap
     frameRect.height = (float)gildedSpriteDef->spritesheet->frames[3].height;
     DrawTextureRec(gildedSpriteDef->spritesheet->texture, frameRect, { margin + pad, hudCursorY }, WHITE);
 
-    text = SafeTextFormat("%d", player.inventory.slots[PlayerInvSlot_Coin_Copper].count);
+    text = SafeTextFormat("%d", player.inventory.slots[PlayerInvSlot_Coin_Copper].stack.count);
     DrawTextFont(font, text, margin + pad + frameRect.width + pad, hudCursorY, 0, 0, font.baseSize, WHITE);
     hudCursorY += font.baseSize + pad;
 
@@ -704,7 +704,7 @@ void UI::TileHoverTip(const Font &font, const Tilemap &map)
     float tooltipX = mouseScreen.x + tooltipOffsetX;
     float tooltipY = mouseScreen.y + tooltipOffsetY;
     const float tooltipW = 220.0f + tooltipPad * 2.0f;
-    const float tooltipH = 40.0f + tooltipPad * 2.0f;
+    const float tooltipH = 78.0f + tooltipPad * 2.0f;
 
     if (tooltipX + tooltipW > screenSize.x) tooltipX = screenSize.x - tooltipW;
     if (tooltipY + tooltipH > screenSize.y) tooltipY = screenSize.y - tooltipH;
@@ -725,7 +725,13 @@ void UI::TileHoverTip(const Font &font, const Tilemap &map)
     DrawTextFont(font, SafeTextFormat("tile : %d, %d", mouseTileX, mouseTileY),
         tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, 0, 0, font.baseSize, WHITE);
     lineOffset += font.baseSize;
-    DrawTextFont(font, SafeTextFormat("itemClass : %d", mouseTile->type),
+    DrawTextFont(font, SafeTextFormat("type : %d", mouseTile->type),
+        tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, 0, 0, font.baseSize, WHITE);
+    lineOffset += font.baseSize;
+    DrawTextFont(font, SafeTextFormat("base : %.2f", mouseTile->base / 255.0f),
+        tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, 0, 0, font.baseSize, WHITE);
+    lineOffset += font.baseSize;
+    DrawTextFont(font, SafeTextFormat("baseN: %.2f", mouseTile->baseNoise / 255.0f),
         tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, 0, 0, font.baseSize, WHITE);
     lineOffset += font.baseSize;
 }

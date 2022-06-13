@@ -5,11 +5,13 @@
 #include <vector>
 #include <unordered_map>
 
+struct World;
+
 // TODO: Refactor RRT logic out into standalone file
 struct RRTVertex {
-    Tile::Type tileType    {};
-    Vector2    position    {};
-    Rectangle  textureRect {};
+    TileType  tileType    {};
+    Vector2   position    {};
+    Rectangle textureRect {};
 };
 
 struct RRT {
@@ -48,7 +50,7 @@ struct Tilemap {
     const int16_t CalcChunk     (float world) const;
     const int16_t CalcChunkTile (float world) const;
     const Tile *TileAtWorld     (float x, float y) const;  // Return tile at pixel position in world space, assert on failure
-    Chunk &FindOrGenChunk       (int64_t seed, int16_t x, int16_t y);
+    Chunk &FindOrGenChunk       (World &world, int64_t seed, int16_t x, int16_t y);
 };
 
 #define MAX_TILEMAPS 8

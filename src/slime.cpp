@@ -45,6 +45,9 @@ void Slime::SetName(const char *slimeName, uint32_t slimeNameLength)
     memset(name, 0, nameLength);
     nameLength = MIN(slimeNameLength, USERNAME_LENGTH_MAX);
     memcpy(name, slimeName, nameLength);
+    if (nameLength < USERNAME_LENGTH_MAX) {
+        snprintf(name + nameLength, USERNAME_LENGTH_MAX - nameLength, " %d", id);
+    }
 }
 
 Vector3 Slime::WorldCenter(void) const

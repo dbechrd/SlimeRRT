@@ -49,7 +49,7 @@ bool Tilemap::GenerateNoise(Texture &tex)
             const double noise = noise2(ose, osg, (x + OFF_X) * FREQ, (y + OFF_Y) * FREQ);
             //printf("%0.2f ", noise);
 
-            *noisePixel = (uint8_t)(128.0 + noise * 128.0); // tileColors[(int)tile.itemClass];
+            *noisePixel = (uint8_t)(128.0 + noise * 128.0); // tileColors[(int)tile.type];
             //printf("%d ", *minimapPixel);
             noisePixel++;
         }
@@ -77,7 +77,7 @@ void Tilemap::GenerateMinimap(Vector2 worldPos)
 
     thread_local int pixelCount{};
     thread_local Image minimapImg{};
-    thread_local Color tileColors[(int)Tile::Type::Count]{};
+    thread_local Color tileColors[TileType_Count]{};
 
     if (!minimap.width) {
         minimapImg.width = CHUNK_W * 8;
@@ -89,14 +89,14 @@ void Tilemap::GenerateMinimap(Vector2 worldPos)
         minimapImg.data = calloc(pixelCount, sizeof(Color));
         assert(minimapImg.data);
 
-        tileColors[(int)Tile::Type::Void] = BLACK;
-        tileColors[(int)Tile::Type::Grass] = GREEN;
-        tileColors[(int)Tile::Type::Water] = SKYBLUE;
-        tileColors[(int)Tile::Type::Forest] = DARKGREEN;
-        tileColors[(int)Tile::Type::Wood] = BROWN;
-        tileColors[(int)Tile::Type::Concrete] = GRAY;
-        tileColors[(int)Tile::Type::Grass2] = GREEN;
-        tileColors[(int)Tile::Type::Grass3] = GREEN;
+        tileColors[(int)TileType_Void] = BLACK;
+        tileColors[(int)TileType_Grass] = GREEN;
+        tileColors[(int)TileType_Water] = SKYBLUE;
+        tileColors[(int)TileType_Forest] = DARKGREEN;
+        tileColors[(int)TileType_Wood] = BROWN;
+        tileColors[(int)TileType_Concrete] = GRAY;
+        tileColors[(int)TileType_Grass2] = GREEN;
+        tileColors[(int)TileType_Grass3] = GREEN;
 
         minimap = LoadTextureFromImage(minimapImg);
     }
@@ -119,7 +119,7 @@ void Tilemap::GenerateMinimap(Vector2 worldPos)
                     for (int tileX = 0; tileX < CHUNK_W; tileX++) {
                         Tile &tile = chunk.tiles[tileY * CHUNK_W + tileX];
                         assert((int)tile.type >= 0);
-                        assert((int)tile.type < (int)Tile::Type::Count);
+                        assert((int)tile.type < (int)TileType_Count);
                         int pixelY = ((chunkY - originChunkY + 4) * CHUNK_W + tileY);
                         int pixelX = ((chunkX - originChunkX + 4) * CHUNK_W + tileX);
                         int pixelIdx = pixelY * minimapImg.width + pixelX;
@@ -225,7 +225,7 @@ const Tile *Tilemap::TileAtWorld(float x, float y) const
     return 0;
 }
 
-Chunk &Tilemap::FindOrGenChunk(int64_t seed, int16_t chunkX, int16_t chunkY)
+Chunk &Tilemap::FindOrGenChunk(World &world, int64_t seed, int16_t chunkX, int16_t chunkY)
 {
     thread_local OpenSimplexEnv *ose = 0;
     if (!ose) ose = initOpenSimplex();
@@ -258,28 +258,32 @@ Chunk &Tilemap::FindOrGenChunk(int64_t seed, int16_t chunkX, int16_t chunkY)
             assert(tileIdx < ARRAY_SIZE(chunk.tiles));
             Tile &tile = chunk.tiles[tileY * CHUNK_W + tileX];
 
-            double worldX = (chunk.x * CHUNK_W + tileX) * TILE_W;
-            double worldY = (chunk.y * CHUNK_H + tileY) * TILE_W;
+            float worldX = (float)((chunk.x * CHUNK_W + tileX) * TILE_W);
+            float worldY = (float)((chunk.y * CHUNK_H + tileY) * TILE_W);
             //worldX -= fmod(worldX, TILE_W);
             //worldY -= fmod(worldY, TILE_W);
 
-            Tile::Type tileType{};
+            TileType tileType{};
 #if 1
 #define FREQ_BASE_LAYER 1.0 / 8000
 #define FREQ_BASE_NOISE 1.0 / 600
             const double base = 0.5 + noise2(ose, osg, worldX * FREQ_BASE_LAYER, worldY * FREQ_BASE_LAYER) / 2.0;
             const double baseNoise = 0.5 + noise2(ose, osg2, worldX * FREQ_BASE_NOISE, worldY * FREQ_BASE_NOISE) / 2.0;
             if (base < 0.15 || (base < 0.25 && baseNoise < 0.7) || (base < 0.35 && baseNoise < 0.3)) {
-                tileType = Tile::Type::Water;
+                tileType = TileType_Water;
             } else if (base < 0.4 || (base < 0.5 && baseNoise < 0.7) || (base < 0.55 && baseNoise < 0.3)) {
-                tileType = Tile::Type::Concrete;
+                tileType = TileType_Concrete;
             } else if (base < 0.6 || (base < 0.7 && baseNoise < 0.7) || (base < 0.8 && baseNoise < 0.3)) {
-                tileType = Tile::Type::Grass;
+                tileType = TileType_Grass;
             } else if (base < 0.9) {
-                tileType = Tile::Type::Forest;
+                tileType = TileType_Forest;
+            } else if (base < 0.94) {
+                tileType = TileType_Concrete;
             } else {
-                tileType = Tile::Type::Concrete;
-                tileType = Tile::Type::Forest;
+                tileType = TileType_Water;
+                if (baseNoise > 0.99) {
+                    world.itemSystem.SpawnItem({ worldX, worldY, 0 }, ItemType_Orig_Gem_GoldenChest, 1);
+                }
             }
 #else
 #define FREQ_BASE_LAYER 1.0 / 10000
@@ -287,20 +291,22 @@ Chunk &Tilemap::FindOrGenChunk(int64_t seed, int16_t chunkX, int16_t chunkY)
             const double base = 0.5 + noise2(ose, osg, xx * FREQ_BASE_LAYER, yy * FREQ_BASE_LAYER) / 2.0;
             const double baseNoise = 0.5 + noise2(ose, osg2, xx * FREQ_BASE_NOISE, yy * FREQ_BASE_NOISE) / 2.0;
             if (base + baseNoise < 0.8) {
-                tileType = Tile::Type::Water;
+                tileType = TileType_Water;
             } else if (base + baseNoise < 0.86) {
-                tileType = Tile::Type::Concrete;
+                tileType = TileType_Concrete;
             } else if (base + baseNoise < 1.5) {
-                tileType = Tile::Type::Grass;
+                tileType = TileType_Grass;
             } else if (base + baseNoise < 1.8) {
-                tileType = Tile::Type::Forest;
+                tileType = TileType_Forest;
             } else {
-                tileType = Tile::Type::Concrete;
+                tileType = TileType_Concrete;
             }
 #endif
 #undef PERIOD
 #undef FREQ
             tile.type = tileType;
+            tile.base = (uint8_t)(base * 255);
+            tile.baseNoise = (uint8_t)(baseNoise * 255);
             tileCount++;
         }
     }

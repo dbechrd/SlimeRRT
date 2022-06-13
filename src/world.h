@@ -65,7 +65,6 @@ struct World {
 
     void EnableCulling(Rectangle cullRect);
     size_t DrawMap(const Spycam &spycam);
-    void DrawNoiseDebug(const Spycam &spycam);
     void DrawItems(void);
     void DrawEntities(void);
     void DrawParticles(void);

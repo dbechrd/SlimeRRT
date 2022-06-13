@@ -549,13 +549,14 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                 Slime *slime = serverWorld->FindSlime(enemySnapshot.id);
                 if (!slime) {
                     if (enemySnapshot.flags & EnemySnapshot::Flags::Despawn) {
+                        TraceLog(LOG_DEBUG, "netClient despawn slime [%u]", enemySnapshot.id);
                         continue;
                     }
                     slime = serverWorld->SpawnSlime(enemySnapshot.id, {0, 0});
                     if (!slime) {
-                        TraceLog(LOG_ERROR, "Failed to spawn slime.");
                         continue;
                     }
+                    TraceLog(LOG_DEBUG, "netClient spawn slime [%u]", enemySnapshot.id);
                 }
 
                 if (enemySnapshot.flags != EnemySnapshot::Flags::None) {

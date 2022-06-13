@@ -34,9 +34,36 @@ enum : PlayerInvSlot {
     PlayerInvSlot_Count
 };
 
+typedef bool (*ItemFilterFn)(Catalog::Item item);
+
+bool ItemFilter_ItemClass_Weapon(Catalog::Item item)
+{
+    return item.itemClass == ItemClass_Weapon;
+};
+
+bool ItemFilter_ItemType_Currency_Copper(Catalog::Item item)
+{
+    return item.itemType == ItemType_Currency_Copper;
+};
+
+bool ItemFilter_ItemType_Currency_Silver(Catalog::Item item)
+{
+    return item.itemType == ItemType_Currency_Silver;
+};
+
+bool ItemFilter_ItemType_Currency_Gilded(Catalog::Item item)
+{
+    return item.itemType == ItemType_Currency_Gilded;
+};
+
+struct InventorySlot {
+    ItemFilterFn filter {};
+    ItemStack    stack  {};
+};
+
 struct PlayerInventory {
     PlayerInvSlot selectedSlot {};  // NOTE: for hotbar, needs rework
-    ItemStack     slots        [PlayerInvSlot_Count]{};
+    InventorySlot slots        [PlayerInvSlot_Count]{};
 
     void TexRect(const Texture &invItems, ItemType itemId, Vector2 &min, Vector2 &max)
     {
@@ -63,20 +90,23 @@ struct PlayerInventory {
         return srcStack.count < origCount;
     }
 
+    // TODO: CursorSlot
     ItemStack &CursorStack()
     {
-        ItemStack &cursor = slots[PlayerInvSlot_Cursor];
+        ItemStack &cursor = slots[PlayerInvSlot_Cursor].stack;
         return cursor;
     }
 
+    // TODO: GetInvSlot
     ItemStack &GetInvStack(int slot)
     {
         assert(slot >= 0);
         assert(slot < PlayerInvSlot_Count);
-        ItemStack &stack = slots[slot];
+        ItemStack &stack = slots[slot].stack;
         return stack;
     }
 
+    // TODO: SwapSlot() and check filter
     void SwapStack(ItemStack &a, ItemStack &b)
     {
         ItemStack tmp = a;
@@ -84,7 +114,8 @@ struct PlayerInventory {
         b = tmp;
     }
 
-    // Transfer as many items as possible from cursor to inv stack
+    // TODO: TransferSlot() and check filter
+    // Transfer as many items as possible from one slot to another
     bool TransferStack(ItemStack &src, ItemStack &dst, bool skipFull = false, uint32_t transferLimit = UINT32_MAX)
     {
         if (!dst.count || src.itemType == dst.itemType) {

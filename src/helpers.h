@@ -26,8 +26,8 @@
 #define CL_CURSOR_ITEM_HIDES_POINTER     0
 #define CL_CURSOR_ITEM_RELATIVE_TERRARIA 0
 #define CL_DEBUG_PLAYER_RECONCILIATION   0
-#define CL_DEBUG_REALLY_LONG_TIMEOUT     0
-#define CV_DEBUG_SHOW_LEVELS             0
+#define CL_DEBUG_REALLY_LONG_TIMEOUT     1
+#define CL_DEBUG_SHOW_LEVELS             0
 #define CL_DEBUG_SPEEDHAX                1
 #define CL_DEBUG_WORLD_CHUNKS            0
 #define CL_DEBUG_WORLD_ITEMS             0
@@ -54,10 +54,12 @@
 //------------------------------------------------------------------------------
 #define ITEM_W 32
 #define ITEM_H ITEM_W
-#define TILE_W 32
-#define TILE_H TILE_W
 #define CHUNK_W 16
 #define CHUNK_H CHUNK_W
+#define TILE_W 32
+#define TILE_H TILE_W
+#define SUBTILE_W 8
+#define SUBTILE_H SUBTILE_W
 
 #define SV_HOSTNAME_LENGTH_MAX      256
 #define SV_DEFAULT_PORT             4040
@@ -67,7 +69,7 @@
 #define SV_SINGLEPLAYER_PASS        "pass"
 #define SV_USERNAME                 "SERVER"
 #define SV_MAX_PLAYERS              8
-#define SV_MAX_SLIMES               256
+#define SV_MAX_SLIMES               8 //256
 #define SV_MAX_ITEMS                256 //4096
 #define SV_WORLD_ITEM_LIFETIME      300 //600 // despawn items after 10 minutes
 #define SV_TICK_RATE                60
@@ -77,7 +79,7 @@
 // NOTE: max diagonal distance at 1080p is 1100 + radius units. 1200px allows for a ~50px wide entity
 #define SV_PLAYER_NEARBY_THRESHOLD  1200.0f  // how close a player has to be to receive a snapshot
 #define SV_ENEMY_NEARBY_THRESHOLD   1200.0f  // how close an enemy has to be to receive a snapshot
-#if 0
+#if 1
 #define SV_ENEMY_MIN_SPAWN_DIST     METERS_TO_PIXELS(7.5f)   // closest enemies can spawn to a player
 #define SV_ENEMY_DESPAWN_RADIUS     METERS_TO_PIXELS(10.0f)  // furthest enemies can be from a player before despawning
 #else
@@ -85,10 +87,14 @@
 #define SV_ENEMY_DESPAWN_RADIUS     METERS_TO_PIXELS(30.0f)  // furthest enemies can be from a player before despawning
 #endif
 #define SV_ITEM_NEARBY_THRESHOLD    1200.0f  // how close an item has to be to receive a snapshot
-#define SV_ITEM_PICKUP_DELAY        0.5      // how long after an item is spawned before it can be picked up by a player
+#define SV_ITEM_ATTRACT_DIST        METERS_TO_PIXELS(1.0f)  // how close player should be to item to attract it
+#define SV_ITEM_PICKUP_DIST         METERS_TO_PIXELS(0.5f)  // how close player should be to item to pick it up
+#define SV_ITEM_PICKUP_DELAY        1.0      // how long after an item is spawned before it can be picked up by a player
+#define SV_ITEM_REPICKUP_DELAY      3.0      // how long after an item is dropped by a player before it can be picked up by the same player
 #define SV_STALE_RADIUS             50.0f    // unknown.. was this supposed to be used for something?
 #define SV_PLAYER_CORPSE_LIFETIME   8.0      // how long to wait after a player dies to despawn their corpse
 #define SV_ENEMY_CORPSE_LIFETIME    4.0      // how long to wait after an enemy dies to despawn their corpse
+#define SV_ENEMY_STALE_LIFETIME     4.0      // how long to wait to receive the next snapshot before despawning an enemy
 #define SV_RESPAWN_TIMER            5.0
 #define SV_COMMAND_MAX_ARGS         16       // max # of args a chat command can have
 #define SV_SLIME_MOVE_SPEED         METERS_TO_PIXELS(2.0f)
