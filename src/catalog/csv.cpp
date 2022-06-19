@@ -22,10 +22,11 @@ float CSV::Value::toFloat()
 CSV::Error CSV::ReadFromFile(const char *filename)
 {
     u32 fileBytes = 0;
-    u8 *fileData = LoadFileData(filename, &fileBytes);
+    fileData = LoadFileData(filename, &fileBytes);
 
     CSV::Reader reader{};
     reader.ReadFromMemory(*this, fileData, fileBytes);
+
     printf("Reading CSV [%s]: %s\n", filename, reader.StatusMsg());
     if (reader.StatusCode() != CSV::SUCCESS) {
         printf(reader.StatusMsg());

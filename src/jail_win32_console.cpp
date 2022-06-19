@@ -12,6 +12,12 @@ void InitConsole(void)
     //SetConsoleCtrlHandler(ConsoleCtrlHandler, TRUE);
 }
 
+void InitConsole(int x, int y, int w, int h)
+{
+    InitConsole();
+    SetConsolePosition(x, y, w, h);
+}
+
 void ShowConsole(void)
 {
     AllocConsole();

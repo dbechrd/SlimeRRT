@@ -21,11 +21,12 @@ struct NetClient {
     double   tickAccum        {};
     double   sendInputAccum   {};
 
-    uint32_t        inputSeq         {};  // seq # of input last sent to server
+    uint32_t inputSeq         {};  // seq # of input last sent to server
     RingBuffer<InputSample,   CL_INPUT_HISTORY> inputHistory {};
     RingBuffer<WorldSnapshot, CL_WORLD_HISTORY> worldHistory {};
 
-    ~NetClient();
+    NetClient                     (void);
+    ~NetClient                    (void);
     ErrorType OpenSocket          (void);
     ErrorType Connect             (const char *serverHost, unsigned short serverPort, const char *user, const char *password);
     ErrorType SendChatMessage     (const char *message, size_t messageLength);
@@ -46,6 +47,7 @@ struct NetClient {
 private:
     static const char *LOG_SRC;
     NetMessage tempMsg {};
+    ENetBuffer rawPacket {};
 
     ErrorType   SendRaw           (const void *data, size_t size);
     ErrorType   SendMsg           (NetMessage &message);

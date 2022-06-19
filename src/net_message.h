@@ -270,10 +270,10 @@ struct NetMessage {
         NetMessage_SlotDrop        slotDrop;
     } data{};
 
-    void Serialize(const World &world, ENetBuffer &buffer);
-    void Deserialize(World &world, const ENetBuffer &buffer);
+    size_t Serialize(const World &world, ENetBuffer &buffer);
+    size_t Deserialize(World &world, const ENetBuffer &buffer);
 
 private:
     static ENetBuffer tempBuffer;
-    void Process(BitStream::Mode mode, ENetBuffer &buffer, World &world);
+    size_t Process(BitStream::Mode mode, ENetBuffer &buffer, World &world);
 };

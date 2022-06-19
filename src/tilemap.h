@@ -2,6 +2,7 @@
 #include "tileset.h"
 #include "math.h"
 #include "dlb_rand.h"
+#include "OpenSimplex2F.h"
 #include <vector>
 #include <unordered_map>
 
@@ -43,14 +44,19 @@ struct Tilemap {
     Texture   minimap    {};
     TilesetID tilesetId  {};
     Tilemap  *next       {};
+    OpenSimplexEnv       *ose  {};
+    OpenSimplexGradients *osg  {};
+    OpenSimplexGradients *osg2 {};
 
-    ~Tilemap();
+    ~Tilemap                    ();
+    void SeedSimplex            (int64_t seed);
+    void FreeSimplex            (void);
     bool GenerateNoise          (Texture &tex);
     void GenerateMinimap        (Vector2 worldPos);
     const int16_t CalcChunk     (float world) const;
     const int16_t CalcChunkTile (float world) const;
     const Tile *TileAtWorld     (float x, float y) const;  // Return tile at pixel position in world space, assert on failure
-    Chunk &FindOrGenChunk       (World &world, int64_t seed, int16_t x, int16_t y);
+    Chunk &FindOrGenChunk       (World &world, int16_t x, int16_t y);
 };
 
 #define MAX_TILEMAPS 8
@@ -59,7 +65,7 @@ struct MapSystem {
     MapSystem(void);
     ~MapSystem(void);
 
-    Tilemap *Alloc(void);
+    Tilemap *Alloc(uint64_t seed);
 
 private:
     Tilemap  maps[MAX_TILEMAPS] {};

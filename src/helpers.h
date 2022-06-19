@@ -22,6 +22,12 @@
 //------------------------------------------------------------------------------
 // Feature flags
 //------------------------------------------------------------------------------
+#if _DEBUG
+    #define RUN_TESTS 0
+#else
+    #define RUN_TESTS 0
+#endif
+
 #define CL_CULL_ON_PUSH                  1
 #define CL_CURSOR_ITEM_HIDES_POINTER     0
 #define CL_CURSOR_ITEM_RELATIVE_TERRARIA 0
@@ -69,9 +75,9 @@
 #define SV_SINGLEPLAYER_PASS        "pass"
 #define SV_USERNAME                 "SERVER"
 #define SV_MAX_PLAYERS              8
-#define SV_MAX_SLIMES               8 //256
+#define SV_MAX_SLIMES               256
 #define SV_MAX_ITEMS                256 //4096
-#define SV_WORLD_ITEM_LIFETIME      300 //600 // despawn items after 10 minutes
+#define SV_WORLD_ITEM_LIFETIME      120 //600 // despawn items after 10 minutes
 #define SV_TICK_RATE                60
 #define SV_TICK_DT                  (1.0 / SV_TICK_RATE)
 #define SV_INPUT_HISTORY            (SV_TICK_RATE * SV_MAX_PLAYERS)
@@ -79,7 +85,7 @@
 // NOTE: max diagonal distance at 1080p is 1100 + radius units. 1200px allows for a ~50px wide entity
 #define SV_PLAYER_NEARBY_THRESHOLD  1200.0f  // how close a player has to be to receive a snapshot
 #define SV_ENEMY_NEARBY_THRESHOLD   1200.0f  // how close an enemy has to be to receive a snapshot
-#if 1
+#if 0
 #define SV_ENEMY_MIN_SPAWN_DIST     METERS_TO_PIXELS(7.5f)   // closest enemies can spawn to a player
 #define SV_ENEMY_DESPAWN_RADIUS     METERS_TO_PIXELS(10.0f)  // furthest enemies can be from a player before despawning
 #else

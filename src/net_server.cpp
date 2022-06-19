@@ -13,10 +13,17 @@
 
 const char *NetServer::LOG_SRC = "NetServer";
 
-NetServer::~NetServer()
+NetServer::NetServer(void)
+{
+    rawPacket.dataLength = PACKET_SIZE_MAX;
+    rawPacket.data = calloc(rawPacket.dataLength, sizeof(uint8_t));
+}
+
+NetServer::~NetServer(void)
 {
     TraceLog(LOG_DEBUG, "Killing NetServer");
     CloseSocket();
+    free(rawPacket.data);
 }
 
 ErrorType NetServer::OpenSocket(unsigned short socketPort)
@@ -95,8 +102,8 @@ ErrorType NetServer::SendMsg(const SV_Client &client, NetMessage &message)
     }
 
     message.connectionToken = client.connectionToken;
-    ENetBuffer rawPacket{ PACKET_SIZE_MAX, calloc(PACKET_SIZE_MAX, sizeof(uint8_t)) };
-    message.Serialize(*serverWorld, rawPacket);
+    memset(rawPacket.data, 0, rawPacket.dataLength);
+    size_t bytes = message.Serialize(*serverWorld, rawPacket);
 
     //E_INFO("[SEND][%21s][%5u b] %16s ", SafeTextFormatIP(client.peer->address), rawPacket.dataLength, netMsg.TypeString());
     if (message.type != NetMessage::Type::WorldSnapshot) {
@@ -105,11 +112,10 @@ ErrorType NetServer::SendMsg(const SV_Client &client, NetMessage &message)
             case NetMessage::Type::GlobalEvent: subType = message.data.globalEvent.TypeString(); break;
             case NetMessage::Type::NearbyEvent: subType = message.data.nearbyEvent.TypeString(); break;
         }
-        TraceLog(LOG_DEBUG, "[NetServer] Send %s %s (%zu b)", message.TypeString(), subType, rawPacket.dataLength);
+        TraceLog(LOG_DEBUG, "[NetServer] Send %s %s (%zu b)", message.TypeString(), subType, bytes);
     }
 
-    E_ASSERT(SendRaw(client, rawPacket.data, rawPacket.dataLength), "Failed to send packet");
-    free(rawPacket.data);
+    E_ASSERT(SendRaw(client, rawPacket.data, bytes), "Failed to send packet");
     return ErrorType::Success;
 }
 
@@ -260,7 +266,7 @@ void NetServer::SendNearbyChunks(SV_Client &client)
             for (int x = chunkX - 2; x <= chunkX + 2; x++) {
                 const ChunkHash chunkHash = Chunk::Hash(x, y);
                 if (!client.chunkHistory.contains(chunkHash)) {
-                    const Chunk &chunk = serverWorld->map->FindOrGenChunk(*serverWorld, serverWorld->rtt_seed, x, y);
+                    const Chunk &chunk = serverWorld->map->FindOrGenChunk(*serverWorld, x, y);
                     SendWorldChunk(client, chunk);
                     client.chunkHistory.insert(chunk.Hash());
                 }

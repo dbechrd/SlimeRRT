@@ -24,28 +24,14 @@ GameServer::~GameServer()
 
 ErrorType GameServer::Run(const Args &args)
 {
-#ifdef _DEBUG
-    InitConsole();
-    // Dock right side of right monitor
-    // { l:2873 t : 1 r : 3847 b : 1048 }
-    SetConsolePosition(2873, 1, 3847 - 2873, 1048 - 1);
-#endif
-
-    int enet_code = enet_initialize();
-    if (enet_code < 0) {
-        TraceLog(LOG_FATAL, "Failed to initialize network utilities (enet). Error code: %d\n", enet_code);
-    }
-
-    error_init("server.log");
-
     Catalog::g_items.LoadData();
 
     World *world = new World;
-    world->map = world->mapSystem.Alloc();
+    world->map = world->mapSystem.Alloc(world->rtt_seed);
 
     for (short y = -2; y <= 2; y++) {
         for (short x = -2; x <= 2; x++) {
-            world->map->FindOrGenChunk(*world, world->rtt_seed, x, y);
+            world->map->FindOrGenChunk(*world, x, y);
         }
     }
 

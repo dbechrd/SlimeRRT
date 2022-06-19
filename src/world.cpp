@@ -644,13 +644,15 @@ void World::CL_DespawnStaleEntities(void)
                 continue;
             }
 
+            // TODO: This hack doesn't work since we're only sending snapshots when a slime moves, and slimes don't
+            // move unless they have a target. Need to figure out why slime is just chillin and not updating.
             // HACK: Figure out WHY this is happening instead of just despawning. I'm assuming the server just didn't
             // send me a despawn packet for this slime (e.g. because I'm too far away from it??)
-            if (glfwGetTime() - enemy.body.positionHistory.Last().recvAt > SV_ENEMY_STALE_LIFETIME) {
-                TraceLog(LOG_WARNING, "Despawn stale enemy %u", enemy.id);
-                RemoveSlime(enemy.id);
-                continue;
-            }
+            //if (glfwGetTime() - enemy.body.positionHistory.Last().recvAt > SV_ENEMY_STALE_LIFETIME) {
+            //    TraceLog(LOG_WARNING, "Despawn stale enemy %u", enemy.id);
+            //    RemoveSlime(enemy.id);
+            //    continue;
+            //}
         }
     }
 

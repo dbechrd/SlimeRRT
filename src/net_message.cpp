@@ -5,7 +5,7 @@
 #include "tilemap.h"
 #include <cassert>
 
-void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
+size_t NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
 {
     assert(buffer.data);
     assert(buffer.dataLength);
@@ -390,31 +390,37 @@ void NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
     }
 
     stream.Flush();
-    buffer.dataLength = stream.BytesProcessed();
+    size_t bytesProcessed = stream.BytesProcessed();
 
 #if _DEBUG && 0
     if (itemClass == NetMessage::Type::WorldSnapshot) {
         thread_local FILE *sendLog = fopen("send.log", "w");
         fprintf(sendLog, "Snapshot #%u: ", data.worldSnapshot.tick);
-        for (size_t i = 0; i < buffer.dataLength; i++) {
+        for (size_t i = 0; i < bytesProcessed; i++) {
             fprintf(sendLog, "%02hhx", *((uint8_t *)buffer.data + i));
         }
         putc('\n', sendLog);
         //fclose(sendLog);
     }
 #endif
+
+    return bytesProcessed;
 }
 
-void NetMessage::Serialize(const World &world, ENetBuffer &buffer)
-{
-    Process(BitStream::Mode::Writer, buffer, (World &)world);
-    assert(buffer.data);
-    assert(buffer.dataLength);
-}
-
-void NetMessage::Deserialize(World &world, const ENetBuffer &buffer)
+size_t NetMessage::Serialize(const World &world, ENetBuffer &buffer)
 {
     assert(buffer.data);
     assert(buffer.dataLength);
-    Process(BitStream::Mode::Reader, (ENetBuffer &)buffer, world);
+    size_t bytesProcessed = Process(BitStream::Mode::Writer, buffer, (World &)world);
+    assert(bytesProcessed);
+    return bytesProcessed;
+}
+
+size_t NetMessage::Deserialize(World &world, const ENetBuffer &buffer)
+{
+    assert(buffer.data);
+    assert(buffer.dataLength);
+    size_t bytesProcessed = Process(BitStream::Mode::Reader, (ENetBuffer &)buffer, world);
+    assert(bytesProcessed);
+    return bytesProcessed;
 }

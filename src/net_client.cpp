@@ -12,9 +12,16 @@
 
 const char *NetClient::LOG_SRC = "NetClient";
 
+NetClient::NetClient(void)
+{
+    rawPacket.dataLength = PACKET_SIZE_MAX;
+    rawPacket.data = calloc(rawPacket.dataLength, sizeof(uint8_t));
+}
+
 NetClient::~NetClient(void)
 {
     CloseSocket();
+    free(rawPacket.data);
 }
 
 ErrorType NetClient::OpenSocket(void)
@@ -102,11 +109,10 @@ ErrorType NetClient::SendMsg(NetMessage &message)
     }
 
     message.connectionToken = connectionToken;
-    ENetBuffer rawPacket{ PACKET_SIZE_MAX, calloc(PACKET_SIZE_MAX, sizeof(uint8_t)) };
-    message.Serialize(*serverWorld, rawPacket);
+    memset(rawPacket.data, 0, rawPacket.dataLength);
+    size_t bytes = message.Serialize(*serverWorld, rawPacket);
     //E_INFO("[SEND][%21s][%5u b] %16s ", rawPacket.dataLength, netMsg.TypeString());
-    E_ASSERT(SendRaw(rawPacket.data, rawPacket.dataLength), "Failed to send packet");
-    free(rawPacket.data);
+    E_ASSERT(SendRaw(rawPacket.data, bytes), "Failed to send packet");
     return ErrorType::Success;
 }
 
@@ -338,7 +344,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
             NetMessage_Welcome &welcomeMsg = tempMsg.data.welcome;
 
             //serverWorld->map = serverWorld->mapSystem.Generate(serverWorld->rtt_rand, welcomeMsg.width, welcomeMsg.height);
-            serverWorld->map = serverWorld->mapSystem.Alloc();
+            serverWorld->map = serverWorld->mapSystem.Alloc(serverWorld->rtt_seed);
             if (!serverWorld->map) {
                 break;
             }

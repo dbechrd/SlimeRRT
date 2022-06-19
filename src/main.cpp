@@ -6,6 +6,7 @@
 #include "game_server.h"
 #include "server_cli.h"
 #include "jail_win32_console.h"
+//#include "dlb_memory.h"
 #include "../test/tests.h"
 
 DLB_ASSERT_HANDLER(handle_assert)
@@ -25,14 +26,68 @@ DLB_ASSERT_HANDLER(handle_assert)
 }
 dlb_assert_handler_def *dlb_assert_handler = handle_assert;
 
+int YourAllocHook(int nAllocType, void *pvData, size_t nSize, int nBlockUse, long lRequest,
+    const unsigned char *szFileName, int nLine)
+{
+    if (nBlockUse == _CRT_BLOCK || nBlockUse == _IGNORE_BLOCK) return true;
+    if (nAllocType == _HOOK_FREE) return true;
+    //if (lRequest > 200) return true;
+
+    const char *allocType = 0;
+    switch (nAllocType) {
+        case _HOOK_ALLOC:   allocType = "  alloc"; break;
+        case _HOOK_REALLOC: allocType = "realloc"; break;
+        case _HOOK_FREE:    allocType = "   free"; break;
+    }
+
+    const char *blockUse = 0;
+    switch (nBlockUse) {
+        case _FREE_BLOCK  : blockUse = "  FREE"; break;
+        case _NORMAL_BLOCK: blockUse = "NORMAL"; break;
+        case _CRT_BLOCK   : blockUse = "   CRT"; break;
+        case _IGNORE_BLOCK: blockUse = "IGNORE"; break;
+        case _CLIENT_BLOCK: blockUse = "CLIENT"; break;
+    }
+
+    _CrtSetAllocHook(0);
+    printf("[%s:%4d]{%6d}[%s][%s] %p (%zu bytes)\n", szFileName, nLine, lRequest, allocType, blockUse, pvData, nSize);
+    _CrtSetAllocHook(YourAllocHook);
+
+    return true;
+}
+
+#define SET_CRT_DEBUG_FIELD(a) \
+    _CrtSetDbgFlag((a) | _CrtSetDbgFlag(_CRTDBG_REPORT_FLAG))
+#define CLEAR_CRT_DEBUG_FIELD(a) \
+    _CrtSetDbgFlag(~(a) & _CrtSetDbgFlag(_CRTDBG_REPORT_FLAG))
+
 int main(int argc, char *argv[])
 {
-    _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_CHECK_ALWAYS_DF | _CRTDBG_LEAK_CHECK_DF); //| _CRTDBG_CHECK_CRT_DF);
-    //_CrtSetBreakAlloc(3569);
+    //for (int i = 0; i < 1000; i++) {
+    //    _CrtSetBreakAlloc(i);
+    //}
+    //_CrtSetAllocHook(YourAllocHook);
+    //_CrtSetBreakAlloc(13839);
+
+#if 0
+    // Send all reports to STDOUT
+    _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
+    _CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDOUT);
+    _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE);
+    _CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDOUT);
+    _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_FILE);
+    _CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDOUT);
+
+    SET_CRT_DEBUG_FIELD(_CRTDBG_ALLOC_MEM_DF);
+    SET_CRT_DEBUG_FIELD(_CRTDBG_CHECK_ALWAYS_DF);
+    //SET_CRT_DEBUG_FIELD(_CRTDBG_LEAK_CHECK_DF);
+    CLEAR_CRT_DEBUG_FIELD(_CRTDBG_LEAK_CHECK_DF);
+    CLEAR_CRT_DEBUG_FIELD(_CRTDBG_CHECK_CRT_DF);
+#endif
 
     glfwInit();
 
-#if _DEBUG
+#if RUN_TESTS
     run_tests();
 #endif
 
@@ -43,34 +98,31 @@ int main(int argc, char *argv[])
     // Initialization
     //--------------------------------------------------------------------------------------
     GameServer *gameServer = 0;
-#if 1
     if (args.standalone) {
-        gameServer = new GameServer(args);
-    }
-#else
-    gameServer = new GameServer(args);
+#ifdef _DEBUG
+        InitConsole(2873, 1, 3847 - 2873, 1048 - 1);  // Dock right side of right monitor
 #endif
+        error_init("server.log");
+        int enet_code = enet_initialize();
+        if (enet_code < 0) {
+            TraceLog(LOG_FATAL, "Failed to initialize network utilities (enet). Error code: %d\n", enet_code);
+        }
+        gameServer = new GameServer(args);
 
-    // TODO: Make CLI not be an entire client/player. Makes no sense for the CLI to show up in the world LUL.
-    //const char *title = "[SLIMY SERVER]";
-    //ServerCLI serverCli{ args };
-    //serverCli.Run("localhost", SV_DEFAULT_PORT);
-
-    if (!args.standalone) {
+        // TODO: Make CLI not be an entire client/player. Makes no sense for the CLI to show up in the world LUL.
+        //const char *title = "[SLIMY SERVER]";
+        //ServerCLI serverCli{ args };
+        //serverCli.Run("localhost", SV_DEFAULT_PORT);
+    } else {
         int enet_code = enet_initialize();
         if (enet_code < 0) {
             TraceLog(LOG_FATAL, "Failed to initialize network utilities (enet). Error code: %d\n", enet_code);
         }
 
 #ifdef _DEBUG
-        InitConsole();
-        // Dock left side of right monitor
-        // { l:1913 t : 1 r : 2887 b : 1048 }
-        SetConsolePosition(1913, 1, 2887 - 1913, 1048 - 1);
+        InitConsole(1913, 1, 2887 - 1913, 1048 - 1);  // Dock left side of right monitor
 #endif
-
         error_init("game.log");
-
         InitWindow(1600, 900, "Attack the slimes!");
         // NOTE: I could avoid the flicker if Raylib would let me pass it as a flag into InitWindow -_-
         //SetWindowState(FLAG_WINDOW_HIDDEN);
@@ -88,6 +140,14 @@ int main(int argc, char *argv[])
     error_free();
     CloseWindow();
     enet_deinitialize();
+
+#if 0
+    if (_CrtDumpMemoryLeaks()) {
+        fflush(stdout);
+        fflush(stderr);
+        //UNUSED(getchar());
+    }
+#endif
     return 0;
 }
 

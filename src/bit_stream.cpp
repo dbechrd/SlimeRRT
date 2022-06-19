@@ -242,6 +242,9 @@ void BitStream::ProcessChar(char &value)
 void BitStream::Flush()
 {
     if (mode == Mode::Writer && scratchBits) {
+        if (!((wordIndex + 1) * 32 < bufferBits)) {
+            assert(0);
+        }
         assert((wordIndex + 1) * 32 < bufferBits);
         ((uint32_t *)buffer)[wordIndex] = scratch & 0xFFFFFFFF;
 

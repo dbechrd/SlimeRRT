@@ -33,7 +33,8 @@ struct NetServer {
     SV_Client clients[SV_MAX_PLAYERS]{};
     //RingBuffer<InputSample, SV_INPUT_HISTORY> inputHistory {};
 
-    ~NetServer();
+    NetServer                   (void);
+    ~NetServer                  (void);
     ErrorType OpenSocket        (unsigned short socketPort);
     ErrorType SendChatMessage   (const SV_Client &client, const char *message, size_t messageLength);
     ErrorType SendWorldChunk    (const SV_Client &client, const Chunk &chunk);
@@ -47,6 +48,7 @@ struct NetServer {
 private:
     static const char *LOG_SRC;
     NetMessage netMsg {};
+    ENetBuffer rawPacket {};
 
     ErrorType SendRaw              (const SV_Client &client, const void *data, size_t size);
     ErrorType SendMsg              (const SV_Client &client, NetMessage &message);

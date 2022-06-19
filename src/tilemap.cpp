@@ -3,17 +3,32 @@
 #include "dlb_types.h"
 #include "maths.h"
 #include "net_message.h"
-#include "OpenSimplex2F.h"
 #include "raylib/raylib.h"
 #include <cassert>
 #include <float.h>
 #include <stdlib.h>
 
-Tilemap::~Tilemap()
+Tilemap::~Tilemap(void)
 {
     //free(tiles);
     free(rrt.vertices);
     UnloadTexture(minimap);
+    FreeSimplex();
+}
+
+void Tilemap::SeedSimplex(int64_t seed)
+{
+    FreeSimplex();
+    ose = initOpenSimplex();
+    osg = initOpenSimplexGradients(ose, seed);
+    osg2 = initOpenSimplexGradients(ose, seed + 1);
+}
+
+void Tilemap::FreeSimplex(void)
+{
+    freeOpenSimplex(ose);
+    freeOpenSimplexGradients(osg);
+    freeOpenSimplexGradients(osg2);
 }
 
 bool Tilemap::GenerateNoise(Texture &tex)
@@ -23,10 +38,8 @@ bool Tilemap::GenerateNoise(Texture &tex)
         return false;
     }
 
-    thread_local OpenSimplexEnv *ose = 0;
-    if (!ose) ose = initOpenSimplex();
-    thread_local OpenSimplexGradients *osg = 0;
-    if (!osg) osg = newOpenSimplexGradients(ose, 1234);
+    OpenSimplexEnv *noise_ose = initOpenSimplex();
+    OpenSimplexGradients *noise_osg = initOpenSimplexGradients(ose, 1234);
 
 #define WIDTH 256 //4096
 #define HEIGHT 256 //4096
@@ -65,6 +78,8 @@ bool Tilemap::GenerateNoise(Texture &tex)
 
     tex = LoadTextureFromImage(noiseImg);
     free(noiseImg.data);
+    freeOpenSimplex(noise_ose);
+    freeOpenSimplexGradients(noise_osg);
     return true;
 }
 
@@ -225,14 +240,11 @@ const Tile *Tilemap::TileAtWorld(float x, float y) const
     return 0;
 }
 
-Chunk &Tilemap::FindOrGenChunk(World &world, int64_t seed, int16_t chunkX, int16_t chunkY)
+Chunk &Tilemap::FindOrGenChunk(World &world, int16_t chunkX, int16_t chunkY)
 {
-    thread_local OpenSimplexEnv *ose = 0;
-    if (!ose) ose = initOpenSimplex();
-    thread_local OpenSimplexGradients *osg = 0;
-    if (!osg) osg = newOpenSimplexGradients(ose, seed);
-    thread_local OpenSimplexGradients *osg2 = 0;
-    if (!osg2) osg2 = newOpenSimplexGradients(ose, seed + 1);
+    assert(ose);
+    assert(osg);
+    assert(osg2);
 
     ChunkHash chunkHash = Chunk::Hash(chunkX, chunkY);
     auto chunkIter = chunksIndex.find(chunkHash);
@@ -336,16 +348,16 @@ MapSystem::~MapSystem(void)
     //mapsFree = 0;
 }
 
-Tilemap *MapSystem::Alloc(void)
+Tilemap *MapSystem::Alloc(uint64_t seed)
 {
     Tilemap *map = mapsFree;
     if (!map) {
         TraceLog(LOG_ERROR, "Tilemap pool is full.\n");
         return 0;
     }
-
     mapsFree = map->next;
     mapsActiveCount++;
 
+    map->SeedSimplex(seed);
     return map;
 }

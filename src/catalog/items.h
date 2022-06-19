@@ -362,7 +362,7 @@ namespace Catalog {
     struct Items {
         void          LoadTextures (void);
         void          LoadData     (void);
-        const Item &  Find     (ItemType id) const;
+        const Item &  Find         (ItemType id) const;
         const Texture Tex          (void) const;
 
     private:

@@ -830,7 +830,19 @@ OpenSimplexEnv *initOpenSimplex(){
 	return ose;
 }
 
-OpenSimplexGradients *newOpenSimplexGradients(OpenSimplexEnv *ose, long long seed){
+void freeOpenSimplex(OpenSimplexEnv *ose){
+	if (ose){
+		free(ose->GRADIENTS_2D);
+		free(ose->GRADIENTS_3D);
+		free(ose->GRADIENTS_4D);
+		free(ose->LOOKUP_2D);
+		free(ose->LOOKUP_3D);
+		free(ose->VERTICES_4D);
+		free(ose);
+	}
+}
+
+OpenSimplexGradients *initOpenSimplexGradients(OpenSimplexEnv *ose, long long seed){
     OpenSimplexGradients *osg = (OpenSimplexGradients *) malloc(sizeof(OpenSimplexGradients));
     osg->perm = _newShortArr(PSIZE);
     osg->permGrad2 = _newGrad2Arr(PSIZE);
@@ -853,4 +865,14 @@ OpenSimplexGradients *newOpenSimplexGradients(OpenSimplexEnv *ose, long long see
 		source[r] = source[i];
     }
 	return osg;
+}
+
+void freeOpenSimplexGradients(OpenSimplexGradients *osg){
+	if (osg) {
+		free(osg->perm);
+		free(osg->permGrad2);
+		free(osg->permGrad3);
+		free(osg->permGrad4);
+		free(osg);
+	}
 }
