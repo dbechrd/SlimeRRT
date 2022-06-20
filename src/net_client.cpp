@@ -63,7 +63,7 @@ ErrorType NetClient::Connect(const char *serverHost, unsigned short serverPort, 
     uint32_t thirtyMins = 30 * 60 * 1000;
     enet_peer_timeout(server, 32, thirtyMins, thirtyMins);  // long timeout for debugging
 #else
-    enet_peer_timeout(server, 32, 5000, 15000);  // 32 RTT if > 3s, else if > 15s
+    enet_peer_timeout(server, 32, 5000, 15000);  // 32 RTT if > 5s, else if > 15s
 #endif
     enet_host_flush(client);
 

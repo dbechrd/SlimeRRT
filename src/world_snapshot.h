@@ -90,18 +90,18 @@ struct PlayerSnapshot {
 
 static inline PlayerSnapshot::Flags operator|(PlayerSnapshot::Flags lhs, PlayerSnapshot::Flags rhs)
 {
-    return static_cast<PlayerSnapshot::Flags>(static_cast<char>(lhs) | static_cast<char>(rhs));
+    return static_cast<PlayerSnapshot::Flags>(static_cast<uint64_t>(lhs) | static_cast<uint64_t>(rhs));
 }
 
 static inline PlayerSnapshot::Flags &operator|=(PlayerSnapshot::Flags &lhs, PlayerSnapshot::Flags rhs)
 {
-    lhs = static_cast<PlayerSnapshot::Flags>(static_cast<char>(lhs) | static_cast<char>(rhs));
+    lhs = static_cast<PlayerSnapshot::Flags>(static_cast<uint64_t>(lhs) | static_cast<uint64_t>(rhs));
     return lhs;
 }
 
 static inline bool operator&(PlayerSnapshot::Flags lhs, PlayerSnapshot::Flags rhs)
 {
-    return static_cast<char>(lhs) & static_cast<char>(rhs);
+    return static_cast<uint64_t>(lhs) & static_cast<uint64_t>(rhs);
 }
 
 struct EnemySnapshot {
@@ -134,18 +134,18 @@ struct EnemySnapshot {
 
 static inline EnemySnapshot::Flags operator|(EnemySnapshot::Flags lhs, EnemySnapshot::Flags rhs)
 {
-    return static_cast<EnemySnapshot::Flags>(static_cast<char>(lhs) | static_cast<char>(rhs));
+    return static_cast<EnemySnapshot::Flags>(static_cast<uint64_t>(lhs) | static_cast<uint64_t>(rhs));
 }
 
 static inline EnemySnapshot::Flags &operator|=(EnemySnapshot::Flags &lhs, EnemySnapshot::Flags rhs)
 {
-    lhs = static_cast<EnemySnapshot::Flags>(static_cast<char>(lhs) | static_cast<char>(rhs));
+    lhs = static_cast<EnemySnapshot::Flags>(static_cast<uint64_t>(lhs) | static_cast<uint64_t>(rhs));
     return lhs;
 }
 
 static inline bool operator&(EnemySnapshot::Flags lhs, EnemySnapshot::Flags rhs)
 {
-    return static_cast<char>(lhs) & static_cast<char>(rhs);
+    return static_cast<uint64_t>(lhs) & static_cast<uint64_t>(rhs);
 }
 
 struct ItemSnapshot {
@@ -169,18 +169,18 @@ struct ItemSnapshot {
 
 static inline ItemSnapshot::Flags operator|(ItemSnapshot::Flags lhs, ItemSnapshot::Flags rhs)
 {
-    return static_cast<ItemSnapshot::Flags>(static_cast<char>(lhs) | static_cast<char>(rhs));
+    return static_cast<ItemSnapshot::Flags>(static_cast<uint64_t>(lhs) | static_cast<uint64_t>(rhs));
 }
 
 static inline ItemSnapshot::Flags &operator|=(ItemSnapshot::Flags &lhs, ItemSnapshot::Flags rhs)
 {
-    lhs = static_cast<ItemSnapshot::Flags>(static_cast<char>(lhs) | static_cast<char>(rhs));
+    lhs = static_cast<ItemSnapshot::Flags>(static_cast<uint64_t>(lhs) | static_cast<uint64_t>(rhs));
     return lhs;
 }
 
 static inline bool operator&(ItemSnapshot::Flags lhs, ItemSnapshot::Flags rhs)
 {
-    return static_cast<char>(lhs) & static_cast<char>(rhs);
+    return static_cast<uint64_t>(lhs) & static_cast<uint64_t>(rhs);
 }
 
 struct WorldSnapshot {

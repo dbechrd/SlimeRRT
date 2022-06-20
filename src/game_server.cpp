@@ -24,7 +24,10 @@ GameServer::~GameServer()
 
 ErrorType GameServer::Run(const Args &args)
 {
-    Catalog::g_items.LoadData();
+    //if (args.standalone) {
+    //    // Load data that GameClient would have already loaded otherwise
+    //    Catalog::g_items.LoadData();
+    //}
 
     World *world = new World;
     world->map = world->mapSystem.Alloc();

@@ -316,7 +316,7 @@ namespace Catalog {
 
     ItemClass ItemClassFromString(const char *str, size_t length)
     {
-        thread_local std::unordered_map<u32, ItemClass> itemClassByName{};
+        static std::unordered_map<u32, ItemClass> itemClassByName{};
         if (!itemClassByName.size()) {
             itemClassByName[dlb_murmur3(CSTR("Empty"   ))] = ItemClass_Empty;
             itemClassByName[dlb_murmur3(CSTR("System"  ))] = ItemClass_System;

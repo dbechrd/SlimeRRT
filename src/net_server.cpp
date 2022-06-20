@@ -954,6 +954,7 @@ void NetServer::ProcessMsg(SV_Client &client, ENetPacket &packet)
                         //client.inputBuffer = sample;
                         InputSample &histSample = client.inputHistory.Alloc();
                         histSample = sample;
+                        histSample.skipFx = true;
                         client.lastInputRecv = MAX(client.lastInputRecv, sample.seq);
 #if SV_DEBUG_INPUT_SAMPLES
                         printf("Received input #%u\n", histSample.seq);
