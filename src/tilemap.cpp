@@ -18,6 +18,8 @@ Tilemap::~Tilemap(void)
 
 void Tilemap::SeedSimplex(int64_t seed)
 {
+    // NOTE(dlb): Don't free/alloc the ose every tilemap. Not necessary, should be global.
+    // Only need to free/alloc the gradients when seed is different.
     FreeSimplex();
     ose = initOpenSimplex();
     osg = initOpenSimplexGradients(ose, seed);
@@ -348,7 +350,7 @@ MapSystem::~MapSystem(void)
     //mapsFree = 0;
 }
 
-Tilemap *MapSystem::Alloc(uint64_t seed)
+Tilemap *MapSystem::Alloc()
 {
     Tilemap *map = mapsFree;
     if (!map) {
@@ -357,7 +359,5 @@ Tilemap *MapSystem::Alloc(uint64_t seed)
     }
     mapsFree = map->next;
     mapsActiveCount++;
-
-    map->SeedSimplex(seed);
     return map;
 }

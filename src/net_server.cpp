@@ -741,16 +741,19 @@ bool NetServer::ParseCommand(SV_Client &client, NetMessage_ChatMessage &chatMsg)
 #define COMMAND_GIVE     "give"
 #define COMMAND_HELP     "help"
 #define COMMAND_NICK     "nick"
+#define COMMAND_SPEED    "speed"
 #define COMMAND_TELEPORT "teleport"
 
 #define SUMMARY_GIVE     "Gives an item to the specified player."
 #define SUMMARY_HELP     "Shows the help page for a command."
 #define SUMMARY_NICK     "Changes a player's nickname."
+#define SUMMARY_SPEED    "Changes a player's walk speed."
 #define SUMMARY_TELEPORT "Teleports a player to a location."
 
 #define USAGE_GIVE       "/give <player> <item_id> <count>"
 #define USAGE_HELP       "/help <command>"
 #define USAGE_NICK       "/nick [player] nickname"
+#define USAGE_SPEED      "/speed [player] <speed>"
 #define USAGE_TELEPORT   "/teleport [player] <x> <y> <z>"
 
     if (!strcmp(command, COMMAND_GIVE)) {
@@ -765,10 +768,12 @@ bool NetServer::ParseCommand(SV_Client &client, NetMessage_ChatMessage &chatMsg)
             SendChatMessage(client, CSTR("  " SUMMARY_GIVE));
             SendChatMessage(client, CSTR(USAGE_HELP));
             SendChatMessage(client, CSTR("  " SUMMARY_HELP));
-            SendChatMessage(client, CSTR(USAGE_TELEPORT));
-            SendChatMessage(client, CSTR("  " SUMMARY_TELEPORT));
             SendChatMessage(client, CSTR(USAGE_NICK));
             SendChatMessage(client, CSTR("  " SUMMARY_NICK));
+            SendChatMessage(client, CSTR(USAGE_SPEED));
+            SendChatMessage(client, CSTR("  " SUMMARY_SPEED));
+            SendChatMessage(client, CSTR(USAGE_TELEPORT));
+            SendChatMessage(client, CSTR("  " SUMMARY_TELEPORT));
         } else if (argc == 1) {
             if (!strcmp(argv[0], COMMAND_GIVE)) {
                 SendChatMessage(client, CSTR(USAGE_GIVE));
@@ -776,12 +781,15 @@ bool NetServer::ParseCommand(SV_Client &client, NetMessage_ChatMessage &chatMsg)
             } else if (!strcmp(argv[0], COMMAND_HELP)) {
                 SendChatMessage(client, CSTR(USAGE_HELP));
                 SendChatMessage(client, CSTR("  " SUMMARY_HELP));
-            } else if (!strcmp(argv[0], COMMAND_TELEPORT)) {
-                SendChatMessage(client, CSTR(USAGE_TELEPORT));
-                SendChatMessage(client, CSTR("  " SUMMARY_TELEPORT));
             } else if (!strcmp(argv[0], COMMAND_NICK)) {
                 SendChatMessage(client, CSTR(USAGE_NICK));
                 SendChatMessage(client, CSTR("  " SUMMARY_NICK));
+            } else if (!strcmp(argv[0], COMMAND_SPEED)) {
+                SendChatMessage(client, CSTR(USAGE_SPEED));
+                SendChatMessage(client, CSTR("  " SUMMARY_SPEED));
+            } else if (!strcmp(argv[0], COMMAND_TELEPORT)) {
+                SendChatMessage(client, CSTR(USAGE_TELEPORT));
+                SendChatMessage(client, CSTR("  " SUMMARY_TELEPORT));
             } else {
                 const char *err = SafeTextFormat("[help] No help page found for '%s'", argv[0]);
                 SendChatMessage(client, err, strlen(err));
@@ -817,7 +825,32 @@ bool NetServer::ParseCommand(SV_Client &client, NetMessage_ChatMessage &chatMsg)
         } else {
             SendChatMessage(client, CSTR("Usage: " USAGE_NICK));
         }
+    } else if (!strcmp(command, COMMAND_SPEED)) {
+        // /speed <speed>
+        if (argc == 1) {
+            Player *player = serverWorld->FindPlayer(client.playerId);
+            if (player) {
+                float speed = strtof(argv[0], 0);
+                printf("[speed] Set %.*s speed to %f\n", player->nameLength, player->name, speed);
+                // TODO: Implement a way to set player's speed
+                player->body.rotation = speed;
+            }
+        // /speed <player> <speed>
+        } else if (argc == 2) {
+            Player *player = serverWorld->FindPlayerByName(argv[0], strlen(argv[0]));
+            if (player) {
+                float speed = strtof(argv[1], 0);
+                printf("[speed] Set %.*s speed to %f\n", player->nameLength, player->name, speed);
+                // TODO: Implement a way to set player's speed
+                player->body.rotation = speed;
+            } else {
+                SendChatMessage(client, CSTR("[speed] Player not found."));
+            }
+        } else {
+            SendChatMessage(client, CSTR("Usage: " USAGE_SPEED));
+        }
     } else if (!strcmp(command, COMMAND_TELEPORT)) {
+        // /teleport <x> <y> <z>
         if (argc == 3) {
             Player *player = serverWorld->FindPlayer(client.playerId);
             if (player) {
@@ -827,6 +860,7 @@ bool NetServer::ParseCommand(SV_Client &client, NetMessage_ChatMessage &chatMsg)
                 printf("[teleport] Teleported %.*s to %f %f %f\n", player->nameLength, player->name, x, y, z);
                 player->body.Teleport({ x, y, z });
             }
+        // /teleport <player> <x> <y> <z>
         } else if (argc == 4) {
             Player *player = serverWorld->FindPlayerByName(argv[0], strlen(argv[0]));
             if (player) {

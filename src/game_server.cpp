@@ -27,7 +27,8 @@ ErrorType GameServer::Run(const Args &args)
     Catalog::g_items.LoadData();
 
     World *world = new World;
-    world->map = world->mapSystem.Alloc(world->rtt_seed);
+    world->map = world->mapSystem.Alloc();
+    world->map->SeedSimplex(world->rtt_seed);
 
     for (short y = -2; y <= 2; y++) {
         for (short x = -2; x <= 2; x++) {

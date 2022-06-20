@@ -15,6 +15,8 @@ void Player::Init(const SpriteDef *spriteDef)
     assert(!sprite.spriteDef);
     printf("Init player\n");
 
+    body.speed = SV_PLAYER_MOVE_SPEED;
+
     combat.level = 1;
     combat.hitPoints = 100.0f;
     combat.hitPointsMax = 100.0f;
@@ -170,7 +172,7 @@ void Player::Update(InputSample &input, const Tilemap &map)
         //    body.ApplyForce({ 0, 0, METERS_TO_PIXELS(4.0f) });
         //}
 
-        float playerSpeed = 3.0f;
+        float speed = body.speed;
         Vector2 move{};
 
         if (input.walkNorth || input.walkEast || input.walkSouth || input.walkWest) {
@@ -180,7 +182,7 @@ void Player::Update(InputSample &input, const Tilemap &map)
             move.x -= 1.0f * input.walkWest;
             if (input.run) {
                 moveState = Player::MoveState::Running;
-                playerSpeed += 1.0f;
+                speed += METERS_TO_PIXELS(1.0f);
             } else {
                 moveState = Player::MoveState::Walking;
             }
@@ -191,11 +193,11 @@ void Player::Update(InputSample &input, const Tilemap &map)
         const Vector2 pos = body.GroundPosition();
         const Tile *tile = map.TileAtWorld(pos.x, pos.y);
         if (tile && tile->type == TileType_Water) {
-            playerSpeed *= 0.5f;
+            speed *= 0.5f;
             // TODO: moveState = Player::MoveState::Swimming;
         }
 
-        Vector2 moveOffset = v2_scale(v2_normalize(move), METERS_TO_PIXELS(playerSpeed) * dt);
+        Vector2 moveOffset = v2_scale(v2_normalize(move), speed * dt);
         moveBuffer = v2_add(moveBuffer, moveOffset);
 
         if (!input.skipFx && input.attack && Attack()) {

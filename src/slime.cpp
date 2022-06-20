@@ -17,6 +17,7 @@ void Slime::Init(void)
 
     SetName(CSTR("Slime"));
 
+    body.speed = SV_SLIME_MOVE_SPEED;
     body.drag = 0.95f;
     body.friction = 0.95f;
 

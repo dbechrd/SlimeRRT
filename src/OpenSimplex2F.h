@@ -1,5 +1,7 @@
 #pragma once
 
+#define PSIZE 2048
+
 typedef struct {
     int xsv, ysv;
     double dx, dy;
@@ -32,19 +34,19 @@ typedef struct {
 } Grad4;
 
 typedef struct {
-    short *perm;
-    Grad2 *permGrad2;
-    Grad3 *permGrad3;
-    Grad4 *permGrad4;
+    short perm[PSIZE];
+    Grad2 permGrad2[PSIZE];
+    Grad3 permGrad3[PSIZE];
+    Grad4 permGrad4[PSIZE];
 } OpenSimplexGradients;
 
 typedef struct {
-    Grad2 *GRADIENTS_2D;
-    Grad3 *GRADIENTS_3D;
-    Grad4 *GRADIENTS_4D;
-    LatticePoint2D **LOOKUP_2D;
-    LatticePoint3D **LOOKUP_3D;
-    LatticePoint4D **VERTICES_4D;
+    Grad2 GRADIENTS_2D[PSIZE];
+    Grad3 GRADIENTS_3D[PSIZE];
+    Grad4 GRADIENTS_4D[PSIZE];
+    LatticePoint2D LOOKUP_2D[4];
+    LatticePoint3D LOOKUP_3D[8 * 8];  // 8 blocks of lattice linked lists
+    LatticePoint4D VERTICES_4D[16];
 } OpenSimplexEnv;
 
 OpenSimplexEnv *initOpenSimplex();

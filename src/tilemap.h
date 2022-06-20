@@ -65,7 +65,7 @@ struct MapSystem {
     MapSystem(void);
     ~MapSystem(void);
 
-    Tilemap *Alloc(uint64_t seed);
+    Tilemap *Alloc();
 
 private:
     Tilemap  maps[MAX_TILEMAPS] {};

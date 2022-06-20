@@ -344,7 +344,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
             NetMessage_Welcome &welcomeMsg = tempMsg.data.welcome;
 
             //serverWorld->map = serverWorld->mapSystem.Generate(serverWorld->rtt_rand, welcomeMsg.width, welcomeMsg.height);
-            serverWorld->map = serverWorld->mapSystem.Alloc(serverWorld->rtt_seed);
+            serverWorld->map = serverWorld->mapSystem.Alloc();
             if (!serverWorld->map) {
                 break;
             }
