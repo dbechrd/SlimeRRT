@@ -95,10 +95,10 @@ void sprite_update(Sprite &sprite, double dt)
     if (anim.frameCount > 1) {
         const double animFps = 24.0;
         const double animDelay = 1.0 / animFps;
-        if (glfwGetTime() - sprite.lastAnimFrameStarted > animDelay) {
+        if (g_clock.now - sprite.lastAnimFrameStarted > animDelay) {
             sprite.animFrameIdx++;
             sprite.animFrameIdx %= anim.frameCount;
-            sprite.lastAnimFrameStarted = glfwGetTime();
+            sprite.lastAnimFrameStarted = g_clock.now;
         }
     }
 }

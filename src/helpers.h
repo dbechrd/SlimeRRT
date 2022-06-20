@@ -32,7 +32,7 @@
 #define CL_CURSOR_ITEM_HIDES_POINTER     0
 #define CL_CURSOR_ITEM_RELATIVE_TERRARIA 0
 #define CL_DEBUG_PLAYER_RECONCILIATION   0
-#define CL_DEBUG_REALLY_LONG_TIMEOUT     1
+#define CL_DEBUG_REALLY_LONG_TIMEOUT     0
 #define CL_DEBUG_SHOW_LEVELS             0
 #define CL_DEBUG_SPEEDHAX                1
 #define CL_DEBUG_WORLD_CHUNKS            0
@@ -80,6 +80,7 @@
 #define SV_WORLD_ITEM_LIFETIME      120 //600 // despawn items after 10 minutes
 #define SV_TICK_RATE                60
 #define SV_TICK_DT                  (1.0 / SV_TICK_RATE)
+#define SV_TICK_DT_MAX              (2.0 * SV_TICK_DT)
 #define SV_INPUT_HISTORY            (SV_TICK_RATE * SV_MAX_PLAYERS)
 #define SV_WORLD_HISTORY            SV_TICK_RATE
 // NOTE: max diagonal distance at 1080p is 1100 + radius units. 1200px allows for a ~50px wide entity
@@ -113,12 +114,15 @@
 
 // NOTE: Due to how "enemy.moved" flag is calculated atm, this *MUST* match SV_TICK_RATE
 #define SNAPSHOT_SEND_RATE            SV_TICK_RATE  //MIN(30, SV_TICK_RATE)
+#define SNAPSHOT_SEND_DT              (1.0 / SV_TICK_RATE)
 #define SNAPSHOT_MAX_PLAYERS          SV_MAX_PLAYERS
 #define SNAPSHOT_MAX_SLIMES           MIN(64, SV_MAX_SLIMES)
 #define SNAPSHOT_MAX_ITEMS            MIN(64, SV_MAX_ITEMS)
 
+#define CL_FRAME_DT_MAX               (2.0 * SV_TICK_DT)
 #define CL_INPUT_SAMPLE_RATE          SV_TICK_RATE  // must be equal to SV_TICK_RATE
 #define CL_INPUT_SEND_RATE            SV_TICK_RATE  // can be <= CL_INPUT_SAMPLE_RATE
+#define CL_INPUT_SEND_DT              (1.0 / CL_INPUT_SEND_RATE)
 #define CL_INPUT_SAMPLES_MAX          SV_TICK_RATE  // send up to 1 second of samples per packet
 #define CL_INPUT_HISTORY              MIN(32, CL_INPUT_SAMPLES_MAX)  // how many samples to keep around client side
 #define CL_WORLD_HISTORY              (SV_TICK_RATE / 2 + 1)  // >= 500 ms of data

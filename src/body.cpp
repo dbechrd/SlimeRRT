@@ -1,8 +1,8 @@
 #include "body.h"
+#include "clock.h"
 #include "helpers.h"
 #include "maths.h"
 #include "spritesheet.h"
-#include "GLFW/glfw3.h"
 #include <cassert>
 #include <cmath>
 
@@ -53,7 +53,7 @@ inline void Body3D::Teleport(Vector3 pos)
     position.x = pos.x;
     position.y = pos.y;
     position.z = pos.z;
-    lastMoved = glfwGetTime();
+    lastMoved = g_clock.now;
 }
 
 inline void Body3D::Move(Vector2 offset)
@@ -61,7 +61,7 @@ inline void Body3D::Move(Vector2 offset)
     prevPosition = position;
     position.x += offset.x;
     position.y += offset.y;
-    lastMoved = glfwGetTime();
+    lastMoved = g_clock.now;
 }
 
 inline void Body3D::Move3D(Vector3 offset)
@@ -70,7 +70,7 @@ inline void Body3D::Move3D(Vector3 offset)
     position.x += offset.x;
     position.y += offset.y;
     position.z += offset.z;
-    lastMoved = glfwGetTime();
+    lastMoved = g_clock.now;
 }
 
 inline bool Body3D::Bounced(void) const
@@ -100,7 +100,7 @@ inline bool Body3D::Idle(void) const
 
 inline double Body3D::TimeSinceLastMove(void) const
 {
-    return glfwGetTime() - lastMoved;
+    return g_clock.now - lastMoved;
 }
 
 inline void Body3D::ApplyForce(Vector3 force)
@@ -148,14 +148,14 @@ void Body3D::Update(double dt)
 
     // NOTE: Position can be updated manually outside of physics sim (e.g. player Move() controller)
     if (!v3_equal(position, prevPosition, POSITION_EPSILON)) {
-        lastMoved = glfwGetTime();
+        lastMoved = g_clock.now;
     }
     landed = (prevPosition.z > 0.0f && position.z == 0.0f);
     bounced = bounced && !v3_is_zero(velocity);
 
-    const double timeSinceLastMove = glfwGetTime() - lastMoved;
+    const double timeSinceLastMove = g_clock.now - lastMoved;
     bool prevIdle = idle;
     idle = timeSinceLastMove > IDLE_THRESHOLD_SECONDS;
     idleChanged = idle != prevIdle;
-    lastUpdated = glfwGetTime();
+    lastUpdated = g_clock.now;
 }

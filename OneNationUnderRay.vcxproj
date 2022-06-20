@@ -11,10 +11,18 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\clock.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClCompile>
     <ClCompile Include="src\jail_enet.cpp" />
     <ClCompile Include="src\jail_imgui.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\jail_win32_console.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\clock.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClInclude>
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

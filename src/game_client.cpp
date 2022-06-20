@@ -2,6 +2,7 @@
 #include "catalog/sounds.h"
 #include "catalog/spritesheets.h"
 #include "catalog/tracks.h"
+#include "clock.h"
 #include "draw_command.h"
 #include "catalog/fonts.h"
 #include "fx/fx.h"
@@ -362,9 +363,12 @@ void GameClient::PlayMode_Update(double frameDt, PlayerControllerState &input)
 
             // TODO: Roll-up inputs when v-sync disabled
             // Send input to server at a fixed rate that matches server tick rate
-            while (netClient.sendInputAccum > sendInputDt) {
+            while (netClient.sendInputAccum > CL_INPUT_SEND_DT) {
                 netClient.SendPlayerInput();
-                netClient.sendInputAccum -= sendInputDt;
+
+                // Hmm.. I don't think we want input samples playing catch-up like physics sim
+                //netClient.sendInputAccum -= sendInputDt;
+                netClient.sendInputAccum = 0;
             }
 
             netClient.serverWorld->CL_DespawnStaleEntities();
@@ -378,7 +382,7 @@ void GameClient::PlayMode_Update(double frameDt, PlayerControllerState &input)
             //    netClient.server->highestRoundTripTimeVariance
             //);
             //renderAt = now - (1.0 / SNAPSHOT_SEND_RATE) - (1.0 / (netClient.server->lastRoundTripTime + netClient.server->lastRoundTripTimeVariance));
-            renderAt = frameStart - (1.0 / (SNAPSHOT_SEND_RATE * 1.5));
+            renderAt = g_clock.now - (1.0 / (SNAPSHOT_SEND_RATE * 1.5));
             netClient.serverWorld->CL_Interpolate(renderAt);
             //netClient.serverWorld->CL_Extrapolate(now - renderAt);
         }
@@ -537,15 +541,15 @@ ErrorType GameClient::Run(void)
 {
     Init();
 
-    frameStart = glfwGetTime();
+    g_clock.now = glfwGetTime();
     while (!WindowShouldClose() && !UI::QuitRequested()) {
-        // Time is of the essence
-        double now = glfwGetTime();
-        double frameDt = now - frameStart;
         // Limit delta time to prevent spiraling for after long hitches (e.g. hitting a breakpoint)
-        netClient.tickAccum += MIN(frameDt, tickDtMax);
-        netClient.sendInputAccum += MIN(sendInputDt, sendInputDtMax);
-        frameStart = now;
+        double frameDt = MIN(glfwGetTime() - g_clock.now, CL_FRAME_DT_MAX);
+
+        // Time is of the essence
+        g_clock.now += frameDt;
+        netClient.tickAccum += frameDt;
+        netClient.sendInputAccum += frameDt;
 
         E_ASSERT(PlayMode_Network(), "Failed to do message processing");
 

@@ -1,9 +1,9 @@
 #include "chat.h"
+#include "clock.h"
 #include "error.h"
 #include "net_message.h"
 #include "world.h"
 #include "raylib/raylib.h"
-#include "GLFW/glfw3.h"
 #include <cassert>
 #include <cstring>
 
@@ -14,7 +14,7 @@ void ChatHistory::PushNetMessage(const NetMessage_ChatMessage &netChat)
 {
     NetMessage_ChatMessage &chat = buffer.Alloc();
     memcpy(&chat, &netChat, sizeof(netChat));
-    chat.recvAt = glfwGetTime();
+    chat.recvAt = g_clock.now;
     assert(!chat.timestampStr[0]); // If this triggers, FYI, your timestamp will be overwritten
     const char *timestampStr = SafeTextFormatTimestamp();
     memcpy(chat.timestampStr, timestampStr, MIN(sizeof(chat.timestampStr), strlen(timestampStr)));
@@ -52,7 +52,7 @@ void ChatHistory::PushMessage(NetMessage_ChatMessage::Source source, uint32_t id
     assert(messageLength <= CHATMSG_LENGTH_MAX);
 
     NetMessage_ChatMessage &chat = buffer.Alloc();
-    chat.recvAt = glfwGetTime();
+    chat.recvAt = g_clock.now;
     const char *timestampStr = SafeTextFormatTimestamp();
     memcpy(chat.timestampStr, timestampStr, MIN(sizeof(chat.timestampStr), strlen(timestampStr)));
     chat.source = source;
@@ -63,7 +63,6 @@ void ChatHistory::PushMessage(NetMessage_ChatMessage::Source source, uint32_t id
 
 void ChatHistory::Render(const Font &font, int fontSize, World &world, float left, float bottom, float chatWidth, bool chatActive)
 {
-    const double now = glfwGetTime();
     const float fadeBeginAt = 9.0f;
     const float visibleFor = 10.0f;
 
@@ -94,7 +93,7 @@ void ChatHistory::Render(const Font &font, int fontSize, World &world, float lef
 
         // Show messages for 10 seconds when chat window not active
         float fadeAlpha = 1.0;
-        float timeVisible = (float)(now - chatMsg.recvAt);
+        float timeVisible = (float)(g_clock.now - chatMsg.recvAt);
         if (!chatActive) {
             if (timeVisible > visibleFor) {
                 continue;

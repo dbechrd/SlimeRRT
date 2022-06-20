@@ -22,7 +22,7 @@ void HealthBar::Draw(const Vector2 &topCenter, const char *name, const Combat &c
     const char *hpText = 0;
     if (combat.diedAt) {
         assert(!combat.hitPoints);
-        hpText = SafeTextFormat("Respawning in %0.1f ...", SV_RESPAWN_TIMER - (glfwGetTime() - combat.diedAt));
+        hpText = SafeTextFormat("Respawning in %0.1f ...", SV_RESPAWN_TIMER - (g_clock.now - combat.diedAt));
     } else if (combat.hitPointsMax) {
         hpText = SafeTextFormat("HP: %.f / %.f", combat.hitPoints, combat.hitPointsMax);
     }

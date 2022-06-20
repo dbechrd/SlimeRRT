@@ -134,9 +134,9 @@ bool Player::Move(Vector2 offset)
 bool Player::Attack(void)
 {
     if (actionState == ActionState::None) {
-        actionState = ActionState::Attacking;
+        actionState = ActionState::AttackBegin;
         body.Move({});  // update lastMoved to stop idle animation
-        combat.attackStartedAt = glfwGetTime();
+        combat.attackStartedAt = g_clock.now;
         combat.attackDuration = 0.2;
 
         const ItemStack &selectedStack = GetSelectedItem();
@@ -157,10 +157,13 @@ bool Player::Attack(void)
 
 void Player::Update(InputSample &input, const Tilemap &map)
 {
+    thread_local ActionState lastAction = ActionState::None;
+
     assert(id);
     assert(input.ownerId == id);
 
-    float dt = input.msec / 1000.0f;
+    // How long player held the button for, in seconds
+    float inputDt = input.msec / 1000.0f;
 
     if (input.selectSlot) {
         inventory.selectedSlot = input.selectSlot;
@@ -197,11 +200,13 @@ void Player::Update(InputSample &input, const Tilemap &map)
             // TODO: moveState = Player::MoveState::Swimming;
         }
 
-        Vector2 moveOffset = v2_scale(v2_normalize(move), METERS_TO_PIXELS(speed) * dt);
+        Vector2 moveOffset = v2_scale(v2_normalize(move), METERS_TO_PIXELS(speed) * inputDt);
         moveBuffer = v2_add(moveBuffer, moveOffset);
 
-        if (!input.skipFx && input.attack && Attack()) {
-            Catalog::g_sounds.Play(Catalog::SoundID::Whoosh, 1.0f + dlb_rand32f_variance(0.1f));
+        if (input.attack && Attack()) {
+            if (!input.skipFx) {
+                Catalog::g_sounds.Play(Catalog::SoundID::Whoosh, 1.0f + dlb_rand32f_variance(0.1f));
+            }
         }
 
         if (!v2_is_zero(moveBuffer)) {
@@ -250,11 +255,11 @@ void Player::Update(InputSample &input, const Tilemap &map)
 
             if (Move(moveBuffer)) {
                 thread_local double lastFootstep = 0;
-                double timeSinceLastFootstep = glfwGetTime() - lastFootstep;
+                double timeSinceLastFootstep = g_clock.now - lastFootstep;
                 float distanceMoved = v2_length(moveBuffer);
                 if (!input.skipFx && timeSinceLastFootstep > 1.0f / distanceMoved) {
                     Catalog::g_sounds.Play(Catalog::SoundID::Footstep, 1.0f + dlb_rand32f_variance(0.5f));
-                    lastFootstep = glfwGetTime();
+                    lastFootstep = g_clock.now;
                 }
             }
 
@@ -262,19 +267,17 @@ void Player::Update(InputSample &input, const Tilemap &map)
         }
     }
 
-    switch (actionState) {
-        case ActionState::Attacking: {
-            const double timeSinceAttackStarted = glfwGetTime() - combat.attackStartedAt;
-            if (timeSinceAttackStarted > combat.attackDuration) {
-                actionState = ActionState::None;
-                combat.attackStartedAt = 0;
-                combat.attackDuration = 0;
-                combat.attackFrame = 0;
-            } else {
-                combat.attackFrame++;
-            }
-            break;
-        }
+    const double attackAlpha = (g_clock.now - combat.attackStartedAt) / combat.attackDuration;
+    if (actionState == ActionState::AttackBegin && attackAlpha > 0.0) {
+        actionState = ActionState::AttackSustain;
+    }
+    if (actionState == ActionState::AttackSustain && attackAlpha > 0.5) {
+        actionState = ActionState::AttackRecover;
+    }
+    if (actionState == ActionState::AttackRecover && attackAlpha > 1.0) {
+        combat.attackStartedAt = 0;
+        combat.attackDuration = 0;
+        actionState = ActionState::None;
     }
 
     if (sprite.spriteDef) {
@@ -294,13 +297,14 @@ void Player::Update(InputSample &input, const Tilemap &map)
                     }
                     break;
                 }
-                case ActionState::Attacking: {
+                case ActionState::AttackBegin:
+                case ActionState::AttackSustain: {
                     // sprite_by_name("player_sword_attack");
-                    if (combat.attackFrame < 10) {
-                        sprite.spriteDef = &sheet->sprites[4];
-                    } else {
-                        sprite.spriteDef = &sheet->sprites[2];
-                    }
+                    sprite.spriteDef = &sheet->sprites[4];
+                    break;
+                }
+                case ActionState::AttackRecover: {
+                    sprite.spriteDef = &sheet->sprites[2];
                     break;
                 }
             }
@@ -314,8 +318,8 @@ void Player::Update(InputSample &input, const Tilemap &map)
         }
     }
 
-    body.Update(dt);
-    sprite_update(sprite, dt);
+    body.Update(inputDt);
+    sprite_update(sprite, inputDt);
 
 #if 0
     // TODO: PushEvent(BODY_IDLE_CHANGED, body.idle);
@@ -329,6 +333,7 @@ void Player::Update(InputSample &input, const Tilemap &map)
 
     // Skip sounds/particles etc. next time this input is used (e.g. during reconciliation)
     input.skipFx = true;
+    lastAction = actionState;
 }
 
 float Player::Depth(void) const
@@ -421,8 +426,7 @@ void Player::DrawSwimOverlay(const World &world) const
             //DrawCircleV({ minXWater, playerGut2D.y }, 2.0f, PINK);
             //DrawCircleV({ maxXWater, playerGut2D.y }, 2.0f, PINK);
 
-            const double now = glfwGetTime();
-            const float radiusDelta = (moveState != Player::MoveState::Idle) ? (sinf((float)now * 8) * 3) : 0.0f;
+            const float radiusDelta = (moveState != Player::MoveState::Idle) ? (sinf((float)g_clock.now * 8) * 3) : 0.0f;
             const float radius = 20.0f + radiusDelta;
             DrawEllipse((int)gut2d.x, (int)gut2d.y, radius, radius * 0.5f, Fade(SKYBLUE, 0.4f));
         }

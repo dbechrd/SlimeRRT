@@ -188,7 +188,7 @@ Slime *World::SpawnSlime(uint32_t slimeId, Vector2 origin)
                 slime.id = nextId;
             }
 
-            TraceLog(LOG_DEBUG, "SpawnSlime [%u]", slime.id);
+            //TraceLog(LOG_DEBUG, "SpawnSlime [%u]", slime.id);
             slime.Init();
             slime.body.Teleport(spawnPos);
             //TraceLog(LOG_DEBUG, "Spawned enemy %u", slime.type);
@@ -196,7 +196,7 @@ Slime *World::SpawnSlime(uint32_t slimeId, Vector2 origin)
         }
     }
 
-    TraceLog(LOG_ERROR, "Failed to spawn enemy");
+    //TraceLog(LOG_DEBUG, "Failed to spawn enemy, mob cap full");
     return 0;
 }
 
@@ -241,7 +241,7 @@ void World::SV_SimPlayers(double dt)
         }
 
         if (player.combat.diedAt) {
-            if (glfwGetTime() - player.combat.diedAt < SV_RESPAWN_TIMER) {
+            if (g_clock.now - player.combat.diedAt < SV_RESPAWN_TIMER) {
                 continue;
             } else {
                 player.combat.diedAt = 0;
@@ -250,10 +250,12 @@ void World::SV_SimPlayers(double dt)
             }
         }
 
-        //assert(map);
-        //player.Update(dt, *map);
-
-        if (player.actionState == Player::ActionState::Attacking && player.combat.attackFrame == 1) {
+        //switch (player.actionState) {
+        //    case Player::ActionState::AttackBegin  : printf("%u !!!!\n", tick); break;
+        //    case Player::ActionState::AttackSustain: printf("%u **\n", tick); break;
+        //    case Player::ActionState::AttackRecover: printf("%u .\n", tick); break;
+        //}
+        if (player.actionState == Player::ActionState::AttackBegin) {
             const float playerAttackReach = METERS_TO_PIXELS(1.0f);
             float playerDamage;
 
@@ -402,10 +404,8 @@ void World::SV_SimSlimes(double dt)
 
 void World::SV_SimItems(double dt)
 {
-    const double now = glfwGetTime();
-
     for (ItemWorld &item : itemSystem.items) {
-        if (!item.uid || item.pickedUpAt || now < item.spawnedAt + SV_ITEM_PICKUP_DELAY) {
+        if (!item.uid || item.pickedUpAt || g_clock.now < item.spawnedAt + SV_ITEM_PICKUP_DELAY) {
             continue;
         }
 
@@ -413,7 +413,7 @@ void World::SV_SimItems(double dt)
 
         Player *closestPlayer = FindClosestPlayer(item.body.GroundPosition(), SV_ITEM_ATTRACT_DIST);
         if (!closestPlayer || !closestPlayer->id ||
-            (item.droppedByPlayerId == closestPlayer->id && now < item.spawnedAt + SV_ITEM_REPICKUP_DELAY)
+            (item.droppedByPlayerId == closestPlayer->id && g_clock.now < item.spawnedAt + SV_ITEM_REPICKUP_DELAY)
         ) {
             continue;
         }
@@ -423,7 +423,7 @@ void World::SV_SimItems(double dt)
         if (itemToPlayerDistSq < SQUARED(SV_ITEM_PICKUP_DIST)) {
             if (closestPlayer->inventory.PickUp(item.stack)) {
                 if (!item.stack.count) {
-                    item.pickedUpAt = now;
+                    item.pickedUpAt = g_clock.now;
 #if SV_DEBUG_WORLD_ITEMS
                     TraceLog(LOG_DEBUG, "Sim: Item picked up %u", item.type);
 #endif
@@ -447,8 +447,6 @@ void World::SV_SimItems(double dt)
 
 void World::DespawnDeadEntities(void)
 {
-    double now = glfwGetTime();
-
 #if 0
     for (size_t i = 0; i < SV_MAX_PLAYERS; i++) {
         Player &player = players[i];
@@ -457,7 +455,7 @@ void World::DespawnDeadEntities(void)
         }
 
         // NOTE: Player is likely going to respawn very quickly, so this may not be useful
-        if (!player.combat.hitPoints && glfwGetTime() - player.combat.diedAt > SV_PLAYER_CORPSE_LIFETIME) {
+        if (!player.combat.hitPoints && g_clock.now - player.combat.diedAt > SV_PLAYER_CORPSE_LIFETIME) {
             TraceLog(LOG_DEBUG, "Despawn stale player corpse %u", player.type);
             DespawnPlayer(player.type);
         }
@@ -470,7 +468,7 @@ void World::DespawnDeadEntities(void)
         }
 
         // Check if enemy has been dead for awhile
-        if (enemy.combat.diedAt && now - enemy.combat.diedAt > SV_ENEMY_CORPSE_LIFETIME) {
+        if (enemy.combat.diedAt && g_clock.now - enemy.combat.diedAt > SV_ENEMY_CORPSE_LIFETIME) {
             //TraceLog(LOG_DEBUG, "Despawn stale enemy corpse %u", enemy.id);
             RemoveSlime(enemy.id);
         }
@@ -648,7 +646,7 @@ void World::CL_DespawnStaleEntities(void)
             // move unless they have a target. Need to figure out why slime is just chillin and not updating.
             // HACK: Figure out WHY this is happening instead of just despawning. I'm assuming the server just didn't
             // send me a despawn packet for this slime (e.g. because I'm too far away from it??)
-            //if (glfwGetTime() - enemy.body.positionHistory.Last().recvAt > SV_ENEMY_STALE_LIFETIME) {
+            //if (g_clock.now - enemy.body.positionHistory.Last().recvAt > SV_ENEMY_STALE_LIFETIME) {
             //    TraceLog(LOG_WARNING, "Despawn stale enemy %u", enemy.id);
             //    RemoveSlime(enemy.id);
             //    continue;

@@ -83,7 +83,7 @@ ParticleEffect *ParticleSystem::GenerateEffect(Catalog::ParticleEffectID type, V
     effect->id = type;
     effect->origin = origin;
     effect->duration = dlb_rand32f_range(par.durationMin, par.durationMax);
-    effect->startedAt = glfwGetTime();
+    effect->startedAt = g_clock.now;
     effect->params = par;
 
     const int particleCount = dlb_rand32i_range(par.particleCountMin, par.particleCountMax);
@@ -149,7 +149,7 @@ void ParticleSystem::Update(double dt)
             continue;  // particle is dead
 
         ParticleEffect &effect = *particle.effect;
-        const float alpha = (float)((glfwGetTime() - particle.spawnAt) / (particle.dieAt - particle.spawnAt));
+        const float alpha = (float)((g_clock.now - particle.spawnAt) / (particle.dieAt - particle.spawnAt));
         if (alpha >= 0.0f && alpha < 1.0f) {
             if (!particle.alive) {
                 Vector3 pos = particle.body.WorldPosition();
@@ -211,7 +211,7 @@ void ParticleSystem::PushAll(DrawList &drawList)
         if (!particle.alive)
             continue;  // particle is dead
 
-        //const float animTime = (float)(glfwGetTime() - particle.effect->startedAt);
+        //const float animTime = (float)(g_clock.now - particle.effect->startedAt);
         //const float alpha = (float)((animTime - particle.spawnAt) / (particle.dieAt - particle.spawnAt));
         //if (alpha >= 0.0f && alpha < 1.0f) {
         drawList.Push(particle);

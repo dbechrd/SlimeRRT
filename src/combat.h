@@ -1,6 +1,6 @@
 #pragma once
+#include "clock.h"
 #include "loot_table.h"
-#include "GLFW/glfw3.h"
 #include "dlb_types.h"
 
 struct Combat {
@@ -15,7 +15,6 @@ struct Combat {
     double      attackStartedAt  {};
     double      attackDuration   {};
     double      diedAt           {};
-    uint32_t    attackFrame      {};
     bool        droppedHitLoot   {};  // loot on hit? could be fun for some slime items to fly off when attacking
     bool        droppedDeathLoot {};  // loot on death, proper loot roll
 
@@ -24,7 +23,7 @@ struct Combat {
         const float dealt = CLAMP(damage, 0.0f, hitPoints);
         hitPoints -= dealt;
         if (!hitPoints) {
-            diedAt = glfwGetTime();
+            diedAt = g_clock.now;
         }
         return dealt;
     }

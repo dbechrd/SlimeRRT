@@ -225,8 +225,8 @@ ErrorType NetClient::SendPlayerInput(void)
 
 void NetClient::PredictPlayer(void)
 {
-    // TODO: What is "now" used for? Where do I get it from that makes sense?
-    //double now = glfwGetTime();
+    // Maybe we want to predict other players' movements by broadcasting their input?
+    // Doesn't really seem necessary.. idk.
     //player->Update(now, input.dt);
 }
 
@@ -404,7 +404,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
             const WorldSnapshot &netSnapshot = tempMsg.data.worldSnapshot;
             WorldSnapshot &worldSnapshot = worldHistory.Alloc();
             worldSnapshot = netSnapshot;
-            worldSnapshot.recvAt = glfwGetTime();
+            worldSnapshot.recvAt = g_clock.now;
 
 #if 0
             for (size_t i = 0; i < worldSnapshot.playerCount; i++) {
@@ -570,7 +570,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                     if (!slime) {
                         continue;
                     }
-                    TraceLog(LOG_DEBUG, "netClient spawn slime [%u]", enemySnapshot.id);
+                    //TraceLog(LOG_DEBUG, "netClient spawn slime [%u]", enemySnapshot.id);
                 }
 
                 if (enemySnapshot.flags != EnemySnapshot::Flags::None) {

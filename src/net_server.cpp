@@ -38,6 +38,7 @@ ErrorType NetServer::OpenSocket(unsigned short socketPort)
     while ((!server || !server->socket)) {
         E_ASSERT(ErrorType::HostCreateFailed, "Failed to create host. Check if port(s) %hu already in use.", socketPort);
     }
+
     printf("Listening on port %hu...\n", address.port);
     return ErrorType::Success;
 }
@@ -513,7 +514,7 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
     }
 
     E_ASSERT(SendMsg(client, netMsg), "Failed to send world snapshot");
-    client.lastSnapshotSentAt = glfwGetTime();
+    client.lastSnapshotSentAt = g_clock.now;
     return ErrorType::Success;
 }
 

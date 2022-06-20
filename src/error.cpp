@@ -1,3 +1,4 @@
+#include "clock.h"
 #include "error.h"
 
 #include <cstdio>
@@ -23,14 +24,18 @@ static void traceLogCallback(int logType, const char *text, va_list args)
     thread_local std::mutex mutex;
     std::lock_guard<std::mutex> lock(mutex);
 
+    double time = 0;
+#if 0
     // Raylib CloseWindow() kills glfw then tries to log something.. which means the GLFW timer is invalid -.-
     // If there was ever a window, and now the window is gone (i.e. glfw dead), don't request a timestamp)
     thread_local bool windowDetected = 0;
-    double time = 0;
     if (!windowDetected || IsWindowReady()) {
         time = glfwGetTime();
         windowDetected = IsWindowReady();
     }
+#else
+    time = g_clock.now;
+#endif
 
     if (logFile) {
         fprintf(logFile, "[%0.3fs] %s ", time, logTypeStr);

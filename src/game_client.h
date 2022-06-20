@@ -19,13 +19,6 @@ struct GameClient {
 private:
     static const char *LOG_SRC;
 
-    // Time
-    double       frameStart {};
-    const double tickDt = 1.0 / SV_TICK_RATE;
-    const double tickDtMax = tickDt * 2.0;
-    const double sendInputDt = 1.0 / CL_INPUT_SEND_RATE;
-    const double sendInputDtMax = sendInputDt * 2.0;
-
     // Flags
     bool inventoryActive = false;
 

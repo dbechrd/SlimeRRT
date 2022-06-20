@@ -251,8 +251,10 @@ struct Player : Drawable {
     };
 
     enum class ActionState {
-        None      = 0,
-        Attacking = 1,
+        None          = 0,
+        AttackBegin   = 1,
+        AttackSustain = 2,
+        AttackRecover = 3,
     };
 
     enum class AttachPoint {

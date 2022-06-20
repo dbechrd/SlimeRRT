@@ -543,7 +543,7 @@ void UI::HUD(const Font &font, World &world, const DebugStats &debugStats)
 
     uint32_t xpNextLevel = player->combat.level * 20u;
     float xpProgress = (float)player->xp / xpNextLevel;
-    //xpProgress = sinf(glfwGetTime()) / 2.0f + 0.5f;
+    //xpProgress = sinf(g_clock.now) / 2.0f + 0.5f;
     char buf[32]{};
     snprintf(buf, sizeof(buf), "%u / %u", player->xp, xpNextLevel);
     ImGui::ProgressBar(xpProgress, ImVec2(-FLT_MIN, 0), buf);
@@ -967,9 +967,9 @@ void UI::MainMenu(bool &escape, GameClient &game)
                 };
                 message = text[loadingIdx];
                 loading = true;
-                if (glfwGetTime() - loadingIdxLastUpdate > 0.25) {
+                if (g_clock.now - loadingIdxLastUpdate > 0.25) {
                     loadingIdx = (loadingIdx + 1) % ARRAY_SIZE(text);
-                    loadingIdxLastUpdate = glfwGetTime();
+                    loadingIdxLastUpdate = g_clock.now;
                 }
 
                 if (message) {
@@ -1050,9 +1050,9 @@ void UI::MainMenu(bool &escape, GameClient &game)
                 };
                 message = text[connectingIdx];
                 connecting = true;
-                if (glfwGetTime() - connectingIdxLastUpdate > 0.25) {
+                if (g_clock.now - connectingIdxLastUpdate > 0.25) {
                     connectingIdx = (connectingIdx + 1) % ARRAY_SIZE(text);
-                    connectingIdxLastUpdate = glfwGetTime();
+                    connectingIdxLastUpdate = g_clock.now;
                 }
 
                 if (message) {

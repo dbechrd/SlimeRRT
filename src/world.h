@@ -19,8 +19,6 @@ struct World {
     uint64_t       rtt_seed       {};
     dlb_rand32_t   rtt_rand       {};
     uint32_t       tick           {};
-    //double         clockStart     {};
-    //double         clock          {};
     double         dtUpdate       {};
     Tilemap        *map           {};
     // TODO: PlayerSystem

@@ -69,7 +69,7 @@ ItemWorld *ItemSystem::SpawnItem(Vector3 pos, ItemType itemId, uint32_t count, u
         item.sprite.spriteDef = spritesheet.FindSprite("coin");
     }
     item.sprite.scale = 1.0f;
-    item.spawnedAt = glfwGetTime();
+    item.spawnedAt = g_clock.now;
 
     byUid[item.uid] = (uint32_t)items.size();
     return &items.emplace_back(item);
@@ -148,7 +148,6 @@ void ItemSystem::Update(double dt)
 
 void ItemSystem::DespawnDeadEntities(double pickupDespawnDelay)
 {
-    const double now = glfwGetTime();
     size_t i = 0;
     while (i < items.size()) {
         ItemWorld &item = items[i];
@@ -157,8 +156,8 @@ void ItemSystem::DespawnDeadEntities(double pickupDespawnDelay)
         // containing the pickup flag before despawning the item. This may not be necessary
         // once nearby_events are implemented and send item pickup notifications.
         if (item.stack.itemType && (
-            (item.pickedUpAt && ((now - item.pickedUpAt) > pickupDespawnDelay)) ||
-            (item.spawnedAt && ((now - item.spawnedAt) > SV_WORLD_ITEM_LIFETIME))
+            (item.pickedUpAt && ((g_clock.now - item.pickedUpAt) > pickupDespawnDelay)) ||
+            (item.spawnedAt && ((g_clock.now - item.spawnedAt) > SV_WORLD_ITEM_LIFETIME))
         )) {
             // NOTE: If remove succeeds, don't increment index, next element to check is in the
             // same slot now.

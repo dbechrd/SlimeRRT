@@ -8,6 +8,7 @@
 #include "jail_win32_console.h"
 //#include "dlb_memory.h"
 #include "../test/tests.h"
+#include "GLFW/glfw3.h"
 
 DLB_ASSERT_HANDLER(handle_assert)
 {
@@ -173,6 +174,7 @@ int main(int argc, char *argv[])
 #include "catalog/spritesheets.cpp"
 #include "catalog/tracks.cpp"
 #include "chat.cpp"
+#include "clock.cpp"
 #include "controller.cpp"
 #include "draw_command.cpp"
 #include "error.cpp"

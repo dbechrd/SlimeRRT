@@ -149,7 +149,7 @@ bool Slime::TryCombine(Slime &other)
 
     // Kill slime B
     b->combat.hitPoints = 0.0f;
-    b->combat.diedAt = glfwGetTime();
+    b->combat.diedAt = g_clock.now;
     b->combat.droppedDeathLoot = true;
 #if SV_DEBUG_WORLD_ENEMIES
     TraceLog(LOG_DEBUG, "Combined slime #%u into slime #%u", b->type, a->type);
@@ -177,7 +177,7 @@ bool Slime::Attack(double dt)
     if (body.JustLanded()) {
         actionState = ActionState::Attacking;
         body.Move({});  // update last move to stop idle animation
-        combat.attackStartedAt = glfwGetTime();
+        combat.attackStartedAt = g_clock.now;
         combat.attackDuration = 0.0;
         return true;
     }
@@ -189,14 +189,11 @@ void Slime::Update(double dt)
 {
     switch (actionState) {
         case ActionState::Attacking: {
-            const double timeSinceAttackStarted = glfwGetTime() - combat.attackStartedAt;
+            const double timeSinceAttackStarted = g_clock.now - combat.attackStartedAt;
             if (timeSinceAttackStarted > combat.attackDuration) {
                 actionState = ActionState::None;
                 combat.attackStartedAt = 0;
                 combat.attackDuration = 0;
-                combat.attackFrame = 0;
-            } else {
-                combat.attackFrame++;
             }
             break;
         }
@@ -234,7 +231,7 @@ void Slime::Draw(const World &world) const
         // DEBUG: Draw stale visual marker if no snapshot received in a while
         if (body.positionHistory.Count()) {
             auto &lastPos = body.positionHistory.Last();
-            if (glfwGetTime() - lastPos.recvAt > 3.0f) {
+            if (g_clock.now - lastPos.recvAt > 3.0f) {
                 DrawCircleV(body.VisualPosition(), 3.0f, BEIGE);
             }
         }
