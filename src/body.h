@@ -13,7 +13,7 @@ struct Vector3Snapshot {
 struct Body3D {
     RingBuffer<Vector3Snapshot, CL_WORLD_HISTORY> positionHistory {};
 
-    float   speed        {};
+    float   speed        {};  // move speed, in meters
     Vector3 velocity     {};
     float   rotation     {};
     float   restitution  {};  // 0 = no bounce    1 = 100% bounce

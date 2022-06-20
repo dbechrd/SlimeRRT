@@ -366,6 +366,7 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
         state.id = otherPlayer.id;
         state.position = otherPlayer.body.WorldPosition();
         state.direction = otherPlayer.sprite.direction;
+        state.speed = otherPlayer.body.speed;
         state.hitPoints = otherPlayer.combat.hitPoints;
         state.hitPointsMax = otherPlayer.combat.hitPointsMax;
         state.level = otherPlayer.combat.level;
@@ -833,7 +834,7 @@ bool NetServer::ParseCommand(SV_Client &client, NetMessage_ChatMessage &chatMsg)
                 float speed = strtof(argv[0], 0);
                 printf("[speed] Set %.*s speed to %f\n", player->nameLength, player->name, speed);
                 // TODO: Implement a way to set player's speed
-                player->body.rotation = speed;
+                player->body.speed = speed;
             }
         // /speed <player> <speed>
         } else if (argc == 2) {
@@ -842,7 +843,7 @@ bool NetServer::ParseCommand(SV_Client &client, NetMessage_ChatMessage &chatMsg)
                 float speed = strtof(argv[1], 0);
                 printf("[speed] Set %.*s speed to %f\n", player->nameLength, player->name, speed);
                 // TODO: Implement a way to set player's speed
-                player->body.rotation = speed;
+                player->body.speed = speed;
             } else {
                 SendChatMessage(client, CSTR("[speed] Player not found."));
             }

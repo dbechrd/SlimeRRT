@@ -676,6 +676,7 @@ void UI::Chat(const Font &font, int fontSize, World &world, NetClient &netClient
                     world.chatHistory.PushPlayer(world.playerId, chatInputText, chatInputTextLen);
                 }
                 memset(chatInputText, 0, sizeof(chatInputText));
+                ImGui::CloseCurrentPopup();
             }
         }
         ImGui::PopStyleColor();

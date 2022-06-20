@@ -164,6 +164,9 @@ size_t NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &worl
                     stream.Process((uint8_t &)player.direction, 3, (uint8_t)Direction::North, (uint8_t)Direction::NorthWest);
                     stream.Align();
                 }
+                if (player.flags & PlayerSnapshot::Flags::Speed) {
+                    stream.Process(player.speed);
+                }
                 if (player.flags & PlayerSnapshot::Flags::Health) {
                     stream.Process(player.hitPoints);
                 }

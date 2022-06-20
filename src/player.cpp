@@ -182,7 +182,7 @@ void Player::Update(InputSample &input, const Tilemap &map)
             move.x -= 1.0f * input.walkWest;
             if (input.run) {
                 moveState = Player::MoveState::Running;
-                speed += METERS_TO_PIXELS(1.0f);
+                speed += 1.0f;
             } else {
                 moveState = Player::MoveState::Walking;
             }
@@ -197,7 +197,7 @@ void Player::Update(InputSample &input, const Tilemap &map)
             // TODO: moveState = Player::MoveState::Swimming;
         }
 
-        Vector2 moveOffset = v2_scale(v2_normalize(move), speed * dt);
+        Vector2 moveOffset = v2_scale(v2_normalize(move), METERS_TO_PIXELS(speed) * dt);
         moveBuffer = v2_add(moveBuffer, moveOffset);
 
         if (!input.skipFx && input.attack && Attack()) {

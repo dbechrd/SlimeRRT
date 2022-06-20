@@ -311,15 +311,20 @@ void NetClient::ReconcilePlayer(void)
         printf("\n");
 #endif
     }
-    if (playerSnapshot->flags & PlayerSnapshot::Flags::Direction) {
-        player->sprite.direction = playerSnapshot->direction;
-    }
-    if (playerSnapshot->flags & PlayerSnapshot::Flags::Health) {
-        player->combat.hitPoints = playerSnapshot->hitPoints;
-    }
-    if (playerSnapshot->flags & PlayerSnapshot::Flags::HealthMax) {
-        player->combat.hitPointsMax = playerSnapshot->hitPointsMax;
-    }
+
+    // TODO(dlb): This seems redundant. Doesn't it already happen in ProcessMsg??
+    //if (playerSnapshot->flags & PlayerSnapshot::Flags::Direction) {
+    //    player->sprite.direction = playerSnapshot->direction;
+    //}
+    //if (playerSnapshot->flags & PlayerSnapshot::Flags::Speed) {
+    //    player->body.speed = playerSnapshot->speed;
+    //}
+    //if (playerSnapshot->flags & PlayerSnapshot::Flags::Health) {
+    //    player->combat.hitPoints = playerSnapshot->hitPoints;
+    //}
+    //if (playerSnapshot->flags & PlayerSnapshot::Flags::HealthMax) {
+    //    player->combat.hitPointsMax = playerSnapshot->hitPointsMax;
+    //}
 }
 
 void NetClient::ProcessMsg(ENetPacket &packet)
@@ -484,6 +489,9 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                     }
                 }
 
+                if (playerSnapshot.flags & PlayerSnapshot::Flags::Speed) {
+                    player->body.speed = playerSnapshot.speed;
+                }
                 // TODO: Pos/dir are history based, but these are instantaneous.. hmm.. is that okay?
                 if (playerSnapshot.flags & PlayerSnapshot::Flags::Health) {
                     //TraceLog(LOG_DEBUG, "Snapshot: health %f", playerSnapshot.hitPoints);

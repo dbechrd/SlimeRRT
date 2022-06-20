@@ -359,7 +359,7 @@ void World::SV_SimSlimes(double dt)
         if (slimeToPlayerDistSq <= SQUARED(SV_SLIME_ATTACK_TRACK)) {
             Vector2 slimeToPlayer = v2_sub(closestPlayer->body.GroundPosition(), slime.body.GroundPosition());
             const float slimeToPlayerDist = sqrtf(slimeToPlayerDistSq);
-            const float moveDist = MIN(slimeToPlayerDist, slime.body.speed * slime.sprite.scale);
+            const float moveDist = MIN(slimeToPlayerDist, METERS_TO_PIXELS(slime.body.speed) * slime.sprite.scale);
             // 5% -1.0, 95% +1.0f
             const float moveRandMult = 1.0f; //dlb_rand32i_range(1, 100) > 5 ? 1.0f : -1.0f;
             const Vector2 slimeMoveDir = v2_scale(slimeToPlayer, 1.0f / slimeToPlayerDist);
