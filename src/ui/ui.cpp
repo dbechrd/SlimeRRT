@@ -196,7 +196,8 @@ static void CenterNextItem(const char *text)
 {
     float windowContentWidth = ImGui::GetContentRegionAvail().x;
     float textWidth = ImGui::CalcTextSize(text).x;
-    ImGui::SetCursorPosX((windowContentWidth - textWidth) * 0.5f);
+    float cursorX = ImGui::GetCursorPosX();
+    ImGui::SetCursorPosX(cursorX + (windowContentWidth - textWidth) * 0.5f);
 }
 
 void UI::MenuTitle(const char *text)
@@ -973,7 +974,8 @@ void UI::MainMenu(bool &escape, GameClient &game)
                 }
 
                 if (message) {
-                    CenterNextItem(message);
+                    //CenterNextItem(message);
+                    ImGui::Text(message);
                 } else {
                     ImGui::Text("");
                 }
@@ -1016,7 +1018,8 @@ void UI::MainMenu(bool &escape, GameClient &game)
 
                 if (message) {
                     if (msgIsError) ImGui::PushStyleColor(ImGuiCol_Text, ImColor(220, 0, 0, 255).Value);
-                    CenterNextItem(message);
+                    //CenterNextItem(message);
+                    ImGui::Text(message);
                     if (msgIsError) ImGui::PopStyleColor(1);
                     if (ImGui::Button("Okay")) {
                         reset = true;
@@ -1057,9 +1060,9 @@ void UI::MainMenu(bool &escape, GameClient &game)
 
                 if (message) {
                     if (msgIsError) ImGui::PushStyleColor(ImGuiCol_Text, ImColor(220, 0, 0, 255).Value);
-                    CenterNextItem(message);
+                    //CenterNextItem(message);
+                    ImGui::Text(message);
                     if (msgIsError) ImGui::PopStyleColor(1);
-                    //ImGui::Text(message);
                 } else {
                     ImGui::Text("");
                 }
@@ -1141,9 +1144,9 @@ void UI::MainMenu(bool &escape, GameClient &game)
 
             if (message) {
                 ImGui::PushStyleColor(ImGuiCol_Text, ImColor(220, 0, 0, 255).Value);
-                CenterNextItem(message);
+                //CenterNextItem(message);
+                ImGui::Text(message);
                 ImGui::PopStyleColor(1);
-                //ImGui::Text(message);
             } else {
                 ImGui::Text("");
             }

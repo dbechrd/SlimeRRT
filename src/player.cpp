@@ -34,6 +34,7 @@ void Player::Init(const SpriteDef *spriteDef)
     inventory.slots[PlayerInvSlot_Coin_Silver].stack = { ItemType_Currency_Silver, 0 };
     inventory.slots[PlayerInvSlot_Coin_Gilded].stack = { ItemType_Currency_Gilded, 0 };
     inventory.slots[0].stack = { ItemType_Weapon_Dagger, 1 };
+    //inventory.slots[0].stack = { ItemType_Weapon_Excalibur, 1 };
     inventory.slots[1].stack = { ItemType_Book_BlackSkull, 3 };
 
     // TODO: Load stats from save file / server

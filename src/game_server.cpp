@@ -148,10 +148,10 @@ ErrorType GameServer::Run(const Args &args)
                 TraceLog(LOG_DEBUG, "inputOverflow: %f, tickDt: %f%s", client.inputOverflow, tickDt,
                     client.inputOverflow > SV_INPUT_HACK_THRESHOLD ? " [INPUT HAX DETECTED]" : "");
 #else
-                if (client.inputOverflow > SV_INPUT_HACK_THRESHOLD) {
-                    TraceLog(LOG_DEBUG, "inputOverflow: %f, tickDt: %f [INPUT HAX DETECTED]",
-                        client.inputOverflow, SV_TICK_DT);
-                }
+                //if (client.inputOverflow > SV_INPUT_HACK_THRESHOLD) {
+                //    TraceLog(LOG_DEBUG, "inputOverflow: %f, tickDt: %f [INPUT HAX DETECTED]",
+                //        client.inputOverflow, SV_TICK_DT);
+                //}
 #endif
 
                 // Send nearby chunks to player if they haven't received them yet
