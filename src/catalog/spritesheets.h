@@ -5,10 +5,10 @@ namespace Catalog {
     enum class SpritesheetID {
         Empty,
         Charlie,
+        Slime,
         Coin_Copper,
         Coin_Silver,
         Coin_Gilded,
-        Slime,
         Items,
         Count
     };

@@ -6,7 +6,7 @@
 
 namespace Catalog {
     void Items::LoadTextures(void) {
-        tex = LoadTexture("resources/joecreates.png");
+        tex = LoadTexture("data/img/itm/joecreates.png");
     }
 
     void Items::LoadData(void)

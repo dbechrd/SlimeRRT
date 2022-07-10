@@ -24,21 +24,18 @@ namespace Catalog {
     void Sounds::Load(void)
     {
         byId[(size_t)SoundID::Empty          ] = MissingOggSound();
-        byId[(size_t)SoundID::Footstep       ] = LoadSound("resources/footstep1.ogg");
-        byId[(size_t)SoundID::Gold           ] = LoadSound("resources/gold1.ogg");
-        byId[(size_t)SoundID::Slime_Stab1    ] = LoadSound("resources/slime_stab1.ogg");
-        byId[(size_t)SoundID::Squeak         ] = LoadSound("resources/squeak1.ogg");
-        byId[(size_t)SoundID::Squish1        ] = LoadSound("resources/squish1.ogg");
-        byId[(size_t)SoundID::Squish2        ] = LoadSound("resources/squish2.ogg");
-        byId[(size_t)SoundID::Whoosh         ] = LoadSound("resources/whoosh1.ogg");
-        byId[(size_t)SoundID::GemBounce      ] = LoadSound("resources/gem_bounce.wav");
-        byId[(size_t)SoundID::Eughh          ] = LoadSound("resources/eughh.ogg");
-        byId[(size_t)SoundID::RainbowSparkles] = LoadSound("resources/rainbow_sparkles.ogg");
+        byId[(size_t)SoundID::Footstep       ] = LoadSound("data/sfx/footstep1.ogg");
+        byId[(size_t)SoundID::Gold           ] = LoadSound("data/sfx/gold1.ogg");
+        byId[(size_t)SoundID::Slime_Stab1    ] = LoadSound("data/sfx/slime_stab1.ogg");
+        byId[(size_t)SoundID::Squeak         ] = LoadSound("data/sfx/squeak1.ogg");
+        byId[(size_t)SoundID::Squish1        ] = LoadSound("data/sfx/squish1.ogg");
+        byId[(size_t)SoundID::Squish2        ] = LoadSound("data/sfx/squish2.ogg");
+        byId[(size_t)SoundID::Whoosh         ] = LoadSound("data/sfx/whoosh1.ogg");
+        byId[(size_t)SoundID::GemBounce      ] = LoadSound("data/sfx/gem_bounce.wav");
+        byId[(size_t)SoundID::Eughh          ] = LoadSound("data/sfx/eughh.ogg");
+        byId[(size_t)SoundID::RainbowSparkles] = LoadSound("data/sfx/rainbow_sparkles.ogg");
 
         for (size_t i = 0; i < (size_t)SoundID::Count; i++) {
-            if (!byId[i].frameCount) {
-                byId[i] = MissingOggSound();
-            }
             mixer.volumeLimit[i] = 1.0f;
         }
     }
@@ -54,40 +51,38 @@ namespace Catalog {
         }
     }
 
-    const Sound &Sounds::FindById(SoundID id) const
+    Sound Sounds::FindById(SoundID id)
     {
-        return byId[(size_t)id];
+        assert((size_t)id < ARRAY_SIZE(byId));
+        Sound sound = byId[(size_t)id];
+        if (!sound.frameCount) {
+            sound = MissingOggSound();
+        }
+        return sound;
     }
 
     void Sounds::Play(SoundID id, float pitch, bool multi)
     {
-        assert((size_t)id < ARRAY_SIZE(byId));
-        if (!byId[(size_t)id].frameCount) {
-            return;
-        }
+        Sound sound = FindById(id);
 
-        //if (!multi && IsSoundPlaying(byUid[(size_t)type])) {
+        //if (!multi && IsSoundPlaying(sound)) {
         //    return;
         //}
 
         float volume = mixer.volumeLimit[(size_t)id] * g_mixer.sfxVolume;
-        SetSoundVolume(byId[(size_t)id], VolumeCorrection(volume));
-        SetSoundPitch(byId[(size_t)id], pitch);
+        SetSoundVolume(sound, VolumeCorrection(volume));
+        SetSoundPitch(sound, pitch);
         if (multi) {
-            PlaySoundMulti(byId[(size_t)id]);
+            PlaySoundMulti(sound);
         } else {
-            PlaySound(byId[(size_t)id]);
+            PlaySound(sound);
         }
     }
 
     bool Sounds::Playing(SoundID id)
     {
-        assert((size_t)id < ARRAY_SIZE(byId));
-        if (!byId[(size_t)id].frameCount) {
-            return false;
-        }
-
-        bool playing = IsSoundPlaying(byId[(size_t)id]);
+        Sound sound = FindById(id);
+        bool playing = IsSoundPlaying(sound);
         return playing;
     }
 

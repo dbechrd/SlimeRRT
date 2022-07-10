@@ -70,8 +70,8 @@ void GameClient::Init(void)
     SetWindowState(FLAG_WINDOW_RESIZABLE);
 
     const char *fontName = "C:/Windows/Fonts/consolab.ttf";
-    //const char *fontName = "resources/Hack-Bold.ttf";
-    //const char *fontName = "resources/PressStart2P-vaV7.ttf";
+    //const char *fontName = "data/fnt/Hack-Bold.ttf";
+    //const char *fontName = "data/fnt/PressStart2P-vaV7.ttf";
     g_fonts.fontSmall = LoadFontEx(fontName, 16, 0, 0);
     assert(g_fonts.fontSmall.texture.id);
     g_fonts.fontBig = LoadFontEx(fontName, 72, 0, 0);
@@ -103,7 +103,7 @@ void GameClient::Init(void)
 
     LoadingScreen("Loading Shaders...");
 #if CL_PIXEL_FIXER
-    pixelFixer                     = LoadShader("resources/pixelfixer.vs", "resources/pixelfixer.fs");
+    pixelFixer                     = LoadShader("data/sdr/pixelfixer.vs", "data/sdr/pixelfixer.fs");
     pixelFixerScreenSizeUniformLoc = GetShaderLocation(pixelFixer, "screenSize");
     SetShaderValue(pixelFixer, pixelFixerScreenSizeUniformLoc, &screenSize, SHADER_UNIFORM_VEC2);
 #endif
@@ -147,7 +147,7 @@ void GameClient::Init(void)
         UnloadFileData(fileData);  // Free memory from loaded file
 
         // Load SDF required shader (we use default vertex shader)
-        g_sdfShader = LoadShader(0, "resources/sdf.fs");
+        g_sdfShader = LoadShader(0, "data/fnt/sdf.fs");
         SetTextureFilter(g_fonts.fontSdf72.texture, TEXTURE_FILTER_BILINEAR);  // Required for SDF font
     }
 

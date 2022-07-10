@@ -16,6 +16,7 @@ bool UI::showMenubar = false;
 bool UI::showDemoWindow = false;
 bool UI::showParticleConfig = false;
 bool UI::showNetstatWindow = false;
+bool UI::showAnimationEditor = false;
 
 bool UI::disconnectRequested = false;
 bool UI::quitRequested = false;
@@ -343,6 +344,45 @@ void UI::Netstat(NetClient &netClient, double renderAt)
     UI::SliderIntLeft("##g_inputMsecHax", &msecHax, 0, UINT8_MAX);
     g_inputMsecHax = (uint8_t)msecHax;
 #endif
+
+    ImGui::End();
+}
+
+void UI::AnimationEditor()
+{
+    if (!showAnimationEditor) {
+        return;
+    }
+
+    ImGui::SetNextWindowSize(ImVec2(380, 400), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowPos(ImVec2(360, 100), ImGuiCond_FirstUseEver);
+    auto rayDarkBlue = DARKGRAY;
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(rayDarkBlue.r, rayDarkBlue.g, rayDarkBlue.b, rayDarkBlue.a));
+    ImGui::PushStyleColor(ImGuiCol_Border, IM_COL32_BLACK);
+    ImGui::Begin("Animation Editor", &showAnimationEditor,
+        0
+        //ImGuiWindowFlags_NoTitleBar
+        //ImGuiWindowFlags_NoMove |
+        //ImGuiWindowFlags_NoResize |
+        //ImGuiWindowFlags_NoCollapse
+    );
+    ImGui::PopStyleColor(2);
+
+    thread_local bool selected[10]{};
+    if (ImGui::BeginTable("images", 2, ImGuiTableFlags_SizingFixedSame)) {
+        for (int i = 0; i < 10; i++) {
+            char label[32];
+            sprintf(label, "Item %d", i);
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::Selectable(label, &selected[i], ImGuiSelectableFlags_SpanAllColumns);
+            ImGui::TableNextColumn();
+            ImGui::Text("Some other contents");
+            ImGui::TableNextColumn();
+            ImGui::Text("123456");
+        }
+        ImGui::EndTable();
+    }
 
     ImGui::End();
 }

@@ -1,5 +1,5 @@
 # spritesheet <frame_count> <animation_count> <sprite_count> <texture_path>
-spritesheet 8 1 1 resources/coin_gilded.png
+spritesheet 8 1 1 data/img/itm/coin_gilded.png
 
 # frame <name> <x> <y> <width> <height>
 frame coin_spin_0   0 0 20 18

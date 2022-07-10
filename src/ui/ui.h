@@ -40,6 +40,7 @@ struct UI {
     static void ShowDemoWindow(void);
     static void ParticleConfig(World &world);
     static void Netstat(NetClient &netClient, double renderAt);
+    static void AnimationEditor();
     static void HUD(const Font &font, World &world, const DebugStats &debugStats);
     static void QuickHUD(const Font &font, const Player &player, const Tilemap &tilemap);
     static void Chat(const Font &font, int fontSize, World &world, NetClient &netClient, bool &escape);
@@ -60,6 +61,7 @@ private:
     static bool showDemoWindow;
     static bool showParticleConfig;
     static bool showNetstatWindow;
+    static bool showAnimationEditor;
 
     static bool disconnectRequested;
     static bool quitRequested;
