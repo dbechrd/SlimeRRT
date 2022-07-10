@@ -78,6 +78,21 @@ private:
     static void MenuTitle(const char *text);
     static void SliderFloatLeft(const char *label, float *v, float min, float max);
     static void SliderIntLeft(const char *label, int *v, int min, int max);
+
+
+    enum MyItemColumnID {
+        ItemColumn_ID,
+        ItemColumn_Class,
+        ItemColumn_StackLimit,
+        ItemColumn_Value,
+        ItemColumn_Damage,
+        ItemColumn_Name,
+        ItemColumn_NamePlural,
+    };
+
+    static const ImGuiTableSortSpecs *itemSortSpecs;
+    static int  ItemCompareWithSortSpecs(const void *lhs, const void *rhs);
+
     static bool BreadcrumbButton(const char *label, Menu menu, bool *escape);
     static void BreadcrumbText(const char *text);
     static bool MenuBackButton(Menu menu, bool *escape);

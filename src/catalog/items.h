@@ -361,10 +361,11 @@ namespace Catalog {
     };
 
     struct Items {
-        void    LoadTextures (void);
-        void    LoadData     (void);
-        Item &  Find         (ItemType id);
-        Texture Tex          (void) const;
+        void        LoadTextures (void);
+        void        LoadData     (void);
+        Item &      Find         (ItemType id);
+        Texture     Tex          (void) const;
+        const Item *Data         (void) const;
 
     private:
         Texture tex  {};

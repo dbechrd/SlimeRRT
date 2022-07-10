@@ -23,6 +23,8 @@ bool UI::quitRequested = false;
 
 UI::Menu UI::mainMenu = UI::Menu::Main;
 
+const ImGuiTableSortSpecs *UI::itemSortSpecs = 0;
+
 void UI::Begin(Vector2 screenSize, Spycam *spycam)
 {
     Rectangle cameraRect = spycam->GetRect();
@@ -349,6 +351,40 @@ void UI::Netstat(NetClient &netClient, double renderAt)
     ImGui::End();
 }
 
+int UI::ItemCompareWithSortSpecs(const void *lhs, const void *rhs)
+{
+    const ItemType *aType = (ItemType *)lhs;
+    const ItemType *bType = (ItemType *)rhs;
+    const Catalog::Item &a = Catalog::g_items.Find(*aType);
+    const Catalog::Item &b = Catalog::g_items.Find(*bType);
+    for (int n = 0; n < itemSortSpecs->SpecsCount; n++) {
+        // Here we identify columns using the ColumnUserID value that we ourselves passed to TableSetupColumn()
+        // We could also choose to identify columns based on their index (sort_spec->ColumnIndex), which is simpler!
+        const ImGuiTableColumnSortSpecs *sort_spec = &itemSortSpecs->Specs[n];
+        int delta = 0;
+        switch (sort_spec->ColumnUserID) {
+            case ItemColumn_ID:         delta = (a.itemType   - b.itemType);   break;
+            case ItemColumn_Class:      {
+                const char *aClass = Catalog::ItemClassToString(a.itemClass);
+                const char *bClass = Catalog::ItemClassToString(b.itemClass);
+                delta = strcmp(aClass, bClass);
+                break;
+            }
+            case ItemColumn_StackLimit: delta = (a.stackLimit - b.stackLimit); break;
+            case ItemColumn_Value:      delta = (a.value      - b.value);      break;
+            case ItemColumn_Damage:     delta = (a.damage     - b.damage);     break;
+            case ItemColumn_Name:       delta = (strcmp(a.nameSingular, b.nameSingular)); break;
+            case ItemColumn_NamePlural: delta = (strcmp(a.namePlural,   b.namePlural));   break;
+            default: assert(!"unknown column id"); break;
+        }
+        if (delta > 0)
+            return (sort_spec->SortDirection == ImGuiSortDirection_Ascending) ? +1 : -1;
+        if (delta < 0)
+            return (sort_spec->SortDirection == ImGuiSortDirection_Ascending) ? -1 : +1;
+    }
+    return (a.itemType - b.itemType);
+}
+
 void UI::AnimationEditor()
 {
     if (!showAnimationEditor) {
@@ -365,33 +401,49 @@ void UI::AnimationEditor()
         //ImGuiWindowFlags_NoCollapse
     );
 
-    if (ImGui::BeginTable("items", 7, ImGuiTableFlags_SizingFixedFit)) {
-        ImGui::TableNextColumn();
-        ImGui::Text("type_id");
-        ImGui::TableNextColumn();
-        ImGui::Text("class");
-        //ImGui::TableSetupColumn("class", ImGuiTableColumnFlags_WidthFixed);
-        ImGui::TableNextColumn();
-        ImGui::Text("stack_limit");
-        ImGui::TableNextColumn();
-        ImGui::Text("value");
-        ImGui::TableNextColumn();
-        ImGui::Text("damage");
-        ImGui::TableNextColumn();
-        ImGui::Text("name");
-        ImGui::TableNextColumn();
-        ImGui::Text("name plural");
-        ImGui::TableNextColumn();
+    static ImGuiTableFlags flags =
+        ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable | ImGuiTableFlags_Hideable | ImGuiTableFlags_Sortable | ImGuiTableFlags_SortMulti
+        | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY | ImGuiTableFlags_NoSavedSettings;
 
+    static std::vector<ItemType> virtualItems{};
+    if (!virtualItems.size()) {
+        virtualItems.reserve(ItemType_Count);
         for (ItemType typ = 0; typ < ItemType_Count; typ++) {
-            ImGui::PushID(typ);
+            virtualItems.push_back(typ);
+        }
+    }
 
+    if (ImGui::BeginTable("items", 7, flags)) {
+        ImGui::TableSetupColumn("ID",          ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_DefaultSort, 40.0f, ItemColumn_ID);
+        ImGui::TableSetupColumn("Class",       ImGuiTableColumnFlags_WidthFixed, 0.0f, ItemColumn_Class);
+        ImGui::TableSetupColumn("Stack Limit", ImGuiTableColumnFlags_WidthFixed, 0.0f, ItemColumn_StackLimit);
+        ImGui::TableSetupColumn("Value",       ImGuiTableColumnFlags_WidthFixed, 0.0f, ItemColumn_Value);
+        ImGui::TableSetupColumn("Damage",      ImGuiTableColumnFlags_WidthFixed, 0.0f, ItemColumn_Damage);
+        ImGui::TableSetupColumn("Name",        ImGuiTableColumnFlags_WidthFixed, 0.0f, ItemColumn_Name);
+        ImGui::TableSetupColumn("Name Plural", ImGuiTableColumnFlags_WidthFixed, 0.0f, ItemColumn_NamePlural);
+        ImGui::TableSetupScrollFreeze(0, 1); // Make row always visible
+        ImGui::TableHeadersRow();
+
+        // Sort our data if sort specs have been changed!
+        if (ImGuiTableSortSpecs *sorts_specs = ImGui::TableGetSortSpecs()) {
+            if (sorts_specs->SpecsDirty) {
+                itemSortSpecs = sorts_specs; // Store in variable accessible by the sort function.
+                qsort((void *)virtualItems.data(), virtualItems.size(), sizeof(virtualItems[0]), ItemCompareWithSortSpecs);
+                itemSortSpecs = NULL;
+                sorts_specs->SpecsDirty = false;
+            }
+        }
+
+        for (ItemType typ : virtualItems) {
             Catalog::Item &item = Catalog::g_items.Find(typ);
+            ImGui::PushID(typ);
+            ImGui::TableNextRow();
 
-            ImGui::Text("%d", item.itemType);
             ImGui::TableNextColumn();
+            ImGui::Text("%d", item.itemType);
 
-            ImGui::PushItemWidth(110);
+            ImGui::TableNextColumn();
+            ImGui::SetNextItemWidth(120.0f);
             if (ImGui::BeginCombo("##item_class", Catalog::ItemClassToString(item.itemClass))) {
                 for (ItemClass cls = 0; cls < ItemClass_Count; cls++) {
                     ImGui::PushID(cls);
@@ -402,33 +454,32 @@ void UI::AnimationEditor()
                 }
                 ImGui::EndCombo();
             }
-            ImGui::TableNextColumn();
 
-            ImGui::PushItemWidth(100);
+            ImGui::TableNextColumn();
+            ImGui::SetNextItemWidth(120.0f);
             int stackLimit = item.stackLimit;
             ImGui::InputInt("##stack_limit", &stackLimit, 1, 5);
             item.stackLimit = CLAMP(stackLimit, 1, UINT8_MAX);
-            ImGui::TableNextColumn();
 
-            ImGui::PushItemWidth(120);
+            ImGui::TableNextColumn();
+            ImGui::SetNextItemWidth(120.0f);
             int value = item.value;
             ImGui::InputInt("##value", &value, 1);
             item.value = CLAMP(value, 0, UINT16_MAX);
-            ImGui::TableNextColumn();
 
-            ImGui::PushItemWidth(120);
+            ImGui::TableNextColumn();
+            ImGui::SetNextItemWidth(120.0f);
             int damage = item.damage;
             ImGui::InputInt("##damage", &damage, 1);
             item.damage = CLAMP(damage, 0, UINT16_MAX);
-            ImGui::TableNextColumn();
 
-            ImGui::PushItemWidth(320);
+            ImGui::TableNextColumn();
+            ImGui::SetNextItemWidth(320.0f);
             ImGui::InputText("##name", CSTR0(item.nameSingular));
-            ImGui::TableNextColumn();
 
-            ImGui::PushItemWidth(320);
-            ImGui::InputText("##name_plural", CSTR0(item.namePlural));
             ImGui::TableNextColumn();
+            ImGui::SetNextItemWidth(320.0f);
+            ImGui::InputText("##name_plural", CSTR0(item.namePlural));
 
             ImGui::PopID();
         }

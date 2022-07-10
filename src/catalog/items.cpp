@@ -81,4 +81,9 @@ namespace Catalog {
     {
         return tex;
     }
+
+    const Item *Items::Data(void) const
+    {
+        return byId;
+    }
 }
