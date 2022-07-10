@@ -51,11 +51,12 @@ namespace Catalog {
             item.stackLimit = vStackLimit.toUint();
             item.value = vValue.toUint();
             item.damage = vDamage.toUint();
-            item.nameSingular = (char *)vName.data;
-            item.namePlural = (char *)vPlural.data;
 
             DLB_ASSERT(vName.data[vName.length] == 0);
             DLB_ASSERT(vPlural.data[vPlural.length] == 0);
+            strncpy(item.nameSingular, (char *)vName.data, ARRAY_SIZE(item.nameSingular) - 1);
+            strncpy(item.namePlural, (char *)vPlural.data, ARRAY_SIZE(item.namePlural) - 1);
+
 #if CSV_DEBUG_PRINT
             printf("%d, %d, %u, %f, %f, %s, %s\n",
                 item.type          ,
@@ -71,12 +72,12 @@ namespace Catalog {
         }
     }
 
-    const Item &Items::Find(ItemType itemType) const
+    Item &Items::Find(ItemType itemType)
     {
         return byId[itemType];
     }
 
-    const Texture Items::Tex(void) const
+    Texture Items::Tex(void) const
     {
         return tex;
     }

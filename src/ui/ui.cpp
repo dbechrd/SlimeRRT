@@ -16,7 +16,7 @@ bool UI::showMenubar = false;
 bool UI::showDemoWindow = false;
 bool UI::showParticleConfig = false;
 bool UI::showNetstatWindow = false;
-bool UI::showAnimationEditor = false;
+bool UI::showAnimationEditor = true;
 
 bool UI::disconnectRequested = false;
 bool UI::quitRequested = false;
@@ -178,6 +178,7 @@ void UI::Menubar(const NetClient &netClient)
             ImGui::MenuItem("Demo Window", 0, &showDemoWindow);
             ImGui::MenuItem("Particle Config", 0, &showParticleConfig);
             ImGui::MenuItem("Netstat", 0, &showNetstatWindow);
+            ImGui::MenuItem("Animation Editor", 0, &showAnimationEditor);
             ImGui::EndMenu();
         }
         ImGui::EndMainMenuBar();
@@ -356,30 +357,80 @@ void UI::AnimationEditor()
 
     ImGui::SetNextWindowSize(ImVec2(380, 400), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowPos(ImVec2(360, 100), ImGuiCond_FirstUseEver);
-    auto rayDarkBlue = DARKGRAY;
-    ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(rayDarkBlue.r, rayDarkBlue.g, rayDarkBlue.b, rayDarkBlue.a));
-    ImGui::PushStyleColor(ImGuiCol_Border, IM_COL32_BLACK);
-    ImGui::Begin("Animation Editor", &showAnimationEditor,
+    ImGui::Begin("Item Catalog", &showAnimationEditor,
         0
         //ImGuiWindowFlags_NoTitleBar
         //ImGuiWindowFlags_NoMove |
         //ImGuiWindowFlags_NoResize |
         //ImGuiWindowFlags_NoCollapse
     );
-    ImGui::PopStyleColor(2);
 
-    thread_local bool selected[10]{};
-    if (ImGui::BeginTable("images", 2, ImGuiTableFlags_SizingFixedSame)) {
-        for (int i = 0; i < 10; i++) {
-            char label[32];
-            sprintf(label, "Item %d", i);
-            ImGui::TableNextRow();
+    if (ImGui::BeginTable("items", 7, ImGuiTableFlags_SizingFixedFit)) {
+        ImGui::TableNextColumn();
+        ImGui::Text("type_id");
+        ImGui::TableNextColumn();
+        ImGui::Text("class");
+        //ImGui::TableSetupColumn("class", ImGuiTableColumnFlags_WidthFixed);
+        ImGui::TableNextColumn();
+        ImGui::Text("stack_limit");
+        ImGui::TableNextColumn();
+        ImGui::Text("value");
+        ImGui::TableNextColumn();
+        ImGui::Text("damage");
+        ImGui::TableNextColumn();
+        ImGui::Text("name");
+        ImGui::TableNextColumn();
+        ImGui::Text("name plural");
+        ImGui::TableNextColumn();
+
+        for (ItemType typ = 0; typ < ItemType_Count; typ++) {
+            ImGui::PushID(typ);
+
+            Catalog::Item &item = Catalog::g_items.Find(typ);
+
+            ImGui::Text("%d", item.itemType);
             ImGui::TableNextColumn();
-            ImGui::Selectable(label, &selected[i], ImGuiSelectableFlags_SpanAllColumns);
+
+            ImGui::PushItemWidth(110);
+            if (ImGui::BeginCombo("##item_class", Catalog::ItemClassToString(item.itemClass))) {
+                for (ItemClass cls = 0; cls < ItemClass_Count; cls++) {
+                    ImGui::PushID(cls);
+                    if (ImGui::Selectable(Catalog::ItemClassToString(cls), cls == item.itemClass)) {
+                        item.itemClass = cls;
+                    }
+                    ImGui::PopID();
+                }
+                ImGui::EndCombo();
+            }
             ImGui::TableNextColumn();
-            ImGui::Text("Some other contents");
+
+            ImGui::PushItemWidth(100);
+            int stackLimit = item.stackLimit;
+            ImGui::InputInt("##stack_limit", &stackLimit, 1, 5);
+            item.stackLimit = CLAMP(stackLimit, 1, UINT8_MAX);
             ImGui::TableNextColumn();
-            ImGui::Text("123456");
+
+            ImGui::PushItemWidth(120);
+            int value = item.value;
+            ImGui::InputInt("##value", &value, 1);
+            item.value = CLAMP(value, 0, UINT16_MAX);
+            ImGui::TableNextColumn();
+
+            ImGui::PushItemWidth(120);
+            int damage = item.damage;
+            ImGui::InputInt("##damage", &damage, 1);
+            item.damage = CLAMP(damage, 0, UINT16_MAX);
+            ImGui::TableNextColumn();
+
+            ImGui::PushItemWidth(320);
+            ImGui::InputText("##name", CSTR0(item.nameSingular));
+            ImGui::TableNextColumn();
+
+            ImGui::PushItemWidth(320);
+            ImGui::InputText("##name_plural", CSTR0(item.namePlural));
+            ImGui::TableNextColumn();
+
+            ImGui::PopID();
         }
         ImGui::EndTable();
     }

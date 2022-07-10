@@ -10,9 +10,10 @@
 typedef uint16_t ItemType;
 typedef uint8_t  ItemClass;
 
-#define ITEMTYPE_EMPTY  0
-#define ITEMTYPE_COUNT  256
-#define ITEMCLASS_COUNT 256
+#define ITEM_NAME_MAX_LENGTH 32
+#define ITEMTYPE_EMPTY       0
+#define ITEMTYPE_COUNT       256
+#define ITEMCLASS_COUNT      256
 
 enum : ItemClass {
     ItemClass_Empty,
@@ -310,7 +311,7 @@ namespace Catalog {
             case ItemClass_Shield   : return "Shield"    ;
             case ItemClass_Plant    : return "Plant"     ;
             case ItemClass_Book     : return "Book"      ;
-            default                : return "<ItemClass>";
+            default                 : return "<ItemClass>";
         }
     }
 
@@ -350,20 +351,20 @@ namespace Catalog {
     }
 
     struct Item {
-        ItemType   itemType      {};
-        ItemClass  itemClass     {};
-        uint8_t    stackLimit    {};
-        uint16_t   value         {};
-        uint16_t   damage        {};
-        const char *nameSingular {};
-        const char *namePlural   {};
+        ItemType  itemType     {};
+        ItemClass itemClass    {};
+        uint8_t   stackLimit   {};
+        uint16_t  value        {};
+        uint16_t  damage       {};
+        char      nameSingular [ITEM_NAME_MAX_LENGTH]{};
+        char      namePlural   [ITEM_NAME_MAX_LENGTH]{};
     };
 
     struct Items {
-        void          LoadTextures (void);
-        void          LoadData     (void);
-        const Item &  Find         (ItemType id) const;
-        const Texture Tex          (void) const;
+        void    LoadTextures (void);
+        void    LoadData     (void);
+        Item &  Find         (ItemType id);
+        Texture Tex          (void) const;
 
     private:
         Texture tex  {};
