@@ -308,7 +308,7 @@ void World::SV_SimPlayers(double dt)
         }
 
         // Try to spawn enemies near player
-        if (dlb_rand32f() < 0.02f) {
+        if (dlb_rand32f() < 0.1f) {
             SpawnSlime(0, player.body.GroundPosition());
         }
     }
@@ -337,13 +337,9 @@ void World::SV_SimSlimes(double dt)
                 //    coinType = ItemType::Currency_Gilded;
                 //}
 
-                ItemType itemId = dlb_rand32u_range(2, ITEMTYPE_COUNT - 1);
-                uint32_t rndCount = dlb_rand32u_range(1, 4);
-                uint32_t itemCount = MIN(rndCount, Catalog::g_items.Find(itemId).stackLimit);
-                if (itemCount) {
-                    itemSystem.SpawnItem(slime.WorldCenter(), itemId, itemCount);
-                }
-                //itemSystem.SpawnItem(slime.WorldCenter(), coinType, coins);
+                lootSystem.RollDrops(slime.combat.lootTableId, [&](ItemStack &itemStack) {
+                    itemSystem.SpawnItem(slime.WorldCenter(), itemStack.itemType, itemStack.count);
+                });
                 slime.combat.droppedDeathLoot = true;
             }
             continue;
