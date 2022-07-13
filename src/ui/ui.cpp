@@ -424,7 +424,6 @@ void UI::AnimationEditor()
         ImGui::TableSetupScrollFreeze(0, 1); // Make row always visible
         ImGui::TableHeadersRow();
 
-        // Sort our data if sort specs have been changed!
         if (ImGuiTableSortSpecs *sorts_specs = ImGui::TableGetSortSpecs()) {
             if (sorts_specs->SpecsDirty) {
                 itemSortSpecs = sorts_specs; // Store in variable accessible by the sort function.

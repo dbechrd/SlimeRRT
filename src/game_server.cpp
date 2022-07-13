@@ -52,6 +52,7 @@ ErrorType GameServer::Run(const Args &args)
 
         // Limit delta time to prevent spiraling for after long hitches (e.g. hitting a breakpoint)
         double frameDt = MIN(glfwGetTime() - g_clock.now, SV_TICK_DT_MAX);
+        uint8_t frameDtMsec = (uint8_t)MIN(frameDt * 1000.0, UINT8_MAX);
 
         // Time is of the essence
         g_clock.now += frameDt;

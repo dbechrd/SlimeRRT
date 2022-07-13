@@ -6,9 +6,9 @@ struct ItemStack {
     ItemType itemType {};
     uint32_t count    {};  // TODO: Check this is < itemCatalog[type].stackLimit
 
-    inline const Catalog::Item Item() const
+    inline const Catalog::Item &Item() const
     {
-        const Catalog::Item item = Catalog::g_items.Find(itemType);
+        const Catalog::Item &item = Catalog::g_items.Find(itemType);
         return item;
     }
 
@@ -19,7 +19,7 @@ struct ItemStack {
 
     inline const char *Name() const
     {
-        const Catalog::Item item = Item();
+        const Catalog::Item &item = Item();
         return count == 1 ? item.nameSingular : item.namePlural;
     }
 };
