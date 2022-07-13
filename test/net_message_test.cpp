@@ -10,6 +10,7 @@ void net_message_test_snapshot()
     msgWritten.type = NetMessage::Type::WorldSnapshot;
     msgWritten.data.worldSnapshot.tick = 123456789;
     msgWritten.data.worldSnapshot.lastInputAck = 1900;
+    msgWritten.data.worldSnapshot.inputOverflow = 0.016731f;
     msgWritten.data.worldSnapshot.playerCount = 1;
     msgWritten.data.worldSnapshot.enemyCount = 1;
     PlayerSnapshot &player = msgWritten.data.worldSnapshot.players[0];
@@ -39,6 +40,7 @@ void net_message_test_snapshot()
     WorldSnapshot &msgRead = baseMsgRead.data.worldSnapshot;
     assert(msgRead.tick == msgWritten.data.worldSnapshot.tick);
     assert(msgRead.lastInputAck == msgWritten.data.worldSnapshot.lastInputAck);
+    assert(msgRead.inputOverflow == msgWritten.data.worldSnapshot.inputOverflow);
     assert(msgRead.playerCount == msgWritten.data.worldSnapshot.playerCount);
     assert(msgRead.enemyCount == msgWritten.data.worldSnapshot.enemyCount);
 

@@ -18,8 +18,7 @@ struct NetClient {
     ENetHost *client          {};
     ENetPeer *server          {};
     World    *serverWorld     {};
-    double   tickAccum        {};
-    double   sendInputAccum   {};
+    double   lastInputSentAt  {};
 
     uint32_t inputSeq         {};  // seq # of input last sent to server
     RingBuffer<InputSample,   CL_INPUT_HISTORY> inputHistory {};

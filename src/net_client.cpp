@@ -282,9 +282,12 @@ void NetClient::ReconcilePlayer(void)
             playerSnapshot->position.y,
             playerSnapshot->position.z);
 #endif
+        //TraceLog(LOG_DEBUG, "Reconcile");
         // Predict player for each input not yet handled by the server
+        bool applyOverflow = true;
         for (size_t i = 0; i < inputHistory.Count(); i++) {
-            InputSample &input = inputHistory.At(i);
+            InputSample &origInput = inputHistory.At(i);
+            InputSample input = origInput;
             // NOTE: Old input's ownerId might not match if the player recently reconnected to a
             // server and received a new playerId. Intentionally ignore those.
             if (input.ownerId == player->id && input.seq > latestSnapshot.lastInputAck) {
@@ -295,6 +298,12 @@ void NetClient::ReconcilePlayer(void)
                 else if (input.walkSouth) putchar('v');
                 else putchar('.');
 #endif
+                if (applyOverflow) {
+                    input.dt = latestSnapshot.inputOverflow;
+                    applyOverflow = false;
+                }
+
+                //TraceLog(LOG_DEBUG, "CLI SQ: %u OS: %f S: %f", input.seq, origInput.dt, input.dt);
                 assert(serverWorld->map);
                 player->Update(input, *serverWorld->map);
             }
@@ -985,8 +994,6 @@ void NetClient::Disconnect(void)
         delete serverWorld;
         serverWorld = nullptr;
     }
-    tickAccum = 0;
-    sendInputAccum = 0;
     inputSeq = 0;
     inputHistory.Clear();
     worldHistory.Clear();

@@ -106,12 +106,13 @@ size_t NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &worl
 #pragma warning(pop)
                         sample.seq = input.samples[i - 1].seq + 1;
                     }
+                    stream.Process(sample.dt);
                 } else {
                     // TODO: Don't send every seq number, it's implicit based on the first seq number and count
                     stream.Process(sample.seq, 32, 0, UINT32_MAX);
                     // TODO: Don't send ownerId more than once.. move this up outside of the loop
                     stream.Process(sample.ownerId, 32, 0, UINT32_MAX);
-                    stream.Process(sample.msec);
+                    stream.Process(sample.dt);
                     stream.Process(sample.walkNorth);
                     stream.Process(sample.walkEast);
                     stream.Process(sample.walkSouth);
@@ -121,6 +122,7 @@ size_t NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &worl
                     assert(PlayerInvSlot_Count > 0);
                     stream.Process(sample.selectSlot, 8, 0, PlayerInvSlot_Count - 1);
                 }
+                //TraceLog(LOG_DEBUG, "%s sample: %u %f", mode == BitStream::Mode::Reader ? "READ" : "WRITE", sample.seq, sample.dt);
             }
             stream.Align();
 
@@ -146,6 +148,7 @@ size_t NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &worl
 
             stream.Process(worldSnapshot.tick, 32, 1, UINT32_MAX);
             stream.Process(worldSnapshot.lastInputAck);
+            stream.Process(worldSnapshot.inputOverflow);
             stream.Process(worldSnapshot.playerCount, 4, 0, SNAPSHOT_MAX_PLAYERS);
             stream.Process(worldSnapshot.enemyCount, 9, 0, SNAPSHOT_MAX_SLIMES);
             stream.Process(worldSnapshot.itemCount, 9, 0, SNAPSHOT_MAX_ITEMS);

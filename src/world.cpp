@@ -578,11 +578,7 @@ void World::CL_Extrapolate(double dt)
         }
         // TODO: Use future inputs we've received from the server to predict other players more reliability
         InputSample input{};
-        double dtMs = dt * 1000.0;
-        if (dtMs > UINT8_MAX) {
-            TraceLog(LOG_WARNING, "Extrapolation dt too large, will be truncated to 256 ms");
-        }
-        input.msec = (uint8_t)MIN(dt * 1000.0, UINT8_MAX);
+        input.dt = (float)dt;
         player.Update(input, *map);
     }
     for (Slime &enemy : slimes) {

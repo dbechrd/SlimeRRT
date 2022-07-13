@@ -43,55 +43,20 @@ ErrorType GameServer::Run(const Args &args)
 
     E_ASSERT(netServer.OpenSocket(args.port), "Failed to open socket");
 
-    double tickAccum = 0.0f;
-    g_clock.now = glfwGetTime();
+    g_clock.now = 0;
     g_clock.server = true;
 
     while (!args.serverQuit) {
         E_ASSERT(netServer.Listen(), "Failed to listen on socket");
 
-        // Limit delta time to prevent spiraling for after long hitches (e.g. hitting a breakpoint)
-        double frameDt = MIN(glfwGetTime() - g_clock.now, SV_TICK_DT_MAX);
-        uint8_t frameDtMsec = (uint8_t)MIN(frameDt * 1000.0, UINT8_MAX);
-
-        // Time is of the essence
-        g_clock.now += frameDt;
-        tickAccum += frameDt;
-
-        while (tickAccum > SV_TICK_DT) {
+        // Check if tick due
+        if (glfwGetTime() - g_clock.now > SV_TICK_DT) {
+            // Time is of the essence
+            g_clock.now += SV_TICK_DT;
             world->tick++;
-#if 0
-            // TODO: Limit how many inputs player is allowed to send us each tick
-            // Process queued player inputs
-            size_t inputHistoryLen = netServer.inputHistory.Count();
-            for (size_t i = 0; i < inputHistoryLen; i++) {
-                InputSample &sample = netServer.inputHistory.At(i);
+            //TraceLog(LOG_DEBUG, "Sim tick %u", world->tick);
 
-                SV_Client *client = netServer.FindClient(sample.ownerId);
-                if (!client) {
-                    //printf("Client not found, cannot sample input #%u from %u\n", sample.seq, sample.ownerId);
-                    continue;
-                }
-
-                if (sample.seq <= client->lastInputAck) {
-                    //printf("Ignoring old input #%u from %u\n", sample.seq, sample.ownerId);
-                    continue;
-                }
-
-                Player *player = world->FindPlayer(sample.ownerId);
-                if (!player) {
-                    printf("Player not found, cannot sample input #%u from %u\n", sample.seq, sample.ownerId);
-                    continue;
-                }
-
-                assert(client->playerId == player->type);
-                assert(world->map);
-                player->Update(tickDt, sample, *world->map);
-
-                client->lastInputAck = sample.seq;
-            }
-#endif
-
+            // Process players' input
             for (size_t i = 0; i < SV_MAX_PLAYERS; i++) {
                 SV_Client &client = netServer.clients[i];
                 if (!client.playerId) {
@@ -105,63 +70,54 @@ ErrorType GameServer::Run(const Args &args)
                 }
                 assert(client.playerId == player->id);
 
-                InputSample combinedSample{};
-                combinedSample.ownerId = player->id;
-                combinedSample.skipFx = true;
+                float processedDt = 0;
 
-                // Process queued player inputs
-                for (size_t i = 0; i < client.inputHistory.Count(); i++) {
-                    InputSample &sample = client.inputHistory.At(i);
-
-                    if (sample.seq <= client.lastInputAck) {
+                // Process up to 1 tick's timespan worth of queued input
+                size_t inputHistoryLen = client.inputHistory.Count();
+                for (size_t i = 0; i < inputHistoryLen && processedDt < SV_TICK_DT; i++) {
+                    InputSample &origInput = client.inputHistory.At(i);
+                    InputSample input = origInput;
+                    if (input.seq <= client.lastInputAck) {
                         //TraceLog(LOG_WARNING, "Ignoring old input #%u from %u\n", sample.seq, sample.ownerId);
                         continue;
                     }
-                    client.lastInputAck = sample.seq;
 
-                    // TODO: Handle overflow somehow, though it doesn't really help the player to overflow this..
-                    combinedSample.msec += sample.msec;
-
-                    // If user wanted to walk/run/attack in any sample, keep that action
-                    combinedSample.walkNorth |= sample.walkNorth;
-                    combinedSample.walkEast  |= sample.walkEast;
-                    combinedSample.walkSouth |= sample.walkSouth;
-                    combinedSample.walkWest  |= sample.walkWest;
-                    combinedSample.run       |= sample.run;
-                    combinedSample.attack    |= sample.attack;
-                    if (sample.selectSlot) {
-                        combinedSample.selectSlot = sample.selectSlot;
+#if 1
+                    if (client.inputOverflow) {
+                        // Consume partial input from previous tick
+                        input.dt = client.inputOverflow;
+                        client.inputOverflow = 0;
                     }
-                }
 
-                player->Update(combinedSample, *world->map);
+                    processedDt += input.dt;
+
+                    if (processedDt <= SV_TICK_DT) {
+                        // Consume whole input
+                        client.lastInputAck = input.seq;
+                    } else {
+                        // Consume partial input at end of tick if we ran out of time
+                        client.inputOverflow = (float)(processedDt - SV_TICK_DT);
+                        input.dt -= client.inputOverflow;
+                    }
+#else
+                    processedDt += input.dt;
+                    client.lastInputAck = input.seq;
+#endif
+
+                    //TraceLog(LOG_DEBUG, "SVR SQ: %u OS: %f S: %f", input.seq, origInput.dt, input.dt);
+                    player->Update(input, *world->map);
+                }
 
                 assert(world->map);
                 world->SV_Simulate(SV_TICK_DT);
-
-                // Determine how many seconds of input we've processed
-                // for this client this tick.
-                double combinedInputSec = combinedSample.msec / 1000.0;
-                double inputOverflow = combinedInputSec - SV_TICK_DT;
-                client.inputOverflow += inputOverflow;
-                client.inputOverflow = MAX(0.0, client.inputOverflow);
-#if SV_DEBUG_INPUT_SAMPLES
-                TraceLog(LOG_DEBUG, "inputOverflow: %f, tickDt: %f%s", client.inputOverflow, tickDt,
-                    client.inputOverflow > SV_INPUT_HACK_THRESHOLD ? " [INPUT HAX DETECTED]" : "");
-#else
-                //if (client.inputOverflow > SV_INPUT_HACK_THRESHOLD) {
-                //    TraceLog(LOG_DEBUG, "inputOverflow: %f, tickDt: %f [INPUT HAX DETECTED]",
-                //        client.inputOverflow, SV_TICK_DT);
-                //}
-#endif
 
                 // Send nearby chunks to player if they haven't received them yet
                 netServer.SendNearbyChunks(client);
 
                 if (g_clock.now - client.lastSnapshotSentAt > SNAPSHOT_SEND_DT) {
-#if SV_DEBUG_INPUT_SAMPLES
+    #if SV_DEBUG_INPUT_SAMPLES
                     TraceLog(LOG_DEBUG, "Sending snapshot for tick %u / input seq #%u, to player %u\n", world->tick, client.lastInputAck, client.playerId);
-#endif
+    #endif
                     // Send snapshot
                     E_ASSERT(netServer.SendWorldSnapshot(client), "Failed to send world snapshot");
                 } else {
@@ -174,8 +130,8 @@ ErrorType GameServer::Run(const Args &args)
                 //E_ASSERT(netServer.SendNearbyEvents(client), "Failed to send nearby events. playerId: %u", client.playerId);
             }
 
+            // Run server tasks
             world->DespawnDeadEntities();
-            tickAccum -= SV_TICK_DT;
         }
     }
 

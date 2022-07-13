@@ -14,7 +14,7 @@ struct SV_Client {
     uint32_t    lastInputAck       {};  // sequence # of last input processed for this client
     uint32_t    lastInputRecv      {};  // sequence # of last input received from client
     double      lastSnapshotSentAt {};
-    double      inputOverflow      {};  // how msec of input we've received over/under expected by frameDt
+    float       inputOverflow      {};  // how msec of input we've received over/under expected by frameDt
 
     //InputSample inputBuffer        {};  // last input received (TODO: all input received since last tick, consolidated)
     RingBuffer<InputSample, SV_INPUT_HISTORY / SV_MAX_PLAYERS> inputHistory {};

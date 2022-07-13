@@ -11,7 +11,6 @@ struct World;
 struct UI {
     struct DebugStats {
         uint32_t tick;
-        double tickAccum;
         double frameDt;
         float cameraSpeed;
         size_t tilesDrawn;
@@ -61,7 +60,7 @@ private:
     static bool showDemoWindow;
     static bool showParticleConfig;
     static bool showNetstatWindow;
-    static bool showAnimationEditor;
+    static bool showItemCatalog;
 
     static bool disconnectRequested;
     static bool quitRequested;

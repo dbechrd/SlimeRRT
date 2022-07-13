@@ -201,7 +201,8 @@ void BitStream::Process(float &value, uint8_t bits, float min, float max)
 
 void BitStream::Process(double &value, uint8_t bits, double min, double max)
 {
-    assert(bits <= sizeof(value) * 8);
+    //assert(bits <= sizeof(value) * 8);
+    assert(bits == 64);
     if (mode == Mode::Writer) {
         assert(value >= min);
         assert(value <= max);
@@ -210,8 +211,8 @@ void BitStream::Process(double &value, uint8_t bits, double min, double max)
     assert(sizeof(uint32_t) * 2 == sizeof(double));
     uint32_t word0 = ((uint32_t *)&value)[0];
     uint32_t word1 = ((uint32_t *)&value)[1];
-    ProcessInternal(word0, bits);
-    ProcessInternal(word1, bits);
+    ProcessInternal(word0, 32);
+    ProcessInternal(word1, 32);
     ((uint32_t *)&value)[0] = word0;
     ((uint32_t *)&value)[1] = word1;
 

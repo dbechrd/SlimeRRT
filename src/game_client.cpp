@@ -361,14 +361,10 @@ void GameClient::PlayMode_Update(double frameDt, PlayerControllerState &input)
             //    tickAccum -= tickDt;
             //}
 
-            // TODO: Roll-up inputs when v-sync disabled
-            // Send input to server at a fixed rate that matches server tick rate
-            while (netClient.sendInputAccum > CL_INPUT_SEND_DT) {
+            // Send queued inputs to server ASAP (ideally, every frame), while respecting a sane rate limit
+            if (g_clock.now - netClient.lastInputSentAt > CL_INPUT_SEND_RATE_LIMIT_DT) {
                 netClient.SendPlayerInput();
-
-                // Hmm.. I don't think we want input samples playing catch-up like physics sim
-                //netClient.sendInputAccum -= sendInputDt;
-                netClient.sendInputAccum = 0;
+                netClient.lastInputSentAt = g_clock.now;
             }
 
             netClient.serverWorld->CL_DespawnStaleEntities();
@@ -509,7 +505,6 @@ void GameClient::PlayMode_DrawScreen(double frameDt, PlayerControllerState &inpu
     UI::DebugStats debugStats{};
 #if SHOW_DEBUG_STATS
     debugStats.tick = netClient.serverWorld->tick;
-    debugStats.tickAccum = netClient.tickAccum;
     debugStats.frameDt = frameDt;
     debugStats.cameraSpeed = spycam.cameraSpeed;
     debugStats.tilesDrawn = tilesDrawn;
@@ -549,8 +544,6 @@ ErrorType GameClient::Run(void)
 
         // Time is of the essence
         g_clock.now += frameDt;
-        netClient.tickAccum += frameDt;
-        netClient.sendInputAccum += frameDt;
 
         E_ASSERT(PlayMode_Network(), "Failed to do message processing");
 

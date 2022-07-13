@@ -16,7 +16,7 @@ bool UI::showMenubar = false;
 bool UI::showDemoWindow = false;
 bool UI::showParticleConfig = false;
 bool UI::showNetstatWindow = false;
-bool UI::showAnimationEditor = true;
+bool UI::showItemCatalog = false;
 
 bool UI::disconnectRequested = false;
 bool UI::quitRequested = false;
@@ -180,7 +180,7 @@ void UI::Menubar(const NetClient &netClient)
             ImGui::MenuItem("Demo Window", 0, &showDemoWindow);
             ImGui::MenuItem("Particle Config", 0, &showParticleConfig);
             ImGui::MenuItem("Netstat", 0, &showNetstatWindow);
-            ImGui::MenuItem("Animation Editor", 0, &showAnimationEditor);
+            ImGui::MenuItem("Animation Editor", 0, &showItemCatalog);
             ImGui::EndMenu();
         }
         ImGui::EndMainMenuBar();
@@ -387,13 +387,13 @@ int UI::ItemCompareWithSortSpecs(const void *lhs, const void *rhs)
 
 void UI::AnimationEditor()
 {
-    if (!showAnimationEditor) {
+    if (!showItemCatalog) {
         return;
     }
 
     ImGui::SetNextWindowSize(ImVec2(380, 400), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowPos(ImVec2(360, 100), ImGuiCond_FirstUseEver);
-    ImGui::Begin("Item Catalog", &showAnimationEditor,
+    ImGui::Begin("Item Catalog", &showItemCatalog,
         0
         //ImGuiWindowFlags_NoTitleBar
         //ImGuiWindowFlags_NoMove |
@@ -510,7 +510,7 @@ void UI::HUD(const Font &font, World &world, const DebugStats &debugStats)
 
     int linesOfText = 13;
     if (debugStats.tick) {
-        linesOfText += 10;
+        linesOfText += 9;
     }
     if (debugStats.rtt) {
         linesOfText += 5;
@@ -564,8 +564,6 @@ void UI::HUD(const Font &font, World &world, const DebugStats &debugStats)
 
     if (debugStats.tick) {
         text = SafeTextFormat("Tick          %u", debugStats.tick);
-        PUSH_TEXT(text, GRAY);
-        text = SafeTextFormat("framAccum     %.03f", debugStats.tickAccum);
         PUSH_TEXT(text, GRAY);
         text = SafeTextFormat("frameDt       %.03f", debugStats.frameDt);
         PUSH_TEXT(text, GRAY);

@@ -291,8 +291,9 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
     }
     Player &player = *playerPtr;
 
-    worldSnapshot.lastInputAck = client.lastInputAck;
     worldSnapshot.tick = serverWorld->tick;
+    worldSnapshot.lastInputAck = client.lastInputAck;
+    worldSnapshot.inputOverflow = client.inputOverflow;
 
     // TODO: Find players/slimes/etc. that are actually near the player this snapshot is being generated for
     worldSnapshot.playerCount = 0;
@@ -952,7 +953,7 @@ void NetServer::ProcessMsg(SV_Client &client, ENetPacket &packet)
                 for (size_t i = 0; i < input.sampleCount; i++) {
                     InputSample &sample = input.samples[i];
                     if (sample.seq && IsValidInput(client, sample)) {
-                        //client.inputBuffer = sample;
+                        // NOTE: Will drop oldest input sample when full
                         InputSample &histSample = client.inputHistory.Alloc();
                         histSample = sample;
                         histSample.skipFx = true;

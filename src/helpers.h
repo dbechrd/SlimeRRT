@@ -23,7 +23,7 @@
 // Feature flags
 //------------------------------------------------------------------------------
 #if _DEBUG
-    #define RUN_TESTS 0
+    #define RUN_TESTS 1
 #else
     #define RUN_TESTS 0
 #endif
@@ -78,9 +78,9 @@
 #define SV_MAX_SLIMES               32
 #define SV_MAX_ITEMS                256 //4096
 #define SV_WORLD_ITEM_LIFETIME      120 //600 // despawn items after 10 minutes
-#define SV_TICK_RATE                60
+#define SV_TICK_RATE                50
+#define SV_TICK_MSEC                (1000 / SV_TICK_RATE)
 #define SV_TICK_DT                  (1.0 / SV_TICK_RATE)
-#define SV_TICK_DT_MAX              (2.0 * SV_TICK_DT)
 #define SV_INPUT_HISTORY            (SV_TICK_RATE * SV_MAX_PLAYERS)
 #define SV_WORLD_HISTORY            SV_TICK_RATE
 // NOTE: max diagonal distance at 1080p is 1100 + radius units. 1200px allows for a ~50px wide entity
@@ -120,11 +120,10 @@
 #define SNAPSHOT_MAX_ITEMS            MIN(64, SV_MAX_ITEMS)
 
 #define CL_FRAME_DT_MAX               (2.0 * SV_TICK_DT)
-#define CL_INPUT_SAMPLE_RATE          SV_TICK_RATE  // must be equal to SV_TICK_RATE
-#define CL_INPUT_SEND_RATE            SV_TICK_RATE  // can be <= CL_INPUT_SAMPLE_RATE
-#define CL_INPUT_SEND_DT              (1.0 / CL_INPUT_SEND_RATE)
+#define CL_INPUT_SEND_RATE_LIMIT      60 // max # of input packets to sender to server per second
+#define CL_INPUT_SEND_RATE_LIMIT_DT   (1.0 / CL_INPUT_SEND_RATE_LIMIT)
 #define CL_INPUT_SAMPLES_MAX          SV_TICK_RATE  // send up to 1 second of samples per packet
-#define CL_INPUT_HISTORY              MIN(32, CL_INPUT_SAMPLES_MAX)  // how many samples to keep around client side
+#define CL_INPUT_HISTORY              1024  // how many samples to keep around client side
 #define CL_WORLD_HISTORY              (SV_TICK_RATE / 2 + 1)  // >= 500 ms of data
 #define CL_CHAT_HISTORY               256
 #define CL_FARAWAY_BUFFER_RADIUS      (SV_STALE_RADIUS * 2.0f)

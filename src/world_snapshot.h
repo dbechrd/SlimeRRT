@@ -184,13 +184,14 @@ static inline bool operator&(ItemSnapshot::Flags lhs, ItemSnapshot::Flags rhs)
 }
 
 struct WorldSnapshot {
-    uint32_t       lastInputAck {};  // sequence # of last processed input
-    uint32_t       tick         {};  // server tick this snapshot was generated on
-    uint32_t       playerCount  {};  // players in this snapshot
-    PlayerSnapshot players      [SNAPSHOT_MAX_PLAYERS]{};
-    uint32_t       enemyCount   {};  // slimes in this snapshot
-    EnemySnapshot  enemies      [SNAPSHOT_MAX_SLIMES]{};
-    uint32_t       itemCount    {};  // items in this snapshot
-    ItemSnapshot   items        [SNAPSHOT_MAX_ITEMS]{};
-    double         recvAt       {};  // not sent over network, auto-populated when received
+    uint32_t       tick          {};  // server tick this snapshot was generated on
+    uint32_t       lastInputAck  {};  // sequence # of last processed input
+    float          inputOverflow {};  // amount of next sample after lastInputAck not yet processed
+    uint32_t       playerCount   {};  // players in this snapshot
+    PlayerSnapshot players       [SNAPSHOT_MAX_PLAYERS]{};
+    uint32_t       enemyCount    {};  // slimes in this snapshot
+    EnemySnapshot  enemies       [SNAPSHOT_MAX_SLIMES]{};
+    uint32_t       itemCount     {};  // items in this snapshot
+    ItemSnapshot   items         [SNAPSHOT_MAX_ITEMS]{};
+    double         recvAt        {};  // not sent over network, auto-populated when received
 };
