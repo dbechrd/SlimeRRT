@@ -255,13 +255,13 @@ void NetClient::ReconcilePlayer(void)
     }
     assert(playerSnapshot);
     if (!playerSnapshot) {
-        // Server sent us a slimeSnapshot that doesn't contain our own player??
+        // Server sent us a snapshot that doesn't contain our own player??
         TraceLog(LOG_WARNING, "Can't reconcile player; no snapshot");
         return;
     }
 
     // TODO: Do this more smoothly
-    // Roll back local player to server slimeSnapshot location
+    // Roll back local player to server snapshot location
     if (playerSnapshot->flags & PlayerSnapshot::Flags::Position) {
         const Vector3 before = player->body.WorldPosition();
         player->body.Teleport(playerSnapshot->position);
