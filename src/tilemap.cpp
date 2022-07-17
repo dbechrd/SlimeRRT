@@ -275,7 +275,7 @@ Chunk &Tilemap::FindOrGenChunk(World &world, int16_t chunkX, int16_t chunkY)
 
             float worldX = (float)((chunk.x * CHUNK_W + tileX) * TILE_W);
             float worldY = (float)((chunk.y * CHUNK_H + tileY) * TILE_W);
-            //worldX -= fmod(worldX, TILE_W);
+            //worldX -= fmod(worldX, TILE_W);cd Dcd
             //worldY -= fmod(worldY, TILE_W);
 
             TileType tileType{};
@@ -283,7 +283,9 @@ Chunk &Tilemap::FindOrGenChunk(World &world, int16_t chunkX, int16_t chunkY)
 #define FREQ_ELEVATION                             1.0 / 16000
 #define FREQ_ISLAND                                1.0 / 3000
 #define FREQ_BEACH_FALLOFF                         1.0 / 400
+#define FREQ_MEADOW_FLOWERS                        1.0 / 100
 #define FREQ_FOREST_MEADOW_FALLOFF                 1.0 / 800
+#define FREQ_FOREST_TREES                          1.0 / 200
 #define FREQ_FOREST_MOUNTAINTOP_LAKE_BEACH_FALLOFF 1.0 / 300
 #define FREQ_MOUNTAINTOP_LAKE_FALLOFF              1.0 / 600
 #define NOISE_SAMPLE(freq) (0.5 + noise2(ose, osg, worldX * freq, worldY * freq) / 2.0)
@@ -308,19 +310,36 @@ Chunk &Tilemap::FindOrGenChunk(World &world, int16_t chunkX, int16_t chunkY)
                         tileType = TileType_Grass;
                     }
                 }
-            } else if (elev < 0.7) {
+            } else if (elev < 0.6) {
                 // Meadow
                 tileType = TileType_Grass;
+
+                // Meadow flowers
+                if (tileType == TileType_Grass) {
+                    const double falloffNoise = NOISE_SAMPLE(FREQ_MEADOW_FLOWERS);
+                    if (falloffNoise >= 0.95) {
+                        tileType = TileType_Flowers;
+                    }
+                }
             } else if (elev < 0.92) {
                 // Forest
                 tileType = TileType_Forest;
 
                 // Forest fall-off into Meadow
-                if (elev < 0.78) {
-                    const double alpha = (elev - 0.7) / (0.78 - 0.7);
+                if (elev < 0.63) {
+                    const double alpha = (elev - 0.6) / (0.63 - 0.6);
                     const double falloffNoise = NOISE_SAMPLE(FREQ_FOREST_MEADOW_FALLOFF);
                     if (falloffNoise >= alpha) {
                         tileType = TileType_Grass;
+                    }
+                }
+
+                // Forest trees
+                if (tileType == TileType_Forest) {
+                    const double alpha = (elev - 0.6) / (0.92 - 0.6);
+                    const double falloffNoise = NOISE_SAMPLE(FREQ_FOREST_TREES);
+                    if (falloffNoise >= fabs(alpha - 0.5) * 2.0) {
+                        tileType = TileType_Tree;
                     }
                 }
 
@@ -347,8 +366,13 @@ Chunk &Tilemap::FindOrGenChunk(World &world, int16_t chunkX, int16_t chunkY)
 
                 // Mountaintop Lake treasure
                 if (elev > 0.99) {
+                    // TODO: Generate a semi-hidden treasure structure instead? These items will despawn.
                     world.itemSystem.SpawnItem({ worldX, worldY, 0 }, ItemType_Orig_Gem_GoldenChest, 1);
                 }
+            }
+
+            if (tileType == TileType_Grass) {
+
             }
 #else
 #define FREQ_BASE_LAYER 1.0 / 10000

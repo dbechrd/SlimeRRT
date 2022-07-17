@@ -1,6 +1,6 @@
 #pragma once
 
-#define PSIZE 2048
+#define PSIZE 64
 
 typedef struct {
     int xsv, ysv;
