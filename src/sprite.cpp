@@ -137,6 +137,10 @@ static void sprite_draw(const Sprite &sprite, Rectangle screenRect, Color color)
 
 void sprite_draw_body(const Sprite &sprite, const Body3D &body, const Color &color)
 {
+    const Vector3 serverPos = body.WorldPositionServer();
+    const Rectangle serverRect = sprite_world_rect(sprite, serverPos);
+    sprite_draw(sprite, serverRect, GRAY);
+
     const Vector3 worldPos = body.WorldPosition();
     //DrawCircle(worldPos.x, worldPos.y - worldPos.z, 3.0f, RED);
     const Rectangle bodyRect = sprite_world_rect(sprite, worldPos);

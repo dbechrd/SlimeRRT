@@ -22,12 +22,35 @@ inline Vector3 Body3D::WorldPosition(void) const
     return worldPosition;
 }
 
+inline Vector3 Body3D::WorldPositionServer(void) const
+{
+    Vector3 worldPositionServer{};
+    if (positionHistory.Count()) {
+        Vector3Snapshot snapshotPos = positionHistory.Last();
+        worldPositionServer.x = floorf(snapshotPos.v.x);
+        worldPositionServer.y = floorf(snapshotPos.v.y);
+        worldPositionServer.z = floorf(snapshotPos.v.z);
+    }
+    return worldPositionServer;
+}
+
 inline Vector2 Body3D::GroundPosition(void) const
 {
     Vector2 groundPosition = { position.x, position.y };
     groundPosition.x = floorf(groundPosition.x);
     groundPosition.y = floorf(groundPosition.y);
     return groundPosition;
+}
+
+inline Vector2 Body3D::GroundPositionServer(void) const
+{
+    Vector2 groundPositionServer{};
+    if (positionHistory.Count()) {
+        Vector3Snapshot snapshotPos = positionHistory.Last();
+        groundPositionServer.x = floorf(snapshotPos.v.x);
+        groundPositionServer.y = floorf(snapshotPos.v.y);
+    }
+    return groundPositionServer;
 }
 
 inline Vector2 Body3D::PrevGroundPosition(void) const

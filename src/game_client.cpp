@@ -517,6 +517,12 @@ void GameClient::PlayMode_DrawScreen(double frameDt, PlayerControllerState &inpu
         debugStats.packets_lost = enet_peer_get_packets_lost(netClient.server);
         debugStats.bytes_sent = enet_peer_get_bytes_sent(netClient.server);
         debugStats.bytes_recv = enet_peer_get_bytes_received(netClient.server);
+        debugStats.cl_input_seq = netClient.inputSeq;
+        if (netClient.worldHistory.Count()) {
+            const WorldSnapshot &worldSnapshot = netClient.worldHistory.Last();
+            debugStats.sv_input_ack = worldSnapshot.lastInputAck;
+            debugStats.input_buf_size = debugStats.cl_input_seq - debugStats.sv_input_ack;
+        }
     }
     UI::HUD(g_fonts.fontSmall, *netClient.serverWorld, debugStats);
     //UI::QuickHUD(fontSdf24, player, *world->map);

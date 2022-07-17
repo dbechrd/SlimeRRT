@@ -110,7 +110,7 @@ ErrorType NetClient::SendMsg(NetMessage &message)
 
     message.connectionToken = connectionToken;
     memset(rawPacket.data, 0, rawPacket.dataLength);
-    size_t bytes = message.Serialize(*serverWorld, rawPacket);
+    size_t bytes = message.Serialize(rawPacket);
     //E_INFO("[SEND][%21s][%5u b] %16s ", rawPacket.dataLength, netMsg.TypeString());
     E_ASSERT(SendRaw(rawPacket.data, bytes), "Failed to send packet");
     return ErrorType::Success;
@@ -340,7 +340,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
 {
     ENetBuffer packetBuffer{ packet.dataLength, packet.data };
     memset(&tempMsg, 0, sizeof(tempMsg));
-    tempMsg.Deserialize(*serverWorld, packetBuffer);
+    tempMsg.Deserialize(packetBuffer);
 
     if (connectionToken && tempMsg.connectionToken != connectionToken) {
         // Received a netMsg from a stale connection; discard it

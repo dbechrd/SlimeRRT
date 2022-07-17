@@ -69,7 +69,7 @@ void HealthBar::Draw(const Vector2 &topCenter, const char *name, const Combat &c
     bgRect.height = hpRect.height + pad.y * 2.0f;
 
     // Draw background
-    DrawRectangleRec(bgRect, Fade(DARKGRAY, 0.8f));
+    DrawRectangleRec(bgRect, Fade(BLACK, 0.5f));
 
     if (combat.hitPointsMax) {
         Rectangle indicatorRect = bgRect;

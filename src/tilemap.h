@@ -36,17 +36,15 @@ struct Chunk {
 };
 
 struct Tilemap {
-    //uint32_t  width      {};  // width of map in tiles
-    uint32_t  height     {};  // height of map in tiles
-    RRT       rrt        {};  // "Rapidly-exploring Random Tree" data struture (used for procedural generation)
-    std::vector<Chunk> chunks{};  // loaded chunks
+    RRT                   rrt        {};  // "Rapidly-exploring Random Tree" data struture (used for procedural generation)
+    Texture               minimap    {};
+    TilesetID             tilesetId  {};
+    Tilemap              *next       {};
+    OpenSimplexEnv       *ose        {};
+    OpenSimplexGradients *osg        {};
+    OpenSimplexGradients *osg2       {};
+    std::vector<Chunk>    chunks     {};  // TODO: RingBuffer, this set will grow indefinitely
     std::unordered_map<ChunkHash, size_t> chunksIndex{};  // [x << 16 | y] -> idx into chunks array
-    Texture   minimap    {};
-    TilesetID tilesetId  {};
-    Tilemap  *next       {};
-    OpenSimplexEnv       *ose  {};
-    OpenSimplexGradients *osg  {};
-    OpenSimplexGradients *osg2 {};
 
     ~Tilemap                    ();
     void SeedSimplex            (int64_t seed);

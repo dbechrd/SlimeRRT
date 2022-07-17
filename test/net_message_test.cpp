@@ -25,13 +25,10 @@ void net_message_test_snapshot()
     enemy.hitPoints = 140.0f;
     enemy.hitPointsMax = 150.0f;
 
-    World *world = new World;
-    world->AddPlayer(player.id);
     ENetBuffer rawPacket{ PACKET_SIZE_MAX, calloc(PACKET_SIZE_MAX, sizeof(uint8_t)) };
-    msgWritten.Serialize(*world, rawPacket);
+    msgWritten.Serialize(rawPacket);
     NetMessage baseMsgRead{};
-    baseMsgRead.Deserialize(*world, rawPacket);
-    delete world;
+    baseMsgRead.Deserialize(rawPacket);
 
     assert(baseMsgRead.connectionToken = msgWritten.connectionToken);
     assert(baseMsgRead.type == msgWritten.type);
@@ -67,12 +64,10 @@ void net_message_test_chat()
     memcpy(msgWritten.data.chatMsg.message, CSTR("This is a test message"));
     msgWritten.data.chatMsg.messageLength = (uint32_t)strlen(msgWritten.data.chatMsg.message);
 
-    World *world = new World;
     ENetBuffer rawPacket{ PACKET_SIZE_MAX, calloc(PACKET_SIZE_MAX, sizeof(uint8_t)) };
-    msgWritten.Serialize(*world, rawPacket);
+    msgWritten.Serialize(rawPacket);
     NetMessage baseMsgRead{};
-    baseMsgRead.Deserialize(*world, rawPacket);
-    delete world;
+    baseMsgRead.Deserialize(rawPacket);
 
     assert(baseMsgRead.type == NetMessage::Type::ChatMessage);
     NetMessage_ChatMessage &msgRead = baseMsgRead.data.chatMsg;

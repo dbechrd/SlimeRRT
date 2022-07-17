@@ -510,10 +510,10 @@ void UI::HUD(const Font &font, World &world, const DebugStats &debugStats)
 
     int linesOfText = 13;
     if (debugStats.tick) {
-        linesOfText += 9;
+        linesOfText += 10;
     }
     if (debugStats.rtt) {
-        linesOfText += 5;
+        linesOfText += 8;
     }
     const float margin = 6.0f;   // margin
     const float pad = 4.0f;      // pad
@@ -567,6 +567,8 @@ void UI::HUD(const Font &font, World &world, const DebugStats &debugStats)
         PUSH_TEXT(text, GRAY);
         text = SafeTextFormat("frameDt       %.03f", debugStats.frameDt);
         PUSH_TEXT(text, GRAY);
+        text = SafeTextFormat("g_clock.now   %.03f", g_clock.now);
+        PUSH_TEXT(text, GRAY);
         text = SafeTextFormat("Camera speed  %.03f", debugStats.cameraSpeed);
         PUSH_TEXT(text, GRAY);
         text = SafeTextFormat("Zoom          %.03f", spycam->GetZoom());
@@ -613,6 +615,12 @@ void UI::HUD(const Font &font, World &world, const DebugStats &debugStats)
         text = SafeTextFormat("Up         %8.03f kbps", kbpsOut);
         PUSH_TEXT(text, GRAY);
         text = SafeTextFormat("Down       %8.03f kbps", kbpsIn);
+        PUSH_TEXT(text, GRAY);
+        text = SafeTextFormat("CL seq        %u", debugStats.cl_input_seq);
+        PUSH_TEXT(text, GRAY);
+        text = SafeTextFormat("SV seq ack    %u", debugStats.sv_input_ack);
+        PUSH_TEXT(text, GRAY);
+        text = SafeTextFormat("input bufd    %u", debugStats.input_buf_size);
         PUSH_TEXT(text, GRAY);
     } else {
         bytesSentStart = 0;

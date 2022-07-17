@@ -22,6 +22,9 @@ struct UI {
         uint32_t packets_lost;
         uint64_t bytes_sent;
         uint64_t bytes_recv;
+        uint32_t cl_input_seq;
+        uint32_t sv_input_ack;
+        uint32_t input_buf_size;
     };
 
     static void Begin(Vector2 screenSize, Spycam *spycam);

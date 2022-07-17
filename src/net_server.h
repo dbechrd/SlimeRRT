@@ -23,7 +23,7 @@ struct SV_Client {
     std::unordered_map<uint32_t, PlayerSnapshot> playerHistory {};
     std::unordered_map<uint32_t, EnemySnapshot>  enemyHistory  {};
     std::unordered_map<uint32_t, ItemSnapshot>   itemHistory   {};
-    std::unordered_set<ChunkHash>                chunkHistory  {};
+    std::unordered_set<ChunkHash>                chunkHistory  {};  // TODO: RingBuffer, this set will grow indefinitely
 };
 
 struct NetServer {

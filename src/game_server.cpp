@@ -43,19 +43,36 @@ ErrorType GameServer::Run(const Args &args)
 
     E_ASSERT(netServer.OpenSocket(args.port), "Failed to open socket");
 
-    g_clock.now = 0;
     g_clock.server = true;
+    g_clock.now = 0;
 
     while (!args.serverQuit) {
         E_ASSERT(netServer.Listen(), "Failed to listen on socket");
 
         // Check if tick due
-        if (glfwGetTime() - g_clock.now > SV_TICK_DT) {
+        const double now = glfwGetTime();
+        const double tickDt = now - g_clock.now;
+        if (tickDt > SV_TICK_DT) {
             // Time is of the essence
             g_clock.now += SV_TICK_DT;
             world->tick++;
-            //TraceLog(LOG_DEBUG, "Sim tick %u", world->tick);
+            //TraceLog(LOG_DEBUG, "Sim tick %u now: %f clock %f", world->tick, now, g_clock.now);
+#if 0
+            // DEBUG: Drop all client inputs if server was paused for too long in debugger
+            if (tickDt > SV_DEBUG_TICK_DT_MAX) {
+                for (size_t i = 0; i < SV_MAX_PLAYERS; i++) {
+                    SV_Client &client = netServer.clients[i];
+                    if (!client.playerId) {
+                        continue;
+                    }
 
+                    if (client.inputHistory.Count()) {
+                        client.lastInputAck = client.inputHistory.Last().seq;
+                        client.inputHistory.Clear();
+                    }
+                }
+            }
+#endif
             // Process players' input
             for (size_t i = 0; i < SV_MAX_PLAYERS; i++) {
                 SV_Client &client = netServer.clients[i];
@@ -70,42 +87,65 @@ ErrorType GameServer::Run(const Args &args)
                 }
                 assert(client.playerId == player->id);
 
-                float processedDt = 0;
+                // Ignore inputs that are too far behind to ever get processed to avoid excessive input processing latency
+                {
+                    float dtAccum = 0;
+                    uint32_t oldestInputSeqToProcess = client.lastInputAck;
+                    int inputHistoryLen = (int)client.inputHistory.Count();
+                    for (int i = inputHistoryLen - 1; i >= 0 && dtAccum < SV_INPUT_HISTORY_DT_MAX; i--) {
+                        InputSample input = client.inputHistory.At(i);
+                        if (input.seq <= client.lastInputAck) {
+                            continue;
+                        }
+
+                        oldestInputSeqToProcess = input.seq;
+                        dtAccum += input.dt;
+                    }
+                    if (oldestInputSeqToProcess > client.lastInputAck + 1) {
+                        int first = client.lastInputAck + 1;
+                        int last = oldestInputSeqToProcess - 1;
+                        int count = (last - first) + 1;
+                        TraceLog(LOG_DEBUG, "SVR tick: %u discard old input seq: %u - %u (%u samples)", world->tick, first, last, count);
+                        client.lastInputAck = last;
+                    }
+                }
 
                 // Process up to 1 tick's timespan worth of queued input
-                size_t inputHistoryLen = client.inputHistory.Count();
-                for (size_t i = 0; i < inputHistoryLen && processedDt < SV_TICK_DT; i++) {
-                    InputSample &origInput = client.inputHistory.At(i);
-                    InputSample input = origInput;
-                    if (input.seq <= client.lastInputAck) {
-                        //TraceLog(LOG_WARNING, "Ignoring old input #%u from %u\n", sample.seq, sample.ownerId);
-                        continue;
-                    }
+                {
+                    float processedDt = 0;
+                    size_t inputHistoryLen = client.inputHistory.Count();
+                    for (size_t i = 0; i < inputHistoryLen && processedDt < SV_TICK_DT; i++) {
+                        InputSample input = client.inputHistory.At(i);
+                        if (input.seq <= client.lastInputAck) {
+                            //TraceLog(LOG_WARNING, "Ignoring old input #%u from %u\n", sample.seq, sample.ownerId);
+                            continue;
+                        }
 
-#if 1
-                    if (client.inputOverflow) {
-                        // Consume partial input from previous tick
-                        input.dt = client.inputOverflow;
-                        client.inputOverflow = 0;
-                    }
+    #if 1
+                        if (client.inputOverflow) {
+                            // Consume partial input from previous tick
+                            input.dt = client.inputOverflow;
+                            client.inputOverflow = 0;
+                        }
 
-                    processedDt += input.dt;
+                        processedDt += input.dt;
 
-                    if (processedDt <= SV_TICK_DT) {
-                        // Consume whole input
+                        if (processedDt <= SV_TICK_DT) {
+                            // Consume whole input
+                            client.lastInputAck = input.seq;
+                        } else {
+                            // Consume partial input at end of tick if we ran out of time
+                            client.inputOverflow = (float)(processedDt - SV_TICK_DT);
+                            input.dt -= client.inputOverflow;
+                        }
+    #else
+                        processedDt += input.dt;
                         client.lastInputAck = input.seq;
-                    } else {
-                        // Consume partial input at end of tick if we ran out of time
-                        client.inputOverflow = (float)(processedDt - SV_TICK_DT);
-                        input.dt -= client.inputOverflow;
-                    }
-#else
-                    processedDt += input.dt;
-                    client.lastInputAck = input.seq;
-#endif
+    #endif
 
-                    //TraceLog(LOG_DEBUG, "SVR SQ: %u OS: %f S: %f", input.seq, origInput.dt, input.dt);
-                    player->Update(input, *world->map);
+                        //TraceLog(LOG_DEBUG, "SVR SQ: %u OS: %f S: %f", input.seq, origInput.dt, input.dt);
+                        player->Update(input, *world->map);
+                    }
                 }
 
                 assert(world->map);

@@ -104,7 +104,7 @@ ErrorType NetServer::SendMsg(const SV_Client &client, NetMessage &message)
 
     message.connectionToken = client.connectionToken;
     memset(rawPacket.data, 0, rawPacket.dataLength);
-    size_t bytes = message.Serialize(*serverWorld, rawPacket);
+    size_t bytes = message.Serialize(rawPacket);
 
     //E_INFO("[SEND][%21s][%5u b] %16s ", SafeTextFormatIP(client.peer->address), rawPacket.dataLength, netMsg.TypeString());
     if (message.type != NetMessage::Type::WorldSnapshot) {
@@ -403,13 +403,18 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
             TraceLog(LOG_DEBUG, "Entered vicinity of enemy #%u", enemy.type);
 #endif
         } else {
+#if 0
             // "Despawn" notification already sent
             if (prevState->second.flags & EnemySnapshot::Flags::Despawn) {
                 continue;
             } else if (!enemy.combat.hitPoints) {
                 flags |= EnemySnapshot::Flags::Despawn;
             }
-
+#else
+            if (!enemy.combat.hitPoints) {
+                flags |= EnemySnapshot::Flags::Despawn;
+            }
+#endif
             if (!v3_equal(enemy.body.WorldPosition(), prevState->second.position, POSITION_EPSILON)) {
                 flags |= EnemySnapshot::Flags::Position;
             }
@@ -901,7 +906,7 @@ void NetServer::ProcessMsg(SV_Client &client, ENetPacket &packet)
 
     ENetBuffer packetBuffer{ packet.dataLength, packet.data };
     memset(&netMsg, 0, sizeof(netMsg));
-    netMsg.Deserialize(*serverWorld, packetBuffer);
+    netMsg.Deserialize(packetBuffer);
 
     if (netMsg.type != NetMessage::Type::Identify &&
         netMsg.connectionToken != client.connectionToken)

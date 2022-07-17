@@ -75,13 +75,14 @@
 #define SV_SINGLEPLAYER_PASS        "pass"
 #define SV_USERNAME                 "SERVER"
 #define SV_MAX_PLAYERS              8
-#define SV_MAX_SLIMES               32
+#define SV_MAX_SLIMES               4 //32
 #define SV_MAX_ITEMS                256 //4096
 #define SV_WORLD_ITEM_LIFETIME      120 //600 // despawn items after 10 minutes
 #define SV_TICK_RATE                50
 #define SV_TICK_MSEC                (1000 / SV_TICK_RATE)
 #define SV_TICK_DT                  (1.0 / SV_TICK_RATE)
 #define SV_INPUT_HISTORY            (SV_TICK_RATE * SV_MAX_PLAYERS)
+#define SV_INPUT_HISTORY_DT_MAX     (5.0 * SV_TICK_DT)  // discard buffered inputs that exceed a sane dt accumulation
 #define SV_WORLD_HISTORY            SV_TICK_RATE
 // NOTE: max diagonal distance at 1080p is 1100 + radius units. 1200px allows for a ~50px wide entity
 #define SV_PLAYER_NEARBY_THRESHOLD  1200.0f  // how close a player has to be to receive a snapshot
@@ -90,8 +91,8 @@
 #define SV_ENEMY_MIN_SPAWN_DIST     METERS_TO_PIXELS(7.5f)   // closest enemies can spawn to a player
 #define SV_ENEMY_DESPAWN_RADIUS     METERS_TO_PIXELS(10.0f)  // furthest enemies can be from a player before despawning
 #else
-#define SV_ENEMY_MIN_SPAWN_DIST     METERS_TO_PIXELS(15.0f)  // closest enemies can spawn to a player
-#define SV_ENEMY_DESPAWN_RADIUS     METERS_TO_PIXELS(30.0f)  // furthest enemies can be from a player before despawning
+#define SV_ENEMY_MIN_SPAWN_DIST     200 //METERS_TO_PIXELS(15.0f)  // closest enemies can spawn to a player
+#define SV_ENEMY_DESPAWN_RADIUS     500 //METERS_TO_PIXELS(30.0f)  // furthest enemies can be from a player before despawning
 #endif
 #define SV_ITEM_NEARBY_THRESHOLD    1200.0f                  // how close an item has to be to receive a snapshot
 #define SV_ITEM_ATTRACT_DIST        METERS_TO_PIXELS(1.0f)   // how close player should be to item to attract it
@@ -123,7 +124,7 @@
 #define CL_INPUT_SEND_RATE_LIMIT      60 // max # of input packets to sender to server per second
 #define CL_INPUT_SEND_RATE_LIMIT_DT   (1.0 / CL_INPUT_SEND_RATE_LIMIT)
 #define CL_INPUT_SAMPLES_MAX          SV_TICK_RATE  // send up to 1 second of samples per packet
-#define CL_INPUT_HISTORY              1024  // how many samples to keep around client side
+#define CL_INPUT_HISTORY              SV_TICK_RATE  // how many samples to keep around client side
 #define CL_WORLD_HISTORY              (SV_TICK_RATE / 2 + 1)  // >= 500 ms of data
 #define CL_CHAT_HISTORY               256
 #define CL_FARAWAY_BUFFER_RADIUS      (SV_STALE_RADIUS * 2.0f)

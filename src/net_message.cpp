@@ -5,7 +5,7 @@
 #include "tilemap.h"
 #include <cassert>
 
-size_t NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &world)
+size_t NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer)
 {
     assert(buffer.data);
     assert(buffer.dataLength);
@@ -413,20 +413,20 @@ size_t NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer, World &worl
     return bytesProcessed;
 }
 
-size_t NetMessage::Serialize(const World &world, ENetBuffer &buffer)
+size_t NetMessage::Serialize(ENetBuffer &buffer)
 {
     assert(buffer.data);
     assert(buffer.dataLength);
-    size_t bytesProcessed = Process(BitStream::Mode::Writer, buffer, (World &)world);
+    size_t bytesProcessed = Process(BitStream::Mode::Writer, buffer);
     assert(bytesProcessed);
     return bytesProcessed;
 }
 
-size_t NetMessage::Deserialize(World &world, const ENetBuffer &buffer)
+size_t NetMessage::Deserialize(const ENetBuffer &buffer)
 {
     assert(buffer.data);
     assert(buffer.dataLength);
-    size_t bytesProcessed = Process(BitStream::Mode::Reader, (ENetBuffer &)buffer, world);
+    size_t bytesProcessed = Process(BitStream::Mode::Reader, (ENetBuffer &)buffer);
     assert(bytesProcessed);
     return bytesProcessed;
 }

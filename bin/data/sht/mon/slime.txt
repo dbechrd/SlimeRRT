@@ -1,5 +1,5 @@
 # spritesheet <frame_count> <animation_count> <sprite_count> <texture_path>
-spritesheet 8 8 2 data/img/mon/slime.png
+spritesheet 8 8 2 data/img/sht/mon/slime.png
 
 # frame <name> <x> <y> <width> <height>
 # row 1 (slime facing)

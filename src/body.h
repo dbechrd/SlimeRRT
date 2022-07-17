@@ -23,7 +23,9 @@ struct Body3D {
 
     Body3D(void);
     Vector3 WorldPosition(void) const;
+    Vector3 WorldPositionServer(void) const;
     Vector2 GroundPosition(void) const;
+    Vector2 GroundPositionServer(void) const;
     Vector2 PrevGroundPosition(void) const;
     Vector2 VisualPosition(void) const;
     void Teleport(Vector3 pos);
