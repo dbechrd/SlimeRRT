@@ -72,10 +72,14 @@ void HealthBar::Draw(const Vector2 &topCenter, const char *name, const Combat &c
     DrawRectangleRec(bgRect, Fade(BLACK, 0.5f));
 
     if (combat.hitPointsMax) {
-        Rectangle indicatorRect = bgRect;
-        indicatorRect.width *= combat.hitPoints / combat.hitPointsMax;
+        // Draw animated white delta indicator
+        Rectangle deltaIndicatorRect = bgRect;
+        deltaIndicatorRect.width *= combat.hitPointsSmooth / combat.hitPointsMax;
+        DrawRectangleRec(deltaIndicatorRect, WHITE);
 
         // Hitpoint indicator bar and text
+        Rectangle indicatorRect = bgRect;
+        indicatorRect.width *= combat.hitPoints / combat.hitPointsMax;
         DrawRectangleRec(indicatorRect, RED);
         DrawTextFont(s_font, hpText, hpRect.x, hpRect.y, 0, 0, fontSize, WHITE);
     }

@@ -309,7 +309,7 @@ void World::SV_SimPlayers(double dt)
 
         // Try to spawn enemies near player
         if (dlb_rand32f() < 0.1f) {
-            //SpawnSlime(0, player.body.GroundPosition());
+            SpawnSlime(0, player.body.GroundPosition());
         }
     }
 }
@@ -588,9 +588,11 @@ void World::CL_Extrapolate(double dt)
         enemy.Update(dt);
     }
     for (ItemWorld &item : itemSystem.items) {
-        if (!item.uid) {
+        if (!item.uid || item.pickedUpAt || g_clock.now < item.spawnedAt + SV_ITEM_PICKUP_DELAY) {
             continue;
         }
+
+        assert(item.stack.itemType != ITEMTYPE_EMPTY);
         item.Update(dt);
     }
 }

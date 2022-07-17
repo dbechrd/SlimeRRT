@@ -318,6 +318,7 @@ void Player::Update(InputSample &input, const Tilemap &map)
 
     body.Update(input.dt);
     sprite_update(sprite, input.dt);
+    combat.Update(input.dt);
 
 #if 0
     // TODO: PushEvent(BODY_IDLE_CHANGED, body.idle);

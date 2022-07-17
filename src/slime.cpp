@@ -201,6 +201,7 @@ void Slime::Update(double dt)
 
     body.Update(dt);
     sprite_update(sprite, dt);
+    combat.Update(dt);
 }
 
 float Slime::Depth(void) const

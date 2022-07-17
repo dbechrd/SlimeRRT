@@ -380,7 +380,7 @@ void GameClient::PlayMode_Update(double frameDt, PlayerControllerState &input)
             //renderAt = now - (1.0 / SNAPSHOT_SEND_RATE) - (1.0 / (netClient.server->lastRoundTripTime + netClient.server->lastRoundTripTimeVariance));
             renderAt = g_clock.now - (1.0 / (SNAPSHOT_SEND_RATE * 1.5));
             netClient.serverWorld->CL_Interpolate(renderAt);
-            //netClient.serverWorld->CL_Extrapolate(now - renderAt);
+            netClient.serverWorld->CL_Extrapolate(g_clock.now - renderAt);
         }
 #if 0
         tickAccum -= tickDt;

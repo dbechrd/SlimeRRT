@@ -7,6 +7,7 @@ struct Combat {
     uint8_t     level            {};
     float       hitPointsMax     {};
     float       hitPoints        {};
+    float       hitPointsSmooth  {};  // For animating delta hp (damage/healing)
     float       meleeDamage      {};  // TODO: add min/max and randomly choose?
     uint32_t    xpMin            {};
     uint32_t    xpMax            {};
@@ -26,5 +27,10 @@ struct Combat {
             diedAt = g_clock.now;
         }
         return dealt;
+    }
+
+    void Update(double dt)
+    {
+        hitPointsSmooth += (hitPoints - hitPointsSmooth) * CLAMP(7.0f * (float)dt, 0.05f, 1.0f);
     }
 };
