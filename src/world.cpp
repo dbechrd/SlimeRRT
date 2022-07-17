@@ -309,7 +309,7 @@ void World::SV_SimPlayers(double dt)
 
         // Try to spawn enemies near player
         if (dlb_rand32f() < 0.1f) {
-            SpawnSlime(0, player.body.GroundPosition());
+            //SpawnSlime(0, player.body.GroundPosition());
         }
     }
 }

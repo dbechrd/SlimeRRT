@@ -4,7 +4,7 @@
 #include <string.h>
 #include "OpenSimplex2F.h"
 
-#define PMASK 2047
+#define PMASK (PSIZE - 1)
 #define N2 0.01001634121365712
 #define N3 0.030485933181293584
 #define N4 0.009202377986303158

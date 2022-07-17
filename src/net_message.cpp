@@ -136,7 +136,7 @@ size_t NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer)
             // TODO(perf): RLE compression
             // https://moddingwiki.shikadi.net/wiki/RLE_Compression#Code
             for (size_t i = 0; i < ARRAY_SIZE(worldChunk.chunk.tiles); i++) {
-                stream.Process(worldChunk.chunk.tiles[i].type, 4, TileType_Grass, TileType_Count);
+                stream.Process(worldChunk.chunk.tiles[i].type, 4, 0, TileType_Count - 1);
                 stream.Process(worldChunk.chunk.tiles[i].base);
                 stream.Process(worldChunk.chunk.tiles[i].baseNoise);
             }

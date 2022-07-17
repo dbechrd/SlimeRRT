@@ -105,7 +105,7 @@ ErrorType GameServer::Run(const Args &args)
                         int first = client.lastInputAck + 1;
                         int last = oldestInputSeqToProcess - 1;
                         int count = (last - first) + 1;
-                        TraceLog(LOG_DEBUG, "SVR tick: %u discard old input seq: %u - %u (%u samples)", world->tick, first, last, count);
+                        TraceLog(LOG_WARNING, "SVR [tick: %u] discard old input: %u - %u (%u samples)", world->tick, first, last, count);
                         client.lastInputAck = last;
                     }
                 }
@@ -121,7 +121,6 @@ ErrorType GameServer::Run(const Args &args)
                             continue;
                         }
 
-    #if 1
                         if (client.inputOverflow) {
                             // Consume partial input from previous tick
                             input.dt = client.inputOverflow;
@@ -138,10 +137,6 @@ ErrorType GameServer::Run(const Args &args)
                             client.inputOverflow = (float)(processedDt - SV_TICK_DT);
                             input.dt -= client.inputOverflow;
                         }
-    #else
-                        processedDt += input.dt;
-                        client.lastInputAck = input.seq;
-    #endif
 
                         //TraceLog(LOG_DEBUG, "SVR SQ: %u OS: %f S: %f", input.seq, origInput.dt, input.dt);
                         player->Update(input, *world->map);

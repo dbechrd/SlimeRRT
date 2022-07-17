@@ -204,6 +204,7 @@ const Tile *Tilemap::TileAtWorld(float x, float y) const
     const int tileY = CalcChunkTile(y);
 
 #if 0
+    // TODO: Move to tests
     DLB_ASSERT(CalcChunk(-(CHUNK_W * TILE_W + 1)) == -2);
     DLB_ASSERT(CalcChunk(-(CHUNK_W * TILE_W)) == -1);
     DLB_ASSERT(CalcChunk(-(CHUNK_W * TILE_W - 1)) == -1);
@@ -279,23 +280,73 @@ Chunk &Tilemap::FindOrGenChunk(World &world, int16_t chunkX, int16_t chunkY)
 
             TileType tileType{};
 #if 1
-#define FREQ_BASE_LAYER 1.0 / 8000
-#define FREQ_BASE_NOISE 1.0 / 600
-            const double base = 0.5 + noise2(ose, osg, worldX * FREQ_BASE_LAYER, worldY * FREQ_BASE_LAYER) / 2.0;
-            const double baseNoise = 0.5 + noise2(ose, osg2, worldX * FREQ_BASE_NOISE, worldY * FREQ_BASE_NOISE) / 2.0;
-            if (base < 0.15 || (base < 0.25 && baseNoise < 0.7) || (base < 0.35 && baseNoise < 0.3)) {
+#define FREQ_ELEVATION                             1.0 / 16000
+#define FREQ_ISLAND                                1.0 / 3000
+#define FREQ_BEACH_FALLOFF                         1.0 / 400
+#define FREQ_FOREST_MEADOW_FALLOFF                 1.0 / 800
+#define FREQ_FOREST_MOUNTAINTOP_LAKE_BEACH_FALLOFF 1.0 / 300
+#define FREQ_MOUNTAINTOP_LAKE_FALLOFF              1.0 / 600
+#define NOISE_SAMPLE(freq) (0.5 + noise2(ose, osg, worldX * freq, worldY * freq) / 2.0)
+            const double elev = NOISE_SAMPLE(FREQ_ELEVATION);
+            if (elev < 0.2) {
+                // Lake
                 tileType = TileType_Water;
-            } else if (base < 0.4 || (base < 0.5 && baseNoise < 0.7) || (base < 0.55 && baseNoise < 0.3)) {
+
+                // Island / sandbar
+                const double islandNoise = NOISE_SAMPLE(FREQ_ISLAND);
+                if (islandNoise >= 0.8) {
+                    tileType = TileType_Concrete;
+                }
+            } else if (elev < 0.23) {
+                // Beach
                 tileType = TileType_Concrete;
-            } else if (base < 0.6 || (base < 0.7 && baseNoise < 0.7) || (base < 0.8 && baseNoise < 0.3)) {
+
+                // Beach fall-off into grass
+                if (elev >= 0.22) {
+                    const double falloffNoise = NOISE_SAMPLE(FREQ_BEACH_FALLOFF);
+                    if (falloffNoise >= 0.8) {
+                        tileType = TileType_Grass;
+                    }
+                }
+            } else if (elev < 0.7) {
+                // Meadow
                 tileType = TileType_Grass;
-            } else if (base < 0.9) {
+            } else if (elev < 0.92) {
+                // Forest
                 tileType = TileType_Forest;
-            } else if (base < 0.94) {
-                tileType = TileType_Concrete;
+
+                // Forest fall-off into Meadow
+                if (elev < 0.78) {
+                    const double alpha = (elev - 0.7) / (0.78 - 0.7);
+                    const double falloffNoise = NOISE_SAMPLE(FREQ_FOREST_MEADOW_FALLOFF);
+                    if (falloffNoise >= alpha) {
+                        tileType = TileType_Grass;
+                    }
+                }
+
+                // Forest fall-off into Mountaintop Lake Beach
+                if (elev >= 0.91) {
+                    const double alpha = (elev - 0.91) / (0.92 - 0.91);
+                    const double falloffNoise = NOISE_SAMPLE(FREQ_FOREST_MOUNTAINTOP_LAKE_BEACH_FALLOFF);
+                    if (falloffNoise >= 1.0 - alpha) {
+                        tileType = TileType_Concrete;
+                    }
+                }
             } else {
+                // Mountaintop Lake
                 tileType = TileType_Water;
-                if (baseNoise > 0.99) {
+
+                // Mountaintop Lake fall-off into Mountaintop Lake Beach
+                if (elev < 0.93) {
+                    const double alpha = (elev - 0.92) / (0.93 - 0.92);
+                    const double falloffNoise = NOISE_SAMPLE(FREQ_MOUNTAINTOP_LAKE_FALLOFF);
+                    if (falloffNoise >= alpha) {
+                        tileType = TileType_Concrete;
+                    }
+                }
+
+                // Mountaintop Lake treasure
+                if (elev > 0.99) {
                     world.itemSystem.SpawnItem({ worldX, worldY, 0 }, ItemType_Orig_Gem_GoldenChest, 1);
                 }
             }
@@ -319,8 +370,8 @@ Chunk &Tilemap::FindOrGenChunk(World &world, int16_t chunkX, int16_t chunkY)
 #undef PERIOD
 #undef FREQ
             tile.type = tileType;
-            tile.base = (uint8_t)(base * 255);
-            tile.baseNoise = (uint8_t)(baseNoise * 255);
+            tile.base = (uint8_t)(elev * 255);
+            tile.baseNoise = 1; //(uint8_t)(baseNoise * 255);
             tileCount++;
         }
     }
