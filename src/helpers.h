@@ -31,23 +31,23 @@
 #define CL_CULL_ON_PUSH                  1
 #define CL_CURSOR_ITEM_HIDES_POINTER     0
 #define CL_CURSOR_ITEM_RELATIVE_TERRARIA 0
-#define CL_DEBUG_PLAYER_RECONCILIATION   0
-#define CL_DEBUG_REALLY_LONG_TIMEOUT     0
-#define CL_DEBUG_SHOW_LEVELS             0
-#define CL_DEBUG_SPEEDHAX                1
-#define CL_DEBUG_WORLD_CHUNKS            0
-#define CL_DEBUG_WORLD_ITEMS             0
-#define CL_DEMO_AI_TRACKING              0
-#define CL_DEMO_BODY_RECT                0
-#define CL_DEMO_SNAPSHOT_RADII           0
-#define CL_DEMO_SPAWN_RADII              1
-#define CL_DEMO_VIEW_RTREE               0
 #define CL_PIXEL_FIXER                   1
-#define SV_DEBUG_INPUT_SAMPLES           0
-#define SV_DEBUG_WORLD_CHUNKS            0
-#define SV_DEBUG_WORLD_ENEMIES           0
-#define SV_DEBUG_WORLD_ITEMS             0
-#define SV_DEBUG_WORLD_PLAYERS           0
+#define CL_DEBUG_PLAYER_RECONCILIATION   (0 && _DEBUG)
+#define CL_DEBUG_REALLY_LONG_TIMEOUT     (0 && _DEBUG)
+#define CL_DEBUG_SHOW_LEVELS             (0 && _DEBUG)
+#define CL_DEBUG_SPEEDHAX                (1 && _DEBUG)
+#define CL_DEBUG_WORLD_CHUNKS            (0 && _DEBUG)
+#define CL_DEBUG_WORLD_ITEMS             (0 && _DEBUG)
+#define CL_DEMO_AI_TRACKING              (0 && _DEBUG)
+#define CL_DEMO_BODY_RECT                (0 && _DEBUG)
+#define CL_DEMO_SNAPSHOT_RADII           (0 && _DEBUG)
+#define CL_DEMO_SPAWN_RADII              (1 && _DEBUG)
+#define CL_DEMO_VIEW_RTREE               (0 && _DEBUG)
+#define SV_DEBUG_INPUT_SAMPLES           (0 && _DEBUG)
+#define SV_DEBUG_WORLD_CHUNKS            (0 && _DEBUG)
+#define SV_DEBUG_WORLD_ENEMIES           (0 && _DEBUG)
+#define SV_DEBUG_WORLD_ITEMS             (0 && _DEBUG)
+#define SV_DEBUG_WORLD_PLAYERS           (0 && _DEBUG)
 
 #if _DEBUG
     #define SHOW_DEBUG_STATS 1
