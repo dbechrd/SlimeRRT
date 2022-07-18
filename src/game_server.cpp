@@ -45,14 +45,20 @@ ErrorType GameServer::Run(const Args &args)
 
     g_clock.server = true;
     g_clock.now = 0;
+    g_clock.lastTickedAt = 0;
+    double dtAccum = 0;
 
     while (!args.serverQuit) {
         E_ASSERT(netServer.Listen(), "Failed to listen on socket");
 
-        // Check if tick due
         const double now = glfwGetTime();
         const double tickDt = now - g_clock.now;
-        if (tickDt > SV_TICK_DT) {
+        dtAccum += MIN(SV_TICK_DT_MAX, tickDt);  // Limit accumulator
+
+        // Check if tick due
+        if (dtAccum > SV_TICK_DT) {
+            dtAccum -= SV_TICK_DT;
+
             // Time is of the essence
             g_clock.now += SV_TICK_DT;
             world->tick++;

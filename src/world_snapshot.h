@@ -185,6 +185,7 @@ static inline bool operator&(ItemSnapshot::Flags lhs, ItemSnapshot::Flags rhs)
 
 struct WorldSnapshot {
     uint32_t       tick          {};  // server tick this snapshot was generated on
+    double         clock         {};  // server's clock time when this snapshot was taken
     uint32_t       lastInputAck  {};  // sequence # of last processed input
     float          inputOverflow {};  // amount of next sample after lastInputAck not yet processed
     uint32_t       playerCount   {};  // players in this snapshot

@@ -296,7 +296,8 @@ void GameClient::PlayMode_HandleInput(PlayerControllerState &input)
     }
 
     if (input.dbgChatMessage) {
-        //world->chatHistory.PushDebug(CSTR("You pressed the send random chat message button. Congrats."));
+        netClient.serverWorld->chatHistory.PushDebug(CSTR("You pressed the send random chat message button. Congrats."));
+        g_clock.now += SV_TICK_DT * 100;
     }
 
     if (input.dbgTeleport) {
@@ -345,13 +346,13 @@ void GameClient::PlayMode_Update(double frameDt, PlayerControllerState &input)
             //printf("worldTick: %u, lastSnapshot: %u, delta: %u\n", world->tick, worldSnapshot.tick, worldSnapshot.tick - world->tick);
             netClient.serverWorld->tick = worldSnapshot.tick;
 
-            // Update world state from worldSnapshot and re-apply input with input.tick > snapshot.tick
-            netClient.ReconcilePlayer();
-
             //while (tickAccum > tickDt) {
             netClient.inputSeq = MAX(1, netClient.inputSeq + 1);
             InputSample &inputSample = netClient.inputHistory.Alloc();
             inputSample.FromController(player->id, netClient.inputSeq, frameDt, input);
+
+            // Update world state from worldSnapshot and re-apply input with input.tick > snapshot.tick
+            netClient.ReconcilePlayer();
 
             assert(netClient.serverWorld->map);
             player->Update(inputSample, *netClient.serverWorld->map);
@@ -377,10 +378,11 @@ void GameClient::PlayMode_Update(double frameDt, PlayerControllerState &input)
             //    netClient.server->lastRoundTripTimeVariance,
             //    netClient.server->highestRoundTripTimeVariance
             //);
-            //renderAt = now - (1.0 / SNAPSHOT_SEND_RATE) - (1.0 / (netClient.server->lastRoundTripTime + netClient.server->lastRoundTripTimeVariance));
+            //renderAt = g_clock.now - (1.0 / SNAPSHOT_SEND_RATE) - (1.0 / (netClient.server->lastRoundTripTime + netClient.server->lastRoundTripTimeVariance));
             renderAt = g_clock.now - (1.0 / (SNAPSHOT_SEND_RATE * 1.5));
             netClient.serverWorld->CL_Interpolate(renderAt);
-            netClient.serverWorld->CL_Extrapolate(g_clock.now - renderAt);
+            //netClient.serverWorld->CL_Extrapolate(g_clock.now - renderAt);
+            netClient.serverWorld->CL_Animate(frameDt);
         }
 #if 0
         tickAccum -= tickDt;
@@ -543,13 +545,16 @@ ErrorType GameClient::Run(void)
 {
     Init();
 
-    g_clock.now = glfwGetTime();
+    g_clock.now = 0;
+    g_clock.lastTickedAt = glfwGetTime();
     while (!WindowShouldClose() && !UI::QuitRequested()) {
         // Limit delta time to prevent spiraling for after long hitches (e.g. hitting a breakpoint)
-        double frameDt = MIN(glfwGetTime() - g_clock.now, CL_FRAME_DT_MAX);
+        double now = glfwGetTime();
+        double frameDt = MIN(now - g_clock.lastTickedAt, CL_FRAME_DT_MAX);
 
         // Time is of the essence
         g_clock.now += frameDt;
+        g_clock.lastTickedAt = now;
 
         E_ASSERT(PlayMode_Network(), "Failed to do message processing");
 

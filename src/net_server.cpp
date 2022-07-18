@@ -292,6 +292,7 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
     Player &player = *playerPtr;
 
     worldSnapshot.tick = serverWorld->tick;
+    worldSnapshot.clock = g_clock.now;
     worldSnapshot.lastInputAck = client.lastInputAck;
     worldSnapshot.inputOverflow = client.inputOverflow;
 
@@ -751,18 +752,21 @@ bool NetServer::ParseCommand(SV_Client &client, NetMessage_ChatMessage &chatMsg)
 #define COMMAND_NICK     "nick"
 #define COMMAND_SPEED    "speed"
 #define COMMAND_TELEPORT "teleport"
+#define COMMAND_PEACE    "peace"
 
 #define SUMMARY_GIVE     "Gives an item to the specified player."
 #define SUMMARY_HELP     "Shows the help page for a command."
 #define SUMMARY_NICK     "Changes a player's nickname."
 #define SUMMARY_SPEED    "Changes a player's walk speed."
 #define SUMMARY_TELEPORT "Teleports a player to a location."
+#define SUMMARY_PEACE    "Toggles peaceful mode."
 
 #define USAGE_GIVE       "/give <player> <item_id> <count>"
 #define USAGE_HELP       "/help <command>"
 #define USAGE_NICK       "/nick [player] nickname"
 #define USAGE_SPEED      "/speed [player] <speed>"
 #define USAGE_TELEPORT   "/teleport [player] <x> <y> <z>"
+#define USAGE_PEACE      "/peace"
 
     if (!strcmp(command, COMMAND_GIVE)) {
         if (argc == 3) {
@@ -782,6 +786,8 @@ bool NetServer::ParseCommand(SV_Client &client, NetMessage_ChatMessage &chatMsg)
             SendChatMessage(client, CSTR("  " SUMMARY_SPEED));
             SendChatMessage(client, CSTR(USAGE_TELEPORT));
             SendChatMessage(client, CSTR("  " SUMMARY_TELEPORT));
+            SendChatMessage(client, CSTR(USAGE_PEACE));
+            SendChatMessage(client, CSTR("  " SUMMARY_PEACE));
         } else if (argc == 1) {
             if (!strcmp(argv[0], COMMAND_GIVE)) {
                 SendChatMessage(client, CSTR(USAGE_GIVE));
@@ -798,6 +804,9 @@ bool NetServer::ParseCommand(SV_Client &client, NetMessage_ChatMessage &chatMsg)
             } else if (!strcmp(argv[0], COMMAND_TELEPORT)) {
                 SendChatMessage(client, CSTR(USAGE_TELEPORT));
                 SendChatMessage(client, CSTR("  " SUMMARY_TELEPORT));
+            } else if (!strcmp(argv[0], COMMAND_PEACE)) {
+                SendChatMessage(client, CSTR(USAGE_PEACE));
+                SendChatMessage(client, CSTR("  " SUMMARY_PEACE));
             } else {
                 const char *err = SafeTextFormat("[help] No help page found for '%s'", argv[0]);
                 SendChatMessage(client, err, strlen(err));
@@ -882,6 +891,13 @@ bool NetServer::ParseCommand(SV_Client &client, NetMessage_ChatMessage &chatMsg)
             }
         } else {
             SendChatMessage(client, CSTR("Usage: " USAGE_TELEPORT));
+        }
+    } else if (!strcmp(command, COMMAND_PEACE)) {
+        // /peace
+        if (argc == 0) {
+            serverWorld->peaceful = !serverWorld->peaceful;
+        } else {
+            SendChatMessage(client, CSTR("Usage: " USAGE_PEACE));
         }
     } else {
         const char *err = SafeTextFormat("Unsupported command '%s'", command);

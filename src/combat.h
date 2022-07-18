@@ -31,6 +31,6 @@ struct Combat {
 
     void Update(double dt)
     {
-        hitPointsSmooth += (hitPoints - hitPointsSmooth) * CLAMP(7.0f * (float)dt, 0.05f, 1.0f);
+        hitPointsSmooth += (hitPoints - hitPointsSmooth) * CLAMP(5.0f * (float)dt, 0.05f, 1.0f);
     }
 };

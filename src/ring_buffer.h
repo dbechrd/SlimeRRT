@@ -49,7 +49,7 @@ struct RingBuffer : protected std::array<T, BufferSize> {
         return std::array<T, BufferSize>::size();
     }
 
-    T &At(size_t index)
+    const T &At(size_t index) const
     {
         assert(index < count);
         size_t at = (first + index) % std::array<T, BufferSize>::size();

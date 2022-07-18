@@ -79,10 +79,10 @@
 #define SV_MAX_ITEMS                256 //4096
 #define SV_WORLD_ITEM_LIFETIME      120 //600 // despawn items after 10 minutes
 #define SV_TICK_RATE                50
-#define SV_TICK_MSEC                (1000 / SV_TICK_RATE)
 #define SV_TICK_DT                  (1.0 / SV_TICK_RATE)
-#define SV_INPUT_HISTORY            (SV_TICK_RATE * SV_MAX_PLAYERS)
-#define SV_INPUT_HISTORY_DT_MAX     (5.0 * SV_TICK_DT)  // discard buffered inputs that exceed a sane dt accumulation
+#define SV_TICK_DT_MAX              (1.5 * SV_TICK_DT)
+#define SV_INPUT_HISTORY            SV_TICK_RATE
+#define SV_INPUT_HISTORY_DT_MAX     0.1  //(5.0 * SV_TICK_DT)  // discard buffered inputs that exceed a sane dt accumulation
 #define SV_WORLD_HISTORY            SV_TICK_RATE
 // NOTE: max diagonal distance at 1080p is 1100 + radius units. 1200px allows for a ~50px wide entity
 #define SV_PLAYER_NEARBY_THRESHOLD  1200.0f  // how close a player has to be to receive a snapshot
@@ -91,8 +91,8 @@
 #define SV_ENEMY_MIN_SPAWN_DIST     METERS_TO_PIXELS(7.5f)   // closest enemies can spawn to a player
 #define SV_ENEMY_DESPAWN_RADIUS     METERS_TO_PIXELS(10.0f)  // furthest enemies can be from a player before despawning
 #else
-#define SV_ENEMY_MIN_SPAWN_DIST     200 //METERS_TO_PIXELS(15.0f)  // closest enemies can spawn to a player
-#define SV_ENEMY_DESPAWN_RADIUS     500 //METERS_TO_PIXELS(30.0f)  // furthest enemies can be from a player before despawning
+#define SV_ENEMY_MIN_SPAWN_DIST     500 //METERS_TO_PIXELS(15.0f)  // closest enemies can spawn to a player
+#define SV_ENEMY_DESPAWN_RADIUS     1000 //METERS_TO_PIXELS(30.0f)  // furthest enemies can be from a player before despawning
 #endif
 #define SV_ITEM_NEARBY_THRESHOLD    1200.0f                  // how close an item has to be to receive a snapshot
 #define SV_ITEM_ATTRACT_DIST        METERS_TO_PIXELS(1.0f)   // how close player should be to item to attract it
@@ -107,14 +107,14 @@
 #define SV_RESPAWN_TIMER            5.0                      // how long to make player stare at nothing before respawning
 #define SV_COMMAND_MAX_ARGS         16                       // max # of args a chat command can have
 #define SV_SLIME_MOVE_SPEED         2.0f                     // how fast slimes can move (i.e. jump)
-#define SV_SLIME_ATTACK_TRACK       METERS_TO_PIXELS(10.0f)  // how far away slimes can see players
+#define SV_SLIME_ATTACK_TRACK       METERS_TO_PIXELS(6.0f)  // how far away slimes can see players
 #define SV_SLIME_ATTACK_REACH       METERS_TO_PIXELS(0.5f)   // how far away slimes can reach to attack a player
 #define SV_SLIME_RADIUS             METERS_TO_PIXELS(0.5f)   // how thicc a slime is
 // NOTE: Have legit clients d/c if their FPS drops below 15 fps to prevent them from being banned for hacking due to input latency
 #define SV_INPUT_HACK_THRESHOLD     (SV_TICK_DT * 5.0)  // 4 frames of overflowed input time is surely a hacker (or a client with < 15 fps?)
 
 // NOTE: Due to how "enemy.moved" flag is calculated atm, this *MUST* match SV_TICK_RATE
-#define SNAPSHOT_SEND_RATE            SV_TICK_RATE  //MIN(30, SV_TICK_RATE)
+#define SNAPSHOT_SEND_RATE            20  //SV_TICK_RATE  //MIN(30, SV_TICK_RATE)
 #define SNAPSHOT_SEND_DT              (1.0 / SV_TICK_RATE)
 #define SNAPSHOT_MAX_PLAYERS          SV_MAX_PLAYERS
 #define SNAPSHOT_MAX_SLIMES           MIN(64, SV_MAX_SLIMES)

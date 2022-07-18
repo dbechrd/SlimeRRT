@@ -257,11 +257,10 @@ void World::SV_SimPlayers(double dt)
         //}
         if (player.actionState == Player::ActionState::AttackBegin) {
             const float playerAttackReach = METERS_TO_PIXELS(1.0f);
-            float playerDamage;
 
             const ItemStack &selectedStack = player.GetSelectedItem();
             const Catalog::Item &selectedItem = Catalog::g_items.Find(selectedStack.itemType);
-            playerDamage = selectedItem.damage;
+            float playerDamage = selectedItem.damage;
             if (selectedItem.itemType == ITEMTYPE_EMPTY) {
                 playerDamage = player.combat.meleeDamage;
             }
@@ -286,29 +285,31 @@ void World::SV_SimPlayers(double dt)
                 }
             }
 
-            for (Player &otherPlayer : players) {
-                if (otherPlayer.id == player.id || !otherPlayer.id || otherPlayer.combat.diedAt) {
-                    continue;
-                }
+            if (pvp) {
+                for (Player &otherPlayer : players) {
+                    if (otherPlayer.id == player.id || !otherPlayer.id || otherPlayer.combat.diedAt) {
+                        continue;
+                    }
 
-                Vector3 playerToPlayer = v3_sub(otherPlayer.body.WorldPosition(), player.body.WorldPosition());
-                if (v3_length_sq(playerToPlayer) <= SQUARED(playerAttackReach)) {
-                    player.stats.damageDealt += otherPlayer.combat.DealDamage(playerDamage);
-                    if (!otherPlayer.combat.hitPoints) {
-                        player.xp += otherPlayer.combat.level * 10u;
-                        int overflowXp = player.xp - (player.combat.level * 20u);
-                        if (overflowXp >= 0) {
-                            player.combat.level++;
-                            player.xp = (uint32_t)overflowXp;
+                    Vector3 playerToPlayer = v3_sub(otherPlayer.body.WorldPosition(), player.body.WorldPosition());
+                    if (v3_length_sq(playerToPlayer) <= SQUARED(playerAttackReach)) {
+                        player.stats.damageDealt += otherPlayer.combat.DealDamage(playerDamage);
+                        if (!otherPlayer.combat.hitPoints) {
+                            player.xp += otherPlayer.combat.level * 10u;
+                            int overflowXp = player.xp - (player.combat.level * 20u);
+                            if (overflowXp >= 0) {
+                                player.combat.level++;
+                                player.xp = (uint32_t)overflowXp;
+                            }
+                            player.stats.playersSlain++;
                         }
-                        player.stats.playersSlain++;
                     }
                 }
             }
         }
 
         // Try to spawn enemies near player
-        if (dlb_rand32f() < 0.1f) {
+        if (!peaceful && dlb_rand32f() < 0.1f) {
             SpawnSlime(0, player.body.GroundPosition());
         }
     }
@@ -391,7 +392,7 @@ void World::SV_SimSlimes(double dt)
 
         // Allow slime to attack if on the ground and close enough to the player
         if (slimeToPlayerDistSq <= SQUARED(SV_SLIME_ATTACK_REACH)) {
-            if (slime.Attack(dt)) {
+            if (!peaceful && slime.Attack(dt)) {
                 closestPlayer->combat.DealDamage(slime.combat.meleeDamage * slime.sprite.scale);
             }
         }
@@ -494,7 +495,7 @@ bool World::CL_InterpolateBody(Body3D &body, double renderAt, Direction &directi
 
     // renderAt is before any snapshots, show entity at oldest snapshot
     if (right == 0) {
-        Vector3Snapshot &oldest = positionHistory.At(0);
+        const Vector3Snapshot &oldest = positionHistory.At(0);
         assert(renderAt < oldest.recvAt);
         //printf("renderAt %f before oldest snapshot %f\n", renderAt, oldest.recvAt);
 
@@ -503,7 +504,7 @@ bool World::CL_InterpolateBody(Body3D &body, double renderAt, Direction &directi
     // renderAt is after all snapshots, show entity at newest snapshot
     } else if (right == historyLen) {
         // TODO: Extrapolate beyond latest snapshot if/when this happens? Should be mostly avoidable..
-        Vector3Snapshot &newest = positionHistory.At(historyLen - 1);
+        const Vector3Snapshot &newest = positionHistory.At(historyLen - 1);
         assert(renderAt >= newest.recvAt);
         if (renderAt > newest.recvAt) {
             //printf("renderAt %f after newest snapshot %f\n", renderAt, newest.recvAt);
@@ -522,8 +523,8 @@ bool World::CL_InterpolateBody(Body3D &body, double renderAt, Direction &directi
     } else {
         assert(right > 0);
         assert(right < historyLen);
-        Vector3Snapshot &a = positionHistory.At(right - 1);
-        Vector3Snapshot &b = positionHistory.At(right);
+        const Vector3Snapshot &a = positionHistory.At(right - 1);
+        const Vector3Snapshot &b = positionHistory.At(right);
 
         if (renderAt < a.recvAt) {
             assert(renderAt);
@@ -594,6 +595,22 @@ void World::CL_Extrapolate(double dt)
 
         assert(item.stack.itemType != ITEMTYPE_EMPTY);
         item.Update(dt);
+    }
+}
+
+void World::CL_Animate(double dt)
+{
+    for (Player &player : players) {
+        if (!player.id || player.id == playerId) {
+            continue;
+        }
+        player.combat.Update(dt);
+    }
+    for (Slime &enemy : slimes) {
+        if (!enemy.id) {
+            continue;
+        }
+        enemy.combat.Update(dt);
     }
 }
 

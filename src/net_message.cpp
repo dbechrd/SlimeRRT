@@ -92,7 +92,7 @@ size_t NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer)
         } case NetMessage::Type::Input: {
             NetMessage_Input &input = data.input;
 
-            stream.Process(input.sampleCount, 6, 0, CL_INPUT_SAMPLES_MAX);
+            stream.Process(input.sampleCount, 7, 0, CL_INPUT_SAMPLES_MAX);
             for (size_t i = 0; i < input.sampleCount; i++) {
                 InputSample &sample = input.samples[i];
                 bool same = i && sample.Equals(input.samples[i - 1]) && (sample.seq == (input.samples[i - 1].seq + 1));
@@ -147,6 +147,7 @@ size_t NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer)
             WorldSnapshot &worldSnapshot = data.worldSnapshot;
 
             stream.Process(worldSnapshot.tick, 32, 1, UINT32_MAX);
+            stream.Process(worldSnapshot.clock);
             stream.Process(worldSnapshot.lastInputAck);
             stream.Process(worldSnapshot.inputOverflow);
             stream.Process(worldSnapshot.playerCount, 4, 0, SNAPSHOT_MAX_PLAYERS);

@@ -32,6 +32,8 @@ struct World {
     MapSystem      mapSystem      {};
     ParticleSystem particleSystem {};
     ChatHistory    chatHistory    {};
+    bool           peaceful       {};
+    bool           pvp            {};
 
     World  (void);
     ~World (void);
@@ -59,6 +61,7 @@ struct World {
 
     void CL_Interpolate(double renderAt);
     void CL_Extrapolate(double dt);
+    void CL_Animate(double dt);
     void CL_DespawnStaleEntities(void);
 
     void EnableCulling(Rectangle cullRect);

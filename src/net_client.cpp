@@ -210,7 +210,7 @@ ErrorType NetClient::SendPlayerInput(void)
 
     uint32_t sampleCount = 0;
     for (size_t i = 0; i < inputHistory.Count() && sampleCount < CL_INPUT_SAMPLES_MAX; i++) {
-        InputSample &inputSample = inputHistory.At(i);
+        const InputSample &inputSample = inputHistory.At(i);
         if (inputSample.seq > worldSnapshot.lastInputAck) {
             //if (sampleCount == 0) { printf("Sending input seq:"); }
             //printf(" %u", inputSample.seq);
@@ -286,7 +286,7 @@ void NetClient::ReconcilePlayer(void)
         // Predict player for each input not yet handled by the server
         bool applyOverflow = true;
         for (size_t i = 0; i < inputHistory.Count(); i++) {
-            InputSample &origInput = inputHistory.At(i);
+            const InputSample &origInput = inputHistory.At(i);
             InputSample input = origInput;
             // NOTE: Old input's ownerId might not match if the player recently reconnected to a
             // server and received a new playerId. Intentionally ignore those.
@@ -413,6 +413,9 @@ void NetClient::ProcessMsg(ENetPacket &packet)
             const WorldSnapshot &netSnapshot = tempMsg.data.worldSnapshot;
             WorldSnapshot &worldSnapshot = worldHistory.Alloc();
             worldSnapshot = netSnapshot;
+            if (worldHistory.Count() == 1) {
+                //g_clock.now = worldSnapshot.clock;
+            }
             worldSnapshot.recvAt = g_clock.now;
 
 #if 0
