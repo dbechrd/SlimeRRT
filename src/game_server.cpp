@@ -44,25 +44,26 @@ ErrorType GameServer::Run(const Args &args)
     E_ASSERT(netServer.OpenSocket(args.port), "Failed to open socket");
 
     g_clock.server = true;
-    g_clock.now = 0;
-    g_clock.lastTickedAt = 0;
-    double dtAccum = 0;
 
     while (!args.serverQuit) {
         E_ASSERT(netServer.Listen(), "Failed to listen on socket");
 
         const double now = glfwGetTime();
-        const double tickDt = now - g_clock.now;
-        dtAccum += MIN(SV_TICK_DT_MAX, tickDt);  // Limit accumulator
+        const double dt = now - g_clock.nowPrev;
+        g_clock.nowPrev = now;
+        g_clock.accum += MIN(SV_TICK_DT_MAX, dt);  // Limit accumulator
+
+        //printf("clock: %f now: %f tickDt: %f dtAccum: %f\n", g_clock.now, now, tickDt, dtAccum);
+        assert(dt > 0);
 
         // Check if tick due
-        if (dtAccum > SV_TICK_DT) {
-            dtAccum -= SV_TICK_DT;
+        if (g_clock.accum > SV_TICK_DT) {
+            g_clock.accum -= SV_TICK_DT;
 
             // Time is of the essence
             g_clock.now += SV_TICK_DT;
             world->tick++;
-            //TraceLog(LOG_DEBUG, "Sim tick %u now: %f clock %f", world->tick, now, g_clock.now);
+            TraceLog(LOG_DEBUG, "tick: %u now: %f clock: %f dt: %f", world->tick, now, g_clock.now, dt);
 #if 0
             // DEBUG: Drop all client inputs if server was paused for too long in debugger
             if (tickDt > SV_DEBUG_TICK_DT_MAX) {

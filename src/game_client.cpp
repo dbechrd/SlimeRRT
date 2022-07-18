@@ -545,16 +545,14 @@ ErrorType GameClient::Run(void)
 {
     Init();
 
-    g_clock.now = 0;
-    g_clock.lastTickedAt = glfwGetTime();
     while (!WindowShouldClose() && !UI::QuitRequested()) {
         // Limit delta time to prevent spiraling for after long hitches (e.g. hitting a breakpoint)
         double now = glfwGetTime();
-        double frameDt = MIN(now - g_clock.lastTickedAt, CL_FRAME_DT_MAX);
+        double frameDt = MIN(now - g_clock.nowPrev, CL_FRAME_DT_MAX);
 
         // Time is of the essence
         g_clock.now += frameDt;
-        g_clock.lastTickedAt = now;
+        g_clock.nowPrev = now;
 
         E_ASSERT(PlayMode_Network(), "Failed to do message processing");
 

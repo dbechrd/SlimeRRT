@@ -413,9 +413,6 @@ void NetClient::ProcessMsg(ENetPacket &packet)
             const WorldSnapshot &netSnapshot = tempMsg.data.worldSnapshot;
             WorldSnapshot &worldSnapshot = worldHistory.Alloc();
             worldSnapshot = netSnapshot;
-            if (worldHistory.Count() == 1) {
-                //g_clock.now = worldSnapshot.clock;
-            }
             worldSnapshot.recvAt = g_clock.now;
 
 #if 0
