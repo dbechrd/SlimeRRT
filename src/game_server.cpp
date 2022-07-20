@@ -63,7 +63,7 @@ ErrorType GameServer::Run(const Args &args)
             // Time is of the essence
             g_clock.now += SV_TICK_DT;
             world->tick++;
-            TraceLog(LOG_DEBUG, "tick: %u now: %f clock: %f dt: %f", world->tick, now, g_clock.now, dt);
+            //TraceLog(LOG_DEBUG, "tick: %u now: %f clock: %f dt: %f", world->tick, now, g_clock.now, dt);
 #if 0
             // DEBUG: Drop all client inputs if server was paused for too long in debugger
             if (tickDt > SV_DEBUG_TICK_DT_MAX) {

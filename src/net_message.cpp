@@ -137,8 +137,6 @@ size_t NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer)
             // https://moddingwiki.shikadi.net/wiki/RLE_Compression#Code
             for (size_t i = 0; i < ARRAY_SIZE(worldChunk.chunk.tiles); i++) {
                 stream.Process(worldChunk.chunk.tiles[i].type, 4, 0, TileType_Count - 1);
-                stream.Process(worldChunk.chunk.tiles[i].base);
-                stream.Process(worldChunk.chunk.tiles[i].baseNoise);
             }
             stream.Align();
 
@@ -159,31 +157,31 @@ size_t NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer)
                 PlayerSnapshot &player = worldSnapshot.players[i];
                 stream.Process(player.id, 32, 1, UINT32_MAX);
                 stream.Process((uint32_t &)player.flags);
-                if (player.flags & PlayerSnapshot::Flags::Position) {
+                if (player.flags & PlayerSnapshot::Flags_Position) {
                     stream.Process(player.position.x);
                     stream.Process(player.position.y);
                     stream.Process(player.position.z);
                 }
-                if (player.flags & PlayerSnapshot::Flags::Direction) {
+                if (player.flags & PlayerSnapshot::Flags_Direction) {
                     stream.Process((uint8_t &)player.direction, 3, (uint8_t)Direction::North, (uint8_t)Direction::NorthWest);
                     stream.Align();
                 }
-                if (player.flags & PlayerSnapshot::Flags::Speed) {
+                if (player.flags & PlayerSnapshot::Flags_Speed) {
                     stream.Process(player.speed);
                 }
-                if (player.flags & PlayerSnapshot::Flags::Health) {
+                if (player.flags & PlayerSnapshot::Flags_Health) {
                     stream.Process(player.hitPoints);
                 }
-                if (player.flags & PlayerSnapshot::Flags::HealthMax) {
+                if (player.flags & PlayerSnapshot::Flags_HealthMax) {
                     stream.Process(player.hitPointsMax);
                 }
-                if (player.flags & PlayerSnapshot::Flags::Level) {
+                if (player.flags & PlayerSnapshot::Flags_Level) {
                     stream.Process(player.level);
                 }
-                if (player.flags & PlayerSnapshot::Flags::XP) {
+                if (player.flags & PlayerSnapshot::Flags_XP) {
                     stream.Process(player.xp);
                 }
-                if (player.flags & PlayerSnapshot::Flags::Inventory) {
+                if (player.flags & PlayerSnapshot::Flags_Inventory) {
                     stream.Process((uint8_t &)player.inventory.selectedSlot, 8, 0, PlayerInvSlot_Count - 1);
                     const size_t slotCount = ARRAY_SIZE(player.inventory.slots);
                     thread_local bool slotMap[slotCount];
@@ -209,25 +207,25 @@ size_t NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer)
                 EnemySnapshot &enemy = worldSnapshot.enemies[i];
                 stream.Process(enemy.id, 32, 1, UINT32_MAX);
                 stream.Process((uint32_t &)enemy.flags);
-                if (enemy.flags & EnemySnapshot::Flags::Position) {
+                if (enemy.flags & EnemySnapshot::Flags_Position) {
                     stream.Process(enemy.position.x);
                     stream.Process(enemy.position.y);
                     stream.Process(enemy.position.z);
                 }
-                if (enemy.flags & EnemySnapshot::Flags::Direction) {
+                if (enemy.flags & EnemySnapshot::Flags_Direction) {
                     stream.Process((uint8_t &)enemy.direction, 3, (uint8_t)Direction::North, (uint8_t)Direction::NorthWest);
                     stream.Align();
                 }
-                if (enemy.flags & EnemySnapshot::Flags::Scale) {
+                if (enemy.flags & EnemySnapshot::Flags_Scale) {
                     stream.Process(enemy.scale);
                 }
-                if (enemy.flags & EnemySnapshot::Flags::Health) {
+                if (enemy.flags & EnemySnapshot::Flags_Health) {
                     stream.Process(enemy.hitPoints);
                 }
-                if (enemy.flags & EnemySnapshot::Flags::HealthMax) {
+                if (enemy.flags & EnemySnapshot::Flags_HealthMax) {
                     stream.Process(enemy.hitPointsMax);
                 }
-                if (enemy.flags & EnemySnapshot::Flags::Level) {
+                if (enemy.flags & EnemySnapshot::Flags_Level) {
                     stream.Process(enemy.level);
                 }
             }
@@ -236,15 +234,15 @@ size_t NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer)
                 ItemSnapshot &item = worldSnapshot.items[i];
                 stream.Process(item.id, 32, 1, UINT32_MAX);
                 stream.Process((uint32_t &)item.flags);
-                if (item.flags & ItemSnapshot::Flags::Position) {
+                if (item.flags & ItemSnapshot::Flags_Position) {
                     stream.Process(item.position.x);
                     stream.Process(item.position.y);
                     stream.Process(item.position.z);
                 }
-                if (item.flags & ItemSnapshot::Flags::CatalogId) {
+                if (item.flags & ItemSnapshot::Flags_CatalogId) {
                     stream.Process((uint32_t &)item.catalogId, 8, ITEMTYPE_EMPTY, ITEMTYPE_COUNT - 1);
                 }
-                if (item.flags & ItemSnapshot::Flags::StackCount) {
+                if (item.flags & ItemSnapshot::Flags_StackCount) {
                     stream.Process(item.stackCount);
                 }
             }

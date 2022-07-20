@@ -24,7 +24,7 @@ ItemWorld *ItemSystem::SpawnItem(Vector3 pos, ItemType itemId, uint32_t count, u
     }
 
     if (items.size() == SV_MAX_ITEMS) {
-        // TODO: Delete oldest item instead of dropping new one
+        // TODO: Delete oldest item instead of discarding the new one
         TraceLog(LOG_ERROR, "Item pool is full; discarding item.");
         return 0;
     }
@@ -98,7 +98,7 @@ bool ItemSystem::Remove(uint32_t uid)
 #endif
     auto elem = byUid.find(uid);
     if (elem == byUid.end()) {
-        TraceLog(LOG_WARNING, "Cannot remove an item that doesn't exist. uid: %u", uid);
+        //TraceLog(LOG_WARNING, "Cannot remove an item that doesn't exist. uid: %u", uid);
         return false;
     }
 

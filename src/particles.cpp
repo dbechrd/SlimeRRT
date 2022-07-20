@@ -236,7 +236,7 @@ bool Particle::Cull(const Rectangle &cullRect) const
     return cull;
 }
 
-void Particle::Draw(const World &world) const
+void Particle::Draw(World &world) const
 {
     if (sprite.spriteDef) {
         sprite_draw_body(sprite, body, color);

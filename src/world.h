@@ -22,9 +22,9 @@ struct World {
     double         dtUpdate       {};
     Tilemap        *map           {};
     // TODO: PlayerSystem
-    uint32_t       nextPlayerId   {};
     uint32_t       playerId       {};
     Player         players        [SV_MAX_PLAYERS]{};
+    PlayerInfo     playerInfos    [SV_MAX_PLAYERS]{};
     // TODO: SlimeSystem or EnemySystem
     Slime          slimes         [SV_MAX_SLIMES]{};
     ItemSystem     itemSystem     {};
@@ -33,7 +33,7 @@ struct World {
     ParticleSystem particleSystem {};
     ChatHistory    chatHistory    {};
     bool           peaceful       {};
-    bool           pvp            {};
+    bool           pvp            {true};
 
     World  (void);
     ~World (void);
@@ -42,11 +42,15 @@ struct World {
     ////////////////////////////////////////////
     // vvv DO NOT HOLD A POINTER TO THESE! vvv
     //
-    Player *AddPlayer         (uint32_t playerId);
-    Player *FindPlayer        (uint32_t playerId);
-    Player *FindPlayerByName  (const char *name, size_t nameLength);
-    Player *FindClosestPlayer (Vector2 worldPos, float maxDist, float *distSq);
-    void    RemovePlayer      (uint32_t playerId);
+    PlayerInfo       *AddPlayerInfo     (const char *name, uint32_t nameLength, uint32_t playerId = 0);
+    PlayerInfo       *FindPlayerInfo    (uint32_t playerId);
+    void              RemovePlayerInfo  (uint32_t playerId);
+
+    Player           *AddPlayer         (uint32_t playerId);
+    Player           *FindPlayer        (uint32_t playerId);
+    Player           *FindPlayerByName  (const char *name, size_t nameLength);
+    Player           *FindClosestPlayer (Vector2 worldPos, float maxDist, float *distSq);
+    void              RemovePlayer      (uint32_t playerId);
 
     Slime  &SpawnSam    (void);
     Slime  *SpawnSlime  (uint32_t slimeId, Vector2 origin);

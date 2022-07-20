@@ -262,7 +262,7 @@ void NetClient::ReconcilePlayer(void)
 
     // TODO: Do this more smoothly
     // Roll back local player to server snapshot location
-    if (playerSnapshot->flags & PlayerSnapshot::Flags::Position) {
+    if (playerSnapshot->flags & PlayerSnapshot::Flags_Position) {
         const Vector3 before = player->body.WorldPosition();
         player->body.Teleport(playerSnapshot->position);
         //TraceLog(LOG_DEBUG, "Teleporting player to %0.2f %0.2f", playerSnapshot->position.x,
@@ -322,16 +322,16 @@ void NetClient::ReconcilePlayer(void)
     }
 
     // TODO(dlb): This seems redundant. Doesn't it already happen in ProcessMsg??
-    //if (playerSnapshot->flags & PlayerSnapshot::Flags::Direction) {
+    //if (playerSnapshot->flags & PlayerSnapshot::Flags_Direction) {
     //    player->sprite.direction = playerSnapshot->direction;
     //}
-    //if (playerSnapshot->flags & PlayerSnapshot::Flags::Speed) {
+    //if (playerSnapshot->flags & PlayerSnapshot::Flags_Speed) {
     //    player->body.speed = playerSnapshot->speed;
     //}
-    //if (playerSnapshot->flags & PlayerSnapshot::Flags::Health) {
+    //if (playerSnapshot->flags & PlayerSnapshot::Flags_Health) {
     //    player->combat.hitPoints = playerSnapshot->hitPoints;
     //}
-    //if (playerSnapshot->flags & PlayerSnapshot::Flags::HealthMax) {
+    //if (playerSnapshot->flags & PlayerSnapshot::Flags_HealthMax) {
     //    player->combat.hitPointsMax = playerSnapshot->hitPointsMax;
     //}
 }
@@ -369,11 +369,11 @@ void NetClient::ProcessMsg(ENetPacket &packet)
             serverWorld->playerId = welcomeMsg.playerId;
 
             for (size_t i = 0; i < welcomeMsg.playerCount; i++) {
-                Player *player = serverWorld->AddPlayer(welcomeMsg.players[i].id);
-                if (player) {
-                    player->nameLength = (uint32_t)MIN(welcomeMsg.players[i].nameLength, USERNAME_LENGTH_MAX);
-                    memcpy(player->name, welcomeMsg.players[i].name, player->nameLength);
-                }
+                NetMessage_Welcome::NetMessage_Welcome_Player &netPlayerInfo = welcomeMsg.players[i];
+                PlayerInfo &playerInfo = serverWorld->playerInfos[i];
+                playerInfo.id = netPlayerInfo.id;
+                playerInfo.nameLength = (uint32_t)MIN(netPlayerInfo.nameLength, USERNAME_LENGTH_MAX);
+                memcpy(playerInfo.name, netPlayerInfo.name, playerInfo.nameLength);
             }
 
             serverWorld->chatHistory.PushServer(welcomeMsg.motd, welcomeMsg.motdLength);
@@ -415,50 +415,29 @@ void NetClient::ProcessMsg(ENetPacket &packet)
             worldSnapshot = netSnapshot;
             worldSnapshot.recvAt = g_clock.now;
 
-#if 0
             for (size_t i = 0; i < worldSnapshot.playerCount; i++) {
                 const PlayerSnapshot &playerSnapshot = worldSnapshot.players[i];
-                Player *player = serverWorld->FindPlayer(playerSnapshot.type);
-                if (!player) {
+                if (playerSnapshot.flags & PlayerSnapshot::Flags_Despawn) {
+                    serverWorld->RemovePlayer(playerSnapshot.id);
                     continue;
                 }
 
-                bool init = playerSnapshot.init || playerSnapshot.spawned;
-
-                // TODO: World::Interpolate() should used snapshots directly.. why did I change that?
-                if (playerSnapshot.nearby) {
-                    if (playerSnapshot.spawned) {
-                        // TODO: Play spawn animation
-                    }
-                    if (init || playerSnapshot.moved) {
-                        Vector3Snapshot &pos = player->body.positionHistory.Alloc();
-                        pos.recvAt = worldSnapshot.recvAt;
-                        pos.v = playerSnapshot.position;
-                        pos.direction = playerSnapshot.direction;
-                    }
-                    if (init || playerSnapshot.tookDamage || playerSnapshot.healed) {
-                        player->combat.hitPoints = playerSnapshot.hitPoints;
-                        player->combat.hitPointsMax = playerSnapshot.hitPointsMax;
-                    }
-                } else {
-                    serverWorld->DespawnPlayer(playerSnapshot.type);
-                }
-            }
-#else
-            for (size_t i = 0; i < worldSnapshot.playerCount; i++) {
-                const PlayerSnapshot &playerSnapshot = worldSnapshot.players[i];
+                bool spawned = false;
                 Player *player = serverWorld->FindPlayer(playerSnapshot.id);
                 if (!player) {
-                    TraceLog(LOG_ERROR, "Failed to find player %u.", playerSnapshot.id);
-                    continue;
+                    player = serverWorld->AddPlayer(playerSnapshot.id);
+                    if (!player) {
+                        continue;
+                    }
+                    spawned = true;
                 }
 
-                if (playerSnapshot.flags != PlayerSnapshot::Flags::None) {
+                if (playerSnapshot.flags != PlayerSnapshot::Flags_None) {
                     //TraceLog(LOG_DEBUG, "Snapshot: player #%u", playerSnapshot.type);
                 }
 
-                const bool posChanged = playerSnapshot.flags & PlayerSnapshot::Flags::Position;
-                const bool dirChanged = playerSnapshot.flags & PlayerSnapshot::Flags::Direction;
+                const bool posChanged = playerSnapshot.flags & PlayerSnapshot::Flags_Position;
+                const bool dirChanged = playerSnapshot.flags & PlayerSnapshot::Flags_Direction;
 
                 if (posChanged || dirChanged) {
                     const Vector3Snapshot *prevState{};
@@ -498,67 +477,70 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                     }
                 }
 
-                if (playerSnapshot.flags & PlayerSnapshot::Flags::Speed) {
+                if (playerSnapshot.flags & PlayerSnapshot::Flags_Speed) {
                     player->body.speed = playerSnapshot.speed;
                 }
                 // TODO: Pos/dir are history based, but these are instantaneous.. hmm.. is that okay?
-                if (playerSnapshot.flags & PlayerSnapshot::Flags::Health) {
+                if (playerSnapshot.flags & PlayerSnapshot::Flags_Health) {
                     //TraceLog(LOG_DEBUG, "Snapshot: health %f", playerSnapshot.hitPoints);
-                    // TODO: Move this to DespawnStaleEntities or whatever
-                    if (player->combat.hitPoints && !playerSnapshot.hitPoints) {
-                        // Died
-                        player->combat.diedAt = worldSnapshot.recvAt;
-                        ParticleEffectParams bloodParams{};
-                        bloodParams.particleCountMin = 128;
-                        bloodParams.particleCountMax = bloodParams.particleCountMin;
-                        bloodParams.durationMin = 4.0f;
-                        bloodParams.durationMax = bloodParams.durationMin;
-                        serverWorld->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Blood, player->WorldCenter(), bloodParams);
-                        Catalog::g_sounds.Play(Catalog::SoundID::Eughh, 1.0f + dlb_rand32f_variance(0.1f));
-                    } else if (!player->combat.hitPoints && playerSnapshot.hitPoints) {
-                        // Respawn
-                        player->combat.diedAt = 0;
-                    } else if (player->combat.hitPoints > playerSnapshot.hitPoints) {
-                        // Took damage
-                        Vector3 playerGut = player->GetAttachPoint(Player::AttachPoint::Gut);
-                        ParticleEffectParams bloodParams{};
-                        bloodParams.particleCountMin = 32;
-                        bloodParams.particleCountMax = bloodParams.particleCountMin;
-                        bloodParams.durationMin = 1.0f;
-                        bloodParams.durationMax = bloodParams.durationMin;
-                        ParticleEffect *bloodParticles = serverWorld->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Blood, playerGut, bloodParams);
-                        if (bloodParticles) {
-                            bloodParticles->effectCallbacks[(size_t)ParticleEffect_Event::BeforeUpdate] = {
-                                ParticlesFollowPlayerGut,
-                                player
-                            };
+                    if (!spawned) {
+                        if (player->combat.hitPoints && !playerSnapshot.hitPoints) {
+                            // Died
+                            player->combat.diedAt = worldSnapshot.recvAt;
+                            ParticleEffectParams bloodParams{};
+                            bloodParams.particleCountMin = 128;
+                            bloodParams.particleCountMax = bloodParams.particleCountMin;
+                            bloodParams.durationMin = 4.0f;
+                            bloodParams.durationMax = bloodParams.durationMin;
+                            serverWorld->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Blood, player->WorldCenter(), bloodParams);
+                            Catalog::g_sounds.Play(Catalog::SoundID::Eughh, 1.0f + dlb_rand32f_variance(0.1f));
+                        } else if (!player->combat.hitPoints && playerSnapshot.hitPoints) {
+                            // Respawn
+                            player->combat.diedAt = 0;
+                        } else if (player->combat.hitPoints > playerSnapshot.hitPoints) {
+                            // Took damage
+                            Vector3 playerGut = player->GetAttachPoint(Player::AttachPoint::Gut);
+                            ParticleEffectParams bloodParams{};
+                            bloodParams.particleCountMin = 32;
+                            bloodParams.particleCountMax = bloodParams.particleCountMin;
+                            bloodParams.durationMin = 1.0f;
+                            bloodParams.durationMax = bloodParams.durationMin;
+                            ParticleEffect *bloodParticles = serverWorld->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Blood, playerGut, bloodParams);
+                            if (bloodParticles) {
+                                bloodParticles->effectCallbacks[(size_t)ParticleEffect_Event::BeforeUpdate] = {
+                                    ParticlesFollowPlayerGut,
+                                    player
+                                };
+                            }
                         }
                     }
                     player->combat.hitPoints = playerSnapshot.hitPoints;
                 }
-                if (playerSnapshot.flags & PlayerSnapshot::Flags::HealthMax) {
+                if (playerSnapshot.flags & PlayerSnapshot::Flags_HealthMax) {
                     //TraceLog(LOG_DEBUG, "Snapshot: healthMax %f", playerSnapshot.hitPointsMax);
                     player->combat.hitPointsMax = playerSnapshot.hitPointsMax;
                 }
-                if (playerSnapshot.flags & PlayerSnapshot::Flags::Level) {
+                if (playerSnapshot.flags & PlayerSnapshot::Flags_Level) {
                     //TraceLog(LOG_DEBUG, "Snapshot: level %u", enemySnapshot.level);
-                    if (playerSnapshot.level && playerSnapshot.level > player->combat.level) {
-                        ParticleEffectParams rainbowParams{};
-                        rainbowParams.durationMin = 3.0f;
-                        rainbowParams.durationMax = rainbowParams.durationMin;
-                        rainbowParams.particleCountMin = 256;
-                        rainbowParams.particleCountMax = rainbowParams.particleCountMin;
-                        ParticleEffect *rainbowFx = serverWorld->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Rainbow, player->body.WorldPosition(), rainbowParams);
-                        if (rainbowFx) {
-                            Catalog::g_sounds.Play(Catalog::SoundID::RainbowSparkles, 1.0f);
+                    if (!spawned) {
+                        if (playerSnapshot.level && playerSnapshot.level > player->combat.level) {
+                            ParticleEffectParams rainbowParams{};
+                            rainbowParams.durationMin = 3.0f;
+                            rainbowParams.durationMax = rainbowParams.durationMin;
+                            rainbowParams.particleCountMin = 256;
+                            rainbowParams.particleCountMax = rainbowParams.particleCountMin;
+                            ParticleEffect *rainbowFx = serverWorld->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Rainbow, player->body.WorldPosition(), rainbowParams);
+                            if (rainbowFx) {
+                                Catalog::g_sounds.Play(Catalog::SoundID::RainbowSparkles, 1.0f);
+                            }
                         }
                     }
                     player->combat.level = playerSnapshot.level;
                 }
-                if (playerSnapshot.flags & PlayerSnapshot::Flags::XP) {
+                if (playerSnapshot.flags & PlayerSnapshot::Flags_XP) {
                     player->xp = playerSnapshot.xp;
                 }
-                if (playerSnapshot.flags & PlayerSnapshot::Flags::Inventory) {
+                if (playerSnapshot.flags & PlayerSnapshot::Flags_Inventory) {
                     player->inventory = playerSnapshot.inventory;
                     //player->inventory.selectedSlot = playerSnapshot.inventory.selectedSlot;
                     //for (size_t i = 0; i < ARRAY_SIZE(playerSnapshot.inventory.slots); i++) {
@@ -566,28 +548,26 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                     //}
                 }
             }
-#endif
+
             for (size_t i = 0; i < worldSnapshot.enemyCount; i++) {
                 const EnemySnapshot &enemySnapshot = worldSnapshot.enemies[i];
+                if (enemySnapshot.flags & EnemySnapshot::Flags_Despawn) {
+                    serverWorld->RemoveSlime(enemySnapshot.id);
+                    continue;
+                }
+
+                bool spawned = false;
                 Slime *slime = serverWorld->FindSlime(enemySnapshot.id);
                 if (!slime) {
-                    if (enemySnapshot.flags & EnemySnapshot::Flags::Despawn) {
-                        TraceLog(LOG_DEBUG, "netClient despawn slime [%u]", enemySnapshot.id);
-                        continue;
-                    }
                     slime = serverWorld->SpawnSlime(enemySnapshot.id, {0, 0});
                     if (!slime) {
                         continue;
                     }
-                    //TraceLog(LOG_DEBUG, "netClient spawn slime [%u]", enemySnapshot.id);
+                    spawned = true;
                 }
 
-                if (enemySnapshot.flags != EnemySnapshot::Flags::None) {
-                    //TraceLog(LOG_DEBUG, "Snapshot: enemy #%u", enemySnapshot.type);
-                }
-
-                const bool posChanged = enemySnapshot.flags & EnemySnapshot::Flags::Position;
-                const bool dirChanged = enemySnapshot.flags & EnemySnapshot::Flags::Direction;
+                const bool posChanged = enemySnapshot.flags & EnemySnapshot::Flags_Position;
+                const bool dirChanged = enemySnapshot.flags & EnemySnapshot::Flags_Direction;
 
                 if (posChanged || dirChanged) {
                     const Vector3Snapshot *prevState{};
@@ -634,40 +614,41 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                 }
 
                 // TODO: Pos/dir are history based, but these are instantaneous.. hmm.. is that okay?
-                if (enemySnapshot.flags & EnemySnapshot::Flags::Scale) {
+                if (enemySnapshot.flags & EnemySnapshot::Flags_Scale) {
                     //TraceLog(LOG_DEBUG, "Snapshot: scale %f", (char)enemySnapshot.direction);
                     slime->sprite.scale = enemySnapshot.scale;
                 }
-                if (enemySnapshot.flags & EnemySnapshot::Flags::Health) {
+                if (enemySnapshot.flags & EnemySnapshot::Flags_Health) {
                     //TraceLog(LOG_DEBUG, "Snapshot: health %f", enemySnapshot.hitPoints);
-                    // TODO: Move this to DespawnStaleEntities or whatever
-                    if (slime->combat.hitPoints && !enemySnapshot.hitPoints) {
-                        // Died
-                        slime->combat.diedAt = worldSnapshot.recvAt;
-                        ParticleEffectParams gooParams{};
-                        gooParams.particleCountMin = 20;
-                        gooParams.particleCountMax = gooParams.particleCountMin;
-                        gooParams.durationMin = 2.0f;
-                        gooParams.durationMax = gooParams.durationMin;
-                        serverWorld->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Goo, slime->WorldCenter(), gooParams);
-                        Catalog::g_sounds.Play(Catalog::SoundID::Squish2, 0.5f + dlb_rand32f_variance(0.1f), true);
-                    } else if (slime->combat.hitPoints > enemySnapshot.hitPoints) {
-                        // Took damage
-                        ParticleEffectParams gooParams{};
-                        gooParams.particleCountMin = 5;
-                        gooParams.particleCountMax = gooParams.particleCountMin;
-                        gooParams.durationMin = 0.5f;
-                        gooParams.durationMax = gooParams.durationMin;
-                        serverWorld->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Goo, slime->WorldCenter(), gooParams);
-                        Catalog::g_sounds.Play(Catalog::SoundID::Slime_Stab1, 1.0f + dlb_rand32f_variance(0.4f));
+                    if (!spawned) {
+                        if (slime->combat.hitPoints && !enemySnapshot.hitPoints) {
+                            // Died
+                            slime->combat.diedAt = worldSnapshot.recvAt;
+                            ParticleEffectParams gooParams{};
+                            gooParams.particleCountMin = 20;
+                            gooParams.particleCountMax = gooParams.particleCountMin;
+                            gooParams.durationMin = 2.0f;
+                            gooParams.durationMax = gooParams.durationMin;
+                            serverWorld->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Goo, slime->WorldCenter(), gooParams);
+                            Catalog::g_sounds.Play(Catalog::SoundID::Squish2, 0.5f + dlb_rand32f_variance(0.1f), true);
+                        } else if (slime->combat.hitPoints > enemySnapshot.hitPoints) {
+                            // Took damage
+                            ParticleEffectParams gooParams{};
+                            gooParams.particleCountMin = 5;
+                            gooParams.particleCountMax = gooParams.particleCountMin;
+                            gooParams.durationMin = 0.5f;
+                            gooParams.durationMax = gooParams.durationMin;
+                            serverWorld->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Goo, slime->WorldCenter(), gooParams);
+                            Catalog::g_sounds.Play(Catalog::SoundID::Slime_Stab1, 1.0f + dlb_rand32f_variance(0.4f));
+                        }
                     }
                     slime->combat.hitPoints = enemySnapshot.hitPoints;
                 }
-                if (enemySnapshot.flags & EnemySnapshot::Flags::HealthMax) {
+                if (enemySnapshot.flags & EnemySnapshot::Flags_HealthMax) {
                     //TraceLog(LOG_DEBUG, "Snapshot: healthMax %f", enemySnapshot.hitPointsMax);
                     slime->combat.hitPointsMax = enemySnapshot.hitPointsMax;
                 }
-                if (enemySnapshot.flags & EnemySnapshot::Flags::Level) {
+                if (enemySnapshot.flags & EnemySnapshot::Flags_Level) {
                     //TraceLog(LOG_DEBUG, "Snapshot: level %u", enemySnapshot.level);
                     slime->combat.level = enemySnapshot.level;
                 }
@@ -675,11 +656,14 @@ void NetClient::ProcessMsg(ENetPacket &packet)
 
             for (size_t i = 0; i < worldSnapshot.itemCount; i++) {
                 const ItemSnapshot &itemSnapshot = worldSnapshot.items[i];
+                if (itemSnapshot.flags & ItemSnapshot::Flags_Despawn) {
+                    serverWorld->itemSystem.Remove(itemSnapshot.id);
+                    continue;
+                }
+
+                bool spawned = false;
                 ItemWorld *item = serverWorld->itemSystem.Find(itemSnapshot.id);
                 if (!item) {
-                    if (itemSnapshot.flags & ItemSnapshot::Flags::Despawn) {
-                        continue;
-                    }
 #if CL_DEBUG_WORLD_ITEMS
                     TraceLog(LOG_DEBUG, "Trying to spawn item: item #%u, catalog #%u, count %u",
                         itemSnapshot.type,
@@ -696,13 +680,14 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                         TraceLog(LOG_ERROR, "Failed to spawn item.");
                         continue;
                     }
+                    spawned = true;
                 }
 #if CL_DEBUG_WORLD_ITEMS
-                if (itemSnapshot.flags != ItemSnapshot::Flags::None) {
+                if (itemSnapshot.flags != ItemSnapshot::Flags_None) {
                     TraceLog(LOG_DEBUG, "Snapshot: item #%u", itemSnapshot.type);
                 }
 #endif
-                const bool posChanged = itemSnapshot.flags & ItemSnapshot::Flags::Position;
+                const bool posChanged = itemSnapshot.flags & ItemSnapshot::Flags_Position;
 
                 if (posChanged) {
                     const Vector3Snapshot *prevState{};
@@ -729,17 +714,19 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                     }
                 }
 
-                //if (itemSnapshot.flags & ItemSnapshot::Flags::Position) {
+                //if (itemSnapshot.flags & ItemSnapshot::Flags_Position) {
                 //    item->body.Teleport(itemSnapshot.position);
                 //}
-                if (itemSnapshot.flags & ItemSnapshot::Flags::CatalogId) {
+                if (itemSnapshot.flags & ItemSnapshot::Flags_CatalogId) {
                     item->stack.itemType = itemSnapshot.catalogId;
                 }
-                if (itemSnapshot.flags & ItemSnapshot::Flags::StackCount) {
+                if (itemSnapshot.flags & ItemSnapshot::Flags_StackCount) {
                     item->stack.count = itemSnapshot.stackCount;
-                    if (!item->stack.count && !item->pickedUpAt) {
-                        item->pickedUpAt = worldSnapshot.recvAt;
-                        Catalog::g_sounds.Play(Catalog::SoundID::Gold, 1.0f + dlb_rand32f_variance(0.2f), true);
+                    if (!spawned) {
+                        if (!item->stack.count && !item->pickedUpAt) {
+                            item->pickedUpAt = worldSnapshot.recvAt;
+                            Catalog::g_sounds.Play(Catalog::SoundID::Gold, 1.0f + dlb_rand32f_variance(0.2f), true);
+                        }
                     }
 #if CL_DEBUG_WORLD_ITEMS
                     TraceLog(LOG_DEBUG, "Snapshot: item #%u stack count = %u", item->type, item->stack.count);
@@ -752,18 +739,11 @@ void NetClient::ProcessMsg(ENetPacket &packet)
 
             switch (globalEvent.type) {
                 case NetMessage_GlobalEvent::Type::PlayerJoin: {
-                    const NetMessage_GlobalEvent::PlayerJoin &playerJoin = globalEvent.data.playerJoin;
-                    if (playerJoin.playerId != serverWorld->playerId) {
-                        Player *player = serverWorld->AddPlayer(playerJoin.playerId);
-                        if (player) {
-                            player->nameLength = playerJoin.nameLength;
-                            memcpy(player->name, playerJoin.name, player->nameLength);
-                        }
-                    }
+                    //const NetMessage_GlobalEvent::PlayerJoin &joinEvent = globalEvent.data.playerJoin;
+                    //serverWorld->AddPlayerInfo(joinEvent.name, joinEvent.nameLength, joinEvent.playerId);
                     break;
                 } case NetMessage_GlobalEvent::Type::PlayerLeave: {
-                    const NetMessage_GlobalEvent::PlayerLeave &playerLeave = globalEvent.data.playerLeave;
-                    serverWorld->RemovePlayer(playerLeave.playerId);
+                    assert(!"Deprecated");
                     break;
                 }
             }
@@ -773,70 +753,10 @@ void NetClient::ProcessMsg(ENetPacket &packet)
 
             switch (nearbyEvent.type) {
                 case NetMessage_NearbyEvent::Type::PlayerState: {
-#if 0
-                    const NetMessage_NearbyEvent::PlayerState &state = nearbyEvent.data.playerState;
-
-                    Player *player = serverWorld->FindPlayer(state.type);
-                    if (player) {
-                        if (state.nearby) {
-                            if (state.spawned) {
-                                serverWorld->SpawnPlayer(player->type);
-                            }
-                            if (state.attacked) {
-                                player->actionState = Player::ActionState::Attacking;
-                            }
-                            if (state.moved) {
-                                player->body.position = state.position;
-                                player->sprite.direction = state.direction;
-                            }
-                            if (state.tookDamage || state.healed) {
-                                player->combat.hitPoints = state.hitPoints;
-                                player->combat.hitPointsMax = state.hitPointsMax;
-                            }
-                        } else {
-                            serverWorld->DespawnPlayer(state.type);
-                        }
-                    } else {
-                        TraceLog(LOG_ERROR, "Could not find player to update state. playerId: %u", state.type);
-                    }
-#else
                     assert(!"Deprecated");
-#endif
                     break;
                 } case NetMessage_NearbyEvent::Type::EnemyState: {
-#if 0
-                    const NetMessage_NearbyEvent::EnemyState &state = nearbyEvent.data.enemyState;
-
-                    if (state.nearby) {
-                        Slime *enemy = serverWorld->FindSlime(state.type);
-                        if (!enemy) {
-                            enemy = serverWorld->SpawnSlime(state.type);
-                        }
-                        if (enemy) {
-                            if (state.spawned) {
-                                // TODO: Set actionState to spawning and play animation?
-                            }
-                            if (state.attacked) {
-                                enemy->actionState = Slime::ActionState::Attacking;
-                            }
-                            if (state.moved) {
-                                enemy->body.Teleport(state.position);
-                                enemy->sprite.direction = state.direction;
-                            }
-                            if (state.tookDamage || state.healed) {
-                                enemy->combat.hitPoints = state.hitPoints;
-                                enemy->combat.hitPointsMax = state.hitPointsMax;
-                            }
-                        } else {
-                            TraceLog(LOG_ERROR, "Could not find enemy to update state. enemyId: %u", state.type);
-                        }
-                    } else {
-                        // TODO: Set actionState to despawning and play animation instead?
-                        serverWorld->DespawnSlime(state.type);
-                    }
-#else
                     assert(!"Deprecated");
-#endif
                     break;
                 }
             }

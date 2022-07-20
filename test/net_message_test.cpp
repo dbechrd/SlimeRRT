@@ -15,13 +15,13 @@ void net_message_test_snapshot()
     msgWritten.data.worldSnapshot.enemyCount = 1;
     PlayerSnapshot &player = msgWritten.data.worldSnapshot.players[0];
     player.id = 69;
-    player.flags = PlayerSnapshot::Flags::Health | PlayerSnapshot::Flags::HealthMax;
+    player.flags = PlayerSnapshot::Flags_Health | PlayerSnapshot::Flags_HealthMax;
     player.hitPoints = 70;
     player.hitPointsMax = 100;
 
     EnemySnapshot &enemy = msgWritten.data.worldSnapshot.enemies[0];
     enemy.id = 70;
-    enemy.flags = EnemySnapshot::Flags::Health | EnemySnapshot::Flags::HealthMax;
+    enemy.flags = EnemySnapshot::Flags_Health | EnemySnapshot::Flags_HealthMax;
     enemy.hitPoints = 140.0f;
     enemy.hitPointsMax = 150.0f;
 

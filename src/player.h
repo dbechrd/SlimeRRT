@@ -243,6 +243,19 @@ struct PlayerInventory {
     }
 };
 
+struct PlayerInfo {
+    uint32_t id         {};
+    uint32_t nameLength {};
+    char     name       [USERNAME_LENGTH_MAX]{};
+    uint16_t ping       {};
+
+    void SetName(const char *playerName, uint32_t playerNameLength)
+    {
+        nameLength = MIN(playerNameLength, USERNAME_LENGTH_MAX);
+        memcpy(name, playerName, nameLength);
+    }
+};
+
 struct Player : Drawable {
     enum class MoveState {
         Idle    = 0,
@@ -272,8 +285,6 @@ struct Player : Drawable {
     };
 
     uint32_t        id          {};
-    uint32_t        nameLength  {};
-    char            name        [USERNAME_LENGTH_MAX]{};
     MoveState       moveState   {};
     ActionState     actionState {};
     Vector2         moveBuffer  {};
@@ -284,17 +295,16 @@ struct Player : Drawable {
     PlayerInventory inventory   {};
     Stats           stats       {};
 
-    void             Init            (const SpriteDef *spriteDef);
-    void             SetName         (const char *name, uint32_t nameLength);
-    Vector3          WorldCenter     (void) const;
-    Vector3          WorldTopCenter  (void) const;
-    Vector3          GetAttachPoint  (AttachPoint attachPoint) const;
-    const ItemStack& GetSelectedItem () const;
-    void             Update          (InputSample &input, const Tilemap &map);
+    void              Init            (const SpriteDef *spriteDef);
+    Vector3           WorldCenter     (void) const;
+    Vector3           WorldTopCenter  (void) const;
+    Vector3           GetAttachPoint  (AttachPoint attachPoint) const;
+    const ItemStack&  GetSelectedItem (void) const;
+    void              Update          (InputSample &input, const Tilemap &map);
 
     float Depth (void) const;
     bool  Cull  (const Rectangle& cullRect) const;
-    void  Draw  (const World &world) const;
+    void  Draw  (World &world) const;
 
 private:
     void UpdateDirection (Vector2 offset);

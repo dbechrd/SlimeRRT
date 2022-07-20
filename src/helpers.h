@@ -85,16 +85,19 @@
 #define SV_INPUT_HISTORY_DT_MAX     0.1  //(5.0 * SV_TICK_DT)  // discard buffered inputs that exceed a sane dt accumulation
 #define SV_WORLD_HISTORY            SV_TICK_RATE
 // NOTE: max diagonal distance at 1080p is 1100 + radius units. 1200px allows for a ~50px wide entity
-#define SV_PLAYER_NEARBY_THRESHOLD  1200.0f  // how close a player has to be to receive a snapshot
-#define SV_ENEMY_NEARBY_THRESHOLD   1200.0f  // how close an enemy has to be to receive a snapshot
-#if 0
-#define SV_ENEMY_MIN_SPAWN_DIST     METERS_TO_PIXELS(7.5f)   // closest enemies can spawn to a player
-#define SV_ENEMY_DESPAWN_RADIUS     METERS_TO_PIXELS(10.0f)  // furthest enemies can be from a player before despawning
+#if 1
+#define SV_PLAYER_NEARBY_THRESHOLD  METERS_TO_PIXELS(20.0f)  // how close a player has to be to appear in your snapshot
+#define SV_ENEMY_NEARBY_THRESHOLD   METERS_TO_PIXELS(20.0f)  // how close an enemy has to be to appear in your snapshot
+#define SV_ENEMY_MIN_SPAWN_DIST     METERS_TO_PIXELS(15.0f)  // closest enemies can spawn to a player
+#define SV_ENEMY_DESPAWN_RADIUS     METERS_TO_PIXELS(40.0f)  // furthest enemies can be from a player before despawning
+#define SV_ITEM_NEARBY_THRESHOLD    METERS_TO_PIXELS(20.0f)  // how close an item has to be to receive a snapshot
 #else
-#define SV_ENEMY_MIN_SPAWN_DIST     500 //METERS_TO_PIXELS(15.0f)  // closest enemies can spawn to a player
-#define SV_ENEMY_DESPAWN_RADIUS     1000 //METERS_TO_PIXELS(30.0f)  // furthest enemies can be from a player before despawning
+#define SV_PLAYER_NEARBY_THRESHOLD  300.0f  // how close a player has to be to appear in your snapshot
+#define SV_ENEMY_NEARBY_THRESHOLD   300.0f  // how close an enemy has to be to appear in your snapshot
+#define SV_ENEMY_MIN_SPAWN_DIST     METERS_TO_PIXELS(4.0f)  // closest enemies can spawn to a player
+#define SV_ENEMY_DESPAWN_RADIUS     METERS_TO_PIXELS(7.0f)  // furthest enemies can be from a player before despawning
+#define SV_ITEM_NEARBY_THRESHOLD    300.0f                  // how close an item has to be to receive a snapshot
 #endif
-#define SV_ITEM_NEARBY_THRESHOLD    1200.0f                  // how close an item has to be to receive a snapshot
 #define SV_ITEM_ATTRACT_DIST        METERS_TO_PIXELS(1.0f)   // how close player should be to item to attract it
 #define SV_ITEM_PICKUP_DIST         METERS_TO_PIXELS(0.3f)   // how close player should be to item to pick it up
 #define SV_ITEM_PICKUP_DELAY        1.0                      // how long after an item is spawned before it can be picked up by a player

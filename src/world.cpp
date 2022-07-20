@@ -35,6 +35,38 @@ const Vector3 World::GetWorldSpawn(void)
     return worldSpawn;
 };
 
+PlayerInfo *World::AddPlayerInfo(const char *name, uint32_t nameLength, uint32_t playerId)
+{
+    for (int i = 0; i < ARRAY_SIZE(playerInfos); i++) {
+        PlayerInfo &playerInfo = playerInfos[i];
+        if (!playerInfo.nameLength) {
+            playerInfo.id = playerId ? playerId : i + 1;
+            playerInfo.nameLength = (uint32_t)MIN(nameLength, USERNAME_LENGTH_MAX);
+            memcpy(playerInfo.name, name, playerInfo.nameLength);
+            return &playerInfo;
+        }
+    }
+    return 0;
+}
+
+PlayerInfo *World::FindPlayerInfo(uint32_t playerId)
+{
+    for (PlayerInfo &info : playerInfos) {
+        if (info.id == playerId) {
+            return &info;
+        }
+    }
+    return 0;
+}
+
+void World::RemovePlayerInfo(uint32_t playerId)
+{
+    PlayerInfo *playerInfo = FindPlayerInfo(playerId);
+    if (!playerInfo) return;
+
+    *playerInfo = {};
+}
+
 Player *World::AddPlayer(uint32_t playerId)
 {
     Player *existingPlayer = FindPlayer(playerId);
@@ -44,18 +76,14 @@ Player *World::AddPlayer(uint32_t playerId)
         return 0;
     }
 
+    const PlayerInfo *playerInfo = FindPlayerInfo(playerId);
+    assert(playerInfo->nameLength);
+
     for (int i = 0; i < SV_MAX_PLAYERS; i++) {
         Player &player = players[i];
-        if (player.id == 0) {
-            assert(!player.nameLength);
+        if (!player.id) {
             assert(!player.combat.hitPointsMax);
-
-            if (playerId) {
-                player.id = playerId;
-            } else {
-                nextPlayerId = MAX(1, nextPlayerId + 1); // Prevent ID zero from being used on overflow
-                player.id = nextPlayerId;
-            }
+            player.id = playerId;
 
             const Spritesheet &spritesheet = Catalog::g_spritesheets.FindById(Catalog::SpritesheetID::Charlie);
             const SpriteDef *spriteDef = spritesheet.FindSprite("player_sword");
@@ -92,9 +120,9 @@ Player *World::FindPlayerByName(const char *name, size_t nameLength)
         return 0;
     }
 
-    for (Player &player : players) {
-        if (nameLength == player.nameLength && !strncmp(name, player.name, player.nameLength)) {
-            return &player;
+    for (PlayerInfo &playerInfo : playerInfos) {
+        if (nameLength == playerInfo.nameLength && !strncmp(name, playerInfo.name, playerInfo.nameLength)) {
+            return FindPlayer(playerInfo.id);
         }
     }
     return 0;
@@ -218,7 +246,7 @@ void World::RemoveSlime(uint32_t slimeId)
 {
     Slime *slime = FindSlime(slimeId);
     if (!slime) {
-        TraceLog(LOG_ERROR, "Cannot remove a slime that doesn't exist. slimeId: %u", slimeId);
+        //TraceLog(LOG_ERROR, "Cannot remove a slime that doesn't exist. slimeId: %u", slimeId);
         return;
     }
 

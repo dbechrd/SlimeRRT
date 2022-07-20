@@ -111,8 +111,8 @@ void ChatHistory::Render(const Font &font, int fontSize, World &world, float lef
             case NetMessage_ChatMessage::Source::Server: displayName = "<Server>"; chatColor = RED;       break;
             case NetMessage_ChatMessage::Source::Sam:    displayName = "[System]"; chatColor = GREEN;     break;
             case NetMessage_ChatMessage::Source::Client: {
-                Player *player = world.FindPlayer(chatMsg.id);
-                displayName = player ? SafeTextFormat("[%.*s]", player->nameLength, player->name) : "someone";
+                const PlayerInfo *playerInfo = world.FindPlayerInfo(chatMsg.id);
+                displayName = playerInfo ? SafeTextFormat("[%.*s]", playerInfo->nameLength, playerInfo->name) : "someone";
                 break;
             }
             default: TraceLog(LOG_FATAL, "Unhandled chat source");

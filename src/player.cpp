@@ -43,12 +43,6 @@ void Player::Init(const SpriteDef *spriteDef)
     stats = {};
 }
 
-void Player::SetName(const char *playerName, uint32_t playerNameLength)
-{
-    nameLength = MIN(playerNameLength, USERNAME_LENGTH_MAX);
-    memcpy(name, playerName, nameLength);
-}
-
 Vector3 Player::WorldCenter(void) const
 {
     Vector3 worldC = v3_add(body.WorldPosition(), sprite_center(sprite));
@@ -432,7 +426,7 @@ void Player::DrawSwimOverlay(const World &world) const
     }
 }
 
-void Player::Draw(const World &world) const
+void Player::Draw(World &world) const
 {
     // Player shadow
     // TODO: Shadow size based on height from ground
@@ -461,6 +455,8 @@ void Player::Draw(const World &world) const
     }
 #endif
 
+    PlayerInfo *playerInfo = world.FindPlayerInfo(id);
+    assert(playerInfo);
     Vector3 topCenter = WorldTopCenter();
-    HealthBar::Draw({ topCenter.x, topCenter.y - topCenter.z }, name, combat);
+    HealthBar::Draw({ topCenter.x, topCenter.y - topCenter.z }, playerInfo->name, combat);
 }

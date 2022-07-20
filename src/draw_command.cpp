@@ -50,7 +50,7 @@ void DrawList::Push(const Drawable &drawable)
     sortedCommands[(size_t)j + 1].drawable = &drawable;
 }
 
-void DrawList::Flush(const World &world)
+void DrawList::Flush(World &world)
 {
     if (sortedCommands.empty()) {
         return;

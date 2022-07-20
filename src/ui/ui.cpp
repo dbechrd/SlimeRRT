@@ -877,12 +877,6 @@ void UI::TileHoverTip(const Font &font, const Tilemap &map)
     DrawTextFont(font, SafeTextFormat("type : %d", mouseTile->type),
         tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, 0, 0, font.baseSize, WHITE);
     lineOffset += font.baseSize;
-    DrawTextFont(font, SafeTextFormat("base : %.2f", mouseTile->base / 255.0f),
-        tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, 0, 0, font.baseSize, WHITE);
-    lineOffset += font.baseSize;
-    DrawTextFont(font, SafeTextFormat("baseN: %.2f", mouseTile->baseNoise / 255.0f),
-        tooltipX + tooltipPad, tooltipY + tooltipPad + lineOffset, 0, 0, font.baseSize, WHITE);
-    lineOffset += font.baseSize;
 }
 
 int UI::OldRaylibMenu(const Font &font, const char **items, size_t itemCount)

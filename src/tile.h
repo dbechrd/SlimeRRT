@@ -44,9 +44,7 @@ enum : TileType {
 };
 
 struct Tile {
-    TileType type      {};
-    uint8_t  base      {};
-    uint8_t  baseNoise {};
+    TileType type{};
 
     const char *ToString() const {
         switch (type) {

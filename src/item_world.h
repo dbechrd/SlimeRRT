@@ -20,7 +20,7 @@ struct ItemWorld : Drawable {
     float Depth(void) const;
     bool Cull(const Rectangle& cullRect) const;
     void Update(double dt);
-    void Draw(const World &world) const;
+    void Draw(World &world) const;
 
 private:
     char name[64]{};

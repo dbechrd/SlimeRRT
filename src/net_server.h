@@ -29,7 +29,6 @@ struct SV_Client {
 struct NetServer {
     ENetHost  *server      {};
     World     *serverWorld {};
-    uint32_t  nextPlayerId = 1;
     SV_Client clients[SV_MAX_PLAYERS]{};
     //RingBuffer<InputSample, SV_INPUT_HISTORY> inputHistory {};
 
@@ -56,8 +55,8 @@ private:
     ErrorType BroadcastMsg         (NetMessage &message);
     ErrorType SendWelcomeBasket    (SV_Client &client);
     ErrorType BroadcastChatMessage (NetMessage_ChatMessage &chatMsg);
-    ErrorType BroadcastPlayerJoin  (const Player &player);
-    ErrorType BroadcastPlayerLeave (const Player &player);
+    ErrorType BroadcastPlayerJoin  (const PlayerInfo &playerInfo);
+    ErrorType BroadcastPlayerLeave (uint32_t playerId);
     ErrorType SendPlayerState      (const SV_Client &client, const Player &otherPlayer, bool nearby, bool spawned);
     ErrorType SendEnemyState       (const SV_Client &client, const Slime &enemy, bool nearby, bool spawned);
     ErrorType SendItemState        (const SV_Client &client, const ItemWorld &item, bool nearby, bool spawned);

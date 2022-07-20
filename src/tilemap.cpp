@@ -394,8 +394,6 @@ Chunk &Tilemap::FindOrGenChunk(World &world, int16_t chunkX, int16_t chunkY)
 #undef PERIOD
 #undef FREQ
             tile.type = tileType;
-            tile.base = (uint8_t)(elev * 255);
-            tile.baseNoise = 1; //(uint8_t)(baseNoise * 255);
             tileCount++;
         }
     }
