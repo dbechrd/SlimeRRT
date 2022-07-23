@@ -18,7 +18,7 @@ enum : TileType {
     TileType_Structure_TR,
     TileType_Tree,
     TileType_Flowers,
-    TileType_Unused2,
+    TileType_Dirt,
     TileType_Unused3,
     TileType_Unused4,
 

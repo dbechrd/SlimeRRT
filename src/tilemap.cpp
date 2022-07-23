@@ -281,6 +281,8 @@ Chunk &Tilemap::FindOrGenChunk(World &world, int16_t chunkX, int16_t chunkY)
             TileType tileType{};
 #if 1
 #define FREQ_ELEVATION                             1.0 / 16000
+#define FREQ_ROADS                                 1.0 / 4000
+#define FREQ_ROADS_NOISE                           1.0 / 400
 #define FREQ_ISLAND                                1.0 / 3000
 #define FREQ_BEACH_FALLOFF                         1.0 / 400
 #define FREQ_MEADOW_FLOWERS                        1.0 / 100
@@ -289,6 +291,8 @@ Chunk &Tilemap::FindOrGenChunk(World &world, int16_t chunkX, int16_t chunkY)
 #define FREQ_FOREST_MOUNTAINTOP_LAKE_BEACH_FALLOFF 1.0 / 300
 #define FREQ_MOUNTAINTOP_LAKE_FALLOFF              1.0 / 600
 #define NOISE_SAMPLE(freq) (0.5 + noise2(ose, osg, worldX * freq, worldY * freq) / 2.0)
+#define NOISE_SAMPLE2(freq) (0.5 + noise2(ose, osg2, worldX * freq, worldY * freq) / 2.0)
+#define NOISE_BETWEEN(noise, a, b) ((noise) >= (a) && (noise) <= (b))
             const double elev = NOISE_SAMPLE(FREQ_ELEVATION);
             if (elev < 0.2) {
                 // Lake
@@ -371,8 +375,29 @@ Chunk &Tilemap::FindOrGenChunk(World &world, int16_t chunkX, int16_t chunkY)
                 }
             }
 
-            if (tileType == TileType_Grass) {
+            if (elev >= 0.3 && elev <= 0.32) {
+                tileType = TileType_Wood;
+            }
 
+            switch (tileType) {
+                case TileType_Grass: case TileType_Forest: case TileType_Flowers: case TileType_Tree: {
+                    const double road = NOISE_SAMPLE(FREQ_ROADS);
+                    if (road >= 0.5 && road <= 0.55) {
+                        const double roadNoise = NOISE_SAMPLE(FREQ_ROADS_NOISE);
+                        if (NOISE_BETWEEN(roadNoise, 0.15, 0.17) ||
+                            NOISE_BETWEEN(roadNoise, 0.20, 0.28) ||
+                            NOISE_BETWEEN(roadNoise, 0.31, 0.37) ||
+                            NOISE_BETWEEN(roadNoise, 0.45, 0.47) ||
+                            NOISE_BETWEEN(roadNoise, 0.52, 0.55) ||
+                            NOISE_BETWEEN(roadNoise, 0.70, 0.73)) {
+                        } else {
+                            tileType = TileType_Dirt;
+                        }
+                        break;
+                    }
+                    break;
+                }
+                default: break;
             }
 #else
 #define FREQ_BASE_LAYER 1.0 / 10000
