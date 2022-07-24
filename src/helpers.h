@@ -81,6 +81,7 @@
 #define SV_TICK_RATE                50
 #define SV_TICK_DT                  (1.0 / SV_TICK_RATE)
 #define SV_TICK_DT_MAX              (1.5 * SV_TICK_DT)
+#define SV_TIME_SECONDS_IN_DAY      180.0
 #define SV_INPUT_HISTORY            SV_TICK_RATE
 #define SV_INPUT_HISTORY_DT_MAX     0.1  //(5.0 * SV_TICK_DT)  // discard buffered inputs that exceed a sane dt accumulation
 #define SV_WORLD_HISTORY            SV_TICK_RATE

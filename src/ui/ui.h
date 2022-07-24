@@ -27,7 +27,7 @@ struct UI {
         uint32_t input_buf_size;
     };
 
-    static void Begin(Vector2 screenSize, Spycam *spycam);
+    static void Update(Vector2 screenSize, Spycam *spycam);
     static void HandleInput(const PlayerControllerState &input);
     static bool DisconnectRequested(bool disconnected);
     static bool QuitRequested();

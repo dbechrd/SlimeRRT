@@ -26,8 +26,6 @@
 #include "imgui/imgui_impl_glfw.h"
 #include "GLFW/glfw3.h"
 
-#include <atomic>
-
 const char *GameClient::LOG_SRC = "GameClient";
 
 // TODO: Move this somewhere less stupid (e.g. a library of particle updaters)
@@ -416,6 +414,8 @@ void GameClient::PlayMode_DrawWorld(PlayerControllerState &input)
     EndShaderMode();
 #endif
 
+    //UI::WorldGrid();
+
     if (input.dbgFindMouseTile) {
         UI::TileHoverOutline(*netClient.serverWorld->map);
     }
@@ -423,6 +423,8 @@ void GameClient::PlayMode_DrawWorld(PlayerControllerState &input)
     netClient.serverWorld->DrawEntities();
     netClient.serverWorld->DrawParticles();
     netClient.serverWorld->DrawFlush();
+
+    DrawRectangleRec(cameraRect, Fade(BLACK, (float)(1.0 - g_clock.daylightPerc)));
 
 #if CL_DEMO_VIEW_RTREE
     AABB searchAABB = {
@@ -479,7 +481,6 @@ void GameClient::PlayMode_DrawWorld(PlayerControllerState &input)
         }
     }
 #endif
-    //UI::WorldGrid(*world->map);
 
     EndMode2D();
 }
@@ -553,6 +554,12 @@ ErrorType GameClient::Run(void)
         // Time is of the essence
         g_clock.now += frameDt;
         g_clock.nowPrev = now;
+        const double dayScale = (1.0 / SV_TIME_SECONDS_IN_DAY);
+        const double startTime = SV_TIME_SECONDS_IN_DAY * 0.5;  // start the game at noon
+        const double dayScaledClock = (startTime + g_clock.now) * dayScale;
+        g_clock.timeOfDay = fmod(fmod(dayScaledClock, floor(g_clock.now)), 1.0);
+        const double midnightLightPerc = 0.2;
+        g_clock.daylightPerc = 1.0 + (0.5 * (1.0 - midnightLightPerc)) * (sin(2 * PI * dayScaledClock - 0.5 * PI) - 1.0);
 
         E_ASSERT(PlayMode_Network(), "Failed to do message processing");
 
@@ -566,6 +573,7 @@ ErrorType GameClient::Run(void)
             PlayMode_Update(frameDt, input);
             PlayMode_UpdateCamera(frameDt, input);
         }
+        UI::Update(screenSize, &spycam);
 
         // Render prepare
         BeginDrawing();
@@ -576,9 +584,6 @@ ErrorType GameClient::Run(void)
         // Render background
         DrawTexture(checkboardTexture, 0, 0, WHITE);
         rlDrawRenderBatchActive();
-
-        // Render UI
-        UI::Begin(screenSize, &spycam);
 
         // Render game
         if (connected) {

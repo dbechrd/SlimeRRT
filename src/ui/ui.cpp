@@ -25,7 +25,7 @@ UI::Menu UI::mainMenu = UI::Menu::Main;
 
 const ImGuiTableSortSpecs *UI::itemSortSpecs = 0;
 
-void UI::Begin(Vector2 screenSize, Spycam *spycam)
+void UI::Update(Vector2 screenSize, Spycam *spycam)
 {
     Rectangle cameraRect = spycam->GetRect();
     const Vector2 mouseScreen = GetMousePosition();
@@ -127,7 +127,7 @@ void UI::Minimap(const Font &font, World &world)
     const int minimapH = world.map->minimap.height + minimapBorderWidth * 2;
     const int minimapTexX = minimapX + minimapBorderWidth;
     const int minimapTexY = minimapY + minimapBorderWidth;
-    DrawRectangle(minimapX, minimapY, minimapW, minimapH, { 220, 200, 135, 255 });
+    DrawRectangle(minimapX, minimapY, minimapW, minimapH, Fade({ 220, 200, 135, 255 }, 0.2f));
     DrawRectangleLinesEx({(float)minimapX, (float)minimapY, (float)minimapW, (float)minimapH}, (float)minimapBorderWidth, BLACK);
 
     Player *player = world.FindPlayer(world.playerId);
@@ -510,7 +510,7 @@ void UI::HUD(const Font &font, World &world, const DebugStats &debugStats)
 
     int linesOfText = 13;
     if (debugStats.tick) {
-        linesOfText += 10;
+        linesOfText += 12;
     }
     if (debugStats.rtt) {
         linesOfText += 8;
@@ -524,7 +524,7 @@ void UI::HUD(const Font &font, World &world, const DebugStats &debugStats)
 
     const Color darkerGray{ 40, 40, 40, 255 };
     UNUSED(darkerGray);
-    DrawRectangle((int)margin, (int)hudCursorY, (int)hudWidth, (int)hudHeight, DARKBLUE);
+    DrawRectangle((int)margin, (int)hudCursorY, (int)hudWidth, (int)hudHeight, Fade(BLACK, 0.6f));
     DrawRectangleLines((int)margin, (int)hudCursorY, (int)hudWidth, (int)hudHeight, BLACK);
 
     hudCursorY += pad;
@@ -568,6 +568,10 @@ void UI::HUD(const Font &font, World &world, const DebugStats &debugStats)
         text = SafeTextFormat("frameDt       %.03f", debugStats.frameDt);
         PUSH_TEXT(text, GRAY);
         text = SafeTextFormat("g_clock.now   %.03f", g_clock.now);
+        PUSH_TEXT(text, GRAY);
+        text = SafeTextFormat("timeOfDay     %.03f", g_clock.timeOfDay);
+        PUSH_TEXT(text, GRAY);
+        text = SafeTextFormat("daylight      %.03f", g_clock.daylightPerc);
         PUSH_TEXT(text, GRAY);
         text = SafeTextFormat("Camera speed  %.03f", debugStats.cameraSpeed);
         PUSH_TEXT(text, GRAY);
@@ -1663,7 +1667,7 @@ void UI::Inventory(const Texture &invItems, Player& player, NetClient &netClient
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(4, 4)); styleVars++;
     int styleCols = 0;
     auto bgWindow = BLACK;
-    ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(bgWindow.r, bgWindow.g, bgWindow.b, 0.7f * 255.0f)); styleCols++;
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(bgWindow.r, bgWindow.g, bgWindow.b, 0.6f * 255.0f)); styleCols++;
     ImGui::PushStyleColor(ImGuiCol_Border, IM_COL32_BLACK); styleCols++;
 
     ImVec2 invCenter{ screenSize.x / 2.0f, 32.0f };
@@ -1682,7 +1686,7 @@ void UI::Inventory(const Texture &invItems, Player& player, NetClient &netClient
     ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f); styleVars++;
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8.0f, 8.0f)); styleVars++;
     auto bgColor = DARKBLUE;
-    ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(bgColor.r, bgColor.g, bgColor.b, 0.7f * 255.0f)); styleCols++;
+    ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(bgColor.r, bgColor.g, bgColor.b, 0.4f * 255.0f)); styleCols++;
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(0, 255, 0, 255)); styleCols++;
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32(0, 0, 255, 255)); styleCols++;
 
