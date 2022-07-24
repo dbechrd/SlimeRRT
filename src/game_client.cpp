@@ -343,6 +343,7 @@ void GameClient::PlayMode_Update(double frameDt, PlayerControllerState &input)
             const WorldSnapshot &worldSnapshot = netClient.worldHistory.Last();
             //printf("worldTick: %u, lastSnapshot: %u, delta: %u\n", world->tick, worldSnapshot.tick, worldSnapshot.tick - world->tick);
             netClient.serverWorld->tick = worldSnapshot.tick;
+            g_clock.serverNow = worldSnapshot.clock;
 
             //while (tickAccum > tickDt) {
             netClient.inputSeq = MAX(1, netClient.inputSeq + 1);
@@ -547,19 +548,8 @@ ErrorType GameClient::Run(void)
     Init();
 
     while (!WindowShouldClose() && !UI::QuitRequested()) {
-        // Limit delta time to prevent spiraling for after long hitches (e.g. hitting a breakpoint)
-        double now = glfwGetTime();
-        double frameDt = MIN(now - g_clock.nowPrev, CL_FRAME_DT_MAX);
-
         // Time is of the essence
-        g_clock.now += frameDt;
-        g_clock.nowPrev = now;
-        const double dayScale = (1.0 / SV_TIME_SECONDS_IN_DAY);
-        const double startTime = SV_TIME_SECONDS_IN_DAY * 0.5;  // start the game at noon
-        const double dayScaledClock = (startTime + g_clock.now) * dayScale;
-        g_clock.timeOfDay = fmod(fmod(dayScaledClock, floor(g_clock.now)), 1.0);
-        const double midnightLightPerc = 0.2;
-        g_clock.daylightPerc = 1.0 + (0.5 * (1.0 - midnightLightPerc)) * (sin(2 * PI * dayScaledClock - 0.5 * PI) - 1.0);
+        const double frameDt = g_clock.update(glfwGetTime());
 
         E_ASSERT(PlayMode_Network(), "Failed to do message processing");
 

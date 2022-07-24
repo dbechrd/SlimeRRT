@@ -127,7 +127,7 @@ void UI::Minimap(const Font &font, World &world)
     const int minimapH = world.map->minimap.height + minimapBorderWidth * 2;
     const int minimapTexX = minimapX + minimapBorderWidth;
     const int minimapTexY = minimapY + minimapBorderWidth;
-    DrawRectangle(minimapX, minimapY, minimapW, minimapH, Fade({ 220, 200, 135, 255 }, 0.2f));
+    DrawRectangle(minimapX, minimapY, minimapW, minimapH, Fade(BLACK, 0.6f));
     DrawRectangleLinesEx({(float)minimapX, (float)minimapY, (float)minimapW, (float)minimapH}, (float)minimapBorderWidth, BLACK);
 
     Player *player = world.FindPlayer(world.playerId);
@@ -569,7 +569,7 @@ void UI::HUD(const Font &font, World &world, const DebugStats &debugStats)
         PUSH_TEXT(text, GRAY);
         text = SafeTextFormat("g_clock.now   %.03f", g_clock.now);
         PUSH_TEXT(text, GRAY);
-        text = SafeTextFormat("timeOfDay     %.03f", g_clock.timeOfDay);
+        text = SafeTextFormat("timeOfDay     %s (%.03f)", g_clock.timeOfDayStr(), g_clock.timeOfDay);
         PUSH_TEXT(text, GRAY);
         text = SafeTextFormat("daylight      %.03f", g_clock.daylightPerc);
         PUSH_TEXT(text, GRAY);

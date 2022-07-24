@@ -200,6 +200,11 @@ Slime *World::SpawnSlime(uint32_t slimeId, Vector2 origin)
             spawnPos.x += origin.x;
             spawnPos.y += origin.y;
 
+            const Tile *spawnTile = map->TileAtWorld(spawnPos.x, spawnPos.y);
+            if (!spawnTile || !spawnTile->IsSpawnable()) {
+                return 0;
+            }
+#if 0
             for (Player &player : players) {
                 float spawnDist = v3_length_sq(v3_sub(spawnPos, player.body.WorldPosition()));
                 if (spawnDist < SV_ENEMY_MIN_SPAWN_DIST * SV_ENEMY_MIN_SPAWN_DIST) {
@@ -207,7 +212,7 @@ Slime *World::SpawnSlime(uint32_t slimeId, Vector2 origin)
                     //return 0;
                 }
             }
-
+#endif
             if (slimeId) {
                 slime.id = slimeId;
             } else {
@@ -337,7 +342,7 @@ void World::SV_SimPlayers(double dt)
         }
 
         // Try to spawn enemies near player
-        if (!peaceful && dlb_rand32f() < 0.1f) {
+        if (!peaceful && dlb_rand32f() < 0.9f) {
             SpawnSlime(0, player.body.GroundPosition());
         }
     }

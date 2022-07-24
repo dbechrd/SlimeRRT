@@ -4,11 +4,46 @@ struct Clock {
     //uint64_t tick;
     //double frameDt;
     bool   server       {};  // true if server thread, false if client thread
-    double now          {};  // game clock, not the same as glfwGetTime(), can be paused
+    double now          {};  // local game clock, not the same as glfwGetTime(), can be paused
     double nowPrev      {};  // previous now time
     double accum        {};  // time accumulator, for fixed-step updates (only server-side atm)
+
+    double serverNow    {};  // time on server, as of last snapshot (to keep daylight in sync w/ server)
     double timeOfDay    {};  // 0 = start of day, 1 = end of day
     double daylightPerc {};  // how bright the daylight currently is
+
+    const char *timeOfDayStr() {
+        thread_local char buf[16]{};
+        const double hours = 1.0 + timeOfDay * 24.0;
+        const double mins = fmod(hours, 1.0) * 60.0;
+        const int hh = (int)fmod(hours, 12.0);
+        const int mm = (int)mins;
+        size_t len = snprintf(buf, sizeof(buf), "%02d:%02d %s", hh, mm, hours < 12 ? "am" : "pm");
+        if (len > 10) {
+            assert(len);
+        }
+        return buf;
+    }
+
+    double update(double glfwNow) {
+        // Limit delta time to prevent spiraling for after long hitches (e.g. hitting a breakpoint)
+        double frameDt = MIN(glfwNow - nowPrev, CL_FRAME_DT_MAX);
+        now += frameDt;
+        nowPrev = glfwNow;
+
+        // Daily clock
+        const double dayClockNow = server ? now : (serverNow ? serverNow : now);
+        const double dayClockScale = (1.0 / SV_TIME_SECONDS_IN_DAY);
+        const double dayClockStartTime = SV_TIME_SECONDS_IN_DAY * (1.0 / 24.0) * (6.0 - 1.0);  // start the game at 6 am
+        const double dayClockScaled = (dayClockStartTime + dayClockNow) * dayClockScale;
+        timeOfDay = fmod(fmod(dayClockScaled, 1.0), 1.0);
+
+        // Daylight
+        const double midnightLightPerc = 0.2;
+        daylightPerc = 1.0 + (0.5 * (1.0 - midnightLightPerc)) * (sin(2 * PI * dayClockScaled - 0.5 * PI) - 1.0);
+
+        return frameDt;
+    }
 };
 
 extern thread_local Clock g_clock;

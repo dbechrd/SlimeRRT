@@ -67,4 +67,12 @@ struct Tile {
     inline bool IsSwimmable() const {
         return type == TileType_Water;
     }
+
+    inline bool IsLand() const {
+        return type != TileType_Water;
+    }
+
+    inline bool IsSpawnable() const {
+        return IsLand();
+    }
 };
