@@ -188,9 +188,7 @@ const int16_t Tilemap::CalcChunkTile(float world) const
 
     int16_t tile = (int16_t)tilef;
     // Sometimes for very small floats precision loss causes tile == CHUNK_W, which is out of range
-    if (tile == CHUNK_W) {
-        tile--;
-    }
+    tile -= (tile == CHUNK_W);
     DLB_ASSERT(tile >= 0);
     DLB_ASSERT(tile < CHUNK_W);
     return (int16_t)tile;
@@ -203,7 +201,7 @@ const Tile *Tilemap::TileAtWorld(float x, float y) const
     const int tileX = CalcChunkTile(x);
     const int tileY = CalcChunkTile(y);
 
-#if 0
+#if 1
     // TODO: Move to tests
     DLB_ASSERT(CalcChunk(-(CHUNK_W * TILE_W + 1)) == -2);
     DLB_ASSERT(CalcChunk(-(CHUNK_W * TILE_W)) == -1);

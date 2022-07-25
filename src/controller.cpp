@@ -61,16 +61,18 @@ void PlayerControllerState::Query(bool processMouse, bool processKeyboard, bool 
             if (IsKeyPressed(KEY_EIGHT)) { selectSlot = PlayerInvSlot_Hotbar_7; }
             if (IsKeyPressed(KEY_NINE))  { selectSlot = PlayerInvSlot_Hotbar_8; }
             if (IsKeyPressed(KEY_ZERO))  { selectSlot = PlayerInvSlot_Hotbar_9; }
-            toggleInventory  = IsKeyPressed(KEY_E);
-            dbgFindMouseTile = IsKeyDown(KEY_LEFT_ALT);
-            dbgChatMessage   = IsKeyPressed(KEY_C);
-            dbgTeleport      = IsKeyPressed(KEY_F5);
-            dbgSpawnSam      = IsKeyPressed(KEY_KP_ENTER);
-            dbgToggleFreecam = IsKeyPressed(KEY_F);
-            dbgNextRtreeRect = IsKeyDown(KEY_N) && !IsKeyDown(KEY_K);
-            dbgKillRtreeRect = IsKeyDown(KEY_K) && !IsKeyDown(KEY_N);
-            dbgImgui         = IsKeyPressed(KEY_GRAVE) && IsKeyDown(KEY_LEFT_SHIFT);
-            dbgJump          = IsKeyPressed(KEY_SPACE);
+            toggleInventory      = IsKeyPressed(KEY_E);
+            openChatTextbox      = IsKeyPressed(KEY_T);
+            openChatTextboxSlash = IsKeyPressed(KEY_SLASH);
+            dbgFindMouseTile     = IsKeyDown(KEY_LEFT_ALT);
+            dbgChatMessage       = IsKeyPressed(KEY_C);
+            dbgTeleport          = IsKeyPressed(KEY_F5);
+            dbgSpawnSam          = IsKeyPressed(KEY_KP_ENTER);
+            dbgToggleFreecam     = IsKeyPressed(KEY_F);
+            dbgNextRtreeRect     = IsKeyDown(KEY_N) && !IsKeyDown(KEY_K);
+            dbgKillRtreeRect     = IsKeyDown(KEY_K) && !IsKeyDown(KEY_N);
+            dbgImgui             = IsKeyPressed(KEY_GRAVE) && IsKeyDown(KEY_LEFT_SHIFT);
+            dbgJump              = IsKeyPressed(KEY_SPACE);
         }
     }
 }

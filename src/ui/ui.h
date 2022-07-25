@@ -27,8 +27,7 @@ struct UI {
         uint32_t input_buf_size;
     };
 
-    static void Update(Vector2 screenSize, Spycam *spycam);
-    static void HandleInput(const PlayerControllerState &input);
+    static void Update(const PlayerControllerState &input, Vector2 screenSize, Spycam *spycam);
     static bool DisconnectRequested(bool disconnected);
     static bool QuitRequested();
 
@@ -54,6 +53,7 @@ struct UI {
     static void Inventory(const Texture &invItems, Player &player, NetClient &netClient, bool &escape, bool &inventoryActive);
 
 private:
+    static const PlayerControllerState *input;
     static Vector2 mouseScreen;
     static Vector2 mouseWorld;
     static Vector2 screenSize;
@@ -81,7 +81,6 @@ private:
     static void SliderFloatLeft(const char *label, float *v, float min, float max);
     static void SliderIntLeft(const char *label, int *v, int min, int max);
 
-
     enum MyItemColumnID {
         ItemColumn_ID,
         ItemColumn_Class,
@@ -99,4 +98,5 @@ private:
     static void BreadcrumbText(const char *text);
     static bool MenuBackButton(Menu menu, bool *escape);
     static bool MenuItemClick(const char *label);
+    static void InventoryItemTooltip(ItemStack &invStack, int slot, Player &player, NetClient &netClient);
 };

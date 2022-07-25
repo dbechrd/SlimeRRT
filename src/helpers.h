@@ -75,13 +75,14 @@
 #define SV_SINGLEPLAYER_PASS        "pass"
 #define SV_USERNAME                 "SERVER"
 #define SV_MAX_PLAYERS              8
-#define SV_MAX_SLIMES               4 //32
+#define SV_MAX_SLIMES               32
 #define SV_MAX_ITEMS                256 //4096
 #define SV_WORLD_ITEM_LIFETIME      120 //600 // despawn items after 10 minutes
 #define SV_TICK_RATE                50
 #define SV_TICK_DT                  (1.0 / SV_TICK_RATE)
 #define SV_TICK_DT_MAX              (1.5 * SV_TICK_DT)
-#define SV_TIME_SECONDS_IN_DAY      180.0
+#define SV_TIME_SECONDS_IN_DAY      600.0
+#define SV_TIME_WHEN_GAME_STARTS    (SV_TIME_SECONDS_IN_DAY * (1.0 / 24.0) * (11.0 - 1.0))  // start the game at 11 am
 #define SV_INPUT_HISTORY            SV_TICK_RATE
 #define SV_INPUT_HISTORY_DT_MAX     0.1  //(5.0 * SV_TICK_DT)  // discard buffered inputs that exceed a sane dt accumulation
 #define SV_WORLD_HISTORY            SV_TICK_RATE

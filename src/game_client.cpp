@@ -241,8 +241,6 @@ void GameClient::PlayMode_Audio(double frameDt)
 
 void GameClient::PlayMode_HandleInput(PlayerControllerState &input)
 {
-    UI::HandleInput(input);
-
     if (IsWindowResized() || input.toggleFullscreen) {
         if (IsWindowResized()) {
             screenSize.x = (float)GetRenderWidth() - GetRenderWidth() % 2;
@@ -563,7 +561,7 @@ ErrorType GameClient::Run(void)
             PlayMode_Update(frameDt, input);
             PlayMode_UpdateCamera(frameDt, input);
         }
-        UI::Update(screenSize, &spycam);
+        UI::Update(input, screenSize, &spycam);
 
         // Render prepare
         BeginDrawing();

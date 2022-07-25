@@ -20,7 +20,9 @@ struct PlayerControllerState {
     PlayerInvSlot selectSlot {};
 
     // Non-networked input
-    bool toggleInventory{};
+    bool toggleInventory      {};
+    bool openChatTextbox      {};
+    bool openChatTextboxSlash {};
 
     // Freecam
     bool  cameraNorth      {};

@@ -34,7 +34,7 @@ struct Clock {
         // Daily clock
         const double dayClockNow = server ? now : (serverNow ? serverNow : now);
         const double dayClockScale = (1.0 / SV_TIME_SECONDS_IN_DAY);
-        const double dayClockStartTime = SV_TIME_SECONDS_IN_DAY * (1.0 / 24.0) * (6.0 - 1.0);  // start the game at 6 am
+        const double dayClockStartTime = SV_TIME_WHEN_GAME_STARTS;
         const double dayClockScaled = (dayClockStartTime + dayClockNow) * dayClockScale;
         timeOfDay = fmod(fmod(dayClockScaled, 1.0), 1.0);
 
