@@ -415,7 +415,9 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
                     flags |= EnemySnapshot::Flags_HealthMax;
                 }
                 if (flags) {
+#if SV_DEBUG_WORLD_ENEMIES
                     TraceLog(LOG_DEBUG, "[dbg_enemy:%u] Client aware of enemy and delta sent", enemy.id);
+#endif
                 }
             } else if (enemy.combat.hitPoints) {
                 // Spawn a new puppet
@@ -429,7 +431,9 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
                 if (prevState->second.flags & EnemySnapshot::Flags_Despawn) {
                     // "Despawn" notification already sent, fogetaboutit
                     client.enemyHistory.erase(enemy.id);
+#if SV_DEBUG_WORLD_ENEMIES
                     TraceLog(LOG_DEBUG, "[dbg_enemy:%u] Already left vicinity of enemy. Erased history.", enemy.id);
+#endif
                 } else {
                     flags |= EnemySnapshot::Flags_Despawn;
 #if SV_DEBUG_WORLD_ENEMIES

@@ -116,7 +116,7 @@ int main(int argc, char *argv[])
         //serverCli.Run("localhost", SV_DEFAULT_PORT);
     } else {
 #ifdef _DEBUG
-        //InitConsole(1913, 1, 2887 - 1913, 1048 - 1);  // Dock left side of right monitor
+        InitConsole(1913, 1, 2887 - 1913, 1048 - 1);  // Dock left side of right monitor
 #endif
 
         GameClient *game = new GameClient(args);

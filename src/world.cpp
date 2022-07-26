@@ -181,7 +181,6 @@ Slime *World::SpawnSlime(uint32_t slimeId, Vector2 origin)
 
     for (Slime &slime : slimes) {
         if (slime.id == 0) {
-            TraceLog(LOG_DEBUG, "SpawnSlime [%u] Attempting...", slime.id);
             assert(!slime.nameLength);
             assert(!slime.combat.hitPointsMax);
 
@@ -226,7 +225,7 @@ Slime *World::SpawnSlime(uint32_t slimeId, Vector2 origin)
             if (g_clock.server) {
                 slime.body.Teleport(spawnPos);
             }
-            TraceLog(LOG_DEBUG, "SpawnSlime [%u] succeeded", slime.id);
+            //TraceLog(LOG_DEBUG, "SpawnSlime [%u]", slime.id);
             return &slime;
         }
     }

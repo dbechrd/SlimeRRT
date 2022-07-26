@@ -137,7 +137,7 @@ static void sprite_draw(const Sprite &sprite, Rectangle screenRect, Color color)
 
 void sprite_draw_body(const Sprite &sprite, const Body3D &body, const Color &color)
 {
-#if _DEBUG
+#if CL_DEBUG_SNAPSHOT_SHADOW
 #if 1
     const Vector3 serverPos = body.WorldPositionServer();
     const Rectangle serverRect = sprite_world_rect(sprite, serverPos);

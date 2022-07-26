@@ -38,6 +38,7 @@
 #define CL_DEBUG_SPEEDHAX                (1 && _DEBUG)
 #define CL_DEBUG_WORLD_CHUNKS            (0 && _DEBUG)
 #define CL_DEBUG_WORLD_ITEMS             (0 && _DEBUG)
+#define CL_DEBUG_SNAPSHOT_SHADOW         (0 && _DEBUG)
 #define CL_DEMO_AI_TRACKING              (0 && _DEBUG)
 #define CL_DEMO_BODY_RECT                (0 && _DEBUG)
 #define CL_DEMO_SNAPSHOT_RADII           (0 && _DEBUG)
@@ -45,7 +46,7 @@
 #define CL_DEMO_VIEW_RTREE               (0 && _DEBUG)
 #define SV_DEBUG_INPUT_SAMPLES           (0 && _DEBUG)
 #define SV_DEBUG_WORLD_CHUNKS            (0 && _DEBUG)
-#define SV_DEBUG_WORLD_ENEMIES           (1 && _DEBUG)
+#define SV_DEBUG_WORLD_ENEMIES           (0 && _DEBUG)
 #define SV_DEBUG_WORLD_ITEMS             (0 && _DEBUG)
 #define SV_DEBUG_WORLD_PLAYERS           (0 && _DEBUG)
 
