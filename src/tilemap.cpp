@@ -10,79 +10,7 @@
 
 Tilemap::~Tilemap(void)
 {
-    //free(tiles);
-    free(rrt.vertices);
     UnloadTexture(minimap);
-    FreeSimplex();
-}
-
-void Tilemap::SeedSimplex(int64_t seed)
-{
-    // NOTE(dlb): Don't free/alloc the ose every tilemap. Not necessary, should be global.
-    // Only need to free/alloc the gradients when seed is different.
-    FreeSimplex();
-    ose = initOpenSimplex();
-    osg = initOpenSimplexGradients(ose, seed);
-    osg2 = initOpenSimplexGradients(ose, seed + 1);
-}
-
-void Tilemap::FreeSimplex(void)
-{
-    freeOpenSimplex(ose);
-    freeOpenSimplexGradients(osg);
-    freeOpenSimplexGradients(osg2);
-}
-
-bool Tilemap::GenerateNoise(Texture &tex)
-{
-    // Check for OpenGL context
-    if (!IsWindowReady()) {
-        return false;
-    }
-
-    OpenSimplexEnv *noise_ose = initOpenSimplex();
-    OpenSimplexGradients *noise_osg = initOpenSimplexGradients(ose, 1234);
-
-#define WIDTH 256 //4096
-#define HEIGHT 256 //4096
-#define PERIOD 64.0
-#define OFF_X 2048
-#define OFF_Y 2048
-#define FREQ 1.0 / PERIOD
-
-    Image noiseImg{};
-    noiseImg.width = WIDTH;
-    noiseImg.height = HEIGHT;
-    noiseImg.mipmaps = 1;
-    noiseImg.format = PIXELFORMAT_UNCOMPRESSED_GRAYSCALE; //PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
-    noiseImg.data = calloc(WIDTH * HEIGHT, sizeof(uint8_t));
-    assert(noiseImg.data);
-
-    uint8_t *noisePixel = (uint8_t *)noiseImg.data;
-    for (int y = 0; y < HEIGHT; y++) {
-        for (int x = 0; x < WIDTH; x++) {
-            const double noise = noise2(ose, osg, (x + OFF_X) * FREQ, (y + OFF_Y) * FREQ);
-            //printf("%0.2f ", noise);
-
-            *noisePixel = (uint8_t)(128.0 + noise * 128.0); // tileColors[(int)tile.type];
-            //printf("%d ", *minimapPixel);
-            noisePixel++;
-        }
-        //printf("\n");
-    }
-
-#undef WIDTH
-#undef HEIGHT
-#undef PERIOD
-#undef OFF_X
-#undef OFF_Y
-#undef FREQ
-
-    tex = LoadTextureFromImage(noiseImg);
-    free(noiseImg.data);
-    freeOpenSimplex(noise_ose);
-    freeOpenSimplexGradients(noise_osg);
-    return true;
 }
 
 void Tilemap::GenerateMinimap(Vector2 worldPos)
@@ -152,38 +80,18 @@ void Tilemap::GenerateMinimap(Vector2 worldPos)
     UpdateTexture(minimap, minimapImg.data);
 }
 
-//const int16_t Tilemap::CalcChunk(float world) const
-//{
-//    const float chunk = world / CHUNK_W / TILE_W;
-//    const float chunkFixNeg = chunk < 0.0f ? ceilf(chunk) - 1 : floorf(chunk);
-//    return (int16_t)chunkFixNeg;
-//}
-//
-//const int16_t Tilemap::CalcChunkTile(float world) const
-//{
-//    const float chunk = CalcChunk(world);
-//    const float chunkStart = chunk * CHUNK_W * TILE_W;
-//    const float chunkOffset = world - chunkStart;
-//    const float tilef = CLAMP(floorf(chunkOffset / TILE_W), 0, CHUNK_W - 1);
-//    int16_t tile = (int16_t)tilef;
-//    DLB_ASSERT(tile >= 0);
-//    DLB_ASSERT(tile < CHUNK_W);
-//    return tile;
-//}
-
-const int16_t Tilemap::CalcChunk(float world) const
+int16_t Tilemap::CalcChunk(float world) const
 {
     int16_t chunk = (int16_t)floorf(world / (CHUNK_W * TILE_W));
     return chunk;
 }
 
-const int16_t Tilemap::CalcChunkTile(float world) const
+int16_t Tilemap::CalcChunkTile(float world) const
 {
     const float chunk = CalcChunk(world);
     const float chunkStart = chunk * CHUNK_W * TILE_W;
     const float chunkOffset = world - chunkStart;
 
-    //const float tilef = CLAMP(floorf(chunkOffset / TILE_W), 0, CHUNK_W - 1);
     const float tilef = floorf(chunkOffset / TILE_W);
 
     int16_t tile = (int16_t)tilef;
@@ -243,10 +151,6 @@ const Tile *Tilemap::TileAtWorld(float x, float y) const
 
 Chunk &Tilemap::FindOrGenChunk(World &world, int16_t chunkX, int16_t chunkY)
 {
-    assert(ose);
-    assert(osg);
-    assert(osg2);
-
     ChunkHash chunkHash = Chunk::Hash(chunkX, chunkY);
     auto chunkIter = chunksIndex.find(chunkHash);
     if (chunkIter != chunksIndex.end()) {
@@ -259,10 +163,20 @@ Chunk &Tilemap::FindOrGenChunk(World &world, int16_t chunkX, int16_t chunkY)
     TraceLog(LOG_INFO, "Generating world chunk [%hd, %hd]", chunkX, chunkY);
 
     Chunk &chunk = chunks.emplace_back();
-    chunksIndex[chunkHash] = chunks.size() - 1;
-
     chunk.x = chunkX;
     chunk.y = chunkY;
+    chunksIndex[chunkHash] = chunks.size() - 1;
+
+    constexpr double FREQ_ELEVATION                             = 1.0 / 16000;
+    constexpr double FREQ_ROADS                                 = 1.0 / 4000;
+    constexpr double FREQ_ROADS_NOISE                           = 1.0 / 400;
+    constexpr double FREQ_ISLAND                                = 1.0 / 3000;
+    constexpr double FREQ_BEACH_FALLOFF                         = 1.0 / 400;
+    constexpr double FREQ_MEADOW_FLOWERS                        = 1.0 / 100;
+    constexpr double FREQ_FOREST_MEADOW_FALLOFF                 = 1.0 / 800;
+    constexpr double FREQ_FOREST_TREES                          = 1.0 / 200;
+    constexpr double FREQ_FOREST_MOUNTAINTOP_LAKE_BEACH_FALLOFF = 1.0 / 300;
+    constexpr double FREQ_MOUNTAINTOP_LAKE_FALLOFF              = 1.0 / 600;
 
     size_t tileCount = 0;
     for (int tileY = 0; tileY < CHUNK_H; tileY++) {
@@ -271,33 +185,19 @@ Chunk &Tilemap::FindOrGenChunk(World &world, int16_t chunkX, int16_t chunkY)
             assert(tileIdx < ARRAY_SIZE(chunk.tiles));
             Tile &tile = chunk.tiles[tileY * CHUNK_W + tileX];
 
-            float worldX = (float)((chunk.x * CHUNK_W + tileX) * TILE_W);
-            float worldY = (float)((chunk.y * CHUNK_H + tileY) * TILE_W);
-            //worldX -= fmod(worldX, TILE_W);cd Dcd
-            //worldY -= fmod(worldY, TILE_W);
+            // World coords, in pixels
+            float x = (float)((chunk.x * CHUNK_W + tileX) * TILE_W);
+            float y = (float)((chunk.y * CHUNK_H + tileY) * TILE_W);
 
             TileType tileType{};
-#if 1
-#define FREQ_ELEVATION                             1.0 / 16000
-#define FREQ_ROADS                                 1.0 / 4000
-#define FREQ_ROADS_NOISE                           1.0 / 400
-#define FREQ_ISLAND                                1.0 / 3000
-#define FREQ_BEACH_FALLOFF                         1.0 / 400
-#define FREQ_MEADOW_FLOWERS                        1.0 / 100
-#define FREQ_FOREST_MEADOW_FALLOFF                 1.0 / 800
-#define FREQ_FOREST_TREES                          1.0 / 200
-#define FREQ_FOREST_MOUNTAINTOP_LAKE_BEACH_FALLOFF 1.0 / 300
-#define FREQ_MOUNTAINTOP_LAKE_FALLOFF              1.0 / 600
-#define NOISE_SAMPLE(freq) (0.5 + noise2(ose, osg, worldX * freq, worldY * freq) / 2.0)
-#define NOISE_SAMPLE2(freq) (0.5 + noise2(ose, osg2, worldX * freq, worldY * freq) / 2.0)
-#define NOISE_BETWEEN(noise, a, b) ((noise) >= (a) && (noise) <= (b))
-            const double elev = NOISE_SAMPLE(FREQ_ELEVATION);
+
+            const double elev = g_noise.Seq1(x, y, FREQ_ELEVATION);
             if (elev < 0.2) {
                 // Lake
                 tileType = TileType_Water;
 
                 // Island / sandbar
-                const double islandNoise = NOISE_SAMPLE(FREQ_ISLAND);
+                const double islandNoise = g_noise.Seq1(x, y, FREQ_ISLAND);
                 if (islandNoise >= 0.8) {
                     tileType = TileType_Concrete;
                 }
@@ -307,7 +207,7 @@ Chunk &Tilemap::FindOrGenChunk(World &world, int16_t chunkX, int16_t chunkY)
 
                 // Beach fall-off into grass
                 if (elev >= 0.22) {
-                    const double falloffNoise = NOISE_SAMPLE(FREQ_BEACH_FALLOFF);
+                    const double falloffNoise = g_noise.Seq1(x, y, FREQ_BEACH_FALLOFF);
                     if (falloffNoise >= 0.8) {
                         tileType = TileType_Grass;
                     }
@@ -318,7 +218,7 @@ Chunk &Tilemap::FindOrGenChunk(World &world, int16_t chunkX, int16_t chunkY)
 
                 // Meadow flowers
                 if (tileType == TileType_Grass) {
-                    const double falloffNoise = NOISE_SAMPLE(FREQ_MEADOW_FLOWERS);
+                    const double falloffNoise = g_noise.Seq1(x, y, FREQ_MEADOW_FLOWERS);
                     if (falloffNoise >= 0.95) {
                         tileType = TileType_Flowers;
                     }
@@ -330,7 +230,7 @@ Chunk &Tilemap::FindOrGenChunk(World &world, int16_t chunkX, int16_t chunkY)
                 // Forest fall-off into Meadow
                 if (elev < 0.63) {
                     const double alpha = (elev - 0.6) / (0.63 - 0.6);
-                    const double falloffNoise = NOISE_SAMPLE(FREQ_FOREST_MEADOW_FALLOFF);
+                    const double falloffNoise = g_noise.Seq1(x, y, FREQ_FOREST_MEADOW_FALLOFF);
                     if (falloffNoise >= alpha) {
                         tileType = TileType_Grass;
                     }
@@ -339,7 +239,7 @@ Chunk &Tilemap::FindOrGenChunk(World &world, int16_t chunkX, int16_t chunkY)
                 // Forest trees
                 if (tileType == TileType_Forest) {
                     const double alpha = (elev - 0.6) / (0.92 - 0.6);
-                    const double falloffNoise = NOISE_SAMPLE(FREQ_FOREST_TREES);
+                    const double falloffNoise = g_noise.Seq1(x, y, FREQ_FOREST_TREES);
                     if (falloffNoise >= fabs(alpha - 0.5) * 2.0) {
                         tileType = TileType_Tree;
                     }
@@ -348,7 +248,7 @@ Chunk &Tilemap::FindOrGenChunk(World &world, int16_t chunkX, int16_t chunkY)
                 // Forest fall-off into Mountaintop Lake Beach
                 if (elev >= 0.91) {
                     const double alpha = (elev - 0.91) / (0.92 - 0.91);
-                    const double falloffNoise = NOISE_SAMPLE(FREQ_FOREST_MOUNTAINTOP_LAKE_BEACH_FALLOFF);
+                    const double falloffNoise = g_noise.Seq1(x, y, FREQ_FOREST_MOUNTAINTOP_LAKE_BEACH_FALLOFF);
                     if (falloffNoise >= 1.0 - alpha) {
                         tileType = TileType_Concrete;
                     }
@@ -360,7 +260,7 @@ Chunk &Tilemap::FindOrGenChunk(World &world, int16_t chunkX, int16_t chunkY)
                 // Mountaintop Lake fall-off into Mountaintop Lake Beach
                 if (elev < 0.93) {
                     const double alpha = (elev - 0.92) / (0.93 - 0.92);
-                    const double falloffNoise = NOISE_SAMPLE(FREQ_MOUNTAINTOP_LAKE_FALLOFF);
+                    const double falloffNoise = g_noise.Seq1(x, y, FREQ_MOUNTAINTOP_LAKE_FALLOFF);
                     if (falloffNoise >= alpha) {
                         tileType = TileType_Concrete;
                     }
@@ -369,7 +269,7 @@ Chunk &Tilemap::FindOrGenChunk(World &world, int16_t chunkX, int16_t chunkY)
                 // Mountaintop Lake treasure
                 if (elev > 0.99) {
                     // TODO: Generate a semi-hidden treasure structure instead? These items will despawn.
-                    world.itemSystem.SpawnItem({ worldX, worldY, 0 }, ItemType_Orig_Gem_GoldenChest, 1);
+                    world.itemSystem.SpawnItem({ x, y, 0 }, ItemType_Orig_Gem_GoldenChest, 1);
                 }
             }
 
@@ -379,9 +279,10 @@ Chunk &Tilemap::FindOrGenChunk(World &world, int16_t chunkX, int16_t chunkY)
 
             switch (tileType) {
                 case TileType_Grass: case TileType_Forest: case TileType_Flowers: case TileType_Tree: {
-                    const double road = NOISE_SAMPLE(FREQ_ROADS);
+                    const double road = g_noise.Seq1(x, y, FREQ_ROADS);
                     if (road >= 0.5 && road <= 0.55) {
-                        const double roadNoise = NOISE_SAMPLE(FREQ_ROADS_NOISE);
+                        const double roadNoise = g_noise.Seq1(x, y, FREQ_ROADS_NOISE);
+#define NOISE_BETWEEN(noise, a, b) ((noise) >= (a) && (noise) <= (b))
                         if (NOISE_BETWEEN(roadNoise, 0.15, 0.17) ||
                             NOISE_BETWEEN(roadNoise, 0.20, 0.28) ||
                             NOISE_BETWEEN(roadNoise, 0.31, 0.37) ||
@@ -391,29 +292,13 @@ Chunk &Tilemap::FindOrGenChunk(World &world, int16_t chunkX, int16_t chunkY)
                         } else {
                             tileType = TileType_Dirt;
                         }
+#undef NOISE_BETWEEN
                         break;
                     }
                     break;
                 }
                 default: break;
             }
-#else
-#define FREQ_BASE_LAYER 1.0 / 10000
-#define FREQ_BASE_NOISE 1.0 / 3000
-            const double base = 0.5 + noise2(ose, osg, xx * FREQ_BASE_LAYER, yy * FREQ_BASE_LAYER) / 2.0;
-            const double baseNoise = 0.5 + noise2(ose, osg2, xx * FREQ_BASE_NOISE, yy * FREQ_BASE_NOISE) / 2.0;
-            if (base + baseNoise < 0.8) {
-                tileType = TileType_Water;
-            } else if (base + baseNoise < 0.86) {
-                tileType = TileType_Concrete;
-            } else if (base + baseNoise < 1.5) {
-                tileType = TileType_Grass;
-            } else if (base + baseNoise < 1.8) {
-                tileType = TileType_Forest;
-            } else {
-                tileType = TileType_Concrete;
-            }
-#endif
 #undef PERIOD
 #undef FREQ
             tile.type = tileType;
@@ -429,31 +314,8 @@ Chunk &Tilemap::FindOrGenChunk(World &world, int16_t chunkX, int16_t chunkY)
     return chunk;
 }
 
-MapSystem::MapSystem(void)
+Tilemap &MapSystem::Alloc()
 {
-    // Initialze intrusive free lists
-    for (size_t i = 0; i < MAX_TILEMAPS; i++) {
-        if (i < MAX_PARTICLES - 1) {
-            maps[i].next = &maps[i + 1];
-        }
-    }
-    mapsFree = maps;
-}
-
-MapSystem::~MapSystem(void)
-{
-    //memset(maps, 0, sizeof(maps));
-    //mapsFree = 0;
-}
-
-Tilemap *MapSystem::Alloc()
-{
-    Tilemap *map = mapsFree;
-    if (!map) {
-        TraceLog(LOG_ERROR, "Tilemap pool is full.\n");
-        return 0;
-    }
-    mapsFree = map->next;
-    mapsActiveCount++;
+    Tilemap &map = maps.emplace_back();
     return map;
 }

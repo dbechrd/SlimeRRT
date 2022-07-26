@@ -20,6 +20,7 @@ World::World(void)
     rtt_seed = 16;
     //rtt_seed = time(NULL);
     dlb_rand32_seed_r(&rtt_rand, rtt_seed, rtt_seed);
+    g_noise.Seed(rtt_seed);
 }
 
 World::~World(void)
@@ -28,9 +29,6 @@ World::~World(void)
 
 const Vector3 World::GetWorldSpawn(void)
 {
-    if (!map) {
-        return Vector3{};
-    }
     Vector3 worldSpawn{ 0, 0, 0 };
     return worldSpawn;
 };
@@ -84,11 +82,10 @@ Player *World::AddPlayer(uint32_t playerId)
         if (!player.id) {
             assert(!player.combat.hitPointsMax);
             player.id = playerId;
-
-            const Spritesheet &spritesheet = Catalog::g_spritesheets.FindById(Catalog::SpritesheetID::Charlie);
-            const SpriteDef *spriteDef = spritesheet.FindSprite("player_sword");
-            player.Init(spriteDef);
-            player.body.Teleport(GetWorldSpawn());
+            player.Init();
+            if (g_clock.server) {
+                player.body.Teleport(GetWorldSpawn());
+            }
             return &player;
         }
     }
@@ -184,25 +181,29 @@ Slime *World::SpawnSlime(uint32_t slimeId, Vector2 origin)
 
     for (Slime &slime : slimes) {
         if (slime.id == 0) {
+            TraceLog(LOG_DEBUG, "SpawnSlime [%u] Attempting...", slime.id);
             assert(!slime.nameLength);
             assert(!slime.combat.hitPointsMax);
 
             Vector3 spawnPos{};
-            spawnPos.x = dlb_rand32f_variance(1.0f);
-            spawnPos.y = dlb_rand32f_variance(1.0f);
-            spawnPos = v3_normalize(spawnPos);
 
-            // Scale into correct range for valid spawn ring
-            float mult = dlb_rand32f_range(SV_ENEMY_MIN_SPAWN_DIST, SV_ENEMY_DESPAWN_RADIUS);
-            spawnPos = v3_scale(spawnPos, mult);
+            if (g_clock.server) {
+                spawnPos.x = dlb_rand32f_variance(1.0f);
+                spawnPos.y = dlb_rand32f_variance(1.0f);
+                spawnPos = v3_normalize(spawnPos);
 
-            // Translate to whatever point we want to spawn
-            spawnPos.x += origin.x;
-            spawnPos.y += origin.y;
+                // Scale into correct range for valid spawn ring
+                float mult = dlb_rand32f_range(SV_ENEMY_MIN_SPAWN_DIST, SV_ENEMY_DESPAWN_RADIUS);
+                spawnPos = v3_scale(spawnPos, mult);
 
-            const Tile *spawnTile = map->TileAtWorld(spawnPos.x, spawnPos.y);
-            if (!spawnTile || !spawnTile->IsSpawnable()) {
-                return 0;
+                // Translate to whatever point we want to spawn
+                spawnPos.x += origin.x;
+                spawnPos.y += origin.y;
+
+                const Tile *spawnTile = map.TileAtWorld(spawnPos.x, spawnPos.y);
+                if (!spawnTile || !spawnTile->IsSpawnable()) {
+                    return 0;
+                }
             }
 #if 0
             for (Player &player : players) {
@@ -221,10 +222,11 @@ Slime *World::SpawnSlime(uint32_t slimeId, Vector2 origin)
                 slime.id = nextId;
             }
 
-            //TraceLog(LOG_DEBUG, "SpawnSlime [%u]", slime.id);
             slime.Init();
-            slime.body.Teleport(spawnPos);
-            //TraceLog(LOG_DEBUG, "Spawned enemy %u", slime.type);
+            if (g_clock.server) {
+                slime.body.Teleport(spawnPos);
+            }
+            TraceLog(LOG_DEBUG, "SpawnSlime [%u] succeeded", slime.id);
             return &slime;
         }
     }
@@ -600,9 +602,6 @@ void World::CL_Interpolate(double renderAt)
 
 void World::CL_Extrapolate(double dt)
 {
-    // If there's no map, we can't do collision detection
-    if (!map) return;
-
     // TODO: Collision detection is in Simulate() for enemies, but Player::Update() for players..
     // this makes no sense. It should probably not be in either place. We need a ResolveCollisions, eh?
 
@@ -613,7 +612,7 @@ void World::CL_Extrapolate(double dt)
         // TODO: Use future inputs we've received from the server to predict other players more reliability
         InputSample input{};
         input.dt = (float)dt;
-        player.Update(input, *map);
+        player.Update(input, map);
     }
     for (Slime &enemy : slimes) {
         if (!enemy.id) {
@@ -731,7 +730,7 @@ size_t World::DrawMap(const Spycam &spycam)
 {
     const int zoomMipLevel = spycam.GetZoomMipLevel();
     assert(zoomMipLevel > 0);
-    if (!map || zoomMipLevel <= 0) {
+    if (zoomMipLevel <= 0) {
         return 0;
     }
 
@@ -750,9 +749,9 @@ size_t World::DrawMap(const Spycam &spycam)
             xx = floorf(xx / TILE_W) * TILE_W;
             yy = floorf(yy / TILE_W) * TILE_W;
 
-            const Tile *tile = map->TileAtWorld(xx, yy);
+            const Tile *tile = map.TileAtWorld(xx, yy);
             if (tile) {
-                tileset_draw_tile(map->tilesetId, tile->type, { xx, yy }, WHITE);
+                tileset_draw_tile(map.tilesetId, tile->type, { xx, yy }, WHITE);
 
                 //uint8_t r = tile->base;
                 //uint8_t g = tile->baseNoise;
@@ -764,12 +763,12 @@ size_t World::DrawMap(const Spycam &spycam)
                 //DrawRectangle(xxi    , yyi + 16, SUBTILE_W, SUBTILE_H, { 0, 0, 0, 255 });  // Bottom left
                 //DrawRectangle(xxi + 8, yyi + 16, SUBTILE_W, SUBTILE_H, { 0, 0, 0, 255 });  // Bottom right
             } else {
-                tileset_draw_tile(map->tilesetId, TileType_Void, { xx, yy }, WHITE);
+                tileset_draw_tile(map.tilesetId, TileType_Void, { xx, yy }, WHITE);
             }
 #if 0
-            const Tile *tile = map->TileAtWorld(xx, yy);
-            Tileset &tileset = g_tilesets[(size_t)map->tilesetId];
-            Rectangle tileRect = tileset_tile_rect(map->tilesetId, tile ? tile->type : TileType_Void);
+            const Tile *tile = map.TileAtWorld(xx, yy);
+            Tileset &tileset = g_tilesets[(size_t)map.tilesetId];
+            Rectangle tileRect = tileset_tile_rect(map.tilesetId, tile ? tile->type : TileType_Void);
 
             ImVec2 uv0 = {
                 tileRect.x / tileset.texture.width,

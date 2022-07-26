@@ -24,18 +24,19 @@ GameServer::~GameServer()
 
 ErrorType GameServer::Run(const Args &args)
 {
+    error_init("server.log");
+
     if (args.standalone) {
         // Load data that GameClient would have already loaded otherwise
         Catalog::g_items.LoadData();
     }
 
     World *world = new World;
-    world->map = world->mapSystem.Alloc();
-    world->map->SeedSimplex(world->rtt_seed);
 
+    // Pre-generate spawn chunks
     for (short y = -2; y <= 2; y++) {
         for (short x = -2; x <= 2; x++) {
-            world->map->FindOrGenChunk(*world, x, y);
+            world->map.FindOrGenChunk(*world, x, y);
         }
     }
 
@@ -146,11 +147,10 @@ ErrorType GameServer::Run(const Args &args)
                         }
 
                         //TraceLog(LOG_DEBUG, "SVR SQ: %u OS: %f S: %f", input.seq, origInput.dt, input.dt);
-                        player->Update(input, *world->map);
+                        player->Update(input, world->map);
                     }
                 }
 
-                assert(world->map);
                 world->SV_Simulate(SV_TICK_DT);
 
                 // Send nearby chunks to player if they haven't received them yet
@@ -182,5 +182,6 @@ ErrorType GameServer::Run(const Args &args)
         glfwTerminate();
     }
 
+    error_free();
     return ErrorType::Success;
 }

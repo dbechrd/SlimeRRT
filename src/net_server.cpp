@@ -260,14 +260,14 @@ void NetServer::SendNearbyChunks(SV_Client &client)
     const Player *player = serverWorld->FindPlayer(client.playerId);
     if (player) {
         Vector2 playerBC = player->body.GroundPosition();
-        const int16_t chunkX = serverWorld->map->CalcChunk(playerBC.x);
-        const int16_t chunkY = serverWorld->map->CalcChunk(playerBC.y);
+        const int16_t chunkX = serverWorld->map.CalcChunk(playerBC.x);
+        const int16_t chunkY = serverWorld->map.CalcChunk(playerBC.y);
 
         for (int y = chunkY - 2; y <= chunkY + 2; y++) {
             for (int x = chunkX - 2; x <= chunkX + 2; x++) {
                 const ChunkHash chunkHash = Chunk::Hash(x, y);
                 if (!client.chunkHistory.contains(chunkHash)) {
-                    const Chunk &chunk = serverWorld->map->FindOrGenChunk(*serverWorld, x, y);
+                    const Chunk &chunk = serverWorld->map.FindOrGenChunk(*serverWorld, x, y);
                     SendWorldChunk(client, chunk);
                     client.chunkHistory.insert(chunk.Hash());
                 }
@@ -299,11 +299,12 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
     // TODO: Find players/slimes/etc. that are actually near the player this snapshot is being generated for
     worldSnapshot.playerCount = 0;
     for (const Player &otherPlayer : serverWorld->players) {
-        if (worldSnapshot.playerCount == ARRAY_SIZE(worldSnapshot.players)) {
-            break;
-        }
         if (!otherPlayer.id) {
             continue;
+        }
+        if (worldSnapshot.playerCount == ARRAY_SIZE(worldSnapshot.players)) {
+            TraceLog(LOG_ERROR, "Snapshot full, skipping player!");
+            break;
         }
 
         uint32_t flags = PlayerSnapshot::Flags_None;
@@ -380,11 +381,13 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
     }
 
     worldSnapshot.enemyCount = 0;
+    uint32_t skippedEnemyCount = 0;
     for (const Slime &enemy : serverWorld->slimes) {
-        if (worldSnapshot.enemyCount == ARRAY_SIZE(worldSnapshot.enemies)) {
-            break;
-        }
         if (!enemy.id) {
+            continue;
+        }
+        if (worldSnapshot.enemyCount == ARRAY_SIZE(worldSnapshot.enemies)) {
+            skippedEnemyCount++;
             continue;
         }
 
@@ -411,11 +414,14 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
                 if (enemy.combat.hitPointsMax != prevState->second.hitPointsMax) {
                     flags |= EnemySnapshot::Flags_HealthMax;
                 }
+                if (flags) {
+                    TraceLog(LOG_DEBUG, "[dbg_enemy:%u] Client aware of enemy and delta sent", enemy.id);
+                }
             } else if (enemy.combat.hitPoints) {
                 // Spawn a new puppet
                 flags = EnemySnapshot::Flags_Spawn;
 #if SV_DEBUG_WORLD_ENEMIES
-                TraceLog(LOG_DEBUG, "Entered vicinity of enemy #%u", enemy.id);
+                TraceLog(LOG_DEBUG, "[dbg_enemy:%u] Entered vicinity of enemy. Sending spawn.", enemy.id);
 #endif
             }
         } else {
@@ -423,10 +429,11 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
                 if (prevState->second.flags & EnemySnapshot::Flags_Despawn) {
                     // "Despawn" notification already sent, fogetaboutit
                     client.enemyHistory.erase(enemy.id);
+                    TraceLog(LOG_DEBUG, "[dbg_enemy:%u] Already left vicinity of enemy. Erased history.", enemy.id);
                 } else {
                     flags |= EnemySnapshot::Flags_Despawn;
 #if SV_DEBUG_WORLD_ENEMIES
-                    TraceLog(LOG_DEBUG, "Left vicinity of enemy #%u", enemy.id);
+                    TraceLog(LOG_DEBUG, "[dbg_enemy:%u] Left vicinity of enemy. Sending despawn.", enemy.id);
 #endif
                 }
             }
@@ -450,14 +457,19 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
             worldSnapshot.enemyCount++;
         }
     }
+    if (skippedEnemyCount) {
+        TraceLog(LOG_DEBUG, "Snapshot full, skipped %u enemies", skippedEnemyCount);
+    }
 
     worldSnapshot.itemCount = 0;
+    uint32_t skippedItemCount = 0;
     //for (size_t i = 0; i < serverWorld->itemSystem.itemsCount && worldSnapshot.itemCount < ARRAY_SIZE(worldSnapshot.items); i++) {
     for (const ItemWorld &item : serverWorld->itemSystem.items) {
-        if (worldSnapshot.itemCount == ARRAY_SIZE(worldSnapshot.items)) {
-            break;
-        }
         if (!item.uid) {
+            continue;
+        }
+        if (worldSnapshot.itemCount == ARRAY_SIZE(worldSnapshot.items)) {
+            skippedItemCount++;
             continue;
         }
 
@@ -513,6 +525,9 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
             worldSnapshot.items[worldSnapshot.itemCount] = state;
             worldSnapshot.itemCount++;
         }
+    }
+    if (skippedItemCount) {
+        TraceLog(LOG_DEBUG, "Snapshot full, skipped %u world items", skippedItemCount);
     }
 
     E_ASSERT(SendMsg(client, netMsg), "Failed to send world snapshot");

@@ -13,7 +13,7 @@
 
 void Slime::Init(void)
 {
-    assert(!sprite.spriteDef);
+    assert(!sprite.scale);
 
     SetName(CSTR("Slime"));
 
@@ -32,9 +32,9 @@ void Slime::Init(void)
     //combat.droppedDeathLoot = false;
 
     sprite.scale = 1.0f;
-    const Spritesheet &spritesheet = Catalog::g_spritesheets.FindById(Catalog::SpritesheetID::Slime);
-    const SpriteDef *spriteDef = spritesheet.FindSprite("slime");
-    if (spriteDef) {
+    if (!g_clock.server) {
+        const Spritesheet &spritesheet = Catalog::g_spritesheets.FindById(Catalog::SpritesheetID::Slime);
+        const SpriteDef *spriteDef = spritesheet.FindSprite("slime");
         sprite.spriteDef = spriteDef;
     }
 
@@ -152,7 +152,7 @@ bool Slime::TryCombine(Slime &other)
     b->combat.diedAt = g_clock.now;
     b->combat.droppedDeathLoot = true;
 #if SV_DEBUG_WORLD_ENEMIES
-    TraceLog(LOG_DEBUG, "Combined slime #%u into slime #%u", b->type, a->type);
+    TraceLog(LOG_DEBUG, "Combined slime #%u into slime #%u", b->id, a->id);
 #endif
     return true;
 }

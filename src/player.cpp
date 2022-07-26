@@ -10,9 +10,9 @@
 #include "spritesheet.h"
 #include <cassert>
 
-void Player::Init(const SpriteDef *spriteDef)
+void Player::Init()
 {
-    assert(!sprite.spriteDef);
+    assert(!sprite.scale);
     printf("Init player\n");
 
     body.speed = SV_PLAYER_MOVE_SPEED;
@@ -23,7 +23,11 @@ void Player::Init(const SpriteDef *spriteDef)
     combat.meleeDamage = 1.0f;
 
     sprite.scale = 1.0f;
-    sprite.spriteDef = spriteDef;
+    if (!g_clock.server) {
+        const Spritesheet &spritesheet = Catalog::g_spritesheets.FindById(Catalog::SpritesheetID::Charlie);
+        const SpriteDef *spriteDef = spritesheet.FindSprite("player_sword");
+        sprite.spriteDef = spriteDef;
+    }
 
     // TODO: Load selected slot from save file / server
     inventory.selectedSlot = PlayerInvSlot_Hotbar_0;
@@ -343,11 +347,11 @@ bool Player::Cull(const Rectangle &cullRect) const
 void Player::DrawSwimOverlay(const World &world) const
 {
     Vector2 groundPos = body.GroundPosition();
-    const Tile *tileLeft = world.map->TileAtWorld(groundPos.x - 15.0f, groundPos.y);
-    const Tile *tileRight = world.map->TileAtWorld(groundPos.x + 15.0f, groundPos.y);
+    const Tile *tileLeft = world.map.TileAtWorld(groundPos.x - 15.0f, groundPos.y);
+    const Tile *tileRight = world.map.TileAtWorld(groundPos.x + 15.0f, groundPos.y);
     if (tileLeft && tileLeft->type == TileType_Water ||
         tileRight && tileRight->type == TileType_Water) {
-        auto tilesetId = world.map->tilesetId;
+        auto tilesetId = world.map.tilesetId;
         Tileset &tileset = g_tilesets[(size_t)tilesetId];
         Rectangle tileRect = tileset_tile_rect(tilesetId, TileType_Water);
         assert(tileRect.width == TILE_W);
@@ -388,7 +392,7 @@ void Player::DrawSwimOverlay(const World &world) const
         float maxXWater = FLT_MIN;
 
 #define CHECK_AND_DRAW(src, dst) \
-            tile = world.map->TileAtWorld((dst).x, (dst).y);                                  \
+            tile = world.map.TileAtWorld((dst).x, (dst).y);                                  \
             if (tile && tile->type == TileType_Water) {                                   \
                 DrawTexturePro(tileset.texture, (src), (dst), { 0, 0 }, 0, Fade(WHITE, 0.8f)); \
                 minXWater = MIN(minXWater, (dst).x);                                           \
@@ -403,7 +407,7 @@ void Player::DrawSwimOverlay(const World &world) const
 
 #undef CHECK_AND_DRAW
 
-        const Tile *playerGutTile = world.map->TileAtWorld(gut2d.x, gut2d.y);
+        const Tile *playerGutTile = world.map.TileAtWorld(gut2d.x, gut2d.y);
         if (playerGutTile && playerGutTile->type == TileType_Water) {
             Rectangle bubblesDstTopMid{
                 gut2d.x - 20.0f,
@@ -451,6 +455,7 @@ void Player::Draw(World &world) const
     {
         const Vector2 visPos = body.VisualPosition();
         DrawCircleLines((int)visPos.x, (int)visPos.y, SV_ENEMY_DESPAWN_RADIUS, GREEN);
+        DrawCircleLines((int)visPos.x, (int)visPos.y, SV_ENEMY_NEARBY_THRESHOLD, BLUE);
         DrawCircleLines((int)visPos.x, (int)visPos.y, SV_ENEMY_MIN_SPAWN_DIST, RED);
     }
 #endif

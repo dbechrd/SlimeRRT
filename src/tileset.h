@@ -8,10 +8,10 @@ enum class TilesetID {
 };
 
 struct Tileset {
-    Texture     texture          {};
-    Rectangle   textureRects     [TileType_Count]{};
-    size_t      tileCount        {};
-    size_t      tilesPerRow      {};
+    Texture   texture      {};
+    Rectangle textureRects [TileType_Count]{};
+    size_t    tileCount    {};
+    size_t    tilesPerRow  {};
 };
 
 extern Tileset g_tilesets[(size_t)TilesetID::Count];

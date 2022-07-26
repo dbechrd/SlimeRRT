@@ -275,7 +275,7 @@ struct Player : Drawable {
     };
 
     struct Stats {
-        uint32_t coinsCollected  {};
+        //uint32_t coinsCollected  {};  // TODO: Money earned via selling? Or something else cool
         float    damageDealt     {};
         float    kmWalked        {};
         uint32_t slimesSlain     {};
@@ -295,7 +295,7 @@ struct Player : Drawable {
     PlayerInventory inventory   {};
     Stats           stats       {};
 
-    void              Init            (const SpriteDef *spriteDef);
+    void              Init            (void);
     Vector3           WorldCenter     (void) const;
     Vector3           WorldTopCenter  (void) const;
     Vector3           GetAttachPoint  (AttachPoint attachPoint) const;

@@ -95,6 +95,11 @@ int main(int argc, char *argv[])
     Args args{ argc, argv };
     //args.standalone = true;
 
+    int enet_code = enet_initialize();
+    if (enet_code < 0) {
+        TraceLog(LOG_FATAL, "Failed to initialize network utilities (enet). Error code: %d\n", enet_code);
+    }
+
     //--------------------------------------------------------------------------------------
     // Initialization
     //--------------------------------------------------------------------------------------
@@ -103,11 +108,6 @@ int main(int argc, char *argv[])
 #ifdef _DEBUG
         InitConsole(2873, 1, 3847 - 2873, 1048 - 1);  // Dock right side of right monitor
 #endif
-        error_init("server.log");
-        int enet_code = enet_initialize();
-        if (enet_code < 0) {
-            TraceLog(LOG_FATAL, "Failed to initialize network utilities (enet). Error code: %d\n", enet_code);
-        }
         gameServer = new GameServer(args);
 
         // TODO: Make CLI not be an entire client/player. Makes no sense for the CLI to show up in the world LUL.
@@ -115,18 +115,9 @@ int main(int argc, char *argv[])
         //ServerCLI serverCli{ args };
         //serverCli.Run("localhost", SV_DEFAULT_PORT);
     } else {
-        int enet_code = enet_initialize();
-        if (enet_code < 0) {
-            TraceLog(LOG_FATAL, "Failed to initialize network utilities (enet). Error code: %d\n", enet_code);
-        }
-
 #ifdef _DEBUG
-        InitConsole(1913, 1, 2887 - 1913, 1048 - 1);  // Dock left side of right monitor
+        //InitConsole(1913, 1, 2887 - 1913, 1048 - 1);  // Dock left side of right monitor
 #endif
-        error_init("game.log");
-        InitWindow(1600, 900, "Attack the slimes!");
-        // NOTE: I could avoid the flicker if Raylib would let me pass it as a flag into InitWindow -_-
-        //SetWindowState(FLAG_WINDOW_HIDDEN);
 
         GameClient *game = new GameClient(args);
         game->Run();
@@ -138,7 +129,6 @@ int main(int argc, char *argv[])
     // Clean up
     //--------------------------------
     delete gameServer;
-    error_free();
     CloseWindow();
     enet_deinitialize();
 

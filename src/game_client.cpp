@@ -59,6 +59,10 @@ void GameClient::LoadingScreen(const char *text)
 
 void GameClient::Init(void)
 {
+    InitWindow(1600, 900, "Attack the slimes!");
+    // NOTE: I could avoid the flicker if Raylib would let me pass it as a flag into InitWindow -_-
+    //SetWindowState(FLAG_WINDOW_HIDDEN);
+
     SetExitKey(0);  // Disable default Escape exit key, we'll handle escape ourselves
     screenSize = { (float)GetRenderWidth(), (float)GetRenderHeight() };
 
@@ -351,8 +355,7 @@ void GameClient::PlayMode_Update(double frameDt, PlayerControllerState &input)
             // Update world state from worldSnapshot and re-apply input with input.tick > snapshot.tick
             netClient.ReconcilePlayer();
 
-            assert(netClient.serverWorld->map);
-            player->Update(inputSample, *netClient.serverWorld->map);
+            player->Update(inputSample, netClient.serverWorld->map);
             netClient.serverWorld->particleSystem.Update(frameDt);
             netClient.serverWorld->itemSystem.Update(frameDt);
 
@@ -416,7 +419,7 @@ void GameClient::PlayMode_DrawWorld(PlayerControllerState &input)
     //UI::WorldGrid();
 
     if (input.dbgFindMouseTile) {
-        UI::TileHoverOutline(*netClient.serverWorld->map);
+        UI::TileHoverOutline(netClient.serverWorld->map);
     }
     netClient.serverWorld->DrawItems();
     netClient.serverWorld->DrawEntities();
@@ -490,7 +493,7 @@ void GameClient::PlayMode_DrawScreen(double frameDt, PlayerControllerState &inpu
 
     // Render mouse tile tooltip
     if (input.dbgFindMouseTile) {
-        UI::TileHoverTip(g_fonts.fontSmall, *netClient.serverWorld->map);
+        UI::TileHoverTip(g_fonts.fontSmall, netClient.serverWorld->map);
     }
 
     UI::Minimap(g_fonts.fontSmall, *netClient.serverWorld);
@@ -543,6 +546,7 @@ void GameClient::PlayMode_DrawScreen(double frameDt, PlayerControllerState &inpu
 
 ErrorType GameClient::Run(void)
 {
+    error_init("game.log");
     Init();
 
     while (!WindowShouldClose() && !UI::QuitRequested()) {
@@ -609,5 +613,6 @@ ErrorType GameClient::Run(void)
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
 
+    error_free();
     return ErrorType::Success;
 }

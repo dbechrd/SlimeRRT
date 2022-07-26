@@ -20,7 +20,6 @@ struct World {
     dlb_rand32_t   rtt_rand       {};
     uint32_t       tick           {};
     double         dtUpdate       {};
-    Tilemap        *map           {};
     // TODO: PlayerSystem
     uint32_t       playerId       {};
     Player         players        [SV_MAX_PLAYERS]{};
@@ -30,10 +29,11 @@ struct World {
     ItemSystem     itemSystem     {};
     LootSystem     lootSystem     {};
     MapSystem      mapSystem      {};
+    Tilemap      & map            { mapSystem.Alloc() };
     ParticleSystem particleSystem {};
     ChatHistory    chatHistory    {};
     bool           peaceful       {};
-    bool           pvp            {true};
+    bool           pvp            { true };
 
     World  (void);
     ~World (void);

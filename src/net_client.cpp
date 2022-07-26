@@ -304,8 +304,7 @@ void NetClient::ReconcilePlayer(void)
                 }
 
                 //TraceLog(LOG_DEBUG, "CLI SQ: %u OS: %f S: %f", input.seq, origInput.dt, input.dt);
-                assert(serverWorld->map);
-                player->Update(input, *serverWorld->map);
+                player->Update(input, serverWorld->map);
             }
         }
 #if CL_DEBUG_PLAYER_RECONCILIATION
@@ -357,14 +356,8 @@ void NetClient::ProcessMsg(ENetPacket &packet)
             // TODO: Auth challenge. Store salt sent from server instead.. handshake stuffs
             NetMessage_Welcome &welcomeMsg = tempMsg.data.welcome;
 
-            //serverWorld->map = serverWorld->mapSystem.Generate(serverWorld->rtt_rand, welcomeMsg.width, welcomeMsg.height);
-            serverWorld->map = serverWorld->mapSystem.Alloc();
-            if (!serverWorld->map) {
-                break;
-            }
-
             // TODO: Get tileset ID from server
-            serverWorld->map->tilesetId = TilesetID::TS_Overworld;
+            serverWorld->map.tilesetId = TilesetID::TS_Overworld;
             //serverWorld->map->GenerateMinimap();
             serverWorld->playerId = welcomeMsg.playerId;
 
@@ -383,30 +376,26 @@ void NetClient::ProcessMsg(ENetPacket &packet)
 #if CL_DEBUG_WORLD_CHUNKS
             TraceLog(LOG_DEBUG, "Received world chunk %hd %hd", worldChunk.chunk.x, worldChunk.chunk.y);
 #endif
-            if (serverWorld->map) {
-                Tilemap &map = *serverWorld->map;
-                auto chunkIter = map.chunksIndex.find(worldChunk.chunk.Hash());
-                if (chunkIter != map.chunksIndex.end()) {
+            Tilemap &map = serverWorld->map;
+            auto chunkIter = map.chunksIndex.find(worldChunk.chunk.Hash());
+            if (chunkIter != map.chunksIndex.end()) {
 #if CL_DEBUG_WORLD_CHUNKS
-                    TraceLog(LOG_DEBUG, "  Updating existing chunk");
+                TraceLog(LOG_DEBUG, "  Updating existing chunk");
 #endif
-                    size_t idx = chunkIter->second;
-                    assert(idx < map.chunks.size());
-                    map.chunks[chunkIter->second] = worldChunk.chunk;
-                } else {
-#if CL_DEBUG_WORLD_CHUNKS
-                    TraceLog(LOG_DEBUG, "  Adding new chunk to chunk list");
-#endif
-                    map.chunks.emplace_back(worldChunk.chunk);
-                    map.chunksIndex[worldChunk.chunk.Hash()] = map.chunks.size() - 1;
-                }
-                // TODO(perf): Only update if chunk is within visible region?
-                Player *player = serverWorld->FindPlayer(serverWorld->playerId);
-                if (player) {
-                    map.GenerateMinimap(player->body.GroundPosition());
-                }
+                size_t idx = chunkIter->second;
+                assert(idx < map.chunks.size());
+                map.chunks[chunkIter->second] = worldChunk.chunk;
             } else {
-                TraceLog(LOG_ERROR, "  Map is invalid, cannot process chunk");
+#if CL_DEBUG_WORLD_CHUNKS
+                TraceLog(LOG_DEBUG, "  Adding new chunk to chunk list");
+#endif
+                map.chunks.emplace_back(worldChunk.chunk);
+                map.chunksIndex[worldChunk.chunk.Hash()] = map.chunks.size() - 1;
+            }
+            // TODO(perf): Only update if chunk is within visible region?
+            Player *player = serverWorld->FindPlayer(serverWorld->playerId);
+            if (player) {
+                map.GenerateMinimap(player->body.GroundPosition());
             }
             break;
         } case NetMessage::Type::WorldSnapshot: {

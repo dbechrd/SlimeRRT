@@ -117,10 +117,10 @@ void UI::Minimap(const Font &font, World &world)
     // Render minimap
     const int minimapMargin = 6;
     const int minimapBorderWidth = 2;
-    const int minimapX = (int)screenSize.x - minimapMargin - world.map->minimap.width - minimapBorderWidth * 2;
+    const int minimapX = (int)screenSize.x - minimapMargin - world.map.minimap.width - minimapBorderWidth * 2;
     const int minimapY = minimapMargin;
-    const int minimapW = world.map->minimap.width + minimapBorderWidth * 2;
-    const int minimapH = world.map->minimap.height + minimapBorderWidth * 2;
+    const int minimapW = world.map.minimap.width + minimapBorderWidth * 2;
+    const int minimapH = world.map.minimap.height + minimapBorderWidth * 2;
     const int minimapTexX = minimapX + minimapBorderWidth;
     const int minimapTexY = minimapY + minimapBorderWidth;
     DrawRectangle(minimapX, minimapY, minimapW, minimapH, Fade(BLACK, 0.6f));
@@ -128,12 +128,12 @@ void UI::Minimap(const Font &font, World &world)
 
     Player *player = world.FindPlayer(world.playerId);
     if (player) {
-        world.map->GenerateMinimap(player->body.GroundPosition());
+        world.map.GenerateMinimap(player->body.GroundPosition());
         Vector2 playerPos = player->body.GroundPosition();
-        const int offsetX = world.map->CalcChunkTile(playerPos.x) - CHUNK_W / 2;
-        const int offsetY = world.map->CalcChunkTile(playerPos.y) - CHUNK_W / 2;
-        BeginScissorMode(minimapTexX, minimapTexY, world.map->minimap.width, world.map->minimap.height);
-        DrawTexture(world.map->minimap, minimapTexX - offsetX, minimapTexY - offsetY, WHITE);
+        const int offsetX = world.map.CalcChunkTile(playerPos.x) - CHUNK_W / 2;
+        const int offsetY = world.map.CalcChunkTile(playerPos.y) - CHUNK_W / 2;
+        BeginScissorMode(minimapTexX, minimapTexY, world.map.minimap.width, world.map.minimap.height);
+        DrawTexture(world.map.minimap, minimapTexX - offsetX, minimapTexY - offsetY, WHITE);
         EndScissorMode();
     }
 
@@ -489,10 +489,6 @@ void UI::HUD(const Font &font, World &world, const DebugStats &debugStats)
 {
     assert(spycam);
 
-    if (!world.map) {
-        return;
-    }
-
     Player *player = world.FindPlayer(world.playerId);
     if (!player) {
         return;
@@ -505,16 +501,16 @@ void UI::HUD(const Font &font, World &world, const DebugStats &debugStats)
     DrawTextFont(font, text, margin + pad, hudCursorY, 0, 0, font.baseSize, color); \
     hudCursorY += font.baseSize + pad;
 
-    int linesOfText = 13;
+    int linesOfText = 9;
     if (debugStats.tick) {
-        linesOfText += 12;
+        linesOfText += 3;
     }
     if (debugStats.rtt) {
-        linesOfText += 8;
+        linesOfText += 6;
     }
     const float margin = 6.0f;   // margin
     const float pad = 4.0f;      // pad
-    const float hudWidth = 240.0f;
+    const float hudWidth = 280.0f;
     const float hudHeight = linesOfText * (font.baseSize + pad) + pad;
 
     hudCursorY += margin;
@@ -526,64 +522,52 @@ void UI::HUD(const Font &font, World &world, const DebugStats &debugStats)
 
     hudCursorY += pad;
 
-    text = SafeTextFormat("%2i fps (%.02f ms)", GetFPS(), GetFrameTime() * 1000.0f);
-    PUSH_TEXT(text, WHITE);
-    text = SafeTextFormat("Coins: %d", player->inventory.slots[PlayerInvSlot_Coin_Copper].stack.count);
-    PUSH_TEXT(text, YELLOW);
-    text = SafeTextFormat("XP: %u", player->xp);
-    PUSH_TEXT(text, GREEN);
-    text = SafeTextFormat("Level: %u", player->combat.level);
-    PUSH_TEXT(text, GREEN);
-    text = SafeTextFormat("Coins collected   %u", player->stats.coinsCollected);
-    PUSH_TEXT(text, LIGHTGRAY);
-    text = SafeTextFormat("Damage dealt      %.2f", player->stats.damageDealt);
+    text = SafeTextFormat("%2i fps %.03f ms %u ticks", GetFPS(), debugStats.frameDt * 1000.0f, debugStats.tick);
     PUSH_TEXT(text, LIGHTGRAY);
     text = SafeTextFormat("Kilometers walked %.2f", player->stats.kmWalked);
-    PUSH_TEXT(text, LIGHTGRAY);
-    text = SafeTextFormat("Slimes slain      %u", player->stats.slimesSlain);
-    PUSH_TEXT(text, LIGHTGRAY);
+    PUSH_TEXT(text, WHITE);
+    text = SafeTextFormat("Damage dealt      %.2f", player->stats.damageDealt);
+    PUSH_TEXT(text, RED);
     text = SafeTextFormat("Times fist swung  %u", player->stats.timesFistSwung);
-    PUSH_TEXT(text, LIGHTGRAY);
+    PUSH_TEXT(text, RED);
     text = SafeTextFormat("Times sword swung %u", player->stats.timesSwordSwung);
-    PUSH_TEXT(text, LIGHTGRAY);
+    PUSH_TEXT(text, RED);
+    text = SafeTextFormat("Slimes slain      %u", player->stats.slimesSlain);
+    PUSH_TEXT(text, GREEN);
 
     const Vector2 playerBC = player->body.GroundPosition();
     text = SafeTextFormat("World: %0.2f, %0.2f", playerBC.x, playerBC.y);
     PUSH_TEXT(text, LIGHTGRAY);
-    const int16_t playerChunkX = world.map->CalcChunk(playerBC.x);
-    const int16_t playerChunkY = world.map->CalcChunk(playerBC.y);
-    const int16_t playerTileX = world.map->CalcChunkTile(playerBC.x);
-    const int16_t playerTileY = world.map->CalcChunkTile(playerBC.y);
+    const int16_t playerChunkX = world.map.CalcChunk(playerBC.x);
+    const int16_t playerChunkY = world.map.CalcChunk(playerBC.y);
+    const int16_t playerTileX = world.map.CalcChunkTile(playerBC.x);
+    const int16_t playerTileY = world.map.CalcChunkTile(playerBC.y);
     text = SafeTextFormat("Chunk: %d, %d", playerChunkX, playerChunkY);
     PUSH_TEXT(text, LIGHTGRAY);
     text = SafeTextFormat("Tile:  %d, %d", playerTileX, playerTileY);
     PUSH_TEXT(text, LIGHTGRAY);
 
     if (debugStats.tick) {
-        text = SafeTextFormat("Tick          %u", debugStats.tick);
-        PUSH_TEXT(text, GRAY);
-        text = SafeTextFormat("frameDt       %.03f", debugStats.frameDt);
-        PUSH_TEXT(text, GRAY);
         text = SafeTextFormat("g_clock.now   %.03f", g_clock.now);
         PUSH_TEXT(text, GRAY);
         text = SafeTextFormat("timeOfDay     %s (%.03f)", g_clock.timeOfDayStr(), g_clock.timeOfDay);
         PUSH_TEXT(text, GRAY);
         text = SafeTextFormat("daylight      %.03f", g_clock.daylightPerc);
         PUSH_TEXT(text, GRAY);
-        text = SafeTextFormat("Camera speed  %.03f", debugStats.cameraSpeed);
-        PUSH_TEXT(text, GRAY);
-        text = SafeTextFormat("Zoom          %.03f", spycam->GetZoom());
-        PUSH_TEXT(text, GRAY);
-        text = SafeTextFormat("Zoom inverse  %.03f", spycam->GetInvZoom());
-        PUSH_TEXT(text, GRAY);
-        text = SafeTextFormat("Zoom mip      %d", spycam->GetZoomMipLevel());
-        PUSH_TEXT(text, GRAY);
-        text = SafeTextFormat("Tiles visible %zu", debugStats.tilesDrawn);
-        PUSH_TEXT(text, GRAY);
-        text = SafeTextFormat("Particle FX   %zu", debugStats.effectsActive);
-        PUSH_TEXT(text, GRAY);
-        text = SafeTextFormat("Particles     %zu", debugStats.particlesActive);
-        PUSH_TEXT(text, GRAY);
+        //text = SafeTextFormat("Camera speed  %.03f", debugStats.cameraSpeed);
+        //PUSH_TEXT(text, GRAY);
+        //text = SafeTextFormat("Zoom          %.03f", spycam->GetZoom());
+        //PUSH_TEXT(text, GRAY);
+        //text = SafeTextFormat("Zoom inverse  %.03f", spycam->GetInvZoom());
+        //PUSH_TEXT(text, GRAY);
+        //text = SafeTextFormat("Zoom mip      %d", spycam->GetZoomMipLevel());
+        //PUSH_TEXT(text, GRAY);
+        //text = SafeTextFormat("Tiles visible %zu", debugStats.tilesDrawn);
+        //PUSH_TEXT(text, GRAY);
+        //text = SafeTextFormat("Particle FX   %zu", debugStats.effectsActive);
+        //PUSH_TEXT(text, GRAY);
+        //text = SafeTextFormat("Particles     %zu", debugStats.particlesActive);
+        //PUSH_TEXT(text, GRAY);
     }
 
     thread_local uint64_t bytesSentStart = 0;
@@ -617,10 +601,10 @@ void UI::HUD(const Font &font, World &world, const DebugStats &debugStats)
         PUSH_TEXT(text, GRAY);
         text = SafeTextFormat("Down       %8.03f kbps", kbpsIn);
         PUSH_TEXT(text, GRAY);
-        text = SafeTextFormat("CL seq        %u", debugStats.cl_input_seq);
-        PUSH_TEXT(text, GRAY);
-        text = SafeTextFormat("SV seq ack    %u", debugStats.sv_input_ack);
-        PUSH_TEXT(text, GRAY);
+        //text = SafeTextFormat("CL seq        %u", debugStats.cl_input_seq);
+        //PUSH_TEXT(text, GRAY);
+        //text = SafeTextFormat("SV seq ack    %u", debugStats.sv_input_ack);
+        //PUSH_TEXT(text, GRAY);
         text = SafeTextFormat("input bufd    %u", debugStats.input_buf_size);
         PUSH_TEXT(text, GRAY);
     } else {
