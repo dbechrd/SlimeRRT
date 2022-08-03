@@ -260,10 +260,17 @@ void NetClient::ReconcilePlayer(void)
         return;
     }
 
+    // Client is close enough, don't re-sync to server position
+    const Vector3 localPos = player->body.WorldPosition();
+    const Vector3 serverPos = playerSnapshot->position;
+    if (v3_distance_sq(localPos, serverPos) < SQUARED(METERS_TO_PIXELS(1))) {
+        return;
+    }
+    TraceLog(LOG_DEBUG, "Too far from server pos; reconciling");
+
     // TODO: Do this more smoothly
     // Roll back local player to server snapshot location
     if (playerSnapshot->flags & PlayerSnapshot::Flags_Position) {
-        const Vector3 before = player->body.WorldPosition();
         player->body.Teleport(playerSnapshot->position);
         //TraceLog(LOG_DEBUG, "Teleporting player to %0.2f %0.2f", playerSnapshot->position.x,
         //    playerSnapshot->position.y);
@@ -308,8 +315,8 @@ void NetClient::ReconcilePlayer(void)
             }
         }
 #if CL_DEBUG_PLAYER_RECONCILIATION
-        putchar('\n');
         const Vector3 after = player->body.WorldPosition();
+        putchar('\n');
         printf(
             "Pos: %f\n"
             "     %f\n",

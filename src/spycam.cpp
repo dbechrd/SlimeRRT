@@ -98,7 +98,8 @@ void Spycam::Update(const PlayerControllerState &input, double dt)
             if (camera.rotation < 0.0f) camera.rotation += 360.0f;
         }
     }
-    camera.target = v2_add(camera.target, v2_scale(v2_sub(cameraGoal, camera.target), smoothing));
+    camera.target = cameraGoal;
+    //camera.target = v2_add(camera.target, v2_scale(v2_sub(cameraGoal, camera.target), smoothing));
     camera.target.x = floorf(camera.target.x);
     camera.target.y = floorf(camera.target.y);
 
