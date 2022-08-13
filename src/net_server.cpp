@@ -113,7 +113,7 @@ ErrorType NetServer::SendMsg(const SV_Client &client, NetMessage &message)
             case NetMessage::Type::GlobalEvent: subType = message.data.globalEvent.TypeString(); break;
             case NetMessage::Type::NearbyEvent: subType = message.data.nearbyEvent.TypeString(); break;
         }
-        TraceLog(LOG_DEBUG, "[NetServer] Send %s %s (%zu b)", message.TypeString(), subType, bytes);
+        //TraceLog(LOG_DEBUG, "[NetServer] Send %s %s (%zu b)", message.TypeString(), subType, bytes);
     }
 
     E_ASSERT(SendRaw(client, rawPacket.data, bytes), "Failed to send packet");

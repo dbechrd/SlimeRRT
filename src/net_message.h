@@ -65,8 +65,8 @@ struct NetMessage_GlobalEvent {
     {
         switch (type) {
             case Type::Unknown     : return "Unknown";
-            case Type::PlayerJoin  : return "Identify";
-            case Type::PlayerLeave : return "ChatMessage";
+            case Type::PlayerJoin  : return "PlayerJoin";
+            case Type::PlayerLeave : return "PlayerLeave";
             default: return "NetMessage_GlobalEvent::Type::???";
         }
     }

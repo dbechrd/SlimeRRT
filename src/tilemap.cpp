@@ -160,7 +160,7 @@ Chunk &Tilemap::FindOrGenChunk(World &world, int16_t chunkX, int16_t chunkY)
         return chunk;
     }
 
-    TraceLog(LOG_INFO, "Generating world chunk [%hd, %hd]", chunkX, chunkY);
+    //TraceLog(LOG_INFO, "Generating world chunk [%hd, %hd]", chunkX, chunkY);
 
     Chunk &chunk = chunks.emplace_back();
     chunk.x = chunkX;

@@ -256,7 +256,7 @@ void World::RemoveSlime(uint32_t slimeId)
         return;
     }
 
-    TraceLog(LOG_DEBUG, "RemoveSlime [%u]", slime->id);
+    //TraceLog(LOG_DEBUG, "RemoveSlime [%u]", slime->id);
     *slime = {};
 }
 

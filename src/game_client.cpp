@@ -395,7 +395,8 @@ void GameClient::PlayMode_UpdateCamera(double frameDt, PlayerControllerState &in
     if (!spycam.freeRoam) {
         Player *player = netClient.serverWorld->FindPlayer(netClient.serverWorld->playerId);
         assert(player);
-        spycam.cameraGoal = player->body.GroundPosition();
+        Vector3 wtc = player->WorldTopCenter();;
+        spycam.cameraGoal = { wtc.x, wtc.y - wtc.z };
     }
     spycam.Update(input, frameDt);
 }
