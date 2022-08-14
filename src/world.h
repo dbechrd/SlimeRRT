@@ -48,6 +48,7 @@ struct World {
 
     Player           *AddPlayer         (uint32_t playerId);
     Player           *FindPlayer        (uint32_t playerId);
+    Player           *LocalPlayer       (void);
     Player           *FindPlayerByName  (const char *name, size_t nameLength);
     Player           *FindClosestPlayer (Vector2 worldPos, float maxDist, float *distSq);
     void              RemovePlayer      (uint32_t playerId);

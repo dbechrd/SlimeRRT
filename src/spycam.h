@@ -14,6 +14,13 @@ struct Spycam {
     int   GetZoomMipLevel(void) const { return zoomMipLevel; }
     const Rectangle &GetRect(void) const { return cameraRect; }
     const Camera2D &GetCamera(void) const { return camera; }
+    Vector2 WorldToScreen(Vector2 world) const {
+        Vector2 screen{
+            world.x + camera.offset.x - camera.target.x,
+            world.y + camera.offset.y - camera.target.y
+        };
+        return screen;
+    }
 
     Vector2 cameraGoal {};
     float   cameraSpeed = CAMERA_SPEED_DEFAULT;

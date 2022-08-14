@@ -51,6 +51,7 @@ struct UI {
     static void InGameMenu(bool &escape, bool connectedToServer);
     static void InventorySlot(bool inventoryActive, int slot, const Texture &invItems, Player &player, NetClient &netClient);
     static void Inventory(const Texture &invItems, Player &player, NetClient &netClient, bool &escape, bool &inventoryActive);
+    static void Dialog(World &world);
 
 private:
     static const PlayerControllerState *input;

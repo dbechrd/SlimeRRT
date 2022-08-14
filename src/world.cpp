@@ -111,6 +111,11 @@ Player *World::FindPlayer(uint32_t playerId)
     return 0;
 }
 
+Player *World::LocalPlayer(void)
+{
+    return FindPlayer(playerId);
+}
+
 Player *World::FindPlayerByName(const char *name, size_t nameLength)
 {
     if (!name || !nameLength) {

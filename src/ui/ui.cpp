@@ -1906,3 +1906,109 @@ void UI::Inventory(const Texture &invItems, Player& player, NetClient &netClient
 
     ImGui::End();
 }
+
+void UI::Dialog(World &world)
+{
+    Player *player = world.LocalPlayer();
+    if (!player) {
+        return;
+    }
+
+    Vector2 topCenter = player->WorldTopCenter2D();
+
+    //DrawCircleLines(topCenter.x, topCenter.y - topCenter.z, 2.0f, RED);
+    //HealthBar::Dialog({ topCenter.x, topCenter.y - 10.0f },
+    //    "Damn it, I wish you people would just\n"
+    //    "leave me alone! I...\n"
+    //    "\n"
+    //    "Oh, you're new here, aren't you?\n"
+    //    "\n"
+    //    "I am Alkor, the Alchemist. I dabble in\n"
+    //    "potions and salves, andI can sell you\n"
+    //    "some if you really need them.\n"
+    //    "\n"
+    //    "But don't make a habit of coming here. I\n"
+    //    "don't like to be disturbed while I'm\n"
+    //    "studying!"
+    //);
+
+    Vector2 menuCenter = spycam->WorldToScreen(topCenter);
+    menuCenter.y -= 10.0f;
+    ImGui::SetNextWindowPos({ menuCenter.x, menuCenter.y }, 0, ImVec2(0.5f, 1.0f));
+    ImGui::SetNextWindowSize({ 0.0f, 240.0f });
+
+    ImGui::PushFont(g_fonts.imFontHack16);
+
+    thread_local float spacing = 5.0f;
+    int styleVars = 0;
+    int colVars = 0;
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 3.0f                 ); styleVars++;
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,    ImVec2(16.0f, 8.0f)  ); styleVars++;
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,      ImVec2(0.0f, spacing)); styleVars++;
+    ImGui::PushStyleColor(ImGuiCol_WindowBg,      ImVec4(0.05f, 0.05f, 0.05f, 0.7f)); colVars++;
+    ImGui::PushStyleColor(ImGuiCol_Border,        ImVec4(0.49f, 0.42f, 0.25f, 0.7f)); colVars++;
+    ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(0.3f , 0.3f , 0.3f , 0.7f)); colVars++;
+    ImGui::PushStyleColor(ImGuiCol_HeaderActive,  ImVec4(0.25f, 0.25f, 0.25f, 0.7f)); colVars++;
+
+    ImGui::Begin("Dialog", 0,
+        ImGuiWindowFlags_NoTitleBar |
+        ImGuiWindowFlags_NoResize |
+        //ImGuiWindowFlags_NoCollapse |
+        ImGuiWindowFlags_AlwaysVerticalScrollbar |
+        //ImGuiWindowFlags_NoDecoration |
+        ImGuiWindowFlags_NoMove |
+        //ImGuiWindowFlags_NoBackground |
+        ImGuiWindowFlags_NoSavedSettings
+    );
+
+    //ImGui::SliderFloat("spacing", &spacing, 0.0f, 10.0f);
+
+    ImGui::Text("Damn it, I wish you people would just");
+    ImGui::Text("leave me alone! I...");
+    ImGui::Text("");
+    ImGui::Text("Oh, you're new here, aren't you?");
+    ImGui::Text("I am ");
+    ImGui::SameLine();
+    ImGui::TextColored({ 0.8f, 0.1f, 0.1f, 1.0f }, "Alkor, the Alchemist");
+    thread_local bool alkor = false;
+    if (ImGui::IsItemClicked()) {
+        alkor = !alkor;
+    }
+    ImGui::SameLine();
+    ImGui::Text(". I dabble in");
+    if (alkor) {
+        ImGui::Separator();
+        ImGui::TextColored({ 0.5f, 0.5f, 0.5f, 1.0f }, "Alkor the Alchemist is a wonderful man");
+        ImGui::TextColored({ 0.5f, 0.5f, 0.5f, 1.0f }, "with a wonderful plan who loves to eat");
+        ImGui::TextColored({ 0.5f, 0.5f, 0.5f, 1.0f }, "cabbage on Tuesdays.");
+        ImGui::Separator();
+    }
+    ImGui::Text("potions and salves, and I can sell you");
+    ImGui::Text("some if you really need them.");
+    ImGui::Text("");
+    ImGui::Text("But don't make a habit of coming here. I");
+    ImGui::Text("don't like to be disturbed while I'm");
+    ImGui::Text("studying!");
+    ImGui::Text("");
+
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8.0f, 8.0f));
+    ImGui::Separator();
+    ImGui::Selectable("##unique_id");
+    ImGui::SameLine();
+    ImGui::TextColored({ 0.1f, 0.7f, 0.1f, 1.0f }, "Nice to meet you!");
+    ImGui::Separator();
+    ImGui::Selectable("##unique_id");
+    ImGui::SameLine();
+    ImGui::TextColored({ 0.7f, 0.7f, 0.7f, 1.0f }, "Cool... I have to run.");
+    ImGui::Separator();
+    ImGui::Selectable("##unique_id");
+    ImGui::SameLine();
+    ImGui::TextColored({ 0.7f, 0.1f, 0.1f, 1.0f }, "You're annoying, old man!");
+    ImGui::Separator();
+    ImGui::PopStyleVar();
+
+    ImGui::End();
+    ImGui::PopStyleVar(styleVars);
+    ImGui::PopStyleColor(colVars);
+    ImGui::PopFont();
+}

@@ -295,12 +295,13 @@ struct Player : Drawable {
     PlayerInventory inventory   {};
     Stats           stats       {};
 
-    void              Init            (void);
-    Vector3           WorldCenter     (void) const;
-    Vector3           WorldTopCenter  (void) const;
-    Vector3           GetAttachPoint  (AttachPoint attachPoint) const;
-    const ItemStack&  GetSelectedItem (void) const;
-    void              Update          (InputSample &input, const Tilemap &map);
+    void              Init             (void);
+    Vector3           WorldCenter      (void) const;
+    Vector3           WorldTopCenter3D (void) const;
+    Vector2           WorldTopCenter2D (void) const;
+    Vector3           GetAttachPoint   (AttachPoint attachPoint) const;
+    const ItemStack&  GetSelectedItem  (void) const;
+    void              Update           (InputSample &input, const Tilemap &map);
 
     float Depth (void) const;
     bool  Cull  (const Rectangle& cullRect) const;

@@ -395,8 +395,8 @@ void GameClient::PlayMode_UpdateCamera(double frameDt, PlayerControllerState &in
     if (!spycam.freeRoam) {
         Player *player = netClient.serverWorld->FindPlayer(netClient.serverWorld->playerId);
         assert(player);
-        Vector3 wtc = player->WorldTopCenter();;
-        spycam.cameraGoal = { wtc.x, wtc.y - wtc.z };
+        Vector2 wtc = player->WorldTopCenter2D();
+        spycam.cameraGoal = { wtc.x, wtc.y };
     }
     spycam.Update(input, frameDt);
 }
@@ -484,6 +484,8 @@ void GameClient::PlayMode_DrawWorld(PlayerControllerState &input)
         }
     }
 #endif
+
+    UI::Dialog(*netClient.serverWorld);
 
     EndMode2D();
 }

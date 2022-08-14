@@ -53,10 +53,17 @@ Vector3 Player::WorldCenter(void) const
     return worldC;
 }
 
-Vector3 Player::WorldTopCenter(void) const
+Vector3 Player::WorldTopCenter3D(void) const
 {
-    Vector3 worldTopC = v3_add(body.WorldPosition(), sprite_top_center(sprite));
-    return worldTopC;
+    Vector3 worldTopC3D = v3_add(body.WorldPosition(), sprite_top_center(sprite));
+    return worldTopC3D;
+}
+
+Vector2 Player::WorldTopCenter2D(void) const
+{
+    Vector3 worldTopC3D = WorldTopCenter3D();
+    Vector2 worldTopC2D = { worldTopC3D.x, worldTopC3D.y - worldTopC3D.z };
+    return worldTopC2D;
 }
 
 Vector3 Player::GetAttachPoint(AttachPoint attachPoint) const
@@ -462,22 +469,6 @@ void Player::Draw(World &world) const
 
     PlayerInfo *playerInfo = world.FindPlayerInfo(id);
     assert(playerInfo);
-    Vector3 topCenter = WorldTopCenter();
-    HealthBar::Draw({ topCenter.x, topCenter.y - topCenter.z }, playerInfo->name, combat);
-
-    //DrawCircleLines(topCenter.x, topCenter.y - topCenter.z, 2.0f, RED);
-    HealthBar::Dialog({ topCenter.x, topCenter.y - topCenter.z - 10.0f },
-        "Damn it, I wish you people would just\n"
-        "leave me alone! I...\n"
-        "\n"
-        "Oh, you're new here, aren't you?\n"
-        "\n"
-        "I am Alkor, the Alchemist. I dabble in\n"
-        "potions and salves, andI can sell you\n"
-        "some if you really need them.\n"
-        "\n"
-        "But don't make a habit of coming here. I\n"
-        "don't like to be disturbed while I'm\n"
-        "studying!"
-    );
+    Vector2 topCenter = WorldTopCenter2D();
+    HealthBar::Draw({ topCenter.x, topCenter.y }, playerInfo->name, combat);
 }
