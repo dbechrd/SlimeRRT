@@ -1009,7 +1009,7 @@ bool UI::BreadcrumbButton(const char *label, Menu menu, bool *escape)
 {
     ImGui::PushFont(g_fonts.imFontHack16);
     if (!label[0]) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
-    ImGui::Button(label);
+    ImGui::Button(*label ? label : "##breadcrumb");
     if (!label[0]) ImGui::PopStyleColor(1);
     bool pressed = (ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
         ImGui::IsMouseHoveringRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax()));
@@ -1682,8 +1682,10 @@ void UI::InventorySlot(bool inventoryActive, int slot, const Texture &invItems, 
         Vector2 uv0{};
         Vector2 uv1{};
         player.inventory.TexRect(invItems, invStack.itemType, uv0, uv1);
-        ImGui::ImageButton((ImTextureID)(size_t)invItems.id, ImVec2(ITEM_W, ITEM_H),
-            ImVec2{ uv0.x, uv0.y }, ImVec2{ uv1.x, uv1.y });
+        // padding: ImVec2(ITEM_W, ITEM_H)
+        ImGui::PushID(slot);
+        ImGui::ImageButton("##invSlotButton", (ImTextureID)(size_t)invItems.id, ImVec2{ uv0.x, uv0.y }, ImVec2{ uv1.x, uv1.y });
+        ImGui::PopID();
 
         if (Catalog::g_items.Find(invStack.itemType).stackLimit > 1) {
             const ImVec2 topLeft = ImGui::GetItemRectMin();

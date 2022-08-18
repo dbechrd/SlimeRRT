@@ -94,26 +94,26 @@ void HealthBar::Draw(const Vector2 &topCenter, const char *name, const Combat &c
 
 void HealthBar::Dialog(const Vector2 &topCenter, const char *text)
 {
-    const int fontSize = s_font.baseSize;
-    assert(fontSize);
+    //const int fontSize = s_font.baseSize;
+    //assert(fontSize);
 
-    Vector2 pad{ 16.0f, 8.0f };
+    //Vector2 pad{ 16.0f, 8.0f };
 
-    Rectangle rect{};
-    Vector2 measure = MeasureTextEx(s_font, text, (float)fontSize, 1.0f);
-    rect.x = topCenter.x - measure.x / 2.0f;
-    rect.y = topCenter.y - measure.y;
-    rect.width = measure.x;
-    rect.height = measure.y;
+    //Rectangle rect{};
+    //Vector2 measure = MeasureTextEx(s_font, text, (float)fontSize, 1.0f);
+    //rect.x = topCenter.x - measure.x / 2.0f;
+    //rect.y = topCenter.y - measure.y;
+    //rect.width = measure.x;
+    //rect.height = measure.y;
 
-    Rectangle bgRect{};
-    bgRect.x = rect.x - pad.x;
-    bgRect.y = rect.y - pad.y;
-    bgRect.width = rect.width + pad.x * 2.0f;
-    bgRect.height = rect.height + pad.y * 2.0f;
+    //Rectangle bgRect{};
+    //bgRect.x = rect.x - pad.x;
+    //bgRect.y = rect.y - pad.y;
+    //bgRect.width = rect.width + pad.x * 2.0f;
+    //bgRect.height = rect.height + pad.y * 2.0f;
 
-    // Draw background
-    DrawRectangleRec(bgRect, Fade(BLACK, 0.5f));
-    DrawTextFont(s_font, text, rect.x, rect.y, 0, 0, fontSize, WHITE);
-    DrawRectangleLinesEx(bgRect, 3, { 125, 108, 63, 255 });
+    //// Draw background
+    //DrawRectangleRec(bgRect, Fade(BLACK, 0.5f));
+    //DrawTextFont(s_font, text, rect.x, rect.y, 0, 0, fontSize, WHITE);
+    //DrawRectangleLinesEx(bgRect, 3, { 125, 108, 63, 255 });
 }
