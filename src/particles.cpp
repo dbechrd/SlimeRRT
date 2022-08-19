@@ -62,6 +62,7 @@ ParticleEffect *ParticleSystem::GenerateEffect(Catalog::ParticleEffectID type, V
     assert(par.durationMax >= par.durationMin);
 
     const Catalog::ParticleEffectDef &pfx = Catalog::g_particleFx.FindById(type);
+    assert(pfx.init);
     if (!pfx.init) {
         return 0;
     }
@@ -169,6 +170,11 @@ void ParticleSystem::Update(double dt)
         } else if (alpha >= 1.0f) {
             effect.particlesLeft--;
 
+            const ParticleEffect_ParticleCallback &died = effect.particleCallbacks[(size_t)ParticleEffect_ParticleEvent::Died];
+            if (died.callback) {
+                died.callback(particle, died.userData);
+            }
+
             // Return particle to free list
             particle = {};
             particle.next = particlesFree;
@@ -207,7 +213,7 @@ void ParticleSystem::PushAll(DrawList &drawList)
     assert(particlesActiveCount <= MAX_PARTICLES);
 
     for (size_t i = 0; i < MAX_PARTICLES; i++) {
-        const Particle &particle = particles[i];
+        Particle &particle = particles[i];
         if (!particle.alive)
             continue;  // particle is dead
 
@@ -236,16 +242,21 @@ bool Particle::Cull(const Rectangle &cullRect) const
     return cull;
 }
 
-void Particle::Draw(World &world) const
+void Particle::Draw(World &world)
 {
-    if (sprite.spriteDef) {
-        sprite_draw_body(sprite, body, color);
+    const ParticleEffect_ParticleCallback &draw = effect->particleCallbacks[(size_t)ParticleEffect_ParticleEvent::Draw];
+    if (draw.callback) {
+        draw.callback(*this, draw.userData);
     } else {
-        const Vector3 pos = body.WorldPosition();
-        const float halfW = sprite.scale / 2.0f;
-        DrawRectangleRec({ pos.x - halfW, pos.y - pos.z - halfW, sprite.scale, sprite.scale }, color);
-        //DrawCircleSector({ pos.x, pos.y - pos.z }, sprite.scale, 0.0f, 360.0f, 12, color);
-        //DrawCircleSectorLines({ pos.x, pos.y - pos.z }, sprite.scale, 0.0f, 360.0f, 12, Fade(BLACK, color.a / 255.0f));
+        if (sprite.spriteDef) {
+            sprite_draw_body(sprite, body, color);
+        } else {
+            const Vector3 pos = body.WorldPosition();
+            const float halfW = sprite.scale / 2.0f;
+            DrawRectangleRec({ pos.x - halfW, pos.y - pos.z - halfW, sprite.scale, sprite.scale }, color);
+            //DrawCircleSector({ pos.x, pos.y - pos.z }, sprite.scale, 0.0f, 360.0f, 12, color);
+            //DrawCircleSectorLines({ pos.x, pos.y - pos.z }, sprite.scale, 0.0f, 360.0f, 12, Fade(BLACK, color.a / 255.0f));
+        }
     }
 }
 
@@ -254,4 +265,18 @@ void ParticlesFollowPlayerGut(ParticleEffect &effect, void *userData)
     assert(userData);
     Player *player = (Player *)userData;
     effect.origin = player->GetAttachPoint(Player::AttachPoint::Gut);
+}
+
+void ParticleDrawText(Particle &particle, void *userData)
+{
+    assert(userData);
+    const char *text = (const char *)userData;
+    UI::ParticleText(particle.body.VisualPosition(), text);
+}
+
+void ParticleFreeText(ParticleEffect &effect, void *userData)
+{
+    assert(userData);
+    char *text = (char *)userData;
+    free(text);
 }

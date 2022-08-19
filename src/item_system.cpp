@@ -170,7 +170,7 @@ void ItemSystem::DespawnDeadEntities(double pickupDespawnDelay)
 
 void ItemSystem::PushAll(DrawList &drawList)
 {
-    for (const ItemWorld &item : items) {
+    for (ItemWorld &item : items) {
         if (item.stack.itemType) {
             drawList.Push(item);
         }

@@ -21,7 +21,7 @@ void DrawList::DisableCulling()
     cullEnabled = false;
 }
 
-void DrawList::Push(const Drawable &drawable)
+void DrawList::Push(Drawable &drawable)
 {
     // TODO: Check this before calling push
     //if (!drawable.sprite.spriteDef) {

@@ -305,7 +305,7 @@ struct Player : Drawable {
 
     float Depth (void) const;
     bool  Cull  (const Rectangle& cullRect) const;
-    void  Draw  (World &world) const;
+    void  Draw  (World &world);
 
 private:
     void UpdateDirection (Vector2 offset);

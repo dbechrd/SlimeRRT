@@ -7,10 +7,11 @@ namespace Catalog {
     enum class ParticleEffectID {
         Empty,
         Blood,
-        Gem,
         Copper,
+        Gem,
         GoldenChest,
         Goo,
+        Number,
         Rainbow,
         Count
     };

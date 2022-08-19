@@ -823,13 +823,13 @@ void World::DrawItems(void)
 
 void World::DrawEntities(void)
 {
-    for (const Player &player : players) {
+    for (Player &player : players) {
         if (player.id) {
             drawList.Push(player);
         }
     }
 
-    for (const Slime &slime : slimes) {
+    for (Slime &slime : slimes) {
         if (slime.id) {
             drawList.Push(slime);
         }

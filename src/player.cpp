@@ -437,7 +437,7 @@ void Player::DrawSwimOverlay(const World &world) const
     }
 }
 
-void Player::Draw(World &world) const
+void Player::Draw(World &world)
 {
     // Player shadow
     // TODO: Shadow size based on height from ground

@@ -629,12 +629,34 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                             Catalog::g_sounds.Play(Catalog::SoundID::Squish2, 0.5f + dlb_rand32f_variance(0.1f), true);
                         } else if (slime->combat.hitPoints > enemySnapshot.hitPoints) {
                             // Took damage
+                            float dmg = slime->combat.hitPoints - enemySnapshot.hitPoints;
+
                             ParticleEffectParams gooParams{};
                             gooParams.particleCountMin = 5;
                             gooParams.particleCountMax = gooParams.particleCountMin;
                             gooParams.durationMin = 0.5f;
                             gooParams.durationMax = gooParams.durationMin;
                             serverWorld->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Goo, slime->WorldCenter(), gooParams);
+
+                            ParticleEffectParams dmgParams{};
+                            dmgParams.particleCountMin = 1;
+                            dmgParams.particleCountMax = dmgParams.particleCountMin;
+                            dmgParams.durationMin = 1.0f;
+                            dmgParams.durationMax = dmgParams.durationMin;
+                            ParticleEffect *dmgFx = serverWorld->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Number, slime->WorldCenter(), dmgParams);
+                            if (dmgFx) {
+                                char *text = (char *)calloc(1, 8);
+                                snprintf(text, 16, "%.f", dmg);
+                                dmgFx->particleCallbacks[(size_t)ParticleEffect_ParticleEvent::Draw] = {
+                                    ParticleDrawText,
+                                    text
+                                };
+                                dmgFx->effectCallbacks[(size_t)ParticleEffect_Event::Dying] = {
+                                    ParticleFreeText,
+                                    text
+                                };
+                            }
+
                             Catalog::g_sounds.Play(Catalog::SoundID::Slime_Stab1, 1.0f + dlb_rand32f_variance(0.4f));
                         }
                     }

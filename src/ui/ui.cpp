@@ -1682,10 +1682,10 @@ void UI::InventorySlot(bool inventoryActive, int slot, const Texture &invItems, 
         Vector2 uv0{};
         Vector2 uv1{};
         player.inventory.TexRect(invItems, invStack.itemType, uv0, uv1);
-        // padding: ImVec2(ITEM_W, ITEM_H)
-        ImGui::PushID(slot);
+
+        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(ITEM_W - 8.0f, ITEM_H - 8.0f));
         ImGui::ImageButton("##invSlotButton", (ImTextureID)(size_t)invItems.id, ImVec2{ uv0.x, uv0.y }, ImVec2{ uv1.x, uv1.y });
-        ImGui::PopID();
+        ImGui::PopStyleVar();
 
         if (Catalog::g_items.Find(invStack.itemType).stackLimit > 1) {
             const ImVec2 topLeft = ImGui::GetItemRectMin();
@@ -1911,6 +1911,8 @@ void UI::Inventory(const Texture &invItems, Player& player, NetClient &netClient
 
 void UI::Dialog(World &world)
 {
+    return;
+
     Player *player = world.LocalPlayer();
     if (!player) {
         return;
@@ -2013,4 +2015,48 @@ void UI::Dialog(World &world)
     ImGui::PopStyleVar(styleVars);
     ImGui::PopStyleColor(colVars);
     ImGui::PopFont();
+}
+
+void UI::ParticleText(Vector2 pos, const char *text)
+{
+#if 1
+    Font font = g_fonts.fontSmall;
+    DrawTextFont(font, text, pos.x, pos.y, 0, 0, font.baseSize, RED);
+#else
+    Vector2 posScreen = spycam->WorldToScreen(pos);
+    //menuCenter.y -= 10.0f;
+    ImGui::SetNextWindowPos({ posScreen.x, posScreen.y }, 0, ImVec2(0.5f, 1.0f));
+    //ImGui::SetNextWindowSize({ 0.0f, 240.0f });
+
+    ImGui::PushFont(g_fonts.imFontHack16);
+
+    thread_local float spacing = 5.0f;
+    int styleVars = 0;
+    int colVars = 0;
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 3.0f); styleVars++;
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(16.0f, 8.0f)); styleVars++;
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, spacing)); styleVars++;
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.05f, 0.05f, 0.05f, 0.7f)); colVars++;
+    ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(0.49f, 0.42f, 0.25f, 0.7f)); colVars++;
+    ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(0.3f, 0.3f, 0.3f, 0.7f)); colVars++;
+    ImGui::PushStyleColor(ImGuiCol_HeaderActive, ImVec4(0.25f, 0.25f, 0.25f, 0.7f)); colVars++;
+
+    ImGui::Begin("##ParticleText", 0,
+        ImGuiWindowFlags_NoTitleBar |
+        ImGuiWindowFlags_NoResize |
+        //ImGuiWindowFlags_NoCollapse |
+        ImGuiWindowFlags_AlwaysVerticalScrollbar |
+        //ImGuiWindowFlags_NoDecoration |
+        ImGuiWindowFlags_NoMove |
+        //ImGuiWindowFlags_NoBackground |
+        ImGuiWindowFlags_NoSavedSettings
+    );
+
+    ImGui::Text(text);
+
+    ImGui::End();
+    ImGui::PopStyleVar(styleVars);
+    ImGui::PopStyleColor(colVars);
+    ImGui::PopFont();
+#endif
 }

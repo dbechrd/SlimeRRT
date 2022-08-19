@@ -52,6 +52,7 @@ struct UI {
     static void InventorySlot(bool inventoryActive, int slot, const Texture &invItems, Player &player, NetClient &netClient);
     static void Inventory(const Texture &invItems, Player &player, NetClient &netClient, bool &escape, bool &inventoryActive);
     static void Dialog(World &world);
+    static void ParticleText(Vector2 pos, const char *text);
 
 private:
     static const PlayerControllerState *input;

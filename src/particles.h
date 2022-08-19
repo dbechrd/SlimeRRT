@@ -12,6 +12,7 @@ struct Particle : Drawable {
     Particle       *next    {};  // when alive, next particle in effect. when dead, intrusive free list.
     Body3D          body    {};  // physics body
     Sprite          sprite  {};
+    const char      *text   {};  // text to render (instead of sprite)
     Color           color   {};  // particle color (tint if particle also has sprite)
     double          spawnAt {};  // time to spawn
     bool            alive   {};  // currently alive
@@ -19,7 +20,7 @@ struct Particle : Drawable {
 
     float Depth(void) const;
     bool  Cull(const Rectangle& cullRect) const;
-    void  Draw(World &world) const;
+    void  Draw(World &world);
 };
 
 //-----------------------------------------------------------------------------
@@ -32,6 +33,8 @@ enum class ParticleEffect_Event {
 
 enum class ParticleEffect_ParticleEvent {
     AfterUpdate,
+    Draw,
+    Died,
     Count
 };
 
@@ -76,7 +79,7 @@ struct ParticleEffect {
     ParticleEffect            *next         {};  // when dead, intrusive free list
 
     ParticleEffect_Callback effectCallbacks[(size_t)ParticleEffect_Event::Count]{};
-    ParticleEffect_ParticleCallback particleCallbacks[(size_t)ParticleEffect_Event::Count]{};
+    ParticleEffect_ParticleCallback particleCallbacks[(size_t)ParticleEffect_ParticleEvent::Count]{};
 };
 
 //-----------------------------------------------------------------------------
@@ -112,3 +115,5 @@ private:
 //-----------------------------------------------------------------------------
 
 void ParticlesFollowPlayerGut(ParticleEffect &effect, void *userData);
+void ParticleDrawText(Particle &particle, void *userData);
+void ParticleFreeText(ParticleEffect &effect, void *userData);
