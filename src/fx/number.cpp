@@ -16,14 +16,14 @@ namespace FX {
         particle.dieAt = effect.startedAt + effect.duration - (effect.duration * dlb_rand32f_variance(0.15f));
         assert(particle.dieAt > particle.spawnAt);
 
-        float px = METERS_TO_PIXELS(dlb_rand32f_variance(0.2f));
-        float py = METERS_TO_PIXELS(dlb_rand32f_variance(0.0f));
-        float vz = METERS_TO_PIXELS(dlb_rand32f_range(1.0f, 2.0f));
-        particle.body.Teleport({ px, py, METERS_TO_PIXELS(1.0f) });
+        float vx = METERS_TO_PIXELS(dlb_rand32f_variance(0.5f));
+        float vy = METERS_TO_PIXELS(dlb_rand32f_variance(0.5f));
+        float vz = METERS_TO_PIXELS(dlb_rand32f_range(4.0f, 5.0f));
+        particle.body.Teleport({ vx, vy, 0 });
         particle.body.velocity = { 0, 0, vz };
-        particle.body.restitution = 0.95f;
-        particle.body.friction = 0.1f;
-        particle.body.gravityScale = 0.0f;
+        particle.body.restitution = 0.5f;
+        particle.body.friction = 0.5f;
+        particle.body.gravityScale = 1.3f;
 
         //particle.position = (Vector2){ 0.0f, 0.0f };
         particle.color = WHITE;

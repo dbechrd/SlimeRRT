@@ -2017,8 +2017,10 @@ void UI::Dialog(World &world)
 void UI::ParticleText(Vector2 pos, const char *text)
 {
 #if 1
-    Font font = g_fonts.fontSmall;
-    DrawTextFont(font, text, pos.x, pos.y, 0, 0, font.baseSize, RED);
+    Font font = g_fonts.fontBig;
+    int fontSize = 24;
+    Vector2 size = MeasureTextEx(font, text, (float)fontSize, 1.0f);
+    DrawTextFont(font, text, pos.x - size.x * 0.5f, pos.y - size.y, 0, 0, fontSize, RED);
 #else
     Vector2 posScreen = spycam->WorldToScreen(pos);
     //menuCenter.y -= 10.0f;

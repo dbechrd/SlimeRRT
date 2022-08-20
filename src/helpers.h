@@ -91,7 +91,7 @@
 #if 1
 #define SV_PLAYER_NEARBY_THRESHOLD  METERS_TO_PIXELS(20.0f)  // how close a player has to be to appear in your snapshot
 #define SV_ENEMY_NEARBY_THRESHOLD   METERS_TO_PIXELS(20.0f)  // how close an enemy has to be to appear in your snapshot
-#define SV_ENEMY_MIN_SPAWN_DIST     METERS_TO_PIXELS(15.0f)  // closest enemies can spawn to a player
+#define SV_ENEMY_MIN_SPAWN_DIST     METERS_TO_PIXELS(5.0f)//METERS_TO_PIXELS(15.0f)  // closest enemies can spawn to a player
 #define SV_ENEMY_DESPAWN_RADIUS     METERS_TO_PIXELS(40.0f)  // furthest enemies can be from a player before despawning
 #define SV_ITEM_NEARBY_THRESHOLD    METERS_TO_PIXELS(20.0f)  // how close an item has to be to receive a snapshot
 #else

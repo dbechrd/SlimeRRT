@@ -639,9 +639,9 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                             serverWorld->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Goo, slime->WorldCenter(), gooParams);
 
                             ParticleEffectParams dmgParams{};
-                            dmgParams.particleCountMin = 1;
+                            dmgParams.particleCountMin = (int)floorf(log10f(dmg)) + 1;
                             dmgParams.particleCountMax = dmgParams.particleCountMin;
-                            dmgParams.durationMin = 1.0f;
+                            dmgParams.durationMin = 3.0f;
                             dmgParams.durationMax = dmgParams.durationMin;
                             ParticleEffect *dmgFx = serverWorld->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Number, slime->WorldCenter(), dmgParams);
                             if (dmgFx) {
