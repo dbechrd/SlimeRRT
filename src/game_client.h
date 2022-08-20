@@ -31,7 +31,6 @@ private:
 
     // Other important stuff
     Vector2 screenSize {};
-    Spycam  spycam     {};
 
     // Other random stuff
     size_t tilesDrawn {};

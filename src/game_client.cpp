@@ -154,7 +154,7 @@ void GameClient::Init(void)
     }
 
     LoadingScreen("Loading Cameras...");
-    spycam.Init({ screenSize.x * 0.5f, screenSize.y * 0.5f });
+    g_spycam.Init({ screenSize.x * 0.5f, screenSize.y * 0.5f });
 
     LoadingScreen("Loading Audio Devices...");
     InitAudioDevice();
@@ -215,7 +215,7 @@ void GameClient::PlayMode_PollController(PlayerControllerState &input)
     ImGuiIO &io = ImGui::GetIO();
     const bool processKeyboard = !io.WantCaptureKeyboard;
     const bool processMouse = !io.WantCaptureKeyboard && !io.WantCaptureMouse;
-    input.Query(processMouse, processKeyboard, spycam.freeRoam);
+    input.Query(processMouse, processKeyboard, g_spycam.freeRoam);
 }
 
 ErrorType GameClient::PlayMode_Network()
@@ -273,7 +273,7 @@ void GameClient::PlayMode_HandleInput(PlayerControllerState &input)
 #if CL_PIXEL_FIXER
         SetShaderValue(pixelFixer, pixelFixerScreenSizeUniformLoc, &screenSize, SHADER_UNIFORM_VEC2);
 #endif
-        spycam.Reset();
+        g_spycam.Reset();
     }
 
     if (input.dbgToggleVsync) {
@@ -392,27 +392,27 @@ void GameClient::PlayMode_Update(double frameDt, PlayerControllerState &input)
 
 void GameClient::PlayMode_UpdateCamera(double frameDt, PlayerControllerState &input)
 {
-    if (!spycam.freeRoam) {
+    if (!g_spycam.freeRoam) {
         Player *player = netClient.serverWorld->FindPlayer(netClient.serverWorld->playerId);
         assert(player);
         Vector2 wtc = player->WorldTopCenter2D();
-        spycam.cameraGoal = { wtc.x, wtc.y };
+        g_spycam.cameraGoal = { wtc.x, wtc.y };
     }
-    spycam.Update(input, frameDt);
+    g_spycam.Update(input, frameDt);
 }
 
 void GameClient::PlayMode_DrawWorld(PlayerControllerState &input)
 {
-    Camera2D cam = spycam.GetCamera();
+    Camera2D cam = g_spycam.GetCamera();
     BeginMode2D(cam);
 
-    Rectangle cameraRect = spycam.GetRect();
+    Rectangle cameraRect = g_spycam.GetRect();
     netClient.serverWorld->EnableCulling(cameraRect);
 
 #if CL_PIXEL_FIXER
     BeginShaderMode(pixelFixer);
 #endif
-    tilesDrawn = netClient.serverWorld->DrawMap(spycam);
+    tilesDrawn = netClient.serverWorld->DrawMap(g_spycam);
 #if CL_PIXEL_FIXER
     EndShaderMode();
 #endif
@@ -514,7 +514,7 @@ void GameClient::PlayMode_DrawScreen(double frameDt, PlayerControllerState &inpu
 #if SHOW_DEBUG_STATS
     debugStats.tick = netClient.serverWorld->tick;
     debugStats.frameDt = frameDt;
-    debugStats.cameraSpeed = spycam.cameraSpeed;
+    debugStats.cameraSpeed = g_spycam.cameraSpeed;
     debugStats.tilesDrawn = tilesDrawn;
     debugStats.effectsActive = netClient.serverWorld->particleSystem.EffectsActive();
     debugStats.particlesActive = netClient.serverWorld->particleSystem.ParticlesActive();
@@ -568,7 +568,7 @@ ErrorType GameClient::Run(void)
             PlayMode_Update(frameDt, input);
             PlayMode_UpdateCamera(frameDt, input);
         }
-        UI::Update(input, screenSize, &spycam);
+        UI::Update(input, screenSize, &g_spycam);
 
         // Render prepare
         BeginDrawing();

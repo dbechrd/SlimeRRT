@@ -8,12 +8,11 @@
 #include "particles.h"
 #include "player.h"
 #include "slime.h"
+#include "spycam.h"
 #include "tilemap.h"
 #include "world_snapshot.h"
 #include "dlb_rand.h"
 #include <vector>
-
-struct Spycam;
 
 struct World {
     uint64_t       rtt_seed       {};
@@ -32,7 +31,7 @@ struct World {
     Tilemap      & map            { mapSystem.Alloc() };
     ParticleSystem particleSystem {};
     ChatHistory    chatHistory    {};
-    bool           peaceful       {};
+    bool           peaceful       { true };
     bool           pvp            { true };
 
     World  (void);

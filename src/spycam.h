@@ -33,3 +33,5 @@ private:
     int       zoomMipLevel {};
     float     smoothing    = 0.2f;
 };
+
+extern Spycam g_spycam;

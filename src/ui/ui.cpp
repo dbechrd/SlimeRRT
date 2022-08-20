@@ -1878,7 +1878,7 @@ void UI::Inventory(const Texture &invItems, Player& player, NetClient &netClient
             drawList->AddRectFilled(
                 ImVec2(dstRect.x - (ITEM_W / 2), dstRect.y - (ITEM_H / 2)),
                 ImVec2(dstRect.x + (ITEM_W / 2), dstRect.y + (ITEM_H / 2)),
-                IM_COL32(PINK.r, PINK.g, PINK.b, PINK.a)
+                ImColor(PINK.r, PINK.g, PINK.b, PINK.a)
             );
         }
 #else

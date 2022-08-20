@@ -1,7 +1,8 @@
 #include "shadow.h"
 #include "raylib/raylib.h"
 
-void Shadow::Draw(int x, int y, float radius, float yOffset)
+void Shadow::Draw(Vector3 pos, float radius, float yOffset)
 {
-    DrawEllipse(x, y + (int)yOffset, radius, radius / 2.0f, Fade(BLACK, 0.5f));
+    const float scale = MAX(0.1f, 1.0f - pos.z / METERS_TO_PIXELS(2));
+    DrawEllipse((int)pos.x, (int)(pos.y + yOffset), radius * scale, radius * scale * 0.5f, Fade(BLACK, 0.5f));
 }

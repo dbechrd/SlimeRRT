@@ -217,12 +217,11 @@ bool Slime::Cull(const Rectangle &cullRect) const
 
 void Slime::Draw(World &world)
 {
-    const Vector2 slimeBC = body.GroundPosition();
+    const Vector3 worldPos = body.WorldPosition();
     if (combat.hitPoints) {
-        // TODO: Shadow size based on height from ground
+        // Shadow size based on height from ground
         // https://yal.cc/top-down-bouncing-loot-effects/
-        //const float shadowScale = 1.0f + transform.position.z / 20.0f;
-        Shadow::Draw((int)slimeBC.x, (int)slimeBC.y, 16.0f * sprite.scale, -8.0f * sprite.scale);
+        Shadow::Draw(worldPos, 16.0f * sprite.scale, -8.0f * sprite.scale);
 
         sprite_draw_body(sprite, body, Fade(WHITE, 0.7f));
         Vector3 topCenter = WorldTopCenter();
@@ -238,7 +237,9 @@ void Slime::Draw(World &world)
         }
 #endif
     } else {
-        const float radius = 5.0f;
-        DrawRectangleRec({ slimeBC.x - radius, slimeBC.y - radius, radius * 2, radius * 2 }, RED);
+        //const float radius = 5.0f;
+        //DrawRectangleRec({ slimeBC.x - radius, slimeBC.y - radius, radius * 2, radius * 2 }, RED);
+        body.Teleport({ worldPos.x, worldPos.y, 0 });
+        sprite_draw_body(sprite, body, Fade(DARKGREEN, 0.7f));
     }
 }
