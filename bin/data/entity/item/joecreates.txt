@@ -1,5 +1,5 @@
 # spritesheet <frame_count> <animation_count> <sprite_count> <texture_path>
-spritesheet 4 4 4 data/img/itm/items.png
+spritesheet 4 4 4 data/texture/item/joecreates.png
 
 # frame <name> <x> <y> <width> <height>
 # row 1 (gems)

@@ -324,7 +324,7 @@ Token Scanner::ParseIdentifier()
 bool Scanner::ParseHeader(Spritesheet &spritesheet)
 {
 #define USAGE "  Usage: spritesheet <frame_count> <animation_count> <sprite_count> <texture_path>\n" \
-              "Example: spritesheet 8 1 1 data/img/sht/coin_gold.png\n"
+              "Example: spritesheet 8 1 1 data/texture/item/coin_copper.png\n"
 
     int frameCount = 0;
     int animationCount = 0;

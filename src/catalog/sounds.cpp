@@ -24,16 +24,16 @@ namespace Catalog {
     void Sounds::Load(void)
     {
         byId[(size_t)SoundID::Empty          ] = MissingOggSound();
-        byId[(size_t)SoundID::Footstep       ] = LoadSound("data/sfx/footstep1.ogg");
-        byId[(size_t)SoundID::Gold           ] = LoadSound("data/sfx/gold1.ogg");
-        byId[(size_t)SoundID::Slime_Stab1    ] = LoadSound("data/sfx/slime_stab1.ogg");
-        byId[(size_t)SoundID::Squeak         ] = LoadSound("data/sfx/squeak1.ogg");
-        byId[(size_t)SoundID::Squish1        ] = LoadSound("data/sfx/squish1.ogg");
-        byId[(size_t)SoundID::Squish2        ] = LoadSound("data/sfx/squish2.ogg");
-        byId[(size_t)SoundID::Whoosh         ] = LoadSound("data/sfx/whoosh1.ogg");
-        byId[(size_t)SoundID::GemBounce      ] = LoadSound("data/sfx/gem_bounce.wav");
-        byId[(size_t)SoundID::Eughh          ] = LoadSound("data/sfx/eughh.ogg");
-        byId[(size_t)SoundID::RainbowSparkles] = LoadSound("data/sfx/rainbow_sparkles.ogg");
+        byId[(size_t)SoundID::Footstep       ] = LoadSound("data/audio/sound/footstep1.ogg");
+        byId[(size_t)SoundID::Gold           ] = LoadSound("data/audio/sound/gold1.ogg");
+        byId[(size_t)SoundID::Slime_Stab1    ] = LoadSound("data/audio/sound/slime_stab1.ogg");
+        byId[(size_t)SoundID::Squeak         ] = LoadSound("data/audio/sound/squeak1.ogg");
+        byId[(size_t)SoundID::Squish1        ] = LoadSound("data/audio/sound/squish1.ogg");
+        byId[(size_t)SoundID::Squish2        ] = LoadSound("data/audio/sound/squish2.ogg");
+        byId[(size_t)SoundID::Whoosh         ] = LoadSound("data/audio/sound/whoosh1.ogg");
+        byId[(size_t)SoundID::GemBounce      ] = LoadSound("data/audio/sound/gem_bounce.wav");
+        byId[(size_t)SoundID::Eughh          ] = LoadSound("data/audio/sound/eughh.ogg");
+        byId[(size_t)SoundID::RainbowSparkles] = LoadSound("data/audio/sound/rainbow_sparkles.ogg");
 
         for (size_t i = 0; i < (size_t)SoundID::Count; i++) {
             mixer.volumeLimit[i] = 1.0f;

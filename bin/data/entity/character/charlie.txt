@@ -1,5 +1,5 @@
 # spritesheet <frame_count> <animation_count> <sprite_count> <texture_path>
-spritesheet 26 26 5 data/img/sht/chr/charlie.png
+spritesheet 26 26 5 data/texture/character/charlie.png
 
 # frame <name> <x> <y> <width> <height>
 # row 1 (empty hand)

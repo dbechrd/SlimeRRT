@@ -9,7 +9,7 @@ static void tileset_load(TilesetID tilesetId, const char *texturePath);
 
 void tileset_init(void)
 {
-    tileset_load(TilesetID::TS_Overworld, "data/img/til/tiles32.png");
+    tileset_load(TilesetID::TS_Overworld, "data/texture/tile/tiles32.png");
 }
 
 static void tileset_load(TilesetID tilesetId, const char *texturePath)

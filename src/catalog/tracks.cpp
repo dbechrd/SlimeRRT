@@ -15,8 +15,8 @@ namespace Catalog {
 
     void Tracks::Load(void)
     {
-        byId[(size_t)TrackID::CopyrightBG] = LoadMusicStream("data/mus/fluquor_copyright.ogg");
-        byId[(size_t)TrackID::Whistle    ] = LoadMusicStream("data/mus/whistle.ogg");
+        byId[(size_t)TrackID::CopyrightBG] = LoadMusicStream("data/audio/music/fluquor_copyright.ogg");
+        byId[(size_t)TrackID::Whistle    ] = LoadMusicStream("data/audio/music/whistle.ogg");
 
         for (size_t i = 0; i < (size_t)TrackID::Count; i++) {
             if (!byId[i].frameCount) {

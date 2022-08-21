@@ -6,12 +6,12 @@
 
 namespace Catalog {
     void Items::LoadTextures(void) {
-        tex = LoadTexture("data/img/itm/joecreates.png");
+        tex = LoadTexture("data/texture/item/joecreates.png");
     }
 
     void Items::LoadData(void)
     {
-        const char *csvFilename = "data/items.csv";
+        const char *csvFilename = "data/entity/item/items.csv";
         CSV::Error err = csv.ReadFromFile(csvFilename);
         if (err != CSV::SUCCESS) {
             return;
