@@ -55,7 +55,7 @@ ItemWorld *ItemSystem::SpawnItem(Vector3 pos, ItemType itemId, uint32_t count, u
     float randY = dlb_rand32f_variance(METERS_TO_PIXELS(2.0f));
     float randZ = dlb_rand32f_range(3.0f, METERS_TO_PIXELS(4.0f));
     item.body.velocity = { randX, randY, randZ };
-    item.body.restitution = 0.2f;
+    item.body.restitution = 0.4f;
     item.body.friction = 0.2f;
 
     Catalog::SpritesheetID spritesheetId = Catalog::SpritesheetID::Empty;

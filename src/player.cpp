@@ -168,7 +168,10 @@ void Player::Update(InputSample &input, const Tilemap &map)
     assert(id);
     assert(input.ownerId == id);
 
-    if (input.selectSlot) {
+    // TODO: Do client-side prediction of inventory (probably requires tracking input.seq of last time a slot
+    // changed and only syncing the server state if the input.seq >= client-side recorded seq #). This will
+    // only affect people with high ping.
+    if (g_clock.server && input.selectSlot) {
         inventory.selectedSlot = input.selectSlot;
     }
 

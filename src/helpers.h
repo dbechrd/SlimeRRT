@@ -76,7 +76,7 @@
 #define SV_SINGLEPLAYER_PASS        "pass"
 #define SV_USERNAME                 "SERVER"
 #define SV_MAX_PLAYERS              8
-#define SV_MAX_SLIMES               32
+#define SV_MAX_ENEMIES              32
 #define SV_MAX_ITEMS                256 //4096
 #define SV_WORLD_ITEM_LIFETIME      120 //600 // despawn items after 10 minutes
 #define SV_TICK_RATE                50
@@ -113,9 +113,10 @@
 #define SV_RESPAWN_TIMER            5.0                      // how long to make player stare at nothing before respawning
 #define SV_COMMAND_MAX_ARGS         16                       // max # of args a chat command can have
 #define SV_SLIME_MOVE_SPEED         2.0f                     // how fast slimes can move (i.e. jump)
-#define SV_SLIME_ATTACK_TRACK       METERS_TO_PIXELS(6.0f)  // how far away slimes can see players
+#define SV_SLIME_ATTACK_TRACK       METERS_TO_PIXELS(6.0f)   // how far away slimes can see players
 #define SV_SLIME_ATTACK_REACH       METERS_TO_PIXELS(0.5f)   // how far away slimes can reach to attack a player
 #define SV_SLIME_RADIUS             METERS_TO_PIXELS(0.5f)   // how thicc a slime is
+#define SLIME_MAX_SCALE             3.0f                     // how phat a slime can get
 // NOTE: Have legit clients d/c if their FPS drops below 15 fps to prevent them from being banned for hacking due to input latency
 #define SV_INPUT_HACK_THRESHOLD     (SV_TICK_DT * 5.0)  // 4 frames of overflowed input time is surely a hacker (or a client with < 15 fps?)
 
@@ -123,7 +124,7 @@
 #define SNAPSHOT_SEND_RATE            20  //SV_TICK_RATE  //MIN(30, SV_TICK_RATE)
 #define SNAPSHOT_SEND_DT              (1.0 / SV_TICK_RATE)
 #define SNAPSHOT_MAX_PLAYERS          SV_MAX_PLAYERS
-#define SNAPSHOT_MAX_SLIMES           MIN(64, SV_MAX_SLIMES)
+#define SNAPSHOT_MAX_ENEMIES           MIN(64, SV_MAX_ENEMIES)
 #define SNAPSHOT_MAX_ITEMS            MIN(64, SV_MAX_ITEMS)
 
 #define CL_FRAME_DT_MAX               (2.0 * SV_TICK_DT)

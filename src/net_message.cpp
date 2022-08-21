@@ -1,7 +1,7 @@
 #include "bit_stream.h"
+#include "enemy.h"
 #include "helpers.h"
 #include "net_message.h"
-#include "slime.h"
 #include "tilemap.h"
 #include <cassert>
 
@@ -149,7 +149,7 @@ size_t NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer)
             stream.Process(worldSnapshot.lastInputAck);
             stream.Process(worldSnapshot.inputOverflow);
             stream.Process(worldSnapshot.playerCount, 4, 0, SNAPSHOT_MAX_PLAYERS);
-            stream.Process(worldSnapshot.enemyCount, 9, 0, SNAPSHOT_MAX_SLIMES);
+            stream.Process(worldSnapshot.enemyCount, 9, 0, SNAPSHOT_MAX_ENEMIES);
             stream.Process(worldSnapshot.itemCount, 9, 0, SNAPSHOT_MAX_ITEMS);
             stream.Align();
 

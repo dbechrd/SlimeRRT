@@ -1,8 +1,8 @@
 #pragma once
 #include "bit_stream.h"
 #include "controller.h"
+#include "enemy.h"
 #include "player.h"
-#include "slime.h"
 #include "tilemap.h"
 #include "world_snapshot.h"
 #include "enet_zpl.h"

@@ -141,8 +141,8 @@ void UI::Minimap(const Font &font, World &world)
     // TODO: Fix relative positioning of the map markers now that the map scrolls
 
     // Draw slimes on map
-    for (size_t i = 0; i < ARRAY_SIZE(world.slimes); i++) {
-        const Slime &s = world.slimes[i];
+    for (size_t i = 0; i < ARRAY_SIZE(world.enemies); i++) {
+        const Slime &s = world.enemies[i];
         if (s.type) {
             float x = (s.body.WorldPosition().x / camRect.width) * minimapW + minimapX;
             float y = (s.body.WorldPosition().y / camRect.height) * minimapH + minimapY;
@@ -532,7 +532,7 @@ void UI::HUD(const Font &font, World &world, const DebugStats &debugStats)
     PUSH_TEXT(text, RED);
     text = SafeTextFormat("Times sword swung %u", player->stats.timesSwordSwung);
     PUSH_TEXT(text, RED);
-    text = SafeTextFormat("Slimes slain      %u", player->stats.slimesSlain);
+    text = SafeTextFormat("Slimes slain      %u", player->stats.enemiesSlain);
     PUSH_TEXT(text, GREEN);
 
     const Vector2 playerBC = player->body.GroundPosition();

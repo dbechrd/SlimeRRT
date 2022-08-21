@@ -4,13 +4,13 @@
 
 struct World;
 
-enum class DrawableType {
-    Particle,
-    Player,
-    Slime,
-    ItemWorld,
-    Count,
-};
+//enum class DrawableType {
+//    Particle,
+//    Player,
+//    Enemy,
+//    ItemWorld,
+//    Count,
+//};
 
 struct Drawable {
     virtual float Depth() const = 0;

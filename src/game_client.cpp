@@ -475,8 +475,8 @@ void GameClient::PlayMode_DrawWorld(PlayerControllerState &input)
 
 #if CL_DEMO_AI_TRACKING
     {
-        for (size_t i = 0; i < ARRAY_SIZE(world->slimes); i++) {
-            const Slime &slime = world->slimes[i];
+        for (size_t i = 0; i < ARRAY_SIZE(world->enemies); i++) {
+            const Slime &slime = world->enemies[i];
             if (slime.type) {
                 Vector3 center = sprite_world_center(slime.sprite, slime.body.position, slime.sprite.scale);
                 DrawCircle((int)center.x, (int)center.y, METERS_TO_PIXELS(10.0f), Fade(ORANGE, 0.3f));

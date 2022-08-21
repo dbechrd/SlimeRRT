@@ -58,7 +58,7 @@ private:
     ErrorType BroadcastPlayerJoin  (const PlayerInfo &playerInfo);
     ErrorType BroadcastPlayerLeave (uint32_t playerId);
     ErrorType SendPlayerState      (const SV_Client &client, const Player &otherPlayer, bool nearby, bool spawned);
-    ErrorType SendEnemyState       (const SV_Client &client, const Slime &enemy, bool nearby, bool spawned);
+    ErrorType SendEnemyState       (const SV_Client &client, const Enemy &enemy, bool nearby, bool spawned);
     ErrorType SendItemState        (const SV_Client &client, const ItemWorld &item, bool nearby, bool spawned);
 
     bool IsValidInput (const SV_Client &client, const InputSample &sample);

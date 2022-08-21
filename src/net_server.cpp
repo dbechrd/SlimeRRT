@@ -382,7 +382,7 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
 
     worldSnapshot.enemyCount = 0;
     uint32_t skippedEnemyCount = 0;
-    for (const Slime &enemy : serverWorld->slimes) {
+    for (const Enemy &enemy : serverWorld->enemies) {
         if (!enemy.id) {
             continue;
         }
@@ -549,8 +549,8 @@ ErrorType NetServer::SendNearbyEvents(const SV_Client &client)
         return ErrorType::PlayerNotFound;
     }
 
-    for (size_t i = 0; i < SV_MAX_SLIMES; i++) {
-        Slime &enemy = serverWorld->slimes[i];
+    for (size_t i = 0; i < SV_MAX_ENEMIES; i++) {
+        Slime &enemy = serverWorld->enemies[i];
         if (!enemy.type) {
             continue;
         }
@@ -596,8 +596,8 @@ ErrorType NetServer::SendNearbyEvents(const SV_Client &client)
         E_ASSERT(SendPlayerState(client, otherPlayer, nearby, spawned), "Failed to send nearby player state in welcome basket");
     }
 
-    for (size_t i = 0; i < SV_MAX_SLIMES; i++) {
-        Slime &enemy = serverWorld->slimes[i];
+    for (size_t i = 0; i < SV_MAX_ENEMIES; i++) {
+        Slime &enemy = serverWorld->enemies[i];
         if (!enemy.type) {
             continue;
         }

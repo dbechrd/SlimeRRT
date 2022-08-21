@@ -6,6 +6,7 @@ struct ItemSystem;
 struct ItemStack;
 
 enum class LootTableID {
+    LT_Empty,
     LT_Sam,
     LT_Slime,
     //LT_2,

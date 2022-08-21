@@ -548,14 +548,14 @@ void NetClient::ProcessMsg(ENetPacket &packet)
             for (size_t i = 0; i < worldSnapshot.enemyCount; i++) {
                 const EnemySnapshot &enemySnapshot = worldSnapshot.enemies[i];
                 if (enemySnapshot.flags & EnemySnapshot::Flags_Despawn) {
-                    serverWorld->RemoveSlime(enemySnapshot.id);
+                    serverWorld->RemoveEnemy(enemySnapshot.id);
                     continue;
                 }
 
                 bool spawned = false;
-                Slime *slime = serverWorld->FindSlime(enemySnapshot.id);
+                Enemy *slime = serverWorld->FindEnemy(enemySnapshot.id);
                 if (!slime) {
-                    slime = serverWorld->SpawnSlime(enemySnapshot.id, {0, 0});
+                    slime = serverWorld->SpawnEnemy(enemySnapshot.id, {0, 0});
                     if (!slime) {
                         continue;
                     }

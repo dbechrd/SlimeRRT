@@ -9,7 +9,12 @@
 //    SlimeAction_Attack = 1,
 //};
 
-struct Slime : public Drawable {
+struct Enemy : public Drawable {
+    enum Type : uint8_t {
+        Type_Slime = 0,
+        Type_Count
+    };
+
     enum class MoveState {
         Idle = 0,
         Jump = 1
@@ -21,6 +26,7 @@ struct Slime : public Drawable {
     };
 
     uint32_t    id           {};
+    Type        type         {};
     uint32_t    nameLength   {};
     char        name         [USERNAME_LENGTH_MAX]{};
     Body3D      body         {};
@@ -30,21 +36,16 @@ struct Slime : public Drawable {
     ActionState actionState  {};
     double      randJumpIdle {};
 
-    void Init   (void);
-    void SetName(const char *name, uint32_t nameLength);
+    void Init    (Type type);
+    void SetName (const char *newName, uint32_t newNameLength);
 
-    Vector3 WorldCenter(void) const;
-    Vector3 WorldTopCenter(void) const;
+    Vector3 WorldCenter    (void) const;
+    Vector3 WorldTopCenter (void) const;
 
-    bool Move(double dt, Vector2 offset);
-    bool TryCombine(Slime &other);
-    bool Attack(double dt);
-    void Update(double dt);
+    void UpdateDirection (Vector2 offset);
+    void Update          (World &world, double dt);
 
-    float Depth(void) const;
-    bool  Cull(const Rectangle& cullRect) const;
-    void  Draw(World &world);
-
-private:
-    void UpdateDirection(Vector2 offset);
+    float Depth (void) const;
+    bool  Cull  (const Rectangle& cullRect) const;
+    void  Draw  (World &world);
 };

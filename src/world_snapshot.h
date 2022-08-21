@@ -1,6 +1,6 @@
 #pragma once
+#include "enemy.h"
 #include "player.h"
-#include "slime.h"
 #include "dlb_types.h"
 
 struct PlayerSnapshot {
@@ -19,24 +19,22 @@ struct PlayerSnapshot {
 
         // Fields to always send for puppets (players the client doesn't control) when entering their vicinity
         Flags_Spawn =
-            Flags_Position
-          | Flags_Direction
-          | Flags_Health
-          | Flags_HealthMax
-          | Flags_Level
-        ,
+            Flags_Position  |
+            Flags_Direction |
+            Flags_Health    |
+            Flags_HealthMax |
+            Flags_Level     ,
 
         // Fields to always send to the owner (the player that the client is controlling)
         Flags_Owner =
-            Flags_Position
-          | Flags_Direction
-          | Flags_Speed
-          | Flags_Health
-          | Flags_HealthMax
-          | Flags_Level
-          | Flags_XP
-          | Flags_Inventory
-        ,
+            Flags_Position  |
+            Flags_Direction |
+            Flags_Speed     |
+            Flags_Health    |
+            Flags_HealthMax |
+            Flags_Level     |
+            Flags_XP        |
+            Flags_Inventory ,
     };
 
     uint32_t        flags        {};
@@ -62,12 +60,12 @@ struct EnemySnapshot {
         Flags_HealthMax = 1 << 5,  // max health
         Flags_Level     = 1 << 6,  // current level
         Flags_Spawn =
-            Flags_Position
-          | Flags_Direction
-          | Flags_Scale
-          | Flags_Health
-          | Flags_HealthMax
-          | Flags_Level
+            Flags_Position  |
+            Flags_Direction |
+            Flags_Scale     |
+            Flags_Health    |
+            Flags_HealthMax |
+            Flags_Level     ,
     };
 
     uint32_t  flags        {};
@@ -88,9 +86,9 @@ struct ItemSnapshot {
         Flags_CatalogId  = 0x04,  // itemClass of item
         Flags_StackCount = 0x08,  // size of item stack (if 0, item is picked up entirely)
         Flags_Spawn =
-            Flags_Position
-          | Flags_CatalogId
-          | Flags_StackCount
+            Flags_Position   |
+            Flags_CatalogId  |
+            Flags_StackCount ,
     };
 
     uint32_t flags      {};
@@ -107,8 +105,8 @@ struct WorldSnapshot {
     float          inputOverflow {};  // amount of next sample after lastInputAck not yet processed
     uint32_t       playerCount   {};  // players in this snapshot
     PlayerSnapshot players       [SNAPSHOT_MAX_PLAYERS]{};
-    uint32_t       enemyCount    {};  // slimes in this snapshot
-    EnemySnapshot  enemies       [SNAPSHOT_MAX_SLIMES]{};
+    uint32_t       enemyCount    {};  // enemies in this snapshot
+    EnemySnapshot  enemies       [SNAPSHOT_MAX_ENEMIES]{};
     uint32_t       itemCount     {};  // items in this snapshot
     ItemSnapshot   items         [SNAPSHOT_MAX_ITEMS]{};
     double         recvAt        {};  // not sent over network, auto-populated when received

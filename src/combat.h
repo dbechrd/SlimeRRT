@@ -16,7 +16,7 @@ struct Combat {
     double      attackStartedAt  {};
     double      attackDuration   {};
     double      diedAt           {};
-    bool        droppedHitLoot   {};  // loot on hit? could be fun for some slime items to fly off when attacking
+    bool        droppedHitLoot   {};  // loot on hit? could be fun for some slime ball items to fly off when attacking
     bool        droppedDeathLoot {};  // loot on death, proper loot roll
 
     inline float DealDamage(float damage)

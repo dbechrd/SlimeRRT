@@ -3,6 +3,7 @@
 #include "catalog/items.h"
 #include "combat.h"
 #include "draw_command.h"
+#include "enemy.h"
 #include "item_stack.h"
 #include "ring_buffer.h"
 #include "sprite.h"
@@ -278,7 +279,7 @@ struct Player : Drawable {
         //uint32_t coinsCollected  {};  // TODO: Money earned via selling? Or something else cool
         float    damageDealt     {};
         float    kmWalked        {};
-        uint32_t slimesSlain     {};
+        uint32_t enemiesSlain    [Enemy::Type_Count]{};
         uint32_t playersSlain    {};
         uint32_t timesFistSwung  {};
         uint32_t timesSwordSwung {};
