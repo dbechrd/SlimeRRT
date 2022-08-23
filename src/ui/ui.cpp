@@ -532,7 +532,7 @@ void UI::HUD(const Font &font, World &world, const DebugStats &debugStats)
     PUSH_TEXT(text, RED);
     text = SafeTextFormat("Times sword swung %u", player->stats.timesSwordSwung);
     PUSH_TEXT(text, RED);
-    text = SafeTextFormat("Slimes slain      %u", player->stats.enemiesSlain);
+    text = SafeTextFormat("Slimes slain      %u", player->stats.enemiesSlain[Enemy::Type_Slime]);
     PUSH_TEXT(text, GREEN);
 
     const Vector2 playerBC = player->body.GroundPosition();
