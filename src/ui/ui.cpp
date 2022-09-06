@@ -360,18 +360,28 @@ int UI::ItemCompareWithSortSpecs(const void *lhs, const void *rhs)
         const ImGuiTableColumnSortSpecs *sort_spec = &itemSortSpecs->Specs[n];
         int delta = 0;
         switch (sort_spec->ColumnUserID) {
-            case ItemColumn_ID:         delta = (a.itemType   - b.itemType);   break;
+            case ItemColumn_ID:         delta = (a.itemType   > b.itemType);   break;
+            case ItemColumn_StackLimit: delta = (a.stackLimit > b.stackLimit); break;
+            case ItemColumn_Name:       delta = strcmp(a.nameSingular, b.nameSingular); break;
+            case ItemColumn_NamePlural: delta = strcmp(a.namePlural,   b.namePlural  ); break;
             case ItemColumn_Class:      {
                 const char *aClass = Catalog::ItemClassToString(a.itemClass);
                 const char *bClass = Catalog::ItemClassToString(b.itemClass);
                 delta = strcmp(aClass, bClass);
                 break;
             }
-            case ItemColumn_StackLimit: delta = (a.stackLimit - b.stackLimit); break;
-            case ItemColumn_Value:      delta = (a.value      - b.value);      break;
-            case ItemColumn_Damage:     delta = (a.damage     - b.damage);     break;
-            case ItemColumn_Name:       delta = (strcmp(a.nameSingular, b.nameSingular)); break;
-            case ItemColumn_NamePlural: delta = (strcmp(a.namePlural,   b.namePlural));   break;
+            case ItemColumn_Value: {
+                float aValue = a.findAffix(ItemAffix_Value).min;
+                float bValue = b.findAffix(ItemAffix_Value).min;
+                delta = (aValue > bValue);
+                break;
+            }
+            case ItemColumn_Damage: {
+                float aDamage = a.findAffix(ItemAffix_DamageFlat).min;
+                float bDamage = b.findAffix(ItemAffix_DamageFlat).min;
+                delta = (aDamage > bDamage);
+                break;
+            }
             default: assert(!"unknown column id"); break;
         }
         if (delta > 0)
@@ -379,7 +389,7 @@ int UI::ItemCompareWithSortSpecs(const void *lhs, const void *rhs)
         if (delta < 0)
             return (sort_spec->SortDirection == ImGuiSortDirection_Ascending) ? -1 : +1;
     }
-    return (a.itemType - b.itemType);
+    return (a.itemType > b.itemType);
 }
 
 void UI::AnimationEditor()
@@ -459,15 +469,15 @@ void UI::AnimationEditor()
 
             ImGui::TableNextColumn();
             ImGui::SetNextItemWidth(120.0f);
-            int value = item.value;
-            ImGui::InputInt("##value", &value, 1);
-            item.value = CLAMP(value, 0, UINT16_MAX);
+            float value = item.findAffix(ItemAffix_Value).min;
+            ImGui::InputFloat("##value", &value, 1.0f, 5.0f, "%.0f");
+            item.setAffix(ItemAffix_Value, CLAMP(value, 0, UINT16_MAX));
 
             ImGui::TableNextColumn();
             ImGui::SetNextItemWidth(120.0f);
-            int damage = item.damage;
-            ImGui::InputInt("##damage", &damage, 1);
-            item.damage = CLAMP(damage, 0, UINT16_MAX);
+            float damage = item.findAffix(ItemAffix_DamageFlat).min;
+            ImGui::InputFloat("##damage", &damage, 1.0f, 5.0f, "%.0f");
+            item.setAffix(ItemAffix_DamageFlat, CLAMP(damage, 0, UINT16_MAX));
 
             ImGui::TableNextColumn();
             ImGui::SetNextItemWidth(320.0f);
@@ -1616,6 +1626,17 @@ void UI::InventoryItemTooltip(ItemStack &invStack, int slot, Player &player, Net
         ItemStack &cursorStack = player.inventory.CursorStack();
         if (invStack.count && !cursorStack.count) {
             Catalog::Item item = invStack.Item();
+
+            ItemAffix afxDamageFlat    = item.findAffix(ItemAffix_DamageFlat);
+            ItemAffix afxKnockbackFlat = item.findAffix(ItemAffix_KnockbackFlat);
+            ItemAffix afxMoveSpeedFlat = item.findAffix(ItemAffix_MoveSpeedFlat);
+            ItemAffix afxValue         = item.findAffix(ItemAffix_Value);
+
+            bool hasDamageFlat    = afxDamageFlat.min || afxDamageFlat.max;
+            bool hasKnockbackFlat = afxKnockbackFlat.min || afxKnockbackFlat.max;
+            bool hasMoveSpeedFlat = afxMoveSpeedFlat.min || afxMoveSpeedFlat.max;
+            bool hasValue         = afxValue.min || afxValue.max;
+
             const char *invName = invStack.Name();
             char invNameWithCountBuf[64]{};
             if (invStack.count > 1) {
@@ -1625,14 +1646,18 @@ void UI::InventoryItemTooltip(ItemStack &invStack, int slot, Player &player, Net
             const char *itemClass = Catalog::ItemClassToString(item.itemClass);
             Color itemClassColor = Catalog::ItemClassToColor(item.itemClass);
             ImVec4 itemClassImColor = Catalog::RayToImColor(itemClassColor);
-            const char *dmgLabel = "000 - 000 damage";
-            const char *valLabel = "sell @ 000";
+            const char *damageFlatText = "000.0 - 000.0 damage";
+            const char *knockbackFlatText = "00.0 - 00.0 knockback";
+            const char *moveSpeedFlatText = "00.0 movement speed";
+            const char *valueText = "sell @ 00.00";
 
             float maxWidth = 0.0f;
             maxWidth = MAX(maxWidth, ImGui::CalcTextSize(invName).x);
             maxWidth = MAX(maxWidth, ImGui::CalcTextSize(itemClass).x);
-            maxWidth = MAX(maxWidth, ImGui::CalcTextSize(dmgLabel).x);
-            maxWidth = MAX(maxWidth, ImGui::CalcTextSize(valLabel).x);
+            maxWidth = MAX(maxWidth, ImGui::CalcTextSize(damageFlatText).x * hasDamageFlat);
+            maxWidth = MAX(maxWidth, ImGui::CalcTextSize(knockbackFlatText).x * hasKnockbackFlat);
+            maxWidth = MAX(maxWidth, ImGui::CalcTextSize(moveSpeedFlatText).x * hasMoveSpeedFlat);
+            maxWidth = MAX(maxWidth, ImGui::CalcTextSize(valueText).x * hasValue);
             maxWidth += 8.0f;
 
             ImGui::SetNextWindowSize({ maxWidth, 0 });
@@ -1650,23 +1675,47 @@ void UI::InventoryItemTooltip(ItemStack &invStack, int slot, Player &player, Net
             CenterNextItem(itemClass);
             ImGui::TextColored(itemClassImColor, itemClass);
 
-            // Damage
-            CenterNextItem(dmgLabel);
-            //ImGui::TextColored(Catalog::RayToImColor(WHITE), "Deals ");
-            //ImGui::SameLine();
-            ImGui::TextColored(Catalog::RayToImColor(MAROON), "%3u", item.damage);
-            ImGui::SameLine();
-            ImGui::TextColored(Catalog::RayToImColor(WHITE), " - ");
-            ImGui::SameLine();
-            ImGui::TextColored(Catalog::RayToImColor(MAROON), "%-3u", item.damage);
-            ImGui::SameLine();
-            ImGui::TextColored(Catalog::RayToImColor(WHITE), " damage");
+            // Flat damage
+            if (hasDamageFlat) {
+                CenterNextItem(damageFlatText);
+                //ImGui::TextColored(Catalog::RayToImColor(WHITE), "Deals ");
+                //ImGui::SameLine();
+                ImGui::TextColored(Catalog::RayToImColor(MAROON), "%.1f", afxDamageFlat.min);
+                ImGui::SameLine();
+                ImGui::TextColored(Catalog::RayToImColor(WHITE), " - ");
+                ImGui::SameLine();
+                ImGui::TextColored(Catalog::RayToImColor(MAROON), "%-.1f", afxDamageFlat.max);
+                ImGui::SameLine();
+                ImGui::TextColored(Catalog::RayToImColor(WHITE), " damage");
+            }
+
+            // Flat knockback
+            if (hasKnockbackFlat) {
+                CenterNextItem(knockbackFlatText);
+                ImGui::TextColored(Catalog::RayToImColor(MAROON), "%.1f", afxKnockbackFlat.min);
+                ImGui::SameLine();
+                ImGui::TextColored(Catalog::RayToImColor(WHITE), " - ");
+                ImGui::SameLine();
+                ImGui::TextColored(Catalog::RayToImColor(MAROON), "%-.1f", afxKnockbackFlat.max);
+                ImGui::SameLine();
+                ImGui::TextColored(Catalog::RayToImColor(WHITE), " knockback");
+            }
+
+            // Flat movement speed
+            if (hasMoveSpeedFlat) {
+                CenterNextItem(moveSpeedFlatText);
+                ImGui::TextColored(Catalog::RayToImColor(MAROON), "%.1f", afxMoveSpeedFlat.min);
+                ImGui::SameLine();
+                ImGui::TextColored(Catalog::RayToImColor(WHITE), " movement speed");
+            }
 
             // Value
-            CenterNextItem(valLabel);
-            ImGui::TextColored(Catalog::RayToImColor(WHITE), "sell @ ");
-            ImGui::SameLine();
-            ImGui::TextColored(Catalog::RayToImColor(YELLOW), "%-3u", item.value);
+            if (hasValue) {
+                CenterNextItem(valueText);
+                ImGui::TextColored(Catalog::RayToImColor(WHITE), "sell @ ");
+                ImGui::SameLine();
+                ImGui::TextColored(Catalog::RayToImColor(YELLOW), "%-.2f", afxValue.min);
+            }
 
             ImGui::EndTooltip();
             ImGui::PopStyleVar(2);

@@ -300,7 +300,8 @@ void World::SV_SimPlayers(double dt)
 
             const ItemStack &selectedStack = player.GetSelectedItem();
             const Catalog::Item &selectedItem = Catalog::g_items.Find(selectedStack.itemType);
-            float playerDamage = selectedItem.damage;
+            float playerDamage = selectedItem.findAffix(ItemAffix_DamageFlat).min;
+            float playerKnockback = selectedItem.findAffix(ItemAffix_KnockbackFlat).min;
             if (selectedItem.itemType == ITEMTYPE_EMPTY) {
                 playerDamage = player.combat.meleeDamage;
             }
@@ -313,6 +314,11 @@ void World::SV_SimPlayers(double dt)
                 Vector3 playerToEnemy = v3_sub(enemy.body.WorldPosition(), player.body.WorldPosition());
                 if (v3_length_sq(playerToEnemy) <= SQUARED(playerAttackReach)) {
                     player.stats.damageDealt += enemy.combat.DealDamage(playerDamage);
+                    if (playerKnockback) {
+                        Vector3 knockbackDir = v3_normalize(playerToEnemy);
+                        Vector3 knockbackVec = v3_scale(knockbackDir, METERS_TO_PIXELS(playerKnockback));
+                        enemy.body.ApplyForce(knockbackVec);
+                    }
                     if (!enemy.combat.hitPoints) {
                         player.xp += dlb_rand32u_range(enemy.combat.xpMin, enemy.combat.xpMax);
                         int overflowXp = player.xp - (player.combat.level * 20u);

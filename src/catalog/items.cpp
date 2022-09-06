@@ -49,8 +49,16 @@ namespace Catalog {
             item.itemClass = ItemClassFromString((char *)vCategory.data, vCategory.length);
             DLB_ASSERT(item.itemClass < ITEMCLASS_COUNT);
             item.stackLimit = vStackLimit.toUint();
-            item.value = vValue.toUint();
-            item.damage = vDamage.toUint();
+
+            item.setAffix(ItemAffix_Value,      (float)vValue.toUint());
+            item.setAffix(ItemAffix_DamageFlat, (float)vDamage.toUint());
+            // HACK(dlb): Remove this and put the data in the data file, and/or roll it on item spawn
+            // This isn't going to work over the network as-is, both sides will have different random numbers
+            if (item.itemClass == ItemClass_Weapon) {
+                item.setAffix(ItemAffix_KnockbackFlat, 4.0f); //(float)dlb_rand32u_range(0, 2) * 2);
+            } else if (item.itemClass == ItemClass_Shield) {
+                item.setAffix(ItemAffix_MoveSpeedFlat, 5.0f);
+            }
 
             DLB_ASSERT(vName.data[vName.length] == 0);
             DLB_ASSERT(vPlural.data[vPlural.length] == 0);

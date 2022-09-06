@@ -9,7 +9,9 @@
 
 typedef uint16_t ItemType;
 typedef uint8_t  ItemClass;
+typedef uint8_t  ItemAffixType;
 
+#define ITEM_AFFIX_MAX_COUNT 32
 #define ITEM_NAME_MAX_LENGTH 32
 #define ITEMTYPE_EMPTY       0
 #define ITEMTYPE_COUNT       256
@@ -37,6 +39,40 @@ enum : ItemClass {
     ItemClass_Plant,
     ItemClass_Book,
     ItemClass_Count
+};
+
+enum : ItemAffixType {
+    ItemAffix_Empty,
+    ItemAffix_DamageFlat,            // flat damage to deal
+    ItemAffix_DamageSourcePctHealth, // damage to deal as a percentage of source health
+    ItemAffix_DamageTargetPctHealth, // damage to deal as a percentage of target health
+    ItemAffix_KnockbackFlat,         // flat knockback to deal
+    ItemAffix_KnockbackPctDamage,    // percent of damage to deal as knockback
+    ItemAffix_MoveSpeedFlat,         // flat movement speed bonus
+    ItemAffix_Value,                 // calculated on drop, based on other affixes, where it spawned, value bonus effects, etc.
+    ItemAffix_Count
+};
+
+struct ItemAffix {
+    ItemAffixType type {};
+    float         min  {};
+    float         max  {};
+
+    static ItemAffix make(ItemAffixType type, float value) {
+        ItemAffix affix{};
+        affix.type = type;
+        affix.min = value;
+        affix.max = value;
+        return affix;
+    }
+
+    static ItemAffix make(ItemAffixType type, float min, float max) {
+        ItemAffix affix{};
+        affix.type = type;
+        affix.min = min;
+        affix.max = max;
+        return affix;
+    }
 };
 
 enum : ItemType {
@@ -350,14 +386,43 @@ namespace Catalog {
         return itemClass;
     }
 
+    // TODO: Separate this out into "ItemPrototype" and "RolledItem" (figure out better names)
     struct Item {
         ItemType  itemType     {};
         ItemClass itemClass    {};
         uint8_t   stackLimit   {};
-        uint16_t  value        {};
-        uint16_t  damage       {};
+        // TODO: ENSURE NO DUPES (but without hash table or O(n) storage, i.e. use addAffix method w/ check and
+        //       removeAffix to keep tightly packed)
+        ItemAffix affixes      [ITEM_AFFIX_MAX_COUNT]{};
         char      nameSingular [ITEM_NAME_MAX_LENGTH]{};
         char      namePlural   [ITEM_NAME_MAX_LENGTH]{};
+
+        ItemAffix findAffix(ItemAffixType type) const {
+            for (size_t i = 0; i < ITEM_AFFIX_MAX_COUNT; i++) {
+                if (affixes[i].type == type) {
+                    return affixes[i];
+                }
+            }
+            return ItemAffix{};
+        }
+
+        bool setAffix(ItemAffixType type, float min, float max) {
+            ItemAffix *itemAffix = 0;
+            for (size_t i = 0; i < ITEM_AFFIX_MAX_COUNT; i++) {
+                if (affixes[i].type == type || affixes[i].type == ItemAffix_Empty) {
+                    itemAffix = &affixes[i];
+                    break;
+                }
+            }
+            if (itemAffix) {
+                *itemAffix = ItemAffix::make(type, min, max);
+            }
+            return itemAffix;
+        }
+
+        bool setAffix(ItemAffixType type, float value) {
+            return setAffix(type, value, value);
+        }
     };
 
     struct Items {

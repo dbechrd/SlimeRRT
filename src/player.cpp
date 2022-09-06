@@ -182,8 +182,14 @@ void Player::Update(InputSample &input, const Tilemap &map)
         //}
 
         float speed = body.speed;
-        Vector2 move{};
 
+        {
+            const Catalog::Item &speedSlot = inventory.slots[PlayerInvSlot_Hotbar_9].stack.Item();
+            ItemAffix afxMoveSpeedFlat = speedSlot.findAffix(ItemAffix_MoveSpeedFlat);
+            speed += afxMoveSpeedFlat.min;
+        }
+
+        Vector2 move{};
         if (input.walkNorth || input.walkEast || input.walkSouth || input.walkWest) {
             move.y -= 1.0f * input.walkNorth;
             move.x += 1.0f * input.walkEast;
