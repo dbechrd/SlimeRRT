@@ -163,8 +163,8 @@ void GameClient::Init(void)
     }
 
     LoadingScreen("Loading Items...");
-    Catalog::g_items.LoadTextures();
-    Catalog::g_items.LoadData();
+    Catalog::g_item_protos.LoadTextures();
+    Catalog::g_item_protos.LoadData();
 
     LoadingScreen("Loading Particles...");
     Catalog::g_particleFx.Load();
@@ -536,7 +536,7 @@ void GameClient::PlayMode_DrawScreen(double frameDt, PlayerControllerState &inpu
     //UI::QuickHUD(fontSdf24, player, *world->map);
     Player *player = netClient.serverWorld->FindPlayer(netClient.serverWorld->playerId);
     if (player) {
-        UI::Inventory(Catalog::g_items.Tex(), *player, netClient, input.escape, inventoryActive);
+        UI::Inventory(Catalog::g_item_protos.Tex(), *player, netClient, input.escape, inventoryActive);
     }
 
     UI::Menubar(netClient);

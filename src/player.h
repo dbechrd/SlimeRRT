@@ -4,7 +4,7 @@
 #include "combat.h"
 #include "draw_command.h"
 #include "enemy.h"
-#include "item_stack.h"
+#include "catalog/items.h"
 #include "ring_buffer.h"
 #include "sprite.h"
 #include "dlb_rand.h"
@@ -35,31 +35,31 @@ enum : PlayerInvSlot {
     PlayerInvSlot_Count
 };
 
-typedef bool (*ItemFilterFn)(Catalog::Item item);
+typedef bool (*ItemFilterFn)(Item item);
 
-bool ItemFilter_ItemClass_Weapon(Catalog::Item item)
+bool ItemFilter_ItemClass_Weapon(Item item)
 {
-    return item.itemClass == ItemClass_Weapon;
+    return item.Proto().itemClass == ItemClass_Weapon;
 };
 
-bool ItemFilter_ItemType_Currency_Copper(Catalog::Item item)
+bool ItemFilter_ItemType_Currency_Copper(Item item)
 {
-    return item.itemType == ItemType_Currency_Copper;
+    return item.type == ItemType_Currency_Copper;
 };
 
-bool ItemFilter_ItemType_Currency_Silver(Catalog::Item item)
+bool ItemFilter_ItemType_Currency_Silver(Item item)
 {
-    return item.itemType == ItemType_Currency_Silver;
+    return item.type == ItemType_Currency_Silver;
 };
 
-bool ItemFilter_ItemType_Currency_Gilded(Catalog::Item item)
+bool ItemFilter_ItemType_Currency_Gilded(Item item)
 {
-    return item.itemType == ItemType_Currency_Gilded;
+    return item.type == ItemType_Currency_Gilded;
 };
 
 struct InventorySlot {
     ItemFilterFn filter {};
-    ItemStack    stack  {};
+    ItemStack stack  {};
 };
 
 struct PlayerInventory {
@@ -80,140 +80,159 @@ struct PlayerInventory {
     // Returns true if something was picked up by player
     bool PickUp(ItemStack &srcStack)
     {
-        uint32_t origCount = srcStack.count;
-        for (int slot = 0; slot < PlayerInvSlot_Count; slot++) {
-            ItemStack &invStack = GetInvStack(slot);
-            TransferStack(srcStack, invStack);
+        if (!srcStack.count) {
+            return false;
+        }
+
+        InventorySlot srcSlot{};
+        srcSlot.stack = srcStack;
+
+        for (int slotIdx = 0; slotIdx < PlayerInvSlot_Count; slotIdx++) {
+            InventorySlot &dstSlot = GetInvSlot(slotIdx);
+            TransferSlot(srcSlot, dstSlot);
             if (!srcStack.count) {
                 break;
             }
         }
-        return srcStack.count < origCount;
+
+        bool pickup = srcSlot.stack.count != srcStack.count;
+        srcStack.count = srcSlot.stack.count;
+        return pickup;
     }
 
-    // TODO: CursorSlot
-    ItemStack &CursorStack()
+    InventorySlot &CursorSlot()
     {
-        ItemStack &cursor = slots[PlayerInvSlot_Cursor].stack;
+        InventorySlot cursor = slots[PlayerInvSlot_Cursor];
         return cursor;
     }
 
-    // TODO: GetInvSlot
-    ItemStack &GetInvStack(int slot)
+    InventorySlot &GetInvSlot(int slotIdx)
     {
-        assert(slot >= 0);
-        assert(slot < PlayerInvSlot_Count);
-        ItemStack &stack = slots[slot].stack;
-        return stack;
+        assert(slotIdx >= 0);
+        assert(slotIdx < PlayerInvSlot_Count);
+        InventorySlot slot = slots[slotIdx];
+        return slot;
     }
 
-    // TODO: SwapSlot() and check filter
-    void SwapStack(ItemStack &a, ItemStack &b)
+    // TODO: Check slot filter
+    void SwapSlots(InventorySlot &a, InventorySlot &b)
     {
-        ItemStack tmp = a;
+        InventorySlot tmp = a;
         a = b;
         b = tmp;
     }
 
-    // TODO: TransferSlot() and check filter
-    // Transfer as many items as possible from one slot to another
-    bool TransferStack(ItemStack &src, ItemStack &dst, bool skipFull = false, uint32_t transferLimit = UINT32_MAX)
+    // Attempt to transfer some amount of items from one slot to another
+    // TODO: Check slot filter
+    bool TransferSlot(InventorySlot &src, InventorySlot &dst, bool skipFull = false, uint32_t transferLimit = UINT32_MAX)
     {
-        if (!dst.count || src.itemType == dst.itemType) {
-            const Catalog::Item &item = Catalog::g_items.Find(src.itemType);
-
-            // Don't transfer full stacks (e.g. when collecting items on double-click)
-            if (skipFull && src.count == item.stackLimit) {
-                return false;
-            }
-
-            assert(dst.count <= item.stackLimit);
-            uint32_t transferCount = MIN(MIN(src.count, item.stackLimit - dst.count), transferLimit);
-            dst.count += transferCount;
-            if (dst.count) {
-                dst.itemType = src.itemType;
-            }
-            src.count -= transferCount;
-            if (!src.count) {
-                src.itemType = ITEMTYPE_EMPTY;
-            }
-            return dst.count == item.stackLimit;
+        // Nothing to transfer
+        if (!src.stack.count) {
+            return false;
         }
-        return false;
+
+        const Item &item = g_item_db.Find(src.stack.uid);
+
+        // Can only transfer if items are an exact match (including all affixes)
+        if (dst.stack.uid != item.uid) {
+            return false;
+        }
+
+        uint32_t stackLimit = item.Proto().stackLimit;
+
+        // Dst slot already full
+        if (dst.stack.count == stackLimit) {
+            return false;
+        }
+
+        // Don't transfer full stacks from src (e.g. when collecting items on double-click)
+        if (skipFull && src.stack.count == stackLimit) {
+            return false;
+        }
+
+        // Transfer as many items as possible from src to dst
+        uint32_t dstFreeSpace = stackLimit - dst.stack.count;
+        uint32_t maxCanTransfer = MIN(src.stack.count, dstFreeSpace);
+        uint32_t transfer = MIN(maxCanTransfer, transferLimit);
+        src.stack.count -= transfer;
+        if (!src.stack.count) {
+            src.stack.uid = 0;
+        }
+        dst.stack.count += transfer;
+        if (dst.stack.count) {
+            dst.stack.uid = item.uid;
+        }
     }
 
-    void SlotClick(int slot, bool doubleClicked)
+    void SlotClick(int slotIdx, bool doubleClicked)
     {
-        ItemStack &cursor = CursorStack();
-        ItemStack &invStack = GetInvStack(slot);
+        InventorySlot cursor = CursorSlot();
+        InventorySlot slot = GetInvSlot(slotIdx);
 
-        if (doubleClicked) {
-            if (!cursor.count) {
-                SwapStack(cursor, invStack);
-            }
-            if (!invStack.count || (invStack.itemType == cursor.itemType)) {
+        if (!cursor.stack.count && slot.stack.count) {
+            // Pick up all items from clicked slot
+            SwapSlots(cursor, slot);
+        } else if (cursor.stack.count) {
+            if (doubleClicked) {
+                // Pick up as many items as possible from all slots that match the cursor's current item
                 bool done = false;
-                for (int slot = PlayerInvSlot_Count - 1; slot >= 0 && !done; slot--) {
-                    ItemStack &srcStack = GetInvStack(slot);
-                    done = TransferStack(srcStack, cursor, true);
+                for (int slotIdx = PlayerInvSlot_Count - 1; slotIdx >= 0 && !done; slotIdx--) {
+                    InventorySlot slot = GetInvSlot(slotIdx);
+                    done = TransferSlot(slot, cursor, true);
                 }
+            } else {
+                // Pick up as many items as possible from clicked slot
+                TransferSlot(slot, cursor);
             }
+        }
+    }
+
+    void SlotScroll(int slotIdx, int scroll)
+    {
+        const int transfer = scroll;
+        if (!transfer) {
+            return;
+        }
+
+        InventorySlot cursor = CursorSlot();
+        InventorySlot slot = GetInvSlot(slotIdx);
+        if (transfer > 0) {
+            TransferSlot(cursor, slot, false, (uint32_t)transfer);
         } else {
-            if (cursor.count && cursor.itemType == invStack.itemType) {
-                TransferStack(cursor, invStack);
-            } else {
-                SwapStack(cursor, invStack);
-            }
+            TransferSlot(slot, cursor, false, (uint32_t)-transfer);
         }
     }
 
-    void SlotScroll(int slot, int scroll)
+    ItemStack SlotDrop(int slotIdx, uint32_t count)
     {
-        const int transferAmount = scroll;
-        if (transferAmount) {
-            ItemStack &invStack = GetInvStack(slot);
-            ItemStack &cursor = CursorStack();
-
-            if (transferAmount > 0) {
-                TransferStack(cursor, invStack, false, (uint32_t)transferAmount);
-            } else {
-                TransferStack(invStack, cursor, false, (uint32_t)-transferAmount);
-            }
-        }
+        InventorySlot dropSlot{};
+        TransferSlot(GetInvSlot(slotIdx), dropSlot, false, count);
+        return dropSlot.stack;
     }
 
-    ItemStack SlotDrop(int slot, uint32_t count)
+    static int Compare(InventorySlot &a, InventorySlot &b, bool ignoreEmpty = false)
     {
-        ItemStack dropStack{};
-        TransferStack(GetInvStack(slot), dropStack, false, count);
-        return dropStack;
-    }
-
-    static int Compare(ItemStack &a, ItemStack &b, bool ignoreEmpty = false)
-    {
-        if (a.itemType == b.itemType) {
+        if (a.stack.uid == b.stack.uid) {
             return 0;
-        } else if (a.itemType == ITEMTYPE_EMPTY) {
+        } else if (!a.stack.uid) {
             return ignoreEmpty ? 0 : 1;
-        } else if (b.itemType == ITEMTYPE_EMPTY) {
+        } else if (!b.stack.uid) {
             return ignoreEmpty ? 0 : -1;
-        //} else if (onlySameType && a.Type() != b.Type()) {
-        //    return 0;
         } else {
-            return (int)a.itemType < (int)b.itemType ? -1 : 1;
+            return a.stack.uid < b.stack.uid ? -1 : 1;
         }
     }
 
     void Sort(bool ignoreEmpty = false)
     {
-        for (int slotA = 0; slotA < PLAYER_INV_REG_COUNT; slotA++) {
-            ItemStack &invStackA = GetInvStack(slotA);
+        for (int slotIdxA = 0; slotIdxA < PLAYER_INV_REG_COUNT; slotIdxA++) {
+            InventorySlot &slotA = GetInvSlot(slotIdxA);
 
-            for (int slotB = slotA + 1; slotB < PLAYER_INV_REG_COUNT; slotB++) {
-                ItemStack &invStackB = GetInvStack(slotB);
+            for (int slotIdxB = slotIdxA + 1; slotIdxB < PLAYER_INV_REG_COUNT; slotIdxB++) {
+                InventorySlot &slotB = GetInvSlot(slotIdxB);
 
-                if (Compare(invStackA, invStackB, ignoreEmpty) > 0) {
-                    SwapStack(invStackB, invStackA);
+                if (Compare(slotA, slotB, ignoreEmpty) > 0) {
+                    SwapSlots(slotA, slotB);
                 }
             }
         }
@@ -221,18 +240,15 @@ struct PlayerInventory {
 
     void Combine(bool ignoreEmpty = false)
     {
-        for (int slotA = 0; slotA < PLAYER_INV_REG_COUNT; slotA++) {
-            ItemStack &invStackA = GetInvStack(slotA);
-            const ItemClass typeA = invStackA.Type();
-            if (ignoreEmpty && invStackA.itemType == ITEMTYPE_EMPTY) continue;
+        for (int slotIdxA = 0; slotIdxA < PLAYER_INV_REG_COUNT; slotIdxA++) {
+            InventorySlot &slotA = GetInvSlot(slotIdxA);
+            if (ignoreEmpty && !slotA.stack.count) continue;
 
-            for (int slotB = slotA + 1; slotB < PLAYER_INV_REG_COUNT; slotB++) {
-                ItemStack &invStackB = GetInvStack(slotB);
-                const ItemClass typeB = invStackB.Type();
-                if (ignoreEmpty && invStackB.itemType == ITEMTYPE_EMPTY) continue;
-                //if (onlySameType && typeA != typeB) continue;
+            for (int slotIdxB = slotIdxA + 1; slotIdxB < PLAYER_INV_REG_COUNT; slotIdxB++) {
+                InventorySlot &slotB = GetInvSlot(slotIdxB);
+                if (ignoreEmpty && !slotB.stack.count) continue;
 
-                TransferStack(invStackB, invStackA);
+                TransferSlot(slotB, slotA);
             }
         }
     }
@@ -296,13 +312,13 @@ struct Player : Drawable {
     PlayerInventory inventory   {};
     Stats           stats       {};
 
-    void              Init             (void);
-    Vector3           WorldCenter      (void) const;
-    Vector3           WorldTopCenter3D (void) const;
-    Vector2           WorldTopCenter2D (void) const;
-    Vector3           GetAttachPoint   (AttachPoint attachPoint) const;
-    const ItemStack&  GetSelectedItem  (void) const;
-    void              Update           (InputSample &input, const Tilemap &map);
+    void    Init             (void);
+    Vector3 WorldCenter      (void) const;
+    Vector3 WorldTopCenter3D (void) const;
+    Vector2 WorldTopCenter2D (void) const;
+    Vector3 GetAttachPoint   (AttachPoint attachPoint) const;
+    ItemUID GetSelectedItem  (void) const;
+    void    Update           (InputSample &input, const Tilemap &map);
 
     float Depth (void) const;
     bool  Cull  (const Rectangle& cullRect) const;

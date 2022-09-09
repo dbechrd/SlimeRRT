@@ -3,19 +3,49 @@
 #include "csv.h"
 #include "imgui/imgui.h"
 #include <dlb_murmur3.h>
+#include <dlb_rand.h>
 #include <raylib/raylib.h>
-#include <array>
 #include <unordered_map>
 
-typedef uint16_t ItemType;
+typedef uint8_t  ItemSlot;
 typedef uint8_t  ItemClass;
+typedef uint16_t ItemType;
 typedef uint8_t  ItemAffixType;
+typedef uint32_t ItemUID;
 
-#define ITEM_AFFIX_MAX_COUNT 32
+#define ITEM_AFFIX_MAX_COUNT 16
 #define ITEM_NAME_MAX_LENGTH 32
-#define ITEMTYPE_EMPTY       0
-#define ITEMTYPE_COUNT       256
 #define ITEMCLASS_COUNT      256
+
+// slot:       chest, weapon, shield, feet, head, neck, magicOrb1, magicOrb2, potion
+// class:      weapon, armor, necklace, ring, consumable, scroll, misc
+// id:
+//   weapon:     sword, stave, key,
+//   armor:      combat boots, high heels, sneakers, motorcycle gloves, mittens, rubber gloves
+//   amulet:     velvet charm, tattoo choker, gold chain, iced out
+//   ring:       engagement ring, gold band, snake, brass knuckles
+//   consumable: avocado, pulled pork, cheddar cheese, onion, fried chicken, blood vile, magic shrooms, moonshine
+//   misc:       key
+
+enum : ItemSlot {
+    ItemSlot_Hat,         // baseball cap, top hat, stetson
+    ItemSlot_Head,        // motorcycle helmet, hard hat, barbuta
+    ItemSlot_Eyes,        // sunglasses
+
+    ItemSlot_Chest,       // sports bra, shoulder holster, suspenders, bodysuit
+    ItemSlot_Torso,       // chainmail, kevlar vest
+    ItemSlot_Back,        // t-shirt, wings
+    ItemSlot_Arms,        // elbow pads, arm cast, compression sleeve
+    ItemSlot_Hands,       // mittens, rubber gloves, baseball mitt, oven mitts
+    ItemSlot_Fingers,     // rings (1 finger ea), brass knuckles (3 fingers ea)
+    ItemSlot_Fingernails, // nail polish (green = +1 psn dmg, red = bleeding, orange = fire dmg, etc)
+
+    ItemSlot_Underwear,   // whitey tighties, boxer briefs, panties
+    ItemSlot_Legs,        // jeans, leggings, tights, firefighter pants, motocross riding pants
+    ItemSlot_Feet,        // sneakers, combat boots, high heels, flip flops, boat shoes
+    ItemSlot_Toes,        // tiny rings with small stat bonuses
+    ItemSlot_Toenails,    // nail polish (same as fingers, mix-and-match bonuses, same color = 2.5x)
+};
 
 enum : ItemClass {
     ItemClass_Empty,
@@ -53,25 +83,57 @@ enum : ItemAffixType {
     ItemAffix_Count
 };
 
-struct ItemAffix {
-    ItemAffixType type {};
-    float         min  {};
-    float         max  {};
+struct FloatRange {
+    float min {};
+    float max {};
+};
 
-    static ItemAffix make(ItemAffixType type, float value) {
+struct ItemAffix {
+    ItemAffixType type{};
+    FloatRange    value{}; // assert max.min > min.max
+
+    static ItemAffix make(ItemAffixType type, float value)
+    {
         ItemAffix affix{};
         affix.type = type;
-        affix.min = value;
-        affix.max = value;
+        affix.value.min = value;
+        affix.value.max = value;
         return affix;
     }
 
-    static ItemAffix make(ItemAffixType type, float min, float max) {
+    static ItemAffix make(ItemAffixType type, float min, float max)
+    {
         ItemAffix affix{};
         affix.type = type;
-        affix.min = min;
-        affix.max = max;
+        affix.value.min = min;
+        affix.value.max = max;
         return affix;
+    }
+
+    float rollValue() const {
+        const float roll = dlb_rand32f_range(value.min, value.max);
+        return roll;
+    }
+};
+
+// e.g. ItemAffix_DamageFlat (82-99) to (139-412)
+struct ItemAffixProto {
+    ItemAffixType type     {};
+    FloatRange    minRange {};
+    FloatRange    maxRange {}; // assert max.min > min.max
+
+    ItemAffixProto() = default;
+
+    ItemAffixProto(ItemAffixType type, FloatRange minRange, FloatRange maxRange) :
+        type(type), minRange(minRange), maxRange(maxRange) {};
+
+    ItemAffixProto(ItemAffixType type, FloatRange range) :
+        type(type), minRange(range), maxRange(range) {};
+
+    ItemAffix Roll() const {
+        float min = dlb_rand32f_range(minRange.min, minRange.max);
+        float max = dlb_rand32f_range(maxRange.min, maxRange.max);
+        return ItemAffix::make(type, min, max);
     }
 };
 
@@ -290,151 +352,231 @@ enum : ItemType {
     ItemType_Count
 };
 
-namespace Catalog {
-    Color ItemClassToColor(ItemClass itemClass)
-    {
-        switch (itemClass) {
-            case ItemClass_Empty    : return DARKGRAY;
-            case ItemClass_System   : return PINK    ;
-            case ItemClass_Currency : return GOLD    ;
-            case ItemClass_Gem      : return BLUE    ;
-            case ItemClass_Ring     : return BLUE    ;
-            case ItemClass_Amulet   : return BLUE    ;
-            case ItemClass_Crown    : return BLUE    ;
-            case ItemClass_Key      : return YELLOW  ;
-            case ItemClass_Coin     : return GOLD    ;
-            case ItemClass_Ore      : return ORANGE  ;
-            case ItemClass_Item     : return WHITE   ;
-            case ItemClass_Potion   : return PURPLE  ;
-            case ItemClass_Ingot    : return ORANGE  ;
-            case ItemClass_Nugget   : return ORANGE  ;
-            case ItemClass_Tool     : return GRAY    ;
-            case ItemClass_Weapon   : return GRAY    ;
-            case ItemClass_Armor    : return GRAY    ;
-            case ItemClass_Shield   : return GRAY    ;
-            case ItemClass_Plant    : return GREEN   ;
-            case ItemClass_Book     : return BROWN   ;
-            default                 : return MAGENTA ;
-        }
+Color ItemClassToColor(ItemClass itemClass)
+{
+    switch (itemClass) {
+        case ItemClass_Empty    : return DARKGRAY;
+        case ItemClass_System   : return PINK    ;
+        case ItemClass_Currency : return GOLD    ;
+        case ItemClass_Gem      : return BLUE    ;
+        case ItemClass_Ring     : return BLUE    ;
+        case ItemClass_Amulet   : return BLUE    ;
+        case ItemClass_Crown    : return BLUE    ;
+        case ItemClass_Key      : return YELLOW  ;
+        case ItemClass_Coin     : return GOLD    ;
+        case ItemClass_Ore      : return ORANGE  ;
+        case ItemClass_Item     : return WHITE   ;
+        case ItemClass_Potion   : return PURPLE  ;
+        case ItemClass_Ingot    : return ORANGE  ;
+        case ItemClass_Nugget   : return ORANGE  ;
+        case ItemClass_Tool     : return GRAY    ;
+        case ItemClass_Weapon   : return GRAY    ;
+        case ItemClass_Armor    : return GRAY    ;
+        case ItemClass_Shield   : return GRAY    ;
+        case ItemClass_Plant    : return GREEN   ;
+        case ItemClass_Book     : return BROWN   ;
+        default                 : return MAGENTA ;
     }
-
-    ImVec4 RayToImColor(Color color)
-    {
-        ImColor imColor{ color.r, color.g, color.b, color.a };
-        return imColor.Value;
-    }
-
-    const char *ItemClassToString(ItemClass itemClass)
-    {
-        switch (itemClass) {
-            case ItemClass_Empty    : return "Empty"     ;
-            case ItemClass_System   : return "System"    ;
-            case ItemClass_Currency : return "Currency"  ;
-            case ItemClass_Gem      : return "Gem"       ;
-            case ItemClass_Ring     : return "Ring"      ;
-            case ItemClass_Amulet   : return "Amulet"    ;
-            case ItemClass_Crown    : return "Crown"     ;
-            case ItemClass_Key      : return "Key"       ;
-            case ItemClass_Coin     : return "Coin"      ;
-            case ItemClass_Ore      : return "Ore"       ;
-            case ItemClass_Item     : return "Item"      ;
-            case ItemClass_Potion   : return "Potion"    ;
-            case ItemClass_Ingot    : return "Ingot"     ;
-            case ItemClass_Nugget   : return "Nugget"    ;
-            case ItemClass_Tool     : return "Tool"      ;
-            case ItemClass_Weapon   : return "Weapon"    ;
-            case ItemClass_Armor    : return "Armor"     ;
-            case ItemClass_Shield   : return "Shield"    ;
-            case ItemClass_Plant    : return "Plant"     ;
-            case ItemClass_Book     : return "Book"      ;
-            default                 : return "<ItemClass>";
-        }
-    }
-
-    ItemClass ItemClassFromString(const char *str, size_t length)
-    {
-        static std::unordered_map<u32, ItemClass> itemClassByName{};
-        if (!itemClassByName.size()) {
-            itemClassByName[dlb_murmur3(CSTR("Empty"   ))] = ItemClass_Empty;
-            itemClassByName[dlb_murmur3(CSTR("System"  ))] = ItemClass_System;
-            itemClassByName[dlb_murmur3(CSTR("Currency"))] = ItemClass_Currency;
-            itemClassByName[dlb_murmur3(CSTR("Gem"     ))] = ItemClass_Gem;
-            itemClassByName[dlb_murmur3(CSTR("Ring"    ))] = ItemClass_Ring;
-            itemClassByName[dlb_murmur3(CSTR("Amulet"  ))] = ItemClass_Amulet;
-            itemClassByName[dlb_murmur3(CSTR("Crown"   ))] = ItemClass_Crown;
-            itemClassByName[dlb_murmur3(CSTR("Key"     ))] = ItemClass_Key;
-            itemClassByName[dlb_murmur3(CSTR("Coin"    ))] = ItemClass_Coin;
-            itemClassByName[dlb_murmur3(CSTR("Ore"     ))] = ItemClass_Ore;
-            itemClassByName[dlb_murmur3(CSTR("Item"    ))] = ItemClass_Item;
-            itemClassByName[dlb_murmur3(CSTR("Potion"  ))] = ItemClass_Potion;
-            itemClassByName[dlb_murmur3(CSTR("Ingot"   ))] = ItemClass_Ingot;
-            itemClassByName[dlb_murmur3(CSTR("Nugget"  ))] = ItemClass_Nugget;
-            itemClassByName[dlb_murmur3(CSTR("Tool"    ))] = ItemClass_Tool;
-            itemClassByName[dlb_murmur3(CSTR("Weapon"  ))] = ItemClass_Weapon;
-            itemClassByName[dlb_murmur3(CSTR("Armor"   ))] = ItemClass_Armor;
-            itemClassByName[dlb_murmur3(CSTR("Shield"  ))] = ItemClass_Shield;
-            itemClassByName[dlb_murmur3(CSTR("Plant"   ))] = ItemClass_Plant;
-            itemClassByName[dlb_murmur3(CSTR("Book"    ))] = ItemClass_Book;
-        }
-
-        ItemClass itemClass = ItemClass_Empty;
-        u32 hashCode = dlb_murmur3(str, length);
-        auto kv = itemClassByName.find(hashCode);
-        if (kv != itemClassByName.end()) {
-            itemClass = kv->second;
-        }
-        return itemClass;
-    }
-
-    // TODO: Separate this out into "ItemPrototype" and "RolledItem" (figure out better names)
-    struct Item {
-        ItemType  itemType     {};
-        ItemClass itemClass    {};
-        uint8_t   stackLimit   {};
-        // TODO: ENSURE NO DUPES (but without hash table or O(n) storage, i.e. use addAffix method w/ check and
-        //       removeAffix to keep tightly packed)
-        ItemAffix affixes      [ITEM_AFFIX_MAX_COUNT]{};
-        char      nameSingular [ITEM_NAME_MAX_LENGTH]{};
-        char      namePlural   [ITEM_NAME_MAX_LENGTH]{};
-
-        ItemAffix findAffix(ItemAffixType type) const {
-            for (size_t i = 0; i < ITEM_AFFIX_MAX_COUNT; i++) {
-                if (affixes[i].type == type) {
-                    return affixes[i];
-                }
-            }
-            return ItemAffix{};
-        }
-
-        bool setAffix(ItemAffixType type, float min, float max) {
-            ItemAffix *itemAffix = 0;
-            for (size_t i = 0; i < ITEM_AFFIX_MAX_COUNT; i++) {
-                if (affixes[i].type == type || affixes[i].type == ItemAffix_Empty) {
-                    itemAffix = &affixes[i];
-                    break;
-                }
-            }
-            if (itemAffix) {
-                *itemAffix = ItemAffix::make(type, min, max);
-            }
-            return itemAffix;
-        }
-
-        bool setAffix(ItemAffixType type, float value) {
-            return setAffix(type, value, value);
-        }
-    };
-
-    struct Items {
-        void        LoadTextures (void);
-        void        LoadData     (void);
-        Item &      Find         (ItemType id);
-        Texture     Tex          (void) const;
-        const Item *Data         (void) const;
-
-    private:
-        Texture tex  {};
-        CSV     csv  {};
-        Item    byId [ITEMTYPE_COUNT]{};
-    } g_items;
 }
+
+ImVec4 RayToImColor(Color color)
+{
+    ImColor imColor{ color.r, color.g, color.b, color.a };
+    return imColor.Value;
+}
+
+const char *ItemClassToString(ItemClass itemClass)
+{
+    switch (itemClass) {
+        case ItemClass_Empty    : return "Empty"     ;
+        case ItemClass_System   : return "System"    ;
+        case ItemClass_Currency : return "Currency"  ;
+        case ItemClass_Gem      : return "Gem"       ;
+        case ItemClass_Ring     : return "Ring"      ;
+        case ItemClass_Amulet   : return "Amulet"    ;
+        case ItemClass_Crown    : return "Crown"     ;
+        case ItemClass_Key      : return "Key"       ;
+        case ItemClass_Coin     : return "Coin"      ;
+        case ItemClass_Ore      : return "Ore"       ;
+        case ItemClass_Item     : return "Item"      ;
+        case ItemClass_Potion   : return "Potion"    ;
+        case ItemClass_Ingot    : return "Ingot"     ;
+        case ItemClass_Nugget   : return "Nugget"    ;
+        case ItemClass_Tool     : return "Tool"      ;
+        case ItemClass_Weapon   : return "Weapon"    ;
+        case ItemClass_Armor    : return "Armor"     ;
+        case ItemClass_Shield   : return "Shield"    ;
+        case ItemClass_Plant    : return "Plant"     ;
+        case ItemClass_Book     : return "Book"      ;
+        default                 : return "<ItemClass>";
+    }
+}
+
+ItemClass ItemClassFromString(const char *str, size_t length)
+{
+    static std::unordered_map<u32, ItemClass> itemClassByName{};
+    if (!itemClassByName.size()) {
+        itemClassByName[dlb_murmur3(CSTR("Empty"   ))] = ItemClass_Empty;
+        itemClassByName[dlb_murmur3(CSTR("System"  ))] = ItemClass_System;
+        itemClassByName[dlb_murmur3(CSTR("Currency"))] = ItemClass_Currency;
+        itemClassByName[dlb_murmur3(CSTR("Gem"     ))] = ItemClass_Gem;
+        itemClassByName[dlb_murmur3(CSTR("Ring"    ))] = ItemClass_Ring;
+        itemClassByName[dlb_murmur3(CSTR("Amulet"  ))] = ItemClass_Amulet;
+        itemClassByName[dlb_murmur3(CSTR("Crown"   ))] = ItemClass_Crown;
+        itemClassByName[dlb_murmur3(CSTR("Key"     ))] = ItemClass_Key;
+        itemClassByName[dlb_murmur3(CSTR("Coin"    ))] = ItemClass_Coin;
+        itemClassByName[dlb_murmur3(CSTR("Ore"     ))] = ItemClass_Ore;
+        itemClassByName[dlb_murmur3(CSTR("Item"    ))] = ItemClass_Item;
+        itemClassByName[dlb_murmur3(CSTR("Potion"  ))] = ItemClass_Potion;
+        itemClassByName[dlb_murmur3(CSTR("Ingot"   ))] = ItemClass_Ingot;
+        itemClassByName[dlb_murmur3(CSTR("Nugget"  ))] = ItemClass_Nugget;
+        itemClassByName[dlb_murmur3(CSTR("Tool"    ))] = ItemClass_Tool;
+        itemClassByName[dlb_murmur3(CSTR("Weapon"  ))] = ItemClass_Weapon;
+        itemClassByName[dlb_murmur3(CSTR("Armor"   ))] = ItemClass_Armor;
+        itemClassByName[dlb_murmur3(CSTR("Shield"  ))] = ItemClass_Shield;
+        itemClassByName[dlb_murmur3(CSTR("Plant"   ))] = ItemClass_Plant;
+        itemClassByName[dlb_murmur3(CSTR("Book"    ))] = ItemClass_Book;
+    }
+
+    ItemClass itemClass = ItemClass_Empty;
+    u32 hashCode = dlb_murmur3(str, length);
+    auto kv = itemClassByName.find(hashCode);
+    if (kv != itemClassByName.end()) {
+        itemClass = kv->second;
+    }
+    return itemClass;
+}
+
+struct ItemProto {
+    ItemType  itemType     {};
+    ItemClass itemClass    {};
+    uint8_t   stackLimit   {};
+    char      nameSingular [ITEM_NAME_MAX_LENGTH]{};
+    char      namePlural   [ITEM_NAME_MAX_LENGTH]{};
+    // TODO: ENSURE NO DUPES (but without hash table or O(n) storage, i.e. use addAffix method w/ check and
+    //       removeAffix to keep tightly packed)
+    ItemAffixProto affixProtos[ITEM_AFFIX_MAX_COUNT]{};
+
+    ItemAffixProto FindAffixProto(ItemAffixType type) const {
+        for (size_t i = 0; i < ITEM_AFFIX_MAX_COUNT; i++) {
+            if (affixProtos[i].type == type) {
+                return affixProtos[i];
+            }
+        }
+        return ItemAffixProto{};
+    }
+
+    bool SetAffixProto(ItemAffixType type, FloatRange min, FloatRange max) {
+        ItemAffixProto *proto = 0;
+        for (size_t i = 0; i < ITEM_AFFIX_MAX_COUNT; i++) {
+            if (affixProtos[i].type == type || affixProtos[i].type == ItemAffix_Empty) {
+                proto = &affixProtos[i];
+                break;
+            }
+        }
+        if (proto) {
+            *proto = ItemAffixProto(type, min, max);
+        }
+        return proto;
+    }
+
+    bool SetAffixProto(ItemAffixType type, FloatRange value) {
+        return SetAffixProto(type, value, value);
+    }
+};
+
+struct ItemCatalog {
+    void LoadTextures(void);
+    void LoadData(void);
+
+    ItemProto &FindProto(ItemType type) {
+        DLB_ASSERT(type < ItemType_Count);
+        return protos[type];
+    }
+
+private:
+    Texture   tex{};
+    CSV       csv{};
+    ItemProto protos[ItemType_Count]{};
+} g_item_catalog;
+
+struct Item {
+    ItemUID  uid        {};
+    ItemType type       {};
+    // TODO: ENSURE NO DUPES (but without hash table or O(n) storage, i.e. use addAffix method w/ check and
+    //       removeAffix to keep tightly packed)
+    ItemAffix affixes[ITEM_AFFIX_MAX_COUNT]{};
+
+    Item(ItemUID uid, ItemType type) : uid(uid), type(type) {
+        Roll();
+    }
+
+    const ItemProto &Proto(void) const {
+        const ItemProto &proto = g_item_catalog.FindProto(type);
+        return proto;
+    }
+
+    void Roll() {
+        const ItemProto &proto = g_item_catalog.FindProto(type);
+        for (int i = 0; i < ARRAY_SIZE(affixes) && i < ARRAY_SIZE(proto.affixProtos); i++) {
+            affixes[i] = proto.affixProtos[i].Roll();
+        }
+    }
+
+    ItemAffix FindAffix(ItemAffixType type) const {
+        for (size_t i = 0; i < ITEM_AFFIX_MAX_COUNT; i++) {
+            if (affixes[i].type == type) {
+                return affixes[i];
+            }
+        }
+        return ItemAffix{};
+    }
+
+    bool SetAffix(ItemAffixType type, float min, float max) {
+        ItemAffix *affix = 0;
+        for (size_t i = 0; i < ITEM_AFFIX_MAX_COUNT; i++) {
+            if (affixes[i].type == type || affixes[i].type == ItemAffix_Empty) {
+                affix = &affixes[i];
+                break;
+            }
+        }
+        if (affix) {
+            *affix = ItemAffix::make(type, min, max);
+        }
+        return affix;
+    }
+
+    bool SetAffix(ItemAffixType type, float value) {
+        return SetAffix(type, value, value);
+    }
+
+    const char *Name() const {
+        return name;
+    }
+
+private:
+    char name[64]{};
+};
+
+struct ItemDatabase {
+    ItemUID Spawn(ItemType type, uint32_t count) {
+        nextUid = MAX(1, nextUid + 1); // Prevent ID zero from being used on overflow
+        Item item = items.emplace_back(nextUid, type, count);
+        return item.uid;
+    }
+
+    const Item& Find(ItemUID uid) {
+        uint32_t idx = byUid[uid];
+        return items[idx];
+    }
+private:
+    uint32_t nextUid = 0;
+    std::vector<Item> items{};
+    std::unordered_map<ItemUID, uint32_t> byUid{};  // map of item.uid -> items[] index
+} g_item_db;
+
+// TODO: Rename to ItemStack after done refactoring
+struct ItemStack {
+    ItemUID  uid   {};
+    uint32_t count {};
+};

@@ -81,10 +81,10 @@ Vector3 Player::GetAttachPoint(AttachPoint attachPoint) const
     return attach;
 }
 
-const ItemStack &Player::GetSelectedItem() const
+ItemUID Player::GetSelectedItem(void) const
 {
-    const ItemStack &selectedStack = inventory.slots[(size_t)inventory.selectedSlot].stack;
-    return selectedStack;
+    ItemUID uid = inventory.slots[(size_t)inventory.selectedSlot].stack.uid;
+    return uid;
 }
 
 void Player::UpdateDirection(Vector2 offset)
@@ -145,17 +145,19 @@ bool Player::Attack(void)
         combat.attackStartedAt = g_clock.now;
         combat.attackDuration = 0.2;
 
-        const ItemStack &selectedStack = GetSelectedItem();
-        switch (selectedStack.itemType) {
-            case ItemClass_Weapon: {
-                stats.timesSwordSwung++;
-                break;
-            } default: {
-                stats.timesFistSwung++;
-                break;
+        ItemUID selectedItemUid = GetSelectedItem();
+        if (selectedItemUid) {
+            const Item &selectedItem = g_item_db.Find(selectedItemUid);
+            switch (selectedItem.Proto().itemClass) {
+                case ItemClass_Weapon: {
+                    stats.timesSwordSwung++;
+                    break;
+                } default: {
+                    stats.timesFistSwung++;
+                    break;
+                }
             }
         }
-
         return true;
     }
     return false;
@@ -184,9 +186,12 @@ void Player::Update(InputSample &input, const Tilemap &map)
         float speed = body.speed;
 
         {
-            const Catalog::Item &speedSlot = inventory.slots[PlayerInvSlot_Hotbar_9].stack.Item();
-            ItemAffix afxMoveSpeedFlat = speedSlot.findAffix(ItemAffix_MoveSpeedFlat);
-            speed += afxMoveSpeedFlat.min;
+            ItemUID speedSlotUid = inventory.slots[PlayerInvSlot_Hotbar_9].stack.uid;
+            if (speedSlotUid) {
+                const Item &speedSlotItem = g_item_db.Find(speedSlotUid);
+                ItemAffix afxMoveSpeedFlat = speedSlotItem.FindAffix(ItemAffix_MoveSpeedFlat);
+                speed += afxMoveSpeedFlat.value.min;
+            }
         }
 
         Vector2 move{};
@@ -297,35 +302,38 @@ void Player::Update(InputSample &input, const Tilemap &map)
         const Spritesheet *sheet = sprite.spriteDef->spritesheet;
         assert(sheet->sprites.size() == 5);
 
-        const ItemStack &selectedStack = GetSelectedItem();
-        if (selectedStack.Item().itemClass == ItemClass_Weapon) {
-            switch (actionState) {
-                case ActionState::None: {
-                    switch ((int)body.Idle()) {
-                        // TODO: sprite_by_name("player_sword");
-                        case 0: sprite.spriteDef = &sheet->sprites[2]; break;
-                        // TODO: sprite_by_name("player_sword_idle");
-                        case 1: sprite.spriteDef = &sheet->sprites[3]; break;
+        ItemUID selectedItemUid = GetSelectedItem();
+        if (selectedItemUid) {
+            const Item &selectedItem = g_item_db.Find(selectedItemUid);
+            if (selectedItem.Proto().itemClass == ItemClass_Weapon) {
+                switch (actionState) {
+                    case ActionState::None: {
+                        switch ((int)body.Idle()) {
+                            // TODO: sprite_by_name("player_sword");
+                            case 0: sprite.spriteDef = &sheet->sprites[2]; break;
+                            // TODO: sprite_by_name("player_sword_idle");
+                            case 1: sprite.spriteDef = &sheet->sprites[3]; break;
+                        }
+                        break;
                     }
-                    break;
+                    case ActionState::AttackBegin:
+                    case ActionState::AttackSustain: {
+                        // sprite_by_name("player_sword_attack");
+                        sprite.spriteDef = &sheet->sprites[4];
+                        break;
+                    }
+                    case ActionState::AttackRecover: {
+                        sprite.spriteDef = &sheet->sprites[2];
+                        break;
+                    }
                 }
-                case ActionState::AttackBegin:
-                case ActionState::AttackSustain: {
-                    // sprite_by_name("player_sword_attack");
-                    sprite.spriteDef = &sheet->sprites[4];
-                    break;
+            } else {
+                switch ((int)body.Idle()) {
+                    // TODO: sprite_by_name("player_melee");
+                    case 0: sprite.spriteDef = &sheet->sprites[0]; break;
+                    // TODO: sprite_by_name("player_melee_idle");
+                    case 1: sprite.spriteDef = &sheet->sprites[1]; break;
                 }
-                case ActionState::AttackRecover: {
-                    sprite.spriteDef = &sheet->sprites[2];
-                    break;
-                }
-            }
-        } else {
-            switch ((int)body.Idle()) {
-                // TODO: sprite_by_name("player_melee");
-                case 0: sprite.spriteDef = &sheet->sprites[0]; break;
-                // TODO: sprite_by_name("player_melee_idle");
-                case 1: sprite.spriteDef = &sheet->sprites[1]; break;
             }
         }
     }

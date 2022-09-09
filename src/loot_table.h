@@ -3,7 +3,6 @@
 #include <functional>
 
 struct ItemSystem;
-struct ItemStack;
 
 enum class LootTableID {
     LT_Empty,
@@ -35,8 +34,8 @@ struct LootTable {
 
 struct LootSystem {
     LootSystem(void);
-    uint32_t RollCoins  (LootTableID lootTableId, int monster_lvl);
-    void     RollDrops  (LootTableID lootTableId, std::function<void(ItemStack &itemStack)> callback);
+    uint32_t RollCoins(LootTableID lootTableId, int monster_lvl);
+    void     RollDrops(LootTableID lootTableId, std::function<void(ItemUID itemUid)> callback);
 
 private:
     void InitLootTable(LootTableID lootTableId, uint8_t maxDrops);

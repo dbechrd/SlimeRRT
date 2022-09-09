@@ -14,7 +14,7 @@
 // Server sends InventoryUpdate event
 // Server broadcasts ItemPickup event
 
-ItemWorld *ItemSystem::SpawnItem(Vector3 pos, ItemType itemId, uint32_t count, uint32_t uid)
+ItemWorld *ItemSystem::SpawnItem(Vector3 pos, const ItemProto &proto, uint32_t count, uint32_t uid)
 {
     assert(count >= 0);
 
@@ -28,35 +28,35 @@ ItemWorld *ItemSystem::SpawnItem(Vector3 pos, ItemType itemId, uint32_t count, u
         TraceLog(LOG_ERROR, "Item pool is full; discarding item.");
         return 0;
     }
-    ItemWorld item{};
+    ItemWorld worldItem{};
 
     if (uid) {
-        item.uid = uid;
+        worldItem.itemUid = uid;
     } else {
         thread_local uint32_t nextUid = 0;
         nextUid = MAX(1, nextUid + 1); // Prevent ID zero from being used on overflow
-        item.uid = nextUid;
+        worldItem.itemUid = nextUid;
     }
 
-    ItemWorld *existingItemWithId = Find(item.uid);
+    ItemWorld *existingItemWithId = Find(worldItem.itemUid);
     if (existingItemWithId) {
-        TraceLog(LOG_ERROR, "Trying to spawn an item with type of an already existing item.");
+        TraceLog(LOG_ERROR, "Trying to spawn a world item for an item that already exists in the world.");
         return 0;
     }
 
-    item.stack.itemType = itemId;
-    item.stack.count = count;
+    worldItem.itemUid = uid;
+    worldItem.stack.count = count;
 
     Vector3 itemPos = pos;
     itemPos.x += dlb_rand32f_variance(METERS_TO_PIXELS(0.5f));
     itemPos.y += dlb_rand32f_variance(METERS_TO_PIXELS(0.5f));
-    item.body.Teleport(itemPos);
+    worldItem.body.Teleport(itemPos);
     float randX = dlb_rand32f_variance(METERS_TO_PIXELS(2.0f));
     float randY = dlb_rand32f_variance(METERS_TO_PIXELS(2.0f));
     float randZ = dlb_rand32f_range(3.0f, METERS_TO_PIXELS(4.0f));
-    item.body.velocity = { randX, randY, randZ };
-    item.body.restitution = 0.4f;
-    item.body.friction = 0.2f;
+    worldItem.body.velocity = { randX, randY, randZ };
+    worldItem.body.restitution = 0.4f;
+    worldItem.body.friction = 0.2f;
 
     Catalog::SpritesheetID spritesheetId = Catalog::SpritesheetID::Empty;
     //switch (uid) {
@@ -66,13 +66,13 @@ ItemWorld *ItemSystem::SpawnItem(Vector3 pos, ItemType itemId, uint32_t count, u
     //}
     if (spritesheetId != Catalog::SpritesheetID::Empty) {
         const Spritesheet &spritesheet = Catalog::g_spritesheets.FindById(spritesheetId);
-        item.sprite.spriteDef = spritesheet.FindSprite("coin");
+        worldItem.sprite.spriteDef = spritesheet.FindSprite("coin");
     }
-    item.sprite.scale = 1.0f;
-    item.spawnedAt = g_clock.now;
+    worldItem.sprite.scale = 1.0f;
+    worldItem.spawnedAt = g_clock.now;
 
-    byUid[item.uid] = (uint32_t)items.size();
-    return &items.emplace_back(item);
+    byUid[worldItem.uid] = (uint32_t)items.size();
+    return &items.emplace_back(worldItem);
 }
 
 ItemWorld *ItemSystem::Find(uint32_t uid)

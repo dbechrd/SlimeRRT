@@ -1,196 +1,196 @@
-Item ID,Category,Stack Limit,Value,Damage,Name,Plural
-0,Empty,1,0.00,0.0,Empty,Empty
-1,System,1,0.00,0.0,_Sys_Unknown_,_Sys_Unknown_
-2,Currency,99,0.01,0.0,Alloy,Alloys
-3,Currency,99,0.10,0.0,Plate,Plates
-4,Currency,99,1.00,0.0,Gilde,Gildes
-5,Gem,50,10.00,0.0,Ruby,Rubies
-6,Gem,50,20.00,0.0,Emerald,Emeralds
-7,Gem,50,40.00,0.0,Saphire,Saphires
-8,Gem,50,80.00,0.0,Diamond,Diamonds
-9,Gem,50,100.00,0.0,Golden Chest,Golden Chests
-10,System,1,0.00,0.0,_unused_10_,_unused_10_
-11,System,1,0.00,0.0,_unused_11_,_unused_11_
-12,System,1,0.00,0.0,_unused_12_,_unused_12_
-13,Ring,1,17.00,0.0,Tungsten Ring,Tungsten Rings
-14,Ring,1,21.00,0.0,Bone Ring,Bone Rings
-15,Ring,1,27.00,0.0,Obsidian Ring,Obsidian Rings
-16,Ring,1,38.00,0.0,Zebra Ring,Zebra Rings
-17,Ring,1,3.00,0.0,Rusty Ring,Rusty Rings
-18,Ring,1,6.00,0.0,Steel Ring,Steel Rings
-19,Ring,1,14.00,0.0,Jade Ring,Jade Rings
-20,Amulet,1,50.00,0.0,Silver Amulet of Topaz,Silver Amulets of Topaz
-21,Amulet,1,50.00,0.0,Silver Amulet of Saphire,Silver Amulets of Saphire
-22,Amulet,1,50.00,0.0,Silver Amulet of Emerald,Silver Amulets of Emerald
-23,Amulet,1,50.00,0.0,Silver Amulet of Ruby,Silver Amulets of Ruby
-24,Amulet,1,50.00,0.0,Silver Amulet of Amethyst,Silver Amulets of Amethyst
-25,Amulet,1,50.00,0.0,Silver Amulet of Diamond,Silver Amulets of Diamond
-26,Ring,1,50.00,0.0,Silver Ring of Topaz,Silver Rings of Topaz
-27,Ring,1,50.00,0.0,Silver Ring of Saphire,Silver Rings of Saphire
-28,Ring,1,50.00,0.0,Silver Ring of Emerald,Silver Rings of Emerald
-29,Ring,1,50.00,0.0,Silver Ring of Ruby,Silver Rings of Ruby
-30,Ring,1,50.00,0.0,Silver Ring of Amethyst,Silver Rings of Amethyst
-31,Ring,1,50.00,0.0,Silver Ring of Diamond,Silver Rings of Diamond
-32,Ring,1,50.00,0.0,Silver Ring,Silver Rings
-33,Amulet,1,50.00,0.0,Gold Amulet of Topaz,Gold Amulets of Topaz
-34,Amulet,1,50.00,0.0,Gold Amulet of Saphire,Gold Amulets of Saphire
-35,Amulet,1,50.00,0.0,Gold Amulet of Emerald,Gold Amulets of Emerald
-36,Amulet,1,50.00,0.0,Gold Amulet of Ruby,Gold Amulets of Ruby
-37,Amulet,1,50.00,0.0,Gold Amulet of Amethyst,Gold Amulets of Amethyst
-38,Amulet,1,50.00,0.0,Gold Amulet of Diamond,Gold Amulets of Diamond
-39,Ring,1,50.00,0.0,Gold Ring of Topaz,Gold Rings of Topaz
-40,Ring,1,50.00,0.0,Gold Ring of Saphire,Gold Rings of Saphire
-41,Ring,1,50.00,0.0,Gold Ring of Emerald,Gold Rings of Emerald
-42,Ring,1,50.00,0.0,Gold Ring of Ruby,Gold Rings of Ruby
-43,Ring,1,50.00,0.0,Gold Ring of Amethyst,Gold Rings of Amethyst
-44,Ring,1,50.00,0.0,Gold Ring of Diamond,Gold Rings of Diamond
-45,Ring,1,50.00,0.0,Gold Ring,Gold Rings
-46,Crown,1,95.00,0.0,Gold Spiked Crown,Gold Spiked Crowns
-47,Crown,1,130.00,0.0,Gold Spiked Crown of Ruby,Gold Spiked Crowns of Ruby
-48,Crown,1,78.00,0.0,Gold Velvet Crown,Gold Velvet Crowns
-49,Crown,1,42.00,0.0,Silver Circlet,Silver Circlets
-50,Crown,1,48.00,0.0,Gold Circlet,Gold Circlets
-51,Key,9,0.01,0.0,Horrendously Awful Key,Horrendously Awful Keys
-52,Coin,99,0.01,0.0,Copper Coin,Copper Coins
-53,Gem,50,500.0,0.0,Saphire,Saphires
-54,Gem,50,500.0,0.0,Emerald,Emeralds
-55,Gem,50,500.0,0.0,Ruby,Rubies
-56,Gem,50,500.0,0.0,Amethyst,Amethysts
-57,Gem,50,500.0,0.0,Diamond,Diamonds
-58,Gem,50,800.0,0.0,Pink Himalayan Salt,Pink Himalayan Salts
-59,Coin,100,1.00,0.0,Stack of Coins,Stacks of Coins
-60,Ore,100,3.00,0.0,Gold Ore,Gold Ores
-61,Item,1,5.00,0.0,Scroll of Wisdom,Scrolls of Wisdom
-62,Item,1,15.00,0.0,Red Cape,Red Capes
-63,Key,9,5.00,0.0,Key,Keys
-64,Key,9,2.50,0.0,Mangled Key,Mangled Keys
-65,Ore,100,12.00,0.0,Limonite Ore,Limonite Ores
-66,Ore,100,1.00,0.0,Copper Ore,Copper Ores
-67,Ore,100,2.00,0.0,Silver Ore,Silver Ores
-68,Ore,100,15.00,0.0,Virilium Ore,Virilium Ores
-69,Ore,100,4.00,0.0,Steel Ore,Steel Ores
-70,Ore,100,18.00,0.0,Cerulean Ore,Cerulean Ores
-71,Ore,100,8.00,0.0,Tungsten Ore,Tungsten Ores
-72,Potion,5,15.00,0.0,White Potion,White Potions
-73,Potion,5,15.00,0.0,Black Potion,Black Potions
-74,Potion,5,15.00,0.0,Purple Potion,Purple Potions
-75,Potion,5,15.00,0.0,Green Potion,Green Potions
-76,Potion,5,15.00,0.0,Red Potion,Red Potions
-77,Potion,5,15.00,0.0,Blue Potion,Blue Potions
-78,Ingot,100,24.00,0.0,Limonite Ingot,Limonite Ingots
-79,Ingot,100,2.00,0.0,Copper Ingot,Copper Ingots
-80,Ingot,100,4.00,0.0,Silver Ingot,Silver Ingots
-81,Ingot,100,30.00,0.0,Virilium Ingot,Virilium Ingots
-82,Ingot,100,8.00,0.0,Steel Ingot,Steel Ingots
-83,Ingot,100,36.00,0.0,Cerulean Ingot,Cerulean Ingots
-84,Ingot,100,16.00,0.0,Tungsten Ingot,Tungsten Ingots
-85,Potion,5,15.00,0.0,Brown Potion,Brown Potions
-86,Potion,5,15.00,0.0,Turquoise Potion,Turquoise Potions
-87,Potion,5,15.00,0.0,Yellow Potion,Yellow Potions
-88,Potion,5,15.00,0.0,Orange Potion,Orange Potions
-89,Potion,5,15.00,0.0,Pink Potion,Pink Potions
-90,Potion,5,0.05,0.0,Ornamental Potion,Ornamental Potions
-91,Nugget,100,0.50,0.0,Silver Nugget,Silver Nuggets
-92,Nugget,100,1.00,0.0,Gold Nugget,Gold Nuggets
-93,Item,50,5.00,0.0,Stack of Logs,Stacks of Logs
-94,Item,50,3.00,0.0,Coil of Rope,Coils of Rope
-95,Tool,1,2.00,0.0,Shovel,Shovels
-96,Tool,1,2.00,0.0,Pickaxe,Pickaxes
-97,Tool,1,2.00,0.0,Mallet,Mallets
-98,Item,2,0.10,0.0,Log,Logs
-99,Weapon,1,10.00,10,Great Axe,Great Axes
-100,Tool,1,2.00,2,Hatchet,Hatchets
-101,Weapon,1,10.00,8,Winged Axe,Winged Axes
-102,Weapon,1,10.00,6,Labrys,labryes
-103,Tool,1,10.00,4,Scythe,Scythes
-104,Weapon,1,2.00,1,Dagger,Daggers
-105,Weapon,1,2.00,2,Long Sword,Long Swords
-106,Weapon,1,10.00,3,Jagged Long Sword,Jagged Long Swords
-107,Weapon,1,2.00,2,Short Sword,Short Sword
-108,Weapon,1,10.00,3,Double Axe,Double Axes
-109,Weapon,1,2.00,2,Spear,Spears
-110,Weapon,1,2.00,2,Mace,Maces
-111,Weapon,1,10.00,3,Machete,Machetes
-112,Weapon,1,10.00,4,Slicer,Slicers
-113,Weapon,1,10.00,5,Great Blade,Great Blades
-114,Weapon,1,10.00,6,Great Slicer,Great Slicers
-115,Weapon,1,10.00,9,Great Tungsten Sword,Great Tungsten Swords
-116,Weapon,1,25.00,16,Excalibur,Excaliburs
-117,Weapon,1,25.00,11,Lightsabre,Lightsabres
-118,Weapon,1,25.00,3,Serated Edge,Serated Edges
-119,Weapon,1,25.00,4,Noble Serated Edge,Noble Serated Edges
-120,Weapon,1,25.00,6,Gemmed Long Sword,Gemmed Long Swords
-121,Weapon,1,25.00,6,Gemmed Double Blade,Gemmed Double Blades
-122,Weapon,1,25.00,4,Tungsten Spear,Tungsten Spears
-123,Weapon,1,25.00,4,Bludgeoner,Bludgeoners
-124,Weapon,1,10.00,3,Hammer,Hammers
-125,Weapon,1,15.00,4,Round Hammer,Round Hammers
-126,Weapon,1,20.00,5,Conic Hammer,Conic Hammers
-127,Weapon,1,10.00,2,Short Slicer,Short Slicers
-128,Weapon,1,20.00,5,Tungsten Sword,Tungsten Swords
-129,Weapon,1,15.00,3,Tungsten Dagger,Tungsten Daggers
-130,Armor,1,5.00,0.0,Helmet,Helmets
-131,Armor,1,10.00,0.0,Longneck Helmet,Longneck Helmets
-132,Armor,1,7.00,0.0,Short Helmet,Short Helmets
-133,Armor,1,10.00,0.0,Shielded Helmet,Shielded Helmets
-134,Armor,1,15.00,0.0,Galea,Galeae
-135,Armor,1,20.00,0.0,Cerulean Helmet,Cerulean Helmets
-136,Armor,1,25.00,0.0,Winged Helmet,Winged Helmets
-137,Armor,1,12.00,0.0,Lesser Galea,Lesser Galeae
-138,Armor,1,3.00,0.0,Leather Helmet,Leather Helmets
-139,Armor,1,2.00,0.0,Shirt,Shirts
-140,Armor,1,3.00,0.0,Glove,Gloves
-141,Weapon,1,4.00,0,Bow,Bows
-142,Item,9,0.01,0.0,Skull & Crossbones,Skulls & Crossbones
-143,Armor,1,25.00,0.0,Winged Tungsten Helmet,Winged Tungsten Helmets
-144,Armor,1,25.00,0.0,Tungsten Breastplate,Tungsten Breastplates
-145,Armor,1,25.00,0.0,Tungsten Boots,Tungsten Boots
-146,Armor,1,30.00,0.0,Spiked Tungsten Helmet,Spiked Tungsten Helmets
-147,Armor,1,35.00,0.0,Giant Tungsten Helmet,Giant Tungsten Helmets
-148,Armor,1,3.00,0.0,Leather Boots,Leather Boots
-149,Armor,1,2.00,0.0,Leather Booties,Leather Booties
-150,Armor,1,1.00,0.0,Leather Sandals,Leather Sandals
-151,Armor,1,8.00,0.0,Black Leather Boots,Black Leather Boots
-152,Armor,1,6.00,0.0,Black Leather Booties,Black Leather Booties
-153,Armor,1,8.00,0.0,Tungsten Gloves,Tungsten Gloves
-154,Item,50,0.01,0.0,Rock,Rocks
-155,Item,50,0.01,0.0,Piece of Paper,Pieces of Paper
-156,Weapon,1,10.00,1,Wooden Staff,Wooden Staves
-157,Weapon,1,15.00,1,Scepter,Scepters
-158,Weapon,1,20.00,1,Orb,Orbs
-159,Weapon,1,25.00,1,Noble Staff,Noble Staves
-160,Weapon,1,30.00,1,Enchanted Staff,Enchanted Staves
-161,Shield,1,10.00,0.0,Shield,Shields
-162,Shield,1,15.00,0.0,Reinforced Round Shield,Reinforced Round Shields
-163,Shield,1,13.00,0.0,Round Shield,Round Shields
-164,Shield,1,18.00,0.0,Royal Shield,Royal Shields
-165,Shield,1,23.00,0.0,Holy Shield,Holy Shields
-166,Item,1,0.00,0.0,_empty_space_,_empty_space_
-167,Item,9,0.01,0.0,Worm,Worms
-168,Item,9,0.01,0.0,Pair of Dice,Pairs of Dice
-169,Plant,50,0.01,0.0,Bush,Bushes
-170,Plant,50,0.01,0.0,Large Leaf,Large Leaves
-171,Plant,50,0.01,0.0,Lily,Lilies
-172,Plant,50,0.01,0.0,Seaweed,Seaweed
-173,Plant,50,0.01,0.0,Mushroom,Mushrooms
-174,Plant,50,0.01,0.0,Seagrass,Seagrass
-175,Plant,50,0.01,0.0,Berries,Berries
-176,Book,5,1.00,0.0,Green Book,Green Books
-177,Book,5,1.00,0.0,Red Book,Red Books
-178,Book,5,1.00,0.0,Blue Book,Blue Books
-179,Book,5,1.00,0.0,White Book,White Books
-180,Book,5,1.00,0.0,Brown Book,Brown Books
-181,Book,5,1.00,0.0,Red Book of Hearts,Red Books of Hearts
-182,Plant,50,0.01,0.0,Fish Eggs,Fish Eggs
-183,Plant,50,0.01,0.0,Small Leaf,Small Leaves
-184,Plant,50,0.01,0.0,Leaf,Leaves
-185,Plant,50,0.01,0.0,Blue Orchid,Blue Orchids
-186,Plant,50,0.01,0.0,Spotted Mushroom,Spotted Mushrooms
-187,Plant,50,0.01,0.0,Rose,Roses
-188,Plant,50,0.01,0.0,Geranium,Geraniums
-189,Book,5,1.00,0.0,Purple Book,Purple Books
-190,Book,5,1.00,0.0,Yellow Book,Yellow Books
-191,Book,5,1.00,0.0,Turquoise Book,Turquoise Books
-192,Book,5,1.00,0.0,Black Book,Black Books
-193,Book,5,100.00,0.0,Black Book of Death,Black Books of Death
-194,Book,5,50.00,0.0,Blue Book of Defense,Blue Books of Defense
+Item ID,Category,Stack Limit,Value,DamageFlatMin,DamageFlatMax,Name,Plural
+0,Empty,1,0.00,0.0,0.0,Empty,Empty
+1,System,1,0.00,0.0,0.0,_Sys_Unknown_,_Sys_Unknown_
+2,Currency,99,0.01,0.0,0.0,Alloy,Alloys
+3,Currency,99,0.10,0.0,0.0,Plate,Plates
+4,Currency,99,1.00,0.0,0.0,Gilde,Gildes
+5,Gem,50,10.00,0.0,0.0,Ruby,Rubies
+6,Gem,50,20.00,0.0,0.0,Emerald,Emeralds
+7,Gem,50,40.00,0.0,0.0,Saphire,Saphires
+8,Gem,50,80.00,0.0,0.0,Diamond,Diamonds
+9,Gem,50,100.00,0.0,0.0,Golden Chest,Golden Chests
+10,System,1,0.00,0.0,0.0,_unused_10_,_unused_10_
+11,System,1,0.00,0.0,0.0,_unused_11_,_unused_11_
+12,System,1,0.00,0.0,0.0,_unused_12_,_unused_12_
+13,Ring,1,17.00,0.0,0.0,Tungsten Ring,Tungsten Rings
+14,Ring,1,21.00,0.0,0.0,Bone Ring,Bone Rings
+15,Ring,1,27.00,0.0,0.0,Obsidian Ring,Obsidian Rings
+16,Ring,1,38.00,0.0,0.0,Zebra Ring,Zebra Rings
+17,Ring,1,3.00,0.0,0.0,Rusty Ring,Rusty Rings
+18,Ring,1,6.00,0.0,0.0,Steel Ring,Steel Rings
+19,Ring,1,14.00,0.0,0.0,Jade Ring,Jade Rings
+20,Amulet,1,50.00,0.0,0.0,Silver Amulet of Topaz,Silver Amulets of Topaz
+21,Amulet,1,50.00,0.0,0.0,Silver Amulet of Saphire,Silver Amulets of Saphire
+22,Amulet,1,50.00,0.0,0.0,Silver Amulet of Emerald,Silver Amulets of Emerald
+23,Amulet,1,50.00,0.0,0.0,Silver Amulet of Ruby,Silver Amulets of Ruby
+24,Amulet,1,50.00,0.0,0.0,Silver Amulet of Amethyst,Silver Amulets of Amethyst
+25,Amulet,1,50.00,0.0,0.0,Silver Amulet of Diamond,Silver Amulets of Diamond
+26,Ring,1,50.00,0.0,0.0,Silver Ring of Topaz,Silver Rings of Topaz
+27,Ring,1,50.00,0.0,0.0,Silver Ring of Saphire,Silver Rings of Saphire
+28,Ring,1,50.00,0.0,0.0,Silver Ring of Emerald,Silver Rings of Emerald
+29,Ring,1,50.00,0.0,0.0,Silver Ring of Ruby,Silver Rings of Ruby
+30,Ring,1,50.00,0.0,0.0,Silver Ring of Amethyst,Silver Rings of Amethyst
+31,Ring,1,50.00,0.0,0.0,Silver Ring of Diamond,Silver Rings of Diamond
+32,Ring,1,50.00,0.0,0.0,Silver Ring,Silver Rings
+33,Amulet,1,50.00,0.0,0.0,Gold Amulet of Topaz,Gold Amulets of Topaz
+34,Amulet,1,50.00,0.0,0.0,Gold Amulet of Saphire,Gold Amulets of Saphire
+35,Amulet,1,50.00,0.0,0.0,Gold Amulet of Emerald,Gold Amulets of Emerald
+36,Amulet,1,50.00,0.0,0.0,Gold Amulet of Ruby,Gold Amulets of Ruby
+37,Amulet,1,50.00,0.0,0.0,Gold Amulet of Amethyst,Gold Amulets of Amethyst
+38,Amulet,1,50.00,0.0,0.0,Gold Amulet of Diamond,Gold Amulets of Diamond
+39,Ring,1,50.00,0.0,0.0,Gold Ring of Topaz,Gold Rings of Topaz
+40,Ring,1,50.00,0.0,0.0,Gold Ring of Saphire,Gold Rings of Saphire
+41,Ring,1,50.00,0.0,0.0,Gold Ring of Emerald,Gold Rings of Emerald
+42,Ring,1,50.00,0.0,0.0,Gold Ring of Ruby,Gold Rings of Ruby
+43,Ring,1,50.00,0.0,0.0,Gold Ring of Amethyst,Gold Rings of Amethyst
+44,Ring,1,50.00,0.0,0.0,Gold Ring of Diamond,Gold Rings of Diamond
+45,Ring,1,50.00,0.0,0.0,Gold Ring,Gold Rings
+46,Crown,1,95.00,0.0,0.0,Gold Spiked Crown,Gold Spiked Crowns
+47,Crown,1,130.00,0.0,0.0,Gold Spiked Crown of Ruby,Gold Spiked Crowns of Ruby
+48,Crown,1,78.00,0.0,0.0,Gold Velvet Crown,Gold Velvet Crowns
+49,Crown,1,42.00,0.0,0.0,Silver Circlet,Silver Circlets
+50,Crown,1,48.00,0.0,0.0,Gold Circlet,Gold Circlets
+51,Key,9,0.01,0.0,0.0,Horrendously Awful Key,Horrendously Awful Keys
+52,Coin,99,0.01,0.0,0.0,Copper Coin,Copper Coins
+53,Gem,50,500.0,0.0,0.0,Saphire,Saphires
+54,Gem,50,500.0,0.0,0.0,Emerald,Emeralds
+55,Gem,50,500.0,0.0,0.0,Ruby,Rubies
+56,Gem,50,500.0,0.0,0.0,Amethyst,Amethysts
+57,Gem,50,500.0,0.0,0.0,Diamond,Diamonds
+58,Gem,50,800.0,0.0,0.0,Pink Himalayan Salt,Pink Himalayan Salts
+59,Coin,100,1.00,0.0,0.0,Stack of Coins,Stacks of Coins
+60,Ore,100,3.00,0.0,0.0,Gold Ore,Gold Ores
+61,Item,1,5.00,0.0,0.0,Scroll of Wisdom,Scrolls of Wisdom
+62,Item,1,15.00,0.0,0.0,Red Cape,Red Capes
+63,Key,9,5.00,0.0,0.0,Key,Keys
+64,Key,9,2.50,0.0,0.0,Mangled Key,Mangled Keys
+65,Ore,100,12.00,0.0,0.0,Limonite Ore,Limonite Ores
+66,Ore,100,1.00,0.0,0.0,Copper Ore,Copper Ores
+67,Ore,100,2.00,0.0,0.0,Silver Ore,Silver Ores
+68,Ore,100,15.00,0.0,0.0,Virilium Ore,Virilium Ores
+69,Ore,100,4.00,0.0,0.0,Steel Ore,Steel Ores
+70,Ore,100,18.00,0.0,0.0,Cerulean Ore,Cerulean Ores
+71,Ore,100,8.00,0.0,0.0,Tungsten Ore,Tungsten Ores
+72,Potion,5,15.00,0.0,0.0,White Potion,White Potions
+73,Potion,5,15.00,0.0,0.0,Black Potion,Black Potions
+74,Potion,5,15.00,0.0,0.0,Purple Potion,Purple Potions
+75,Potion,5,15.00,0.0,0.0,Green Potion,Green Potions
+76,Potion,5,15.00,0.0,0.0,Red Potion,Red Potions
+77,Potion,5,15.00,0.0,0.0,Blue Potion,Blue Potions
+78,Ingot,100,24.00,0.0,0.0,Limonite Ingot,Limonite Ingots
+79,Ingot,100,2.00,0.0,0.0,Copper Ingot,Copper Ingots
+80,Ingot,100,4.00,0.0,0.0,Silver Ingot,Silver Ingots
+81,Ingot,100,30.00,0.0,0.0,Virilium Ingot,Virilium Ingots
+82,Ingot,100,8.00,0.0,0.0,Steel Ingot,Steel Ingots
+83,Ingot,100,36.00,0.0,0.0,Cerulean Ingot,Cerulean Ingots
+84,Ingot,100,16.00,0.0,0.0,Tungsten Ingot,Tungsten Ingots
+85,Potion,5,15.00,0.0,0.0,Brown Potion,Brown Potions
+86,Potion,5,15.00,0.0,0.0,Turquoise Potion,Turquoise Potions
+87,Potion,5,15.00,0.0,0.0,Yellow Potion,Yellow Potions
+88,Potion,5,15.00,0.0,0.0,Orange Potion,Orange Potions
+89,Potion,5,15.00,0.0,0.0,Pink Potion,Pink Potions
+90,Potion,5,0.05,0.0,0.0,Ornamental Potion,Ornamental Potions
+91,Nugget,100,0.50,0.0,0.0,Silver Nugget,Silver Nuggets
+92,Nugget,100,1.00,0.0,0.0,Gold Nugget,Gold Nuggets
+93,Item,50,5.00,0.0,0.0,Stack of Logs,Stacks of Logs
+94,Item,50,3.00,0.0,0.0,Coil of Rope,Coils of Rope
+95,Tool,1,2.00,0.0,0.0,Shovel,Shovels
+96,Tool,1,2.00,0.0,0.0,Pickaxe,Pickaxes
+97,Tool,1,2.00,0.0,0.0,Mallet,Mallets
+98,Item,2,0.10,0.0,0.0,Log,Logs
+99,Weapon,1,10.00,10,11,Great Axe,Great Axes
+100,Tool,1,2.00,2,3,Hatchet,Hatchets
+101,Weapon,1,10.00,8,9,Winged Axe,Winged Axes
+102,Weapon,1,10.00,6,7,Labrys,labryes
+103,Tool,1,10.00,4,5,Scythe,Scythes
+104,Weapon,1,2.00,1,2,Dagger,Daggers
+105,Weapon,1,2.00,2,3,Long Sword,Long Swords
+106,Weapon,1,10.00,3,4,Jagged Long Sword,Jagged Long Swords
+107,Weapon,1,2.00,2,3,Short Sword,Short Sword
+108,Weapon,1,10.00,3,4,Double Axe,Double Axes
+109,Weapon,1,2.00,2,3,Spear,Spears
+110,Weapon,1,2.00,2,3,Mace,Maces
+111,Weapon,1,10.00,3,4,Machete,Machetes
+112,Weapon,1,10.00,4,5,Slicer,Slicers
+113,Weapon,1,10.00,5,6,Great Blade,Great Blades
+114,Weapon,1,10.00,6,7,Great Slicer,Great Slicers
+115,Weapon,1,10.00,9,10,Great Tungsten Sword,Great Tungsten Swords
+116,Weapon,1,25.00,16,17,Excalibur,Excaliburs
+117,Weapon,1,25.00,11,12,Lightsabre,Lightsabres
+118,Weapon,1,25.00,3,4,Serated Edge,Serated Edges
+119,Weapon,1,25.00,4,5,Noble Serated Edge,Noble Serated Edges
+120,Weapon,1,25.00,6,7,Gemmed Long Sword,Gemmed Long Swords
+121,Weapon,1,25.00,6,7,Gemmed Double Blade,Gemmed Double Blades
+122,Weapon,1,25.00,4,5,Tungsten Spear,Tungsten Spears
+123,Weapon,1,25.00,4,5,Bludgeoner,Bludgeoners
+124,Weapon,1,10.00,3,4,Hammer,Hammers
+125,Weapon,1,15.00,4,5,Round Hammer,Round Hammers
+126,Weapon,1,20.00,5,6,Conic Hammer,Conic Hammers
+127,Weapon,1,10.00,2,3,Short Slicer,Short Slicers
+128,Weapon,1,20.00,5,6,Tungsten Sword,Tungsten Swords
+129,Weapon,1,15.00,3,4,Tungsten Dagger,Tungsten Daggers
+130,Armor,1,5.00,0.0,0.0,Helmet,Helmets
+131,Armor,1,10.00,0.0,0.0,Longneck Helmet,Longneck Helmets
+132,Armor,1,7.00,0.0,0.0,Short Helmet,Short Helmets
+133,Armor,1,10.00,0.0,0.0,Shielded Helmet,Shielded Helmets
+134,Armor,1,15.00,0.0,0.0,Galea,Galeae
+135,Armor,1,20.00,0.0,0.0,Cerulean Helmet,Cerulean Helmets
+136,Armor,1,25.00,0.0,0.0,Winged Helmet,Winged Helmets
+137,Armor,1,12.00,0.0,0.0,Lesser Galea,Lesser Galeae
+138,Armor,1,3.00,0.0,0.0,Leather Helmet,Leather Helmets
+139,Armor,1,2.00,0.0,0.0,Shirt,Shirts
+140,Armor,1,3.00,0.0,0.0,Glove,Gloves
+141,Weapon,1,4.00,0,0,Bow,Bows
+142,Item,9,0.01,0.0,0.0,Skull & Crossbones,Skulls & Crossbones
+143,Armor,1,25.00,0.0,0.0,Winged Tungsten Helmet,Winged Tungsten Helmets
+144,Armor,1,25.00,0.0,0.0,Tungsten Breastplate,Tungsten Breastplates
+145,Armor,1,25.00,0.0,0.0,Tungsten Boots,Tungsten Boots
+146,Armor,1,30.00,0.0,0.0,Spiked Tungsten Helmet,Spiked Tungsten Helmets
+147,Armor,1,35.00,0.0,0.0,Giant Tungsten Helmet,Giant Tungsten Helmets
+148,Armor,1,3.00,0.0,0.0,Leather Boots,Leather Boots
+149,Armor,1,2.00,0.0,0.0,Leather Booties,Leather Booties
+150,Armor,1,1.00,0.0,0.0,Leather Sandals,Leather Sandals
+151,Armor,1,8.00,0.0,0.0,Black Leather Boots,Black Leather Boots
+152,Armor,1,6.00,0.0,0.0,Black Leather Booties,Black Leather Booties
+153,Armor,1,8.00,0.0,0.0,Tungsten Gloves,Tungsten Gloves
+154,Item,50,0.01,0.0,0.0,Rock,Rocks
+155,Item,50,0.01,0.0,0.0,Piece of Paper,Pieces of Paper
+156,Weapon,1,10.00,1,2,Wooden Staff,Wooden Staves
+157,Weapon,1,15.00,1,3,Scepter,Scepters
+158,Weapon,1,20.00,1,4,Orb,Orbs
+159,Weapon,1,25.00,1,5,Noble Staff,Noble Staves
+160,Weapon,1,30.00,1,6,Enchanted Staff,Enchanted Staves
+161,Shield,1,10.00,0.0,0.0,Shield,Shields
+162,Shield,1,15.00,0.0,0.0,Reinforced Round Shield,Reinforced Round Shields
+163,Shield,1,13.00,0.0,0.0,Round Shield,Round Shields
+164,Shield,1,18.00,0.0,0.0,Royal Shield,Royal Shields
+165,Shield,1,23.00,0.0,0.0,Holy Shield,Holy Shields
+166,Item,1,0.00,0.0,0.0,_empty_space_,_empty_space_
+167,Item,9,0.01,0.0,0.0,Worm,Worms
+168,Item,9,0.01,0.0,0.0,Pair of Dice,Pairs of Dice
+169,Plant,50,0.01,0.0,0.0,Bush,Bushes
+170,Plant,50,0.01,0.0,0.0,Large Leaf,Large Leaves
+171,Plant,50,0.01,0.0,0.0,Lily,Lilies
+172,Plant,50,0.01,0.0,0.0,Seaweed,Seaweed
+173,Plant,50,0.01,0.0,0.0,Mushroom,Mushrooms
+174,Plant,50,0.01,0.0,0.0,Seagrass,Seagrass
+175,Plant,50,0.01,0.0,0.0,Berries,Berries
+176,Book,5,1.00,0.0,0.0,Green Book,Green Books
+177,Book,5,1.00,0.0,0.0,Red Book,Red Books
+178,Book,5,1.00,0.0,0.0,Blue Book,Blue Books
+179,Book,5,1.00,0.0,0.0,White Book,White Books
+180,Book,5,1.00,0.0,0.0,Brown Book,Brown Books
+181,Book,5,1.00,0.0,0.0,Red Book of Hearts,Red Books of Hearts
+182,Plant,50,0.01,0.0,0.0,Fish Eggs,Fish Eggs
+183,Plant,50,0.01,0.0,0.0,Small Leaf,Small Leaves
+184,Plant,50,0.01,0.0,0.0,Leaf,Leaves
+185,Plant,50,0.01,0.0,0.0,Blue Orchid,Blue Orchids
+186,Plant,50,0.01,0.0,0.0,Spotted Mushroom,Spotted Mushrooms
+187,Plant,50,0.01,0.0,0.0,Rose,Roses
+188,Plant,50,0.01,0.0,0.0,Geranium,Geraniums
+189,Book,5,1.00,0.0,0.0,Purple Book,Purple Books
+190,Book,5,1.00,0.0,0.0,Yellow Book,Yellow Books
+191,Book,5,1.00,0.0,0.0,Turquoise Book,Turquoise Books
+192,Book,5,1.00,0.0,0.0,Black Book,Black Books
+193,Book,5,100.00,0.0,0.0,Black Book of Death,Black Books of Death
+194,Book,5,50.00,0.0,0.0,Blue Book of Defense,Blue Books of Defense

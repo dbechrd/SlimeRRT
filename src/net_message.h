@@ -186,8 +186,8 @@ struct NetMessage_NearbyEvent {
 
 struct NetMessage_InventoryUpdate {
     struct SlotUpdate {
-        uint8_t   slotId {};
-        ItemStack stack  {};
+        uint8_t slotId  {};
+        ItemUID itemUid {};
     };
 
     uint8_t    slotCount {};

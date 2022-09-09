@@ -28,7 +28,7 @@ ErrorType GameServer::Run(const Args &args)
 
     if (args.standalone) {
         // Load data that GameClient would have already loaded otherwise
-        Catalog::g_items.LoadData();
+        Catalog::g_item_protos.LoadData();
     }
 
     World *world = new World;

@@ -88,7 +88,8 @@ private:
         ItemColumn_Class,
         ItemColumn_StackLimit,
         ItemColumn_Value,
-        ItemColumn_Damage,
+        ItemColumn_DamageFlatMin,
+        ItemColumn_DamageFlatMax,
         ItemColumn_Name,
         ItemColumn_NamePlural,
     };

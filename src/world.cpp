@@ -5,7 +5,6 @@
 #include "controller.h"
 #include "direction.h"
 #include "helpers.h"
-#include "item_stack.h"
 #include "maths.h"
 #include "monster/monster.h"
 #include "particles.h"
@@ -300,9 +299,9 @@ void World::SV_SimPlayers(double dt)
 
             const ItemStack &selectedStack = player.GetSelectedItem();
             const Catalog::Item &selectedItem = Catalog::g_items.Find(selectedStack.itemType);
-            float playerDamage = selectedItem.findAffix(ItemAffix_DamageFlat).min;
-            float playerKnockback = selectedItem.findAffix(ItemAffix_KnockbackFlat).min;
-            if (selectedItem.itemType == ITEMTYPE_EMPTY) {
+            float playerDamage = selectedItem.findAffix(ItemAffix_DamageFlat).rollValue();
+            float playerKnockback = selectedItem.findAffix(ItemAffix_KnockbackFlat).rollValue();
+            if (selectedItem.itemType == ItemType_Empty) {
                 playerDamage = player.combat.meleeDamage;
             }
 

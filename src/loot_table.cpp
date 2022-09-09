@@ -55,22 +55,20 @@ uint32_t LootSystem::RollCoins(LootTableID lootTableId, int monster_lvl)
     return coins;
 }
 
-void LootSystem::RollDrops(LootTableID lootTableId, std::function<void(ItemStack &itemStack)> callback)
+void LootSystem::RollDrops(LootTableID lootTableId, std::function<void(ItemUID itemUid)> callback)
 {
     LootTable &table = lootTableRegistry[(size_t)lootTableId];
     uint8_t dropCount = 0;
     for (uint32_t i = 0; dropCount < table.maxDrops && i < ARRAY_SIZE(table.drops); i++) {
         LootDrop &drop = table.drops[i];
         if (drop.maxCount && dlb_rand32f() < drop.pctChance) {
-            ItemStack dropStack{};
-
             // TODO: Find a random item with the right ilvl range and item class. This probably means
             // that combat.lootTableId should instead be calculated dynamically based on the monster
             // level, area level, etc.
             // HACK: Find first item that has the class we want to drop
             for (ItemType itemType = 0; itemType < ItemType_Count; itemType++) {
-                const Catalog::Item &item = Catalog::g_items.Find(itemType);
-                if (item.itemClass == drop.itemClass) {
+                const Catalog::ItemProto &proto = Catalog::g_item_catalog.FindProto(itemType);
+                if (item.proto().itemClass == drop.itemClass) {
                     dropStack.itemType = itemType;
                     break;
                 }
