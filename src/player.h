@@ -117,9 +117,9 @@ struct PlayerInventory {
     // TODO: Check slot filter
     void SwapSlots(InventorySlot &a, InventorySlot &b)
     {
-        InventorySlot tmp = a;
-        a = b;
-        b = tmp;
+        ItemStack tmp = a.stack;
+        a.stack = b.stack;
+        b.stack = tmp;
     }
 
     // Attempt to transfer some amount of items from one slot to another
@@ -133,8 +133,8 @@ struct PlayerInventory {
 
         const Item &item = g_item_db.Find(src.stack.uid);
 
-        // Can only transfer if items are an exact match (including all affixes)
-        if (dst.stack.uid != item.uid) {
+        // If dst slot has an item already, only transfer if items are an exact match (including all affixes)
+        if (dst.stack.count && dst.stack.uid != item.uid) {
             return false;
         }
 
@@ -162,13 +162,13 @@ struct PlayerInventory {
         if (dst.stack.count) {
             dst.stack.uid = item.uid;
         }
-        return true;
+        return dst.stack.count == stackLimit;
     }
 
     void SlotClick(int slotIdx, bool doubleClicked)
     {
-        InventorySlot cursor = CursorSlot();
-        InventorySlot slot = GetInvSlot(slotIdx);
+        InventorySlot &cursor = CursorSlot();
+        InventorySlot &slot = GetInvSlot(slotIdx);
 
         if (!cursor.stack.count && slot.stack.count) {
             // Pick up all items from clicked slot
@@ -178,12 +178,15 @@ struct PlayerInventory {
                 // Pick up as many items as possible from all slots that match the cursor's current item
                 bool done = false;
                 for (int slotIdx = PlayerInvSlot_Count - 1; slotIdx >= 0 && !done; slotIdx--) {
-                    InventorySlot slot = GetInvSlot(slotIdx);
+                    if (slotIdx == PlayerInvSlot_Cursor)
+                        continue;
+
+                    InventorySlot &slot = GetInvSlot(slotIdx);
                     done = TransferSlot(slot, cursor, true);
                 }
             } else {
-                // Pick up as many items as possible from clicked slot
-                TransferSlot(slot, cursor);
+                // Place as many items as possible into clicked slot
+                TransferSlot(cursor, slot);
             }
         }
     }
@@ -195,8 +198,8 @@ struct PlayerInventory {
             return;
         }
 
-        InventorySlot cursor = CursorSlot();
-        InventorySlot slot = GetInvSlot(slotIdx);
+        InventorySlot &cursor = CursorSlot();
+        InventorySlot &slot = GetInvSlot(slotIdx);
         if (transfer > 0) {
             TransferSlot(cursor, slot, false, (uint32_t)transfer);
         } else {

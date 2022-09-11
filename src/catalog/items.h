@@ -554,18 +554,27 @@ struct Item {
         return SetAffix(type, value, value);
     }
 
-    const char *Name() const {
+    const char *Name(bool plural = false) const {
+        const char *name = plural ? Proto().namePlural : Proto().nameSingular;
         return name;
     }
 
 private:
-    char name[64]{};
+    // TODO(dlb): Maybe cache name here if it's complicated (e.g. based on affixes)?
+    //char name[64]{};
 };
 
 struct ItemDatabase {
+    ItemDatabase(void) {
+        const Item &item = items.emplace_back(0, 0);
+        byUid[0] = item.uid;
+    }
+
     ItemUID Spawn(ItemType type) {
         nextUid = MAX(1, nextUid + 1); // Prevent ID zero from being used on overflow
-        Item item = items.emplace_back(nextUid, type);
+        const Item &item = items.emplace_back(nextUid, type);
+        DLB_ASSERT(items.size());
+        byUid[item.uid] = (uint32_t)items.size() - 1;
         return item.uid;
     }
 

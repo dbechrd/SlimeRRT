@@ -16,6 +16,9 @@
 
 ItemWorld *ItemSystem::SpawnItem(Vector3 pos, ItemUID itemUid, uint32_t count, EntityUID euid)
 {
+    DLB_ASSERT(itemUid);
+    DLB_ASSERT(count);
+
     if (!count) {
         TraceLog(LOG_WARNING, "Not spawning item stack with count 0.");
         return 0;
@@ -34,9 +37,11 @@ ItemWorld *ItemSystem::SpawnItem(Vector3 pos, ItemUID itemUid, uint32_t count, E
             TraceLog(LOG_ERROR, "Trying to spawn a world item that already exists in the world.");
             return 0;
         }
+        worldItem.euid = euid;
     } else {
         thread_local uint32_t nextUid = 0;
-        euid = MAX(1, nextUid + 1); // Prevent ID zero from being used on overflow
+        nextUid++;
+        worldItem.euid = MAX(1, nextUid); // Prevent ID zero from being used on overflow
     }
 
     uint32_t stackLimit = g_item_db.Find(itemUid).Proto().stackLimit;
@@ -153,10 +158,9 @@ void ItemSystem::DespawnDeadEntities(double pickupDespawnDelay)
         // NOTE: Server adds extra pickupDespawnDelay to ensure all clients receive a snapshot
         // containing the pickup flag before despawning the item. This may not be necessary
         // once nearby_events are implemented and send item pickup notifications.
-        if (item.stack.count && (
-            (item.pickedUpAt && ((g_clock.now - item.pickedUpAt) > pickupDespawnDelay)) ||
-            (item.spawnedAt && ((g_clock.now - item.spawnedAt) > SV_WORLD_ITEM_LIFETIME))
-        )) {
+        if ((item.pickedUpAt && ((g_clock.now - item.pickedUpAt) > pickupDespawnDelay)) ||
+            (item.spawnedAt && ((g_clock.now - item.spawnedAt) > SV_WORLD_ITEM_LIFETIME)))
+        {
             DLB_ASSERT(item.stack.uid);
             // NOTE: If remove succeeds, don't increment index, next element to check is in the
             // same slot now.

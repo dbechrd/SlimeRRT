@@ -45,7 +45,7 @@ void ItemWorld::Update(double dt)
     const Item &item = g_item_db.Find(stack.uid);
 
     if (item.uid != namedStack.uid || stack.count != namedStack.count) {
-        const char *itemName = item.Name();
+        const char *itemName = item.Name(stack.count > 1);
         if (stack.count > 1) {
             snprintf(name, sizeof(name), "%s (%u)", itemName, stack.count);
         } else {

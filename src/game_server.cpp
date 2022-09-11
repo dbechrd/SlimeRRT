@@ -40,6 +40,9 @@ ErrorType GameServer::Run(const Args &args)
         }
     }
 
+    ItemUID uid = g_item_db.Spawn(ItemType_Amulet_Gold_Saphire);
+    world->itemSystem.SpawnItem({ 200, 0, 0 }, uid, 1);
+
     netServer.serverWorld = world;
 
     E_ASSERT(netServer.OpenSocket(args.port), "Failed to open socket");
