@@ -81,10 +81,14 @@ Vector3 Player::GetAttachPoint(AttachPoint attachPoint) const
     return attach;
 }
 
-ItemUID Player::GetSelectedItem(void) const
+ItemStack Player::GetSelectedStack(void) const
 {
-    ItemUID uid = inventory.slots[(size_t)inventory.selectedSlot].stack.uid;
-    return uid;
+    ItemStack stack = inventory.slots[(size_t)inventory.selectedSlot].stack;
+    if (stack.uid || stack.count) {
+        DLB_ASSERT(stack.uid);
+        DLB_ASSERT(stack.count);
+    }
+    return stack;
 }
 
 void Player::UpdateDirection(Vector2 offset)
@@ -145,9 +149,9 @@ bool Player::Attack(void)
         combat.attackStartedAt = g_clock.now;
         combat.attackDuration = 0.2;
 
-        ItemUID selectedItemUid = GetSelectedItem();
-        if (selectedItemUid) {
-            const Item &selectedItem = g_item_db.Find(selectedItemUid);
+        ItemStack selectedStack = GetSelectedStack();
+        if (selectedStack.uid) {
+            const Item &selectedItem = g_item_db.Find(selectedStack.uid);
             switch (selectedItem.Proto().itemClass) {
                 case ItemClass_Weapon: {
                     stats.timesSwordSwung++;
@@ -302,9 +306,9 @@ void Player::Update(InputSample &input, const Tilemap &map)
         const Spritesheet *sheet = sprite.spriteDef->spritesheet;
         assert(sheet->sprites.size() == 5);
 
-        ItemUID selectedItemUid = GetSelectedItem();
-        if (selectedItemUid) {
-            const Item &selectedItem = g_item_db.Find(selectedItemUid);
+        ItemStack selectedStack = GetSelectedStack();
+        if (selectedStack.uid) {
+            const Item &selectedItem = g_item_db.Find(selectedStack.uid);
             if (selectedItem.Proto().itemClass == ItemClass_Weapon) {
                 switch (actionState) {
                     case ActionState::None: {

@@ -14,38 +14,35 @@
 // Server sends InventoryUpdate event
 // Server broadcasts ItemPickup event
 
-ItemWorld *ItemSystem::SpawnItem(Vector3 pos, const ItemProto &proto, uint32_t count, uint32_t uid)
+ItemWorld *ItemSystem::SpawnItem(Vector3 pos, ItemUID itemUid, uint32_t count, EntityUID euid)
 {
-    assert(count >= 0);
-
     if (!count) {
         TraceLog(LOG_WARNING, "Not spawning item stack with count 0.");
         return 0;
     }
 
-    if (items.size() == SV_MAX_ITEMS) {
+    if (worldItems.size() == SV_MAX_ITEMS) {
         // TODO: Delete oldest item instead of discarding the new one
         TraceLog(LOG_ERROR, "Item pool is full; discarding item.");
         return 0;
     }
     ItemWorld worldItem{};
 
-    if (uid) {
-        worldItem.itemUid = uid;
+    if (euid) {
+        ItemWorld *existingItemWithId = Find(euid);
+        if (existingItemWithId) {
+            TraceLog(LOG_ERROR, "Trying to spawn a world item that already exists in the world.");
+            return 0;
+        }
     } else {
         thread_local uint32_t nextUid = 0;
-        nextUid = MAX(1, nextUid + 1); // Prevent ID zero from being used on overflow
-        worldItem.itemUid = nextUid;
+        euid = MAX(1, nextUid + 1); // Prevent ID zero from being used on overflow
     }
 
-    ItemWorld *existingItemWithId = Find(worldItem.itemUid);
-    if (existingItemWithId) {
-        TraceLog(LOG_ERROR, "Trying to spawn a world item for an item that already exists in the world.");
-        return 0;
-    }
-
-    worldItem.itemUid = uid;
-    worldItem.stack.count = count;
+    uint32_t stackLimit = g_item_db.Find(itemUid).Proto().stackLimit;
+    DLB_ASSERT(count <= stackLimit);
+    worldItem.stack.uid = itemUid;
+    worldItem.stack.count = MIN(count, stackLimit);  // Safe in release mode when assert is disabled
 
     Vector3 itemPos = pos;
     itemPos.x += dlb_rand32f_variance(METERS_TO_PIXELS(0.5f));
@@ -71,58 +68,58 @@ ItemWorld *ItemSystem::SpawnItem(Vector3 pos, const ItemProto &proto, uint32_t c
     worldItem.sprite.scale = 1.0f;
     worldItem.spawnedAt = g_clock.now;
 
-    byUid[worldItem.uid] = (uint32_t)items.size();
-    return &items.emplace_back(worldItem);
+    byEuid[worldItem.euid] = (uint32_t)worldItems.size();
+    return &worldItems.emplace_back(worldItem);
 }
 
-ItemWorld *ItemSystem::Find(uint32_t uid)
+ItemWorld *ItemSystem::Find(EntityUID euid)
 {
-    if (!uid) {
+    if (!euid) {
         return 0;
     }
 
-    auto elem = byUid.find(uid);
-    if (elem == byUid.end()) {
+    auto elem = byEuid.find(euid);
+    if (elem == byEuid.end()) {
         return 0;
     }
 
     size_t idx = elem->second;
-    assert(idx < items.size());
-    return &items[idx];
+    assert(idx < worldItems.size());
+    return &worldItems[idx];
 }
 
-bool ItemSystem::Remove(uint32_t uid)
+bool ItemSystem::Remove(EntityUID euid)
 {
 #if SV_DEBUG_WORLD_ITEMS
-    TraceLog(LOG_DEBUG, "Despawning item %u", uid);
+    TraceLog(LOG_DEBUG, "Despawning item %u", euid);
 #endif
-    auto elem = byUid.find(uid);
-    if (elem == byUid.end()) {
+    auto elem = byEuid.find(euid);
+    if (elem == byEuid.end()) {
         //TraceLog(LOG_WARNING, "Cannot remove an item that doesn't exist. uid: %u", uid);
         return false;
     }
 
     bool success = false;
     uint32_t idx = elem->second;
-    uint32_t len = (uint32_t)items.size();
+    uint32_t len = (uint32_t)worldItems.size();
     if (idx < len) {
         if (idx == len - 1) {
-            items.pop_back();
+            worldItems.pop_back();
         } else {
             // Copy last item to empty slot to keep densely packed
-            items[idx] = items.back();
+            worldItems[idx] = worldItems.back();
             // Update hash table
-            byUid[items[idx].uid] = idx;
+            byEuid[worldItems[idx].euid] = idx;
             // Zero free slot
-            items[items.size() - 1] = {};
+            worldItems[worldItems.size() - 1] = {};
             // Update size
-            items.pop_back();
+            worldItems.pop_back();
         }
         success = true;
     } else {
-        TraceLog(LOG_ERROR, "Item index out of range. uid: %u idx: %zu size: %zu", uid, idx, items.size());
+        TraceLog(LOG_ERROR, "Item index out of range. uid: %u idx: %zu size: %zu", euid, idx, worldItems.size());
     }
-    byUid.erase(uid);
+    byEuid.erase(euid);
 
 #if SV_DEBUG_WORLD_ITEMS
     TraceLog(LOG_DEBUG, "Despawned item %u", uid);
@@ -132,10 +129,11 @@ bool ItemSystem::Remove(uint32_t uid)
 
 void ItemSystem::Update(double dt)
 {
-    for (ItemWorld &item : items) {
-        if (!item.stack.itemType) {
+    for (ItemWorld &item : worldItems) {
+        if (!item.stack.count) {
             continue;
         }
+        DLB_ASSERT(item.stack.uid);
 
         item.body.Update(dt);
         sprite_update(item.sprite, dt);
@@ -149,19 +147,20 @@ void ItemSystem::Update(double dt)
 void ItemSystem::DespawnDeadEntities(double pickupDespawnDelay)
 {
     size_t i = 0;
-    while (i < items.size()) {
-        ItemWorld &item = items[i];
+    while (i < worldItems.size()) {
+        ItemWorld &item = worldItems[i];
 
         // NOTE: Server adds extra pickupDespawnDelay to ensure all clients receive a snapshot
         // containing the pickup flag before despawning the item. This may not be necessary
         // once nearby_events are implemented and send item pickup notifications.
-        if (item.stack.itemType && (
+        if (item.stack.count && (
             (item.pickedUpAt && ((g_clock.now - item.pickedUpAt) > pickupDespawnDelay)) ||
             (item.spawnedAt && ((g_clock.now - item.spawnedAt) > SV_WORLD_ITEM_LIFETIME))
         )) {
+            DLB_ASSERT(item.stack.uid);
             // NOTE: If remove succeeds, don't increment index, next element to check is in the
             // same slot now.
-            i += !Remove(item.uid);
+            i += !Remove(item.euid);
         } else {
             i++;
         }
@@ -170,8 +169,9 @@ void ItemSystem::DespawnDeadEntities(double pickupDespawnDelay)
 
 void ItemSystem::PushAll(DrawList &drawList)
 {
-    for (ItemWorld &item : items) {
-        if (item.stack.itemType) {
+    for (ItemWorld &item : worldItems) {
+        if (item.stack.count) {
+            DLB_ASSERT(item.stack.uid);
             drawList.Push(item);
         }
     }

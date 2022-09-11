@@ -14,7 +14,7 @@ typedef uint8_t  ItemAffixType;
 typedef uint32_t ItemUID;
 
 #define ITEM_AFFIX_MAX_COUNT 16
-#define ITEM_NAME_MAX_LENGTH 32
+#define ITEM_NAME_MAX_LENGTH 64
 #define ITEMCLASS_COUNT      256
 
 // slot:       chest, weapon, shield, feet, head, neck, magicOrb1, magicOrb2, potion
@@ -494,6 +494,10 @@ struct ItemCatalog {
         return protos[type];
     }
 
+    Texture Tex() const {
+        return tex;
+    }
+
 private:
     Texture   tex{};
     CSV       csv{};
@@ -559,9 +563,9 @@ private:
 };
 
 struct ItemDatabase {
-    ItemUID Spawn(ItemType type, uint32_t count) {
+    ItemUID Spawn(ItemType type) {
         nextUid = MAX(1, nextUid + 1); // Prevent ID zero from being used on overflow
-        Item item = items.emplace_back(nextUid, type, count);
+        Item item = items.emplace_back(nextUid, type);
         return item.uid;
     }
 

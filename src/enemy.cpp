@@ -105,8 +105,8 @@ void Enemy::Update(World &world, double dt)
         //    coinType = ItemType::Currency_Gilded;
         //}
 
-        world.lootSystem.RollDrops(combat.lootTableId, [&](ItemStack &itemStack) {
-            world.itemSystem.SpawnItem(WorldCenter(), itemStack.itemType, itemStack.count);
+        world.lootSystem.RollDrops(combat.lootTableId, [&](ItemStack dropStack) {
+            world.itemSystem.SpawnItem(WorldCenter(), dropStack.uid, dropStack.count);
         });
         combat.droppedDeathLoot = true;
     } else {

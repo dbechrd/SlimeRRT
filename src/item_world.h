@@ -4,8 +4,11 @@
 
 #define ITEM_WORLD_RADIUS 10.0f
 
+typedef uint32_t EntityUID;
+
 struct ItemWorld : Drawable {
-    uint32_t  itemUid           {};
+    EntityUID euid              {};
+    ItemStack stack             {};
     Body3D    body              {};
     Sprite    sprite            {};
     double    spawnedAt         {};
@@ -19,4 +22,8 @@ struct ItemWorld : Drawable {
     bool Cull(const Rectangle& cullRect) const;
     void Update(double dt);
     void Draw(World &world);
+
+private:
+    ItemStack namedStack {};
+    char      name       [ITEM_NAME_MAX_LENGTH]{};
 };

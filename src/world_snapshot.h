@@ -83,18 +83,18 @@ struct ItemSnapshot {
         Flags_None       = 0,
         Flags_Despawn    = 0x01,  // picked up / stale
         Flags_Position   = 0x02,  // world position
-        Flags_CatalogId  = 0x04,  // itemClass of item
+        Flags_ItemUid    = 0x04,  // itemClass of item
         Flags_StackCount = 0x08,  // size of item stack (if 0, item is picked up entirely)
         Flags_Spawn =
             Flags_Position   |
-            Flags_CatalogId  |
+            Flags_ItemUid    |
             Flags_StackCount ,
     };
 
     uint32_t flags      {};
     uint32_t id         {};
     Vector3  position   {};  // spawn, move
-    ItemType catalogId  {};  // spawn
+    ItemType itemUid    {};  // spawn
     uint32_t stackCount {};  // spawn, partial pickup, combine nearby stacks (future)
 };
 

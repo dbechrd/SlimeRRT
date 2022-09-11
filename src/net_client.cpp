@@ -690,7 +690,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
 #endif
                     item = serverWorld->itemSystem.SpawnItem(
                         itemSnapshot.position,
-                        itemSnapshot.catalogId,
+                        itemSnapshot.itemUid,
                         itemSnapshot.stackCount,
                         itemSnapshot.id
                     );
@@ -735,8 +735,8 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                 //if (itemSnapshot.flags & ItemSnapshot::Flags_Position) {
                 //    item->body.Teleport(itemSnapshot.position);
                 //}
-                if (itemSnapshot.flags & ItemSnapshot::Flags_CatalogId) {
-                    item->stack.itemType = itemSnapshot.catalogId;
+                if (itemSnapshot.flags & ItemSnapshot::Flags_ItemUid) {
+                    item->stack.uid = itemSnapshot.itemUid;
                 }
                 if (itemSnapshot.flags & ItemSnapshot::Flags_StackCount) {
                     item->stack.count = itemSnapshot.stackCount;

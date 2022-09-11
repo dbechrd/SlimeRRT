@@ -55,7 +55,7 @@ uint32_t LootSystem::RollCoins(LootTableID lootTableId, int monster_lvl)
     return coins;
 }
 
-void LootSystem::RollDrops(LootTableID lootTableId, std::function<void(ItemUID itemUid)> callback)
+void LootSystem::RollDrops(LootTableID lootTableId, std::function<void(ItemStack dropStack)> callback)
 {
     LootTable &table = lootTableRegistry[(size_t)lootTableId];
     uint8_t dropCount = 0;
@@ -66,16 +66,21 @@ void LootSystem::RollDrops(LootTableID lootTableId, std::function<void(ItemUID i
             // that combat.lootTableId should instead be calculated dynamically based on the monster
             // level, area level, etc.
             // HACK: Find first item that has the class we want to drop
+            ItemStack dropStack{};
             for (ItemType itemType = 0; itemType < ItemType_Count; itemType++) {
-                const Catalog::ItemProto &proto = Catalog::g_item_catalog.FindProto(itemType);
-                if (item.proto().itemClass == drop.itemClass) {
-                    dropStack.itemType = itemType;
+                const ItemProto &proto = g_item_catalog.FindProto(itemType);
+                if (proto.itemClass == drop.itemClass) {
+                    dropStack.uid = g_item_db.Spawn(itemType);
+                    dropStack.count = dlb_rand32u_range(drop.minCount, drop.maxCount);
                     break;
                 }
             }
-            dropStack.count = dlb_rand32u_range(drop.minCount, drop.maxCount);
-            callback(dropStack);
-            dropCount++;
+            DLB_ASSERT(dropStack.uid);
+            DLB_ASSERT(dropStack.count);
+            if (dropStack.uid && dropStack.count) {
+                callback(dropStack);
+                dropCount++;
+            }
         }
     }
 }

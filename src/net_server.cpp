@@ -468,8 +468,8 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
     worldSnapshot.itemCount = 0;
     uint32_t skippedItemCount = 0;
     //for (size_t i = 0; i < serverWorld->itemSystem.itemsCount && worldSnapshot.itemCount < ARRAY_SIZE(worldSnapshot.items); i++) {
-    for (const ItemWorld &item : serverWorld->itemSystem.items) {
-        if (!item.uid) {
+    for (const ItemWorld &item : serverWorld->itemSystem.worldItems) {
+        if (!item.euid) {
             continue;
         }
         if (worldSnapshot.itemCount == ARRAY_SIZE(worldSnapshot.items)) {
@@ -480,7 +480,7 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
         uint32_t flags = ItemSnapshot::Flags_None;
         const float distSq = v3_length_sq(v3_sub(player.body.WorldPosition(), item.body.WorldPosition()));
         const bool nearby = distSq <= SQUARED(SV_ITEM_NEARBY_THRESHOLD);
-        const auto prevState = client.itemHistory.find(item.uid);
+        const auto prevState = client.itemHistory.find(item.euid);
         const bool clientAware = prevState != client.itemHistory.end();
         if (nearby) {
             if (clientAware) {
@@ -488,8 +488,8 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
                 if (!v3_equal(item.body.WorldPosition(), prevState->second.position, POSITION_EPSILON)) {
                     flags |= ItemSnapshot::Flags_Position;
                 }
-                if (item.stack.itemType != prevState->second.catalogId) {
-                    flags |= ItemSnapshot::Flags_CatalogId;
+                if (item.stack.uid != prevState->second.itemUid) {
+                    flags |= ItemSnapshot::Flags_ItemUid;
                 }
                 if (item.stack.count != prevState->second.stackCount) {
                     flags |= ItemSnapshot::Flags_StackCount;
@@ -505,7 +505,7 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
             if (clientAware) {
                 if (prevState->second.flags & ItemSnapshot::Flags_Despawn) {
                     // "Despawn" notification already sent, fogetaboutit
-                    client.itemHistory.erase(item.uid);
+                    client.itemHistory.erase(item.euid);
                 } else {
                     flags |= ItemSnapshot::Flags_Despawn;
 #if SV_DEBUG_WORLD_ITEMS
@@ -519,11 +519,11 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
             // TODO: Let Item serialize itself by storing a reference in the Snapshot, then
             // having NetMessage::Process call a serialize method and forwarding the BitStream
             // and state flags to it.
-            ItemSnapshot &state = client.itemHistory[item.uid];
+            ItemSnapshot &state = client.itemHistory[item.euid];
             state.flags = flags;
-            state.id = item.uid;
+            state.id = item.euid;
             state.position = item.body.WorldPosition();
-            state.catalogId = item.stack.itemType;
+            state.itemUid = item.stack.uid;
             state.stackCount = item.stack.count;
 
             worldSnapshot.items[worldSnapshot.itemCount] = state;
@@ -1069,8 +1069,8 @@ void NetServer::ProcessMsg(SV_Client &client, ENetPacket &packet)
                 // TODO(security): Validate params, discard if invalid
                 TraceLog(LOG_DEBUG, "[SRV] SlotDrop  slotId: %u, count: %u", slotDrop.slotId, slotDrop.count);
                 ItemStack dropStack = player->inventory.SlotDrop(slotDrop.slotId, slotDrop.count);
-                TraceLog(LOG_DEBUG, "[SRV] SpawnItem itemId: %u, count: %u", dropStack.itemType, dropStack.count);
-                ItemWorld *item = serverWorld->itemSystem.SpawnItem(player->body.WorldPosition(), dropStack.itemType, dropStack.count);
+                TraceLog(LOG_DEBUG, "[SRV] SpawnItem itemUid: %u, count: %u", dropStack.uid, dropStack.count);
+                ItemWorld *item = serverWorld->itemSystem.SpawnItem(player->body.WorldPosition(), dropStack.uid, dropStack.count);
                 if (item) {
                     item->droppedByPlayerId = player->id;
                 }

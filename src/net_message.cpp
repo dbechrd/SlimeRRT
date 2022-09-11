@@ -195,9 +195,9 @@ size_t NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer)
                     for (size_t i = 0; i < slotCount; i++) {
                         if (slotMap[i]) {
                             ItemStack &invStack = player.inventory.slots[i].stack;
-                            stream.Process((uint16_t &)invStack.itemType, 8, 0, (uint16_t)ITEMTYPE_COUNT - 1);
+                            stream.Process(invStack.uid);
                             stream.Process(invStack.count);
-                            assert(invStack.itemType != ITEMTYPE_EMPTY);  // ensure stack with count > 0 has valid item ID
+                            DLB_ASSERT(invStack.uid);  // ensure stack with count > 0 has valid item ID
                         }
                     }
                 }
@@ -239,8 +239,8 @@ size_t NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer)
                     stream.Process(item.position.y);
                     stream.Process(item.position.z);
                 }
-                if (item.flags & ItemSnapshot::Flags_CatalogId) {
-                    stream.Process((uint32_t &)item.catalogId, 8, ITEMTYPE_EMPTY, ITEMTYPE_COUNT - 1);
+                if (item.flags & ItemSnapshot::Flags_ItemUid) {
+                    stream.Process(item.itemUid);
                 }
                 if (item.flags & ItemSnapshot::Flags_StackCount) {
                     stream.Process(item.stackCount);

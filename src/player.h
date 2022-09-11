@@ -102,7 +102,7 @@ struct PlayerInventory {
 
     InventorySlot &CursorSlot()
     {
-        InventorySlot cursor = slots[PlayerInvSlot_Cursor];
+        InventorySlot &cursor = slots[PlayerInvSlot_Cursor];
         return cursor;
     }
 
@@ -110,7 +110,7 @@ struct PlayerInventory {
     {
         assert(slotIdx >= 0);
         assert(slotIdx < PlayerInvSlot_Count);
-        InventorySlot slot = slots[slotIdx];
+        InventorySlot &slot = slots[slotIdx];
         return slot;
     }
 
@@ -162,6 +162,7 @@ struct PlayerInventory {
         if (dst.stack.count) {
             dst.stack.uid = item.uid;
         }
+        return true;
     }
 
     void SlotClick(int slotIdx, bool doubleClicked)
@@ -312,13 +313,13 @@ struct Player : Drawable {
     PlayerInventory inventory   {};
     Stats           stats       {};
 
-    void    Init             (void);
-    Vector3 WorldCenter      (void) const;
-    Vector3 WorldTopCenter3D (void) const;
-    Vector2 WorldTopCenter2D (void) const;
-    Vector3 GetAttachPoint   (AttachPoint attachPoint) const;
-    ItemUID GetSelectedItem  (void) const;
-    void    Update           (InputSample &input, const Tilemap &map);
+    void      Init             (void);
+    Vector3   WorldCenter      (void) const;
+    Vector3   WorldTopCenter3D (void) const;
+    Vector2   WorldTopCenter2D (void) const;
+    Vector3   GetAttachPoint   (AttachPoint attachPoint) const;
+    ItemStack GetSelectedStack (void) const;
+    void      Update           (InputSample &input, const Tilemap &map);
 
     float Depth (void) const;
     bool  Cull  (const Rectangle& cullRect) const;

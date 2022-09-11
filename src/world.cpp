@@ -297,11 +297,11 @@ void World::SV_SimPlayers(double dt)
         if (player.actionState == Player::ActionState::AttackBegin) {
             const float playerAttackReach = METERS_TO_PIXELS(1.0f);
 
-            const ItemStack &selectedStack = player.GetSelectedItem();
-            const Catalog::Item &selectedItem = Catalog::g_items.Find(selectedStack.itemType);
-            float playerDamage = selectedItem.findAffix(ItemAffix_DamageFlat).rollValue();
-            float playerKnockback = selectedItem.findAffix(ItemAffix_KnockbackFlat).rollValue();
-            if (selectedItem.itemType == ItemType_Empty) {
+            const ItemStack selectedStack = player.GetSelectedStack();
+            const Item &selectedItem = g_item_db.Find(selectedStack.uid);
+            float playerDamage = selectedItem.FindAffix(ItemAffix_DamageFlat).rollValue();
+            float playerKnockback = selectedItem.FindAffix(ItemAffix_KnockbackFlat).rollValue();
+            if (selectedItem.type == ItemType_Empty) {
                 playerDamage = player.combat.meleeDamage;
             }
 
@@ -373,12 +373,13 @@ void World::SV_SimEnemies(double dt)
 
 void World::SV_SimItems(double dt)
 {
-    for (ItemWorld &item : itemSystem.items) {
-        if (!item.uid || item.pickedUpAt || g_clock.now < item.spawnedAt + SV_ITEM_PICKUP_DELAY) {
+    for (ItemWorld &item : itemSystem.worldItems) {
+        if (!item.euid || item.pickedUpAt || g_clock.now < item.spawnedAt + SV_ITEM_PICKUP_DELAY) {
             continue;
         }
 
-        assert(item.stack.itemType != ITEMTYPE_EMPTY);
+        assert(item.stack.uid);
+        assert(item.stack.count);
 
         Player *closestPlayer = FindClosestPlayer(item.body.GroundPosition(), SV_ITEM_ATTRACT_DIST);
         if (!closestPlayer || !closestPlayer->id ||
@@ -527,8 +528,8 @@ void World::CL_Interpolate(double renderAt)
         }
         CL_InterpolateBody(enemy.body, renderAt, enemy.sprite.direction);
     }
-    for (ItemWorld &item : itemSystem.items) {
-        if (!item.uid) {
+    for (ItemWorld &item : itemSystem.worldItems) {
+        if (!item.euid) {
             continue;
         }
         CL_InterpolateBody(item.body, renderAt, item.sprite.direction);
@@ -555,12 +556,13 @@ void World::CL_Extrapolate(double dt)
         }
         enemy.Update(*this, dt);
     }
-    for (ItemWorld &item : itemSystem.items) {
-        if (!item.uid || item.pickedUpAt || g_clock.now < item.spawnedAt + SV_ITEM_PICKUP_DELAY) {
+    for (ItemWorld &item : itemSystem.worldItems) {
+        if (!item.euid || item.pickedUpAt || g_clock.now < item.spawnedAt + SV_ITEM_PICKUP_DELAY) {
             continue;
         }
 
-        assert(item.stack.itemType != ITEMTYPE_EMPTY);
+        DLB_ASSERT(item.stack.uid);
+        DLB_ASSERT(item.stack.count);
         item.Update(dt);
     }
 }

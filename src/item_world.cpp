@@ -40,23 +40,28 @@ bool ItemWorld::Cull(const Rectangle& cullRect) const
 
 void ItemWorld::Update(double dt)
 {
-    const Catalog::Item &item = Catalog::g_item_db.find(itemUid);
-    assert(item.itemType);
-    assert(item.stackCount);
-    if (item.uid != namedStack.uid || item.stackCount != namedStack.count) {
-        const char *itemName = stack.Name();
+    DLB_ASSERT(stack.uid);
+    DLB_ASSERT(stack.count);
+    const Item &item = g_item_db.Find(stack.uid);
+
+    if (item.uid != namedStack.uid || stack.count != namedStack.count) {
+        const char *itemName = item.Name();
         if (stack.count > 1) {
             snprintf(name, sizeof(name), "%s (%u)", itemName, stack.count);
         } else {
             snprintf(name, sizeof(name), "%s", itemName);
         }
-        namedStack.itemType = stack.itemType;
+        namedStack.uid = stack.uid;
         namedStack.count = stack.count;
     }
 }
 
 void ItemWorld::Draw(World &world)
 {
+    DLB_ASSERT(stack.uid);
+    DLB_ASSERT(stack.count);
+    const Item &item = g_item_db.Find(stack.uid);
+
     const Vector3 worldPos = body.WorldPosition();
     Shadow::Draw(worldPos, 16.0f * sprite.scale, 8.0f);
 
@@ -66,10 +71,10 @@ void ItemWorld::Draw(World &world)
         if (sprite.spriteDef) {
             sprite_draw_body(sprite, body, WHITE);
         } else {
-            const Texture tex = Catalog::g_item_protos.Tex();
+            const Texture tex = g_item_catalog.Tex();
             const int texItemsWide = tex.width / 32;
 
-            const int texIdx = (int)stack.itemType;
+            const int texIdx = item.type;
             const float texX = (float)(texIdx % texItemsWide) * ITEM_W;
             const float texY = (float)(texIdx / texItemsWide) * ITEM_H;
 
