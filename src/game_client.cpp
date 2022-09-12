@@ -542,7 +542,7 @@ void GameClient::PlayMode_DrawScreen(double frameDt, PlayerControllerState &inpu
     UI::Menubar(netClient);
     UI::ShowDemoWindow();
     UI::Netstat(netClient, renderAt);
-    UI::AnimationEditor();
+    UI::ItemProtoEditor(*netClient.serverWorld);
     UI::ParticleConfig(*netClient.serverWorld);
     UI::InGameMenu(input.escape, netClient.ConnectedAndSpawned());
 }

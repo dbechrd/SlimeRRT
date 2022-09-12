@@ -18,7 +18,7 @@ bool UI::showMenubar = false;
 bool UI::showDemoWindow = false;
 bool UI::showParticleConfig = false;
 bool UI::showNetstatWindow = false;
-bool UI::showItemCatalog = false;
+bool UI::showItemProtoEditor = false;
 
 bool UI::disconnectRequested = false;
 bool UI::quitRequested = false;
@@ -177,7 +177,7 @@ void UI::Menubar(const NetClient &netClient)
             ImGui::MenuItem("Demo Window", 0, &showDemoWindow);
             ImGui::MenuItem("Particle Config", 0, &showParticleConfig);
             ImGui::MenuItem("Netstat", 0, &showNetstatWindow);
-            ImGui::MenuItem("Animation Editor", 0, &showItemCatalog);
+            ImGui::MenuItem("Item Proto Editor", 0, &showItemProtoEditor);
             ImGui::EndMenu();
         }
         ImGui::EndMainMenuBar();
@@ -398,15 +398,15 @@ int UI::ItemCompareWithSortSpecs(const void *lhs, const void *rhs)
     return (a.itemType > b.itemType);
 }
 
-void UI::AnimationEditor()
+void UI::ItemProtoEditor(World &world)
 {
-    if (!showItemCatalog) {
+    if (!showItemProtoEditor) {
         return;
     }
 
     ImGui::SetNextWindowSize(ImVec2(380, 400), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowPos(ImVec2(360, 100), ImGuiCond_FirstUseEver);
-    ImGui::Begin("Item Catalog", &showItemCatalog,
+    ImGui::Begin("Item Proto Editor", &showItemProtoEditor,
         0
         //ImGuiWindowFlags_NoTitleBar
         //ImGuiWindowFlags_NoMove |
@@ -426,15 +426,17 @@ void UI::AnimationEditor()
         }
     }
 
-    if (ImGui::BeginTable("items", 7, flags)) {
+    const int columnCount = 9;
+    if (ImGui::BeginTable("items", columnCount, flags)) {
+        ImGui::TableSetupColumn("Actions",       ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoSort);
         ImGui::TableSetupColumn("ID",            ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_DefaultSort, 40.0f, ItemColumn_ID);
         ImGui::TableSetupColumn("Class",         ImGuiTableColumnFlags_WidthFixed, 0.0f, ItemColumn_Class);
+        ImGui::TableSetupColumn("Name",          ImGuiTableColumnFlags_WidthFixed, 0.0f, ItemColumn_Name);
+        ImGui::TableSetupColumn("Name Plural",   ImGuiTableColumnFlags_WidthFixed, 0.0f, ItemColumn_NamePlural);
         ImGui::TableSetupColumn("Stack Limit",   ImGuiTableColumnFlags_WidthFixed, 0.0f, ItemColumn_StackLimit);
         ImGui::TableSetupColumn("Value",         ImGuiTableColumnFlags_WidthFixed, 0.0f, ItemColumn_Value);
         ImGui::TableSetupColumn("DamageFlatMin", ImGuiTableColumnFlags_WidthFixed, 0.0f, ItemColumn_DamageFlatMin);
         ImGui::TableSetupColumn("DamageFlatMax", ImGuiTableColumnFlags_WidthFixed, 0.0f, ItemColumn_DamageFlatMax);
-        ImGui::TableSetupColumn("Name",          ImGuiTableColumnFlags_WidthFixed, 0.0f, ItemColumn_Name);
-        ImGui::TableSetupColumn("Name Plural",   ImGuiTableColumnFlags_WidthFixed, 0.0f, ItemColumn_NamePlural);
         ImGui::TableSetupScrollFreeze(0, 1); // Make row always visible
         ImGui::TableHeadersRow();
 
@@ -453,37 +455,47 @@ void UI::AnimationEditor()
             ImGui::TableNextRow();
 
             ImGui::TableNextColumn();
+            if (ImGui::Button("Spwn")) {
+                // TODO: Send command to server to spawn (via chat?)
+                ItemUID uid = g_item_db.Spawn(proto.itemType);
+                world.itemSystem.SpawnItem(world.LocalPlayer()->body.WorldPosition(), uid, 1);
+            } else if (ImGui::IsItemHovered()) {
+                ImGui::BeginTooltip();
+                ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+                ImGui::TextUnformatted("Spawn this item into the world");
+                ImGui::PopTextWrapPos();
+                ImGui::EndTooltip();
+            }
+
+            ImGui::TableNextColumn();
             ImGui::Text("%d", proto.itemType);
 
-            // These are prototype fields, we can't edit them in the item editor. We need a separate itemProto editor.
-            //
-            // This doesn't make any sense anymore.. fix it if you care in the future.
-            //ImGui::TableNextColumn();
-            //ImGui::SetNextItemWidth(120.0f);
-            //if (ImGui::BeginCombo("##item_type", ItemClassToString(item.proto().itemClass))) {
-            //    for (ItemClass cls = 0; cls < ItemClass_Count; cls++) {
-            //        ImGui::PushID(cls);
-            //        if (ImGui::Selectable(ItemClassToString(cls), cls == item.itemType)) {
-            //            item.itemType = cls;
-            //        }
-            //        ImGui::PopID();
-            //    }
-            //    ImGui::EndCombo();
-            //}
-            //
-            //int stackLimit = item.proto().stackLimit;
-            //ImGui::TableNextColumn();
-            //ImGui::SetNextItemWidth(120.0f);
-            //ImGui::InputInt("##stack_limit", &stackLimit, 1, 5);
-            //item.stackLimit = CLAMP(stackLimit, 1, UINT8_MAX);
-            //
-            //ImGui::TableNextColumn();
-            //ImGui::SetNextItemWidth(320.0f);
-            //ImGui::InputText("##name", CSTR0(item.nameSingular));
-            //
-            //ImGui::TableNextColumn();
-            //ImGui::SetNextItemWidth(320.0f);
-            //ImGui::InputText("##name_plural", CSTR0(item.namePlural));
+            ImGui::TableNextColumn();
+            ImGui::SetNextItemWidth(120.0f);
+            if (ImGui::BeginCombo("##item_class", ItemClassToString(proto.itemClass))) {
+                for (ItemClass cls = 0; cls < ItemClass_Count; cls++) {
+                    ImGui::PushID(cls);
+                    if (ImGui::Selectable(ItemClassToString(cls), cls == proto.itemClass)) {
+                        proto.itemClass = cls;
+                    }
+                    ImGui::PopID();
+                }
+                ImGui::EndCombo();
+            }
+
+            ImGui::TableNextColumn();
+            ImGui::SetNextItemWidth(320.0f);
+            ImGui::InputText("##name", CSTR0(proto.nameSingular));
+
+            ImGui::TableNextColumn();
+            ImGui::SetNextItemWidth(320.0f);
+            ImGui::InputText("##name_plural", CSTR0(proto.namePlural));
+
+            int stackLimit = proto.stackLimit;
+            ImGui::TableNextColumn();
+            ImGui::SetNextItemWidth(120.0f);
+            ImGui::InputInt("##stack_limit", &stackLimit, 1, 5);
+            proto.stackLimit = CLAMP(stackLimit, 1, UINT8_MAX);
 
             float value = proto.FindAffixProto(ItemAffix_Value).minRange.min;
             ImGui::TableNextColumn();
@@ -1589,6 +1601,8 @@ void UI::InGameMenu(bool &escape, bool connectedToServer)
 
 void UI::InventoryItemTooltip(ItemStack &invStack, int slot, Player &player, NetClient &netClient)
 {
+    ItemStack &cursorStack = player.inventory.CursorSlot().stack;
+
     // Terraria:
     //   on mouse down
     //   always bottom right of cursor
@@ -1623,14 +1637,22 @@ void UI::InventoryItemTooltip(ItemStack &invStack, int slot, Player &player, Net
             netClient.SendSlotScroll(slot, scrollY);
         // TODO(dlb): Refactor out this input handling into controller sample code
         } else if (IsKeyPressed(KEY_Q)) {
-            uint32_t dropCount = 1;
-            if (IsKeyDown(KEY_LEFT_CONTROL)) {
-                dropCount = invStack.count;
+            // Drop item(s) from cursor stack into hovered slot or onto ground
+            if (cursorStack.count) {
+                DLB_ASSERT(cursorStack.uid);
+                uint32_t dropCount = IsKeyDown(KEY_LEFT_CONTROL) ? cursorStack.count : 1;
+                if (dropCount) {
+                    netClient.SendSlotScroll(slot, dropCount);
+                }
+            } else if (invStack.count) {
+                DLB_ASSERT(invStack.uid);
+                uint32_t dropCount = IsKeyDown(KEY_LEFT_CONTROL) ? invStack.count : 1;
+                if (dropCount) {
+                    netClient.SendSlotDrop(slot, dropCount);
+                }
             }
-            netClient.SendSlotDrop(slot, dropCount);
         }
 
-        ItemStack &cursorStack = player.inventory.CursorSlot().stack;
         if (!cursorStack.count && invStack.count && invStack.uid) {
             const Item item = g_item_db.Find(invStack.uid);
             const ItemProto proto = item.Proto();
@@ -1805,10 +1827,11 @@ void UI::Inventory(const Texture &invItems, Player& player, NetClient &netClient
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(0, 255, 0, 255)); styleCols++;
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32(0, 0, 255, 255)); styleCols++;
 
+    int hoveredSlot = -1;
+
     ImGui::PushID("inv_hotbar");
     for (int hotbarSlot = PlayerInvSlot_Hotbar_0; hotbarSlot <= PlayerInvSlot_Hotbar_9; hotbarSlot++) {
         ImGui::PushID(hotbarSlot);
-
         if (hotbarSlot == player.inventory.selectedSlot) {
             ImGui::PushStyleColor(ImGuiCol_Button, ImColor(170, 170, 0, 255).Value);
         }
@@ -1816,11 +1839,14 @@ void UI::Inventory(const Texture &invItems, Player& player, NetClient &netClient
         if (hotbarSlot == player.inventory.selectedSlot) {
             ImGui::PopStyleColor();
         }
-
         if (hotbarSlot < PlayerInvSlot_Hotbar_9) {
             ImGui::SameLine();
         }
         ImGui::PopID();
+
+        if (ImGui::IsItemHovered()) {
+            hoveredSlot = hotbarSlot;
+        }
     }
     ImGui::PopID();
 
@@ -1866,6 +1892,10 @@ void UI::Inventory(const Texture &invItems, Player& player, NetClient &netClient
                     ImGui::SameLine();
                 }
                 ImGui::PopID();
+
+                if (ImGui::IsItemHovered()) {
+                    hoveredSlot = slot;
+                }
             }
             ImGui::PopID();
         }
@@ -1877,6 +1907,19 @@ void UI::Inventory(const Texture &invItems, Player& player, NetClient &netClient
 
     ItemStack &cursorStack = player.inventory.CursorSlot().stack;
     if (cursorStack.count) {
+        // Drop item(s) from cursor stack onto ground
+        if (hoveredSlot < 0 && IsKeyPressed(KEY_Q)) {
+            DLB_ASSERT(cursorStack.uid);
+            uint32_t dropCount = IsKeyDown(KEY_LEFT_CONTROL) ? cursorStack.count : 1;
+            if (dropCount) {
+                if (hoveredSlot >= 0) {
+                    netClient.SendSlotScroll(hoveredSlot, dropCount);
+                } else {
+                    netClient.SendSlotDrop(PlayerInvSlot_Cursor, dropCount);
+                }
+            }
+        }
+
         const Item &cursorItem = g_item_db.Find(cursorStack.uid);
 #if CL_CURSOR_ITEM_HIDES_POINTER
         HideCursor();

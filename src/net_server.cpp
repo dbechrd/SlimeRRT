@@ -1069,10 +1069,12 @@ void NetServer::ProcessMsg(SV_Client &client, ENetPacket &packet)
                 // TODO(security): Validate params, discard if invalid
                 TraceLog(LOG_DEBUG, "[SRV] SlotDrop  slotId: %u, count: %u", slotDrop.slotId, slotDrop.count);
                 ItemStack dropStack = player->inventory.SlotDrop(slotDrop.slotId, slotDrop.count);
-                TraceLog(LOG_DEBUG, "[SRV] SpawnItem itemUid: %u, count: %u", dropStack.uid, dropStack.count);
-                ItemWorld *item = serverWorld->itemSystem.SpawnItem(player->body.WorldPosition(), dropStack.uid, dropStack.count);
-                if (item) {
-                    item->droppedByPlayerId = player->id;
+                if (dropStack.uid && dropStack.count) {
+                    TraceLog(LOG_DEBUG, "[SRV] SpawnItem itemUid: %u, count: %u", dropStack.uid, dropStack.count);
+                    ItemWorld *item = serverWorld->itemSystem.SpawnItem(player->body.WorldPosition(), dropStack.uid, dropStack.count);
+                    if (item) {
+                        item->droppedByPlayerId = player->id;
+                    }
                 }
             }
             break;

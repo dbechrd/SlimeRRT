@@ -174,6 +174,7 @@ ErrorType NetClient::SendSlotScroll(int slot, int scrollY)
 {
     assert(slot >= 0);
     assert(slot < PlayerInvSlot_Count);
+    assert(scrollY);
 
     memset(&tempMsg, 0, sizeof(tempMsg));
     tempMsg.type = NetMessage::Type::SlotScroll;
@@ -188,6 +189,7 @@ ErrorType NetClient::SendSlotDrop(int slot, uint32_t count)
 {
     assert(slot >= 0);
     assert(slot < PlayerInvSlot_Count);
+    assert(count);
 
     memset(&tempMsg, 0, sizeof(tempMsg));
     tempMsg.type = NetMessage::Type::SlotDrop;
@@ -639,7 +641,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                             serverWorld->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Goo, slime->WorldCenter(), gooParams);
 
                             ParticleEffectParams dmgParams{};
-                            dmgParams.particleCountMin = (int)floorf(log10f(dmg)) + 1;
+                            dmgParams.particleCountMin = (int)MAX(1, floorf(log10f(dmg)));
                             dmgParams.particleCountMax = dmgParams.particleCountMin;
                             dmgParams.durationMin = 3.0f;
                             dmgParams.durationMax = dmgParams.durationMin;

@@ -41,7 +41,7 @@ struct UI {
     static void ShowDemoWindow(void);
     static void ParticleConfig(World &world);
     static void Netstat(NetClient &netClient, double renderAt);
-    static void AnimationEditor();
+    static void ItemProtoEditor(World &world);
     static void HUD(const Font &font, World &world, const DebugStats &debugStats);
     static void QuickHUD(const Font &font, const Player &player, const Tilemap &tilemap);
     static void Chat(const Font &font, int fontSize, World &world, NetClient &netClient, bool &escape);
@@ -65,7 +65,7 @@ private:
     static bool showDemoWindow;
     static bool showParticleConfig;
     static bool showNetstatWindow;
-    static bool showItemCatalog;
+    static bool showItemProtoEditor;
 
     static bool disconnectRequested;
     static bool quitRequested;
@@ -84,6 +84,7 @@ private:
     static void SliderIntLeft(const char *label, int *v, int min, int max);
 
     enum MyItemColumnID {
+        ItemColumn_Unknown,
         ItemColumn_ID,
         ItemColumn_Class,
         ItemColumn_StackLimit,
