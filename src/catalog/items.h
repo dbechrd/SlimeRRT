@@ -370,11 +370,11 @@ Color ItemClassToColor(ItemClass itemClass)
         case ItemClass_Ingot    : return ORANGE  ;
         case ItemClass_Nugget   : return ORANGE  ;
         case ItemClass_Tool     : return GRAY    ;
-        case ItemClass_Weapon   : return GRAY    ;
+        case ItemClass_Weapon   : return { 190, 190, 190, 255 };  // silver
         case ItemClass_Armor    : return GRAY    ;
         case ItemClass_Shield   : return GRAY    ;
         case ItemClass_Plant    : return GREEN   ;
-        case ItemClass_Book     : return BROWN   ;
+        case ItemClass_Book     : return { 145, 104, 36, 255 };  // leather brown
         default                 : return MAGENTA ;
     }
 }

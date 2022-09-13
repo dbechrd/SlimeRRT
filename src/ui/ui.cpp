@@ -856,8 +856,8 @@ void UI::Chat(const Font &font, int fontSize, World &world, NetClient &netClient
     const bool chatActive = ImGui::IsPopupOpen(chatPopupId);
 
     // Render chat history
-    const float margin = 6.0f;   // xpBarLeft/bottom margin
-    const float pad = 4.0f;      // xpBarLeft/bottom pad
+    const float margin = 6.0f;   // left/bottom margin
+    const float pad = 4.0f;      // left/bottom pad
     const float inputBoxHeight = fontSize + pad * 2.0f;
     const float chatWidth = 800.0f;
     const float chatBottom = screenSize.y - margin - inputBoxHeight;
@@ -1606,51 +1606,72 @@ void UI::InventoryItemTooltip(ItemStack &invStack, int slot, Player &player, Net
     // Terraria:
     //   on mouse down
     //   always bottom right of cursor
-    //   xpBarLeft mouse down = take/swap/combine/drop stack
+    //   left mouse down = take/swap/combine/drop stack
     //   right mouse down = if stack is same (or cursor empty), take 1 item immediately, then repeat with acceleration
     //   sin wave scale bobbing
     //   can use held item as if equipped
     // D2R:
     //   Always centers item on cursor
     //   empty cursor:
-    //     xpBarLeft mouse down = take/swap/drop stack (or combine for rare cases like keys)
+    //     left mouse down = take/swap/drop stack (or combine for rare cases like keys)
     // Minecraft:
     //   empty cursor:
-    //     xpBarLeft mouse down = pick up stack
+    //     left mouse down = pick up stack
     //     right mouse down = pick up bigger half of stack [(int)ceilf(count / 2.0f)]
     //   filled cursor:
-    //     xpBarLeft mouse down + drag split stack evenly
+    //     left mouse down + drag split stack evenly
     //     right mouse down + drag 1 item piles
     //     mouse up = keep remainder on cursor
     //   Always centers item on cursor
     //   squish (less width, more height) animation on pick-up
+
+    const double minimumVacuumDelay = 0.05f;
+    const double defaultVacumDelay = 0.3f;
+    thread_local double lastVacuum = 0;
+    thread_local double vacuumDelay = defaultVacumDelay;
+
+    if (!ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
+        vacuumDelay = defaultVacumDelay;
+    }
+
     if (ImGui::IsItemHovered()) {
         const int scrollY = (int)GetMouseWheelMove();
-        if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
+        if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
             const bool doubleClick = ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left);
             netClient.SendSlotClick(slot, doubleClick);
-        } else if (ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
-            // if cursor empty, pick up half (or 1 like terraria? hmm..)
-            // else, pick up 1 more (repeat w/ acceleration)
         } else if (scrollY) {
             // TODO(dlb): This will break if the window has any scrolling controls
             netClient.SendSlotScroll(slot, scrollY);
         // TODO(dlb): Refactor out this input handling into controller sample code
-        } else if (IsKeyPressed(KEY_Q)) {
-            // Drop item(s) from cursor stack into hovered slot or onto ground
-            if (cursorStack.count) {
-                DLB_ASSERT(cursorStack.uid);
-                uint32_t dropCount = IsKeyDown(KEY_LEFT_CONTROL) ? cursorStack.count : 1;
-                if (dropCount) {
-                    netClient.SendSlotScroll(slot, dropCount);
-                }
-            } else if (invStack.count) {
+        } else if (ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
+            // Vaccuum up items from slot to cursor
+            if (invStack.count) {
                 DLB_ASSERT(invStack.uid);
-                uint32_t dropCount = IsKeyDown(KEY_LEFT_CONTROL) ? invStack.count : 1;
-                if (dropCount) {
-                    netClient.SendSlotDrop(slot, dropCount);
+                uint32_t vacuumCount = IsKeyDown(KEY_LEFT_SHIFT) ? invStack.count : 1;
+                if (vacuumCount) {
+                    const double sinceLastVacuum = g_clock.now - lastVacuum;
+
+                    // Been awhile since last vaccuum, reset acceleration
+                    if (sinceLastVacuum > defaultVacumDelay * 2.0f) {
+                        vacuumDelay = defaultVacumDelay;
+                    }
+
+                    // Time to vaccuum again
+                    if (ImGui::IsMouseClicked(ImGuiMouseButton_Right) || sinceLastVacuum > vacuumDelay) {
+                        netClient.SendSlotScroll(slot, -(int)vacuumCount);
+                        vacuumDelay = MAX(minimumVacuumDelay, vacuumDelay - 0.05f);
+                        lastVacuum = g_clock.now;
+                    }
                 }
             }
+            //// Drop item(s) from cursor stack into hovered slot or onto ground
+            //if (cursorStack.count) {
+            //    DLB_ASSERT(cursorStack.uid);
+            //    uint32_t dropCount = IsKeyDown(KEY_LEFT_CONTROL) ? cursorStack.count : 1;
+            //    if (dropCount) {
+            //        netClient.SendSlotScroll(slot, dropCount);
+            //    }
+            //}
         }
 
         if (!cursorStack.count && invStack.count && invStack.uid) {
@@ -1699,7 +1720,7 @@ void UI::InventoryItemTooltip(ItemStack &invStack, int slot, Player &player, Net
 
             // Name (count)
             CenterNextItem(invName);
-            ImGui::Text(invName);
+            ImGui::TextColored(itemClassImColor, invName);
 
             // Type
             CenterNextItem(itemClass);
@@ -1767,13 +1788,19 @@ void UI::InventorySlot(bool inventoryActive, int slot, const Texture &invItems, 
 
         if (item.Proto().stackLimit > 1) {
             const ImVec2 topLeft = ImGui::GetItemRectMin();
+            const float bottom = ImGui::GetItemRectMax().y;
+            const float fontHeight = ImGui::GetFontSize();
             ImDrawList *drawList = ImGui::GetWindowDrawList();
 
             char countBuf[16]{};
             snprintf(countBuf, sizeof(countBuf), "%d", invStack.count);
             //snprintf(countBuf, sizeof(countBuf), "%d", newInvStack.count);
             drawList->AddText(
+#if CL_CURSOR_ITEM_TEXT_BOTTOM_LEFT
+                { topLeft.x + 4, bottom - fontHeight },
+#else
                 { topLeft.x + 4, topLeft.y + 2 },
+#endif
                 IM_COL32_WHITE,
                 countBuf
             );
@@ -1824,8 +1851,8 @@ void UI::Inventory(const Texture &invItems, Player& player, NetClient &netClient
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8.0f, 8.0f)); styleVars++;
     auto bgColor = DARKBLUE;
     ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(bgColor.r, bgColor.g, bgColor.b, 0.4f * 255.0f)); styleCols++;
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(0, 255, 0, 255)); styleCols++;
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32(0, 0, 255, 255)); styleCols++;
+    //ImGui::PushStyleColor(ImGuiCol_ButtonHovered, IM_COL32(0, 255, 0, 255)); styleCols++;
+    //ImGui::PushStyleColor(ImGuiCol_ButtonActive, IM_COL32(0, 0, 255, 255)); styleCols++;
 
     int hoveredSlot = -1;
 
@@ -1910,7 +1937,7 @@ void UI::Inventory(const Texture &invItems, Player& player, NetClient &netClient
         // Drop item(s) from cursor stack onto ground
         if (hoveredSlot < 0 && IsKeyPressed(KEY_Q)) {
             DLB_ASSERT(cursorStack.uid);
-            uint32_t dropCount = IsKeyDown(KEY_LEFT_CONTROL) ? cursorStack.count : 1;
+            uint32_t dropCount = IsKeyDown(KEY_LEFT_SHIFT) ? cursorStack.count : 1;
             if (dropCount) {
                 if (hoveredSlot >= 0) {
                     netClient.SendSlotScroll(hoveredSlot, dropCount);
@@ -1934,9 +1961,9 @@ void UI::Inventory(const Texture &invItems, Player& player, NetClient &netClient
         player.inventory.TexRect(invItems, cursorItem.type, uv0, uv1);
 
         Vector2 cursorOffset{};
-#if CL_CURSOR_ITEM_RELATIVE_TERRARIA
-        cursorOffset.x = 8;
-        cursorOffset.y = 8;
+#if CL_CURSOR_ITEM_RELATIVE_TERRARIA || 1
+        cursorOffset.x = 0; //8; //-(ITEM_W);
+        cursorOffset.y = 0; //8; //-(ITEM_H);
 #else
         cursorOffset.x = -(ITEM_W / 2);
         cursorOffset.y = -(ITEM_H / 2);
@@ -1996,7 +2023,12 @@ void UI::Inventory(const Texture &invItems, Player& player, NetClient &netClient
         if (cursorItem.Proto().stackLimit > 1) {
             char countBuf[16]{};
             snprintf(countBuf, sizeof(countBuf), "%d", cursorStack.count);
+            const int fontSize = (int)ImGui::GetFontSize();
+#if CL_CURSOR_ITEM_TEXT_BOTTOM_LEFT
+            drawList->AddText({ dstRect.x - 4, dstRect.y + dstRect.height - 6 }, IM_COL32_WHITE, countBuf);
+#else
             drawList->AddText({ dstRect.x - 4, dstRect.y - 6 }, IM_COL32_WHITE, countBuf);
+#endif
         }
 
         //drawList->PopClipRect();

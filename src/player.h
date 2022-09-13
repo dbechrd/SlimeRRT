@@ -170,24 +170,26 @@ struct PlayerInventory {
         InventorySlot &cursor = CursorSlot();
         InventorySlot &slot = GetInvSlot(slotIdx);
 
-        if (!cursor.stack.count && slot.stack.count) {
-            // Pick up all items from clicked slot
-            SwapSlots(cursor, slot);
-        } else if (cursor.stack.count) {
-            if (doubleClicked) {
-                // Pick up as many items as possible from all slots that match the cursor's current item
-                bool done = false;
-                for (int slotIdx = PlayerInvSlot_Count - 1; slotIdx >= 0 && !done; slotIdx--) {
-                    if (slotIdx == PlayerInvSlot_Cursor)
-                        continue;
-
-                    InventorySlot &slot = GetInvSlot(slotIdx);
-                    done = TransferSlot(slot, cursor, true);
-                }
-            } else {
-                // Place as many items as possible into clicked slot
-                TransferSlot(cursor, slot);
+        if (doubleClicked) {
+            if (!cursor.stack.count) {
+                SwapSlots(cursor, slot);
             }
+
+            // Pick up as many items as possible from all slots that match the cursor's current item
+            bool done = false;
+            for (int slotIdx = PlayerInvSlot_Count - 1; slotIdx >= 0 && !done; slotIdx--) {
+                if (slotIdx == PlayerInvSlot_Cursor)
+                    continue;
+
+                InventorySlot &slot = GetInvSlot(slotIdx);
+                done = TransferSlot(slot, cursor, true);
+            }
+        } else if (slot.stack.uid == cursor.stack.uid) {
+            // Place as many items as possible into clicked slot
+            TransferSlot(cursor, slot);
+        } else {
+            // Pick up / set down all items to/from clicked slot
+            SwapSlots(cursor, slot);
         }
     }
 

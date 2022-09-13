@@ -33,20 +33,21 @@ void Player::Init()
     inventory.selectedSlot = PlayerInvSlot_Hotbar_0;
 
     // TODO: Load inventory from save file / server
-    //inventory.slots[PlayerInvSlot_Hotbar_0   ].stack = { ItemType_Weapon_Long_Sword , 1 };
-    //inventory.slots[PlayerInvSlot_Coin_Copper].stack = { ItemType_Currency_Copper, 0 };
-    //inventory.slots[PlayerInvSlot_Coin_Silver].stack = { ItemType_Currency_Silver, 0 };
-    //inventory.slots[PlayerInvSlot_Coin_Gilded].stack = { ItemType_Currency_Gilded, 0 };
-    //inventory.slots[0].stack = { ItemType_Weapon_Dagger, 1 };
-    ////inventory.slots[0].stack = { ItemType_Weapon_Excalibur, 1 };
-    //inventory.slots[1].stack = { ItemType_Book_BlackSkull, 3 };
-
+    ItemUID longSword  = g_item_db.Spawn(ItemType_Weapon_Long_Sword);
+    ItemUID dagger     = g_item_db.Spawn(ItemType_Weapon_Dagger);
+    ItemUID blackBook  = g_item_db.Spawn(ItemType_Book_BlackSkull);
     ItemUID silverCoin = g_item_db.Spawn(ItemType_Currency_Silver);
-    inventory.slots[0].stack = { silverCoin, 1 };
-    inventory.slots[1].stack = { silverCoin, 1 };
-    inventory.slots[2].stack = { silverCoin, 1 };
-    inventory.slots[3].stack = { silverCoin, 1 };
-    inventory.slots[4].stack = { silverCoin, 1 };
+
+    inventory.slots[PlayerInvSlot_Hotbar_0].stack = { longSword, 1 };
+    inventory.slots[ 0].stack = { dagger, 1 };
+    inventory.slots[ 1].stack = { blackBook, 3 };
+    inventory.slots[10].stack = { silverCoin, 10 };
+    inventory.slots[11].stack = { silverCoin, 20 };
+    inventory.slots[12].stack = { silverCoin, 30 };
+    inventory.slots[13].stack = { silverCoin, 40 };
+    inventory.slots[14].stack = { silverCoin, 50 };
+    inventory.slots[15].stack = { silverCoin, 60 };
+    inventory.slots[16].stack = { silverCoin, 70 };
 
     // TODO: Load stats from save file / server
     //stats.coinsCollected = 33;
