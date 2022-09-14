@@ -20,6 +20,7 @@ namespace Catalog {
         GemBounce,
         Eughh,
         RainbowSparkles,
+        Click1,
         Count
     };
 

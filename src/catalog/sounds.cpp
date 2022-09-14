@@ -17,6 +17,7 @@ namespace Catalog {
             case SoundID::GemBounce:       return "GemBounce";
             case SoundID::Eughh:           return "Eughh";
             case SoundID::RainbowSparkles: return "RainbowSparkles";
+            case SoundID::Click1:          return "Click1";
         }
         return 0;
     }
@@ -34,6 +35,7 @@ namespace Catalog {
         byId[(size_t)SoundID::GemBounce      ] = LoadSound("data/audio/sound/gem_bounce.wav");
         byId[(size_t)SoundID::Eughh          ] = LoadSound("data/audio/sound/eughh.ogg");
         byId[(size_t)SoundID::RainbowSparkles] = LoadSound("data/audio/sound/rainbow_sparkles.ogg");
+        byId[(size_t)SoundID::Click1         ] = LoadSound("data/audio/sound/click1.ogg");
 
         for (size_t i = 0; i < (size_t)SoundID::Count; i++) {
             mixer.volumeLimit[i] = 1.0f;

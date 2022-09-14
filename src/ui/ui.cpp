@@ -24,6 +24,8 @@ bool UI::disconnectRequested = false;
 bool UI::quitRequested = false;
 
 UI::Menu UI::mainMenu = UI::Menu::Main;
+const char *UI::hoverLabel = 0;
+const char *UI::prevHoverLabel = 0;
 
 const ImGuiTableSortSpecs *UI::itemSortSpecs = 0;
 
@@ -41,6 +43,7 @@ void UI::Update(const PlayerControllerState &input, Vector2 screenSize, Spycam *
     UI::mouseWorld = mouseWorld;
     UI::screenSize = screenSize;
     UI::spycam = spycam;
+    UI::hoverLabel = 0;
 };
 
 bool UI::DisconnectRequested(bool disconnected)
@@ -205,6 +208,15 @@ void UI::MenuTitle(const char *text)
 {
     ImGui::PushFont(g_fonts.imFontHack64);
     ImGui::Text(text);
+    ImGui::Spacing();
+    ImGui::Spacing();
+    ImGui::PopFont();
+}
+
+void UI::MenuTitle(const ImVec4 &color, const char *text)
+{
+    ImGui::PushFont(g_fonts.imFontHack64);
+    ImGui::TextColored(color, text);
     ImGui::Spacing();
     ImGui::Spacing();
     ImGui::PopFont();
@@ -1046,9 +1058,22 @@ int UI::OldRaylibMenu(const Font &font, const char **items, size_t itemCount)
 bool UI::BreadcrumbButton(const char *label, Menu menu, bool *escape)
 {
     ImGui::PushFont(g_fonts.imFontHack16);
-    if (!label[0]) ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
-    ImGui::Button(*label ? label : "##breadcrumb");
-    if (!label[0]) ImGui::PopStyleColor(1);
+    if (label[0] == '#') {
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0, 0, 0, 0));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0, 0, 0, 0));
+    }
+    ImGui::Button(label);
+    if (label[0] == '#') {
+        ImGui::PopStyleColor(3);
+        ImGui::SameLine();
+        ImGui::Text("");
+        ImGui::SameLine();
+        ImGui::PopFont();
+        return false;
+    }
+
+    if (ImGui::IsItemHovered()) UI::hoverLabel = label;
     bool pressed = (ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
         ImGui::IsMouseHoveringRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax()));
     if ((escape && *escape) || pressed) {
@@ -1057,7 +1082,7 @@ bool UI::BreadcrumbButton(const char *label, Menu menu, bool *escape)
         if (escape) *escape = false;
     }
     ImGui::SameLine();
-    ImGui::Text(label[0] ? " -> " : "");
+    ImGui::Text(" -> ");
     ImGui::SameLine();
     ImGui::PopFont();
     return pressed;
@@ -1077,6 +1102,7 @@ bool UI::MenuBackButton(Menu menu, bool *escape)
     ImGui::PushFont(g_fonts.imFontHack32);
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
     ImGui::Button("< Back");
+    if (ImGui::IsItemHovered()) UI::hoverLabel = "< Back";
     bool pressed = (ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
                     ImGui::IsMouseHoveringRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax()));
     if ((escape && *escape) || pressed) {
@@ -1093,6 +1119,7 @@ bool UI::MenuBackButton(Menu menu, bool *escape)
 bool UI::MenuItemClick(const char *label)
 {
     ImGui::MenuItem(label);
+    if (ImGui::IsItemHovered()) UI::hoverLabel = label;
     bool pressed = ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
                    ImGui::IsMouseHoveringRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
     if (pressed) {
@@ -1128,10 +1155,11 @@ void UI::MainMenu(bool &escape, GameClient &game)
     );
 
     Menu oldMenu = mainMenu;
+    const char *hoverLabel = 0;
 
     switch (mainMenu) {
         case Menu::Main: {
-            UI::BreadcrumbButton("", Menu::Main, &escape);
+            UI::BreadcrumbButton("##breadcrumb", Menu::Main, &escape);
             UI::BreadcrumbText("");
 
             // This seems dangerous/annoying if user is spamming escape to get back to root menu
@@ -1141,7 +1169,7 @@ void UI::MainMenu(bool &escape, GameClient &game)
             //    break;
             //}
 
-            UI::MenuTitle("Slime Game");
+            UI::MenuTitle({ 0, 255, 0, 255 }, "Slime Game");
 
             ImGui::PushFont(g_fonts.imFontHack48);
             if (UI::MenuItemClick("Single player")) {
@@ -1467,10 +1495,21 @@ void UI::MainMenu(bool &escape, GameClient &game)
     }
 
     if (mainMenu != oldMenu) {
-        Catalog::g_sounds.Play(
-            mainMenu > oldMenu ? Catalog::SoundID::Squish1 : Catalog::SoundID::Squish2,
-            1.0f + dlb_rand32f_variance(0.1f)
-        );
+        //Catalog::g_sounds.Play(
+        //    mainMenu > oldMenu ? Catalog::SoundID::Squish1 : Catalog::SoundID::Squish2,
+        //    1.0f + dlb_rand32f_variance(0.1f)*0
+        //);
+    } else if (UI::hoverLabel != UI::prevHoverLabel) {
+        Catalog::g_sounds.Play(Catalog::SoundID::Click1, (UI::hoverLabel ? 1.0f : 0.97f) + dlb_rand32f_variance(0.01f), true);
+        UI::prevHoverLabel = UI::hoverLabel;
+        /*thread_local double lastPlayed = 0;
+        if (lastPlayed < g_clock.now) {
+            UI::prevHoverLabel = UI::hoverLabel;
+            Catalog::g_sounds.Play(Catalog::SoundID::Click1, 1.0f, true);
+            lastPlayed = g_clock.now;
+        } else if (label == prevHover && !ImGui::IsItemHovered()) {
+            prevHover = 0;
+        }*/
     }
 
     ImGui::End();
