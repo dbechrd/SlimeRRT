@@ -1640,6 +1640,7 @@ void UI::InGameMenu(bool &escape, bool connectedToServer)
 
 void UI::InventoryItemTooltip(ItemStack &invStack, int slot, Player &player, NetClient &netClient)
 {
+    player.inventory.skipUpdate = true;
     ItemStack &cursorStack = player.inventory.CursorSlot().stack;
 
     // Terraria:
@@ -1677,10 +1678,18 @@ void UI::InventoryItemTooltip(ItemStack &invStack, int slot, Player &player, Net
         const int scrollY = (int)GetMouseWheelMove();
         if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
             const bool doubleClick = ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left);
-            netClient.SendSlotClick(slot, doubleClick);
+            bool success = player.inventory.SlotClick(slot, doubleClick);
+            if (success) {
+                netClient.SendSlotClick(slot, doubleClick);
+            }
+            Catalog::g_sounds.Play(Catalog::SoundID::Click1, (success ? 1.0f : 0.77f) + dlb_rand32f_variance(0.01f), true);
         } else if (scrollY) {
             // TODO(dlb): This will break if the window has any scrolling controls
-            netClient.SendSlotScroll(slot, scrollY);
+            bool success = player.inventory.SlotScroll(slot, scrollY);
+            if (success) {
+                netClient.SendSlotScroll(slot, scrollY);
+            }
+            Catalog::g_sounds.Play(Catalog::SoundID::Click1, (success ? 1.0f : 0.77f) + dlb_rand32f_variance(0.01f), true);
         // TODO(dlb): Refactor out this input handling into controller sample code
         } else if (ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
             // Vaccuum up items from slot to cursor
@@ -1697,9 +1706,13 @@ void UI::InventoryItemTooltip(ItemStack &invStack, int slot, Player &player, Net
 
                     // Time to vaccuum again
                     if (ImGui::IsMouseClicked(ImGuiMouseButton_Right) || sinceLastVacuum > vacuumDelay) {
-                        netClient.SendSlotScroll(slot, -(int)vacuumCount);
+                        bool success = player.inventory.SlotScroll(slot, -(int)vacuumCount);
+                        if (success) {
+                            netClient.SendSlotScroll(slot, -(int)vacuumCount);
+                        }
                         vacuumDelay = MAX(minimumVacuumDelay, vacuumDelay - 0.05f);
                         lastVacuum = g_clock.now;
+                        Catalog::g_sounds.Play(Catalog::SoundID::Click1, (success ? 1.0f : 0.77f) + dlb_rand32f_variance(0.01f), true);
                     }
                 }
             }
@@ -1811,6 +1824,7 @@ void UI::InventoryItemTooltip(ItemStack &invStack, int slot, Player &player, Net
             ImGui::PopStyleVar(2);
         }
     }
+    player.inventory.skipUpdate = false;
 }
 
 void UI::InventorySlot(bool inventoryActive, int slot, const Texture &invItems, Player &player, NetClient &netClient)

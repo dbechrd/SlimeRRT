@@ -5,6 +5,7 @@
 #include "draw_command.h"
 #include "enemy.h"
 #include "catalog/items.h"
+#include "catalog/sounds.h"
 #include "ring_buffer.h"
 #include "sprite.h"
 #include "dlb_rand.h"
@@ -65,6 +66,7 @@ struct InventorySlot {
 struct PlayerInventory {
     PlayerInvSlot selectedSlot {};  // NOTE: for hotbar, needs rework
     InventorySlot slots        [PlayerInvSlot_Count]{};
+    bool          skipUpdate   {};  // HACK: Simulate inv action to see if it's valid client-side without actually performing it
 
     void TexRect(const Texture &invItems, ItemType itemId, Vector2 &min, Vector2 &max)
     {
@@ -117,14 +119,16 @@ struct PlayerInventory {
     // TODO: Check slot filter
     void SwapSlots(InventorySlot &a, InventorySlot &b)
     {
-        ItemStack tmp = a.stack;
-        a.stack = b.stack;
-        b.stack = tmp;
+        if (!skipUpdate) {
+            ItemStack tmp = a.stack;
+            a.stack = b.stack;
+            b.stack = tmp;
+        }
     }
 
     // Attempt to transfer some amount of items from one slot to another
     // TODO: Check slot filter
-    bool TransferSlot(InventorySlot &src, InventorySlot &dst, bool skipFull = false, uint32_t transferLimit = UINT32_MAX)
+    bool TransferSlot(InventorySlot &src, InventorySlot &dst, uint32_t transferLimit = 0, bool skipFull = false, bool *dstFull = 0)
     {
         // Nothing to transfer
         if (!src.stack.count) {
@@ -153,66 +157,77 @@ struct PlayerInventory {
         // Transfer as many items as possible from src to dst
         uint32_t dstFreeSpace = stackLimit - dst.stack.count;
         uint32_t maxCanTransfer = MIN(src.stack.count, dstFreeSpace);
-        uint32_t transfer = MIN(maxCanTransfer, transferLimit);
-        src.stack.count -= transfer;
-        if (!src.stack.count) {
-            src.stack.uid = 0;
+        uint32_t transfer = transferLimit ? MIN(maxCanTransfer, transferLimit) : maxCanTransfer;
+        if (!skipUpdate) {
+            src.stack.count -= transfer;
+            if (!src.stack.count) {
+                src.stack.uid = 0;
+            }
+            dst.stack.count += transfer;
+            if (dst.stack.count) {
+                dst.stack.uid = item.uid;
+            }
         }
-        dst.stack.count += transfer;
-        if (dst.stack.count) {
-            dst.stack.uid = item.uid;
-        }
-        return dst.stack.count == stackLimit;
+        if (dstFull) *dstFull = (dst.stack.count == stackLimit);
+        return transfer > 0;
     }
 
-    void SlotClick(int slotIdx, bool doubleClicked)
+    bool SlotClick(int slotIdx, bool doubleClicked)
     {
         InventorySlot &cursor = CursorSlot();
         InventorySlot &slot = GetInvSlot(slotIdx);
 
+        bool success = false;
         if (doubleClicked) {
             if (!cursor.stack.count) {
+                if (!slot.stack.count) {
+                    return false;
+                }
                 SwapSlots(cursor, slot);
             }
 
             // Pick up as many items as possible from all slots that match the cursor's current item
-            bool done = false;
-            for (int slotIdx = PlayerInvSlot_Count - 1; slotIdx >= 0 && !done; slotIdx--) {
+            bool dstFull = false;
+            for (int slotIdx = PlayerInvSlot_Count - 1; slotIdx >= 0 && !dstFull; slotIdx--) {
                 if (slotIdx == PlayerInvSlot_Cursor)
                     continue;
 
                 InventorySlot &slot = GetInvSlot(slotIdx);
-                done = TransferSlot(slot, cursor, true);
+                success |= TransferSlot(slot, cursor, 0, true, &dstFull);
             }
         } else if (slot.stack.uid == cursor.stack.uid) {
             // Place as many items as possible into clicked slot
-            TransferSlot(cursor, slot);
+            success = TransferSlot(cursor, slot);
         } else {
             // Pick up / set down all items to/from clicked slot
             SwapSlots(cursor, slot);
+            success = true;
         }
+        return success;
     }
 
-    void SlotScroll(int slotIdx, int scroll)
+    bool SlotScroll(int slotIdx, int scroll)
     {
         const int transfer = scroll;
         if (!transfer) {
-            return;
+            return false;
         }
 
         InventorySlot &cursor = CursorSlot();
         InventorySlot &slot = GetInvSlot(slotIdx);
+        bool success = false;
         if (transfer > 0) {
-            TransferSlot(cursor, slot, false, (uint32_t)transfer);
+            success = TransferSlot(cursor, slot, (uint32_t)transfer, false);
         } else {
-            TransferSlot(slot, cursor, false, (uint32_t)-transfer);
+            success = TransferSlot(slot, cursor, (uint32_t)-transfer, false);
         }
+        return success;
     }
 
     ItemStack SlotDrop(int slotIdx, uint32_t count)
     {
         InventorySlot dropSlot{};
-        TransferSlot(GetInvSlot(slotIdx), dropSlot, false, count);
+        TransferSlot(GetInvSlot(slotIdx), dropSlot, count, false);
         return dropSlot.stack;
     }
 
