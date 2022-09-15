@@ -2,7 +2,7 @@
 #include "items.h"
 #include <stdlib.h>
 
-#define CSV_DEBUG_PRINT 1
+#define CSV_DEBUG_PRINT 0
 
 
 void ItemCatalog::LoadTextures(void) {
@@ -57,14 +57,15 @@ void ItemCatalog::LoadData(void)
         proto.stackLimit = vStackLimit.toUint();
 
         float value = vValue.toFloat();
-        proto.SetAffixProto(ItemAffix_Value,      { value, value });
-        float dmgFlatMin = vDamageFlatMin.toFloat();
-        float dmgFlatMax = vDamageFlatMax.toFloat();
-        // HACK: Just put all 4 numbers in the file you idiot.. :D
-        proto.SetAffixProto(ItemAffix_DamageFlat, { dmgFlatMin, dmgFlatMin + 2.0f }, { 2.0f + dmgFlatMax, 2.0f + dmgFlatMax + 4.0f });
+        proto.SetAffixProto(ItemAffix_Value, { value, value });
+
         // HACK(dlb): Remove this and put the data in the data file, and/or roll it on item spawn
         // This isn't going to work over the network as-is, both sides will have different random numbers
         if (proto.itemClass == ItemClass_Weapon) {
+            float dmgFlatMin = vDamageFlatMin.toFloat();
+            float dmgFlatMax = vDamageFlatMax.toFloat();
+            // HACK: Just put all 4 numbers in the file you idiot.. :D
+            proto.SetAffixProto(ItemAffix_DamageFlat, { dmgFlatMin, dmgFlatMin + 2.0f }, { 2.0f + dmgFlatMax, 2.0f + dmgFlatMax + 4.0f });
             proto.SetAffixProto(ItemAffix_KnockbackFlat, { 1.0f, 5.0f }); //(float)dlb_rand32u_range(0, 2) * 2);
         } else if (proto.itemClass == ItemClass_Shield) {
             proto.SetAffixProto(ItemAffix_MoveSpeedFlat, { 1.0f, 3.0f });

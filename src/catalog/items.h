@@ -5,6 +5,7 @@
 #include <dlb_murmur3.h>
 #include <dlb_rand.h>
 #include <raylib/raylib.h>
+#include <array>
 #include <unordered_map>
 
 typedef uint8_t  ItemSlot;
@@ -86,6 +87,14 @@ enum : ItemAffixType {
 struct FloatRange {
     float min {};
     float max {};
+
+    bool operator==(const FloatRange &other) const {
+        return this == &other || (min == other.min && max == other.max);
+    }
+
+    bool IsScalar(void) const {
+        return min == max;
+    }
 };
 
 struct ItemAffix {
@@ -129,6 +138,12 @@ struct ItemAffixProto {
 
     ItemAffixProto(ItemAffixType type, FloatRange range) :
         type(type), minRange(range), maxRange(range) {};
+
+    // Returns true if all affixes have scalar values, i.e. every roll would produce an identical item
+    bool IsScalar(void) const {
+        const bool isScalar = type == ItemAffix_Empty || (minRange.IsScalar() && minRange == maxRange);
+        return isScalar;
+    }
 
     ItemAffix Roll() const {
         float min = dlb_rand32f_range(minRange.min, minRange.max);
@@ -469,7 +484,7 @@ struct ItemProto {
     bool SetAffixProto(ItemAffixType type, FloatRange min, FloatRange max) {
         ItemAffixProto *proto = 0;
         for (size_t i = 0; i < ITEM_AFFIX_MAX_COUNT; i++) {
-            if (affixProtos[i].type == type || affixProtos[i].type == ItemAffix_Empty) {
+            if (affixProtos[i].type == ItemAffix_Empty || affixProtos[i].type == type) {
                 proto = &affixProtos[i];
                 break;
             }
@@ -482,6 +497,15 @@ struct ItemProto {
 
     bool SetAffixProto(ItemAffixType type, FloatRange value) {
         return SetAffixProto(type, value, value);
+    }
+
+    // Returns true if all affixes have scalar values, i.e. every roll would produce an identical item
+    bool IsScalar(void) const {
+        bool isScalar = true;
+        for (size_t i = 0; i < ITEM_AFFIX_MAX_COUNT; i++) {
+            isScalar &= affixProtos[i].IsScalar();
+        }
+        return isScalar;
     }
 };
 
@@ -510,6 +534,8 @@ struct Item {
     // TODO: ENSURE NO DUPES (but without hash table or O(n) storage, i.e. use addAffix method w/ check and
     //       removeAffix to keep tightly packed)
     ItemAffix affixes[ITEM_AFFIX_MAX_COUNT]{};
+
+    Item(void) {}
 
     Item(ItemUID uid, ItemType type) : uid(uid), type(type) {
         Roll();
@@ -566,16 +592,31 @@ private:
 
 struct ItemDatabase {
     ItemDatabase(void) {
-        const Item &item = items.emplace_back(0, 0);
-        byUid[0] = item.uid;
+        // Reserve static default items for each item type
+        items.resize(ItemType_Count);
+        for (ItemType itemType = 0; itemType < ItemType_Count; itemType++) {
+            Item &item = items[itemType];
+            item.uid = itemType;
+            item.type = itemType;
+            byUid[item.uid] = itemType;
+        }
     }
 
     ItemUID Spawn(ItemType type) {
-        nextUid = MAX(1, nextUid + 1); // Prevent ID zero from being used on overflow
-        const Item &item = items.emplace_back(nextUid, type);
-        DLB_ASSERT(items.size());
-        byUid[item.uid] = (uint32_t)items.size() - 1;
-        return item.uid;
+        nextUid = MAX(ItemType_Count, nextUid + 1); // Prevent reserved IDs from being used on overflow
+
+        const ItemProto &proto = g_item_catalog.FindProto(type);
+        if (proto.IsScalar()) {
+            printf("Reusing memoized scalar item for type: %d\n", type);
+            DLB_ASSERT(items[type].type == type);
+            DLB_ASSERT(items[type].uid == type);
+            return type;
+        } else {
+            printf("Rolling new item for type: %d\n", type);
+            const Item &item = items.emplace_back(nextUid, type);
+            byUid[item.uid] = (uint32_t)items.size() - 1;
+            return item.uid;
+        }
     }
 
     const Item& Find(ItemUID uid) {

@@ -1665,7 +1665,7 @@ void UI::InventoryItemTooltip(ItemStack &invStack, int slot, Player &player, Net
     //   Always centers item on cursor
     //   squish (less width, more height) animation on pick-up
 
-    const double minimumVacuumDelay = 0.05f;
+    const double minimumVacuumDelay = 0.02f;
     const double defaultVacumDelay = 0.3f;
     thread_local double lastVacuum = 0;
     thread_local double vacuumDelay = defaultVacumDelay;
@@ -1753,6 +1753,9 @@ void UI::InventoryItemTooltip(ItemStack &invStack, int slot, Player &player, Net
             const char *knockbackFlatText = "00.0 - 00.0 knockback";
             const char *moveSpeedFlatText = "00.0 movement speed";
             const char *valueText = "sell @ 00.00";
+#if CL_DEBUG_ADVANCED_ITEM_TOOLTIPS
+            const char *itemTypeText = "itemType: 0000";
+#endif
 
             float maxWidth = 0.0f;
             maxWidth = MAX(maxWidth, ImGui::CalcTextSize(invName).x);
@@ -1761,6 +1764,9 @@ void UI::InventoryItemTooltip(ItemStack &invStack, int slot, Player &player, Net
             maxWidth = MAX(maxWidth, ImGui::CalcTextSize(knockbackFlatText).x * hasKnockbackFlat);
             maxWidth = MAX(maxWidth, ImGui::CalcTextSize(moveSpeedFlatText).x * hasMoveSpeedFlat);
             maxWidth = MAX(maxWidth, ImGui::CalcTextSize(valueText).x * hasValue);
+#if CL_DEBUG_ADVANCED_ITEM_TOOLTIPS
+            maxWidth = MAX(maxWidth, ImGui::CalcTextSize(itemTypeText).x);
+#endif
             maxWidth += 8.0f;
 
             ImGui::SetNextWindowSize({ maxWidth, 0 });
@@ -1772,7 +1778,8 @@ void UI::InventoryItemTooltip(ItemStack &invStack, int slot, Player &player, Net
 
             // Name (count)
             CenterNextItem(invName);
-            ImGui::TextColored(itemClassImColor, invName);
+            //ImGui::TextColored(itemClassImColor, invName);
+            ImGui::Text(invName);
 
             // Type
             CenterNextItem(itemClass);
@@ -1819,6 +1826,11 @@ void UI::InventoryItemTooltip(ItemStack &invStack, int slot, Player &player, Net
                 ImGui::SameLine();
                 ImGui::TextColored(RayToImColor(YELLOW), "%-.2f", afxValue.value.min);
             }
+
+#if CL_DEBUG_ADVANCED_ITEM_TOOLTIPS
+            CenterNextItem(itemTypeText);
+            ImGui::TextColored(RayToImColor(MAGENTA), "itemType: %04d", proto.itemType);
+#endif
 
             ImGui::EndTooltip();
             ImGui::PopStyleVar(2);
