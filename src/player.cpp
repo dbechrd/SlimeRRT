@@ -468,6 +468,10 @@ void Player::DrawSwimOverlay(const World &world) const
 
 void Player::Draw(World &world)
 {
+    // HACK: Don't draw players who have left the game
+    PlayerInfo *playerInfo = world.FindPlayerInfo(id);
+    if (!playerInfo) return;
+
     // Player shadow
     // TODO: Shadow size based on height from ground
     // https://yal.cc/top-down-bouncing-loot-effects/
@@ -496,8 +500,6 @@ void Player::Draw(World &world)
     }
 #endif
 
-    PlayerInfo *playerInfo = world.FindPlayerInfo(id);
-    assert(playerInfo);
     Vector2 topCenter = WorldTopCenter2D();
     HealthBar::Draw({ topCenter.x, topCenter.y }, playerInfo->name, combat);
 }

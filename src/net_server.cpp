@@ -10,11 +10,57 @@
 #include <cstring>
 #include <ctime>
 #include <new>
+#include <vector>
 
 const char *NetServer::LOG_SRC = "NetServer";
 
+ErrorType NetServer::SaveUserData(const char *filename)
+{
+    flatbuffers::FlatBufferBuilder fbb;
+
+    auto uaGuest = Slime::CreateUserAccountDirect(fbb, "guest", "guest");
+    auto uaDandy = Slime::CreateUserAccountDirect(fbb, "dandy", "asdf");
+    auto uaOwl   = Slime::CreateUserAccountDirect(fbb, "owl",   "awesome");
+    auto uaKash  = Slime::CreateUserAccountDirect(fbb, "kash",  "shroom");
+
+    std::vector<flatbuffers::Offset<Slime::UserAccount>> userAccounts{
+        uaGuest, uaDandy, uaOwl, uaKash
+    };
+    auto users = Slime::CreateUsersDirect(fbb, &userAccounts);
+
+    Slime::FinishUsersBuffer(fbb, users);
+    if (!SaveFileData(filename, fbb.GetBufferPointer(), fbb.GetSize())) {
+        printf("Uh oh, it didn't work :(\n");
+    }
+
+    return ErrorType::Success;
+}
+
+ErrorType NetServer::LoadUserData(const char *filename)
+{
+    fbs_users.data = LoadFileData(filename, &fbs_users.length);
+    DLB_ASSERT(fbs_users.length);
+
+    flatbuffers::Verifier verifier(fbs_users.data, fbs_users.length);
+    if (!Slime::VerifyUsersBuffer(verifier)) {
+        E_ASSERT(ErrorType::PancakeVerifyFailed, "Uh oh, data verification failed\n");
+    }
+    const Slime::Users *users = Slime::GetUsers(fbs_users.data);
+    if (!users->Verify(verifier)) {
+        E_ASSERT(ErrorType::PancakeVerifyFailed, "Uh oh, data verification failed\n");
+    }
+
+    const Slime::UserAccount *dandy = users->accounts()->LookupByKey("dandy");
+    DLB_ASSERT(dandy);
+
+    return ErrorType::Success;
+}
+
 NetServer::NetServer(void)
 {
+    SaveUserData("data/fbs/users.dat");
+    LoadUserData("data/fbs/users.dat");
+
     rawPacket.dataLength = PACKET_SIZE_MAX;
     rawPacket.data = calloc(rawPacket.dataLength, sizeof(uint8_t));
 }
@@ -24,6 +70,7 @@ NetServer::~NetServer(void)
     TraceLog(LOG_DEBUG, "Killing NetServer");
     CloseSocket();
     free(rawPacket.data);
+    UnloadFileData(fbs_users.data);
 }
 
 ErrorType NetServer::OpenSocket(unsigned short socketPort)
@@ -992,23 +1039,55 @@ void NetServer::ProcessMsg(SV_Client &client, ENetPacket &packet)
         case NetMessage::Type::Identify: {
             NetMessage_Identify &identMsg = netMsg.data.identify;
 
-            PlayerInfo *playerInfo = serverWorld->AddPlayerInfo(identMsg.username, identMsg.usernameLength);
-            if (playerInfo) {
-                client.connectionToken = netMsg.connectionToken;
-                client.playerId = playerInfo->id;
-
-                assert(identMsg.usernameLength);
-                playerInfo->SetName(identMsg.username, identMsg.usernameLength);
-
-                Player *player = serverWorld->AddPlayer(playerInfo->id);
-                assert(player);
-                player->body.Teleport(serverWorld->GetWorldSpawn());
-
-                SendWelcomeBasket(client);
+            const Slime::Users *users = Slime::GetUsers(fbs_users.data);
+            const Slime::UserAccount *account = users->accounts()->LookupByKey(identMsg.username);
+            if (account) {
+                const char *password = account->password()->data();
+                uint32_t passwordLen = account->password()->size();
+                if (identMsg.passwordLength == passwordLen && !strncmp(identMsg.password, password, passwordLen)) {
+                    printf("Successful auth as user: %s\n", identMsg.username);
+                } else {
+                    printf("Incorrect password for user: %s\n", identMsg.username);
+                    RemoveClient(client.peer);
+                    break;
+                }
             } else {
-                // TODO: Send server full netMsg
+                printf("User does not exist: %s\n", identMsg.username);
+                RemoveClient(client.peer);
+                break;
             }
 
+            PlayerInfo *playerInfo = 0;
+            ErrorType err = serverWorld->AddPlayerInfo(identMsg.username, identMsg.usernameLength, &playerInfo);
+            if (err != ErrorType::Success) {
+                switch (err) {
+                    case ErrorType::UserAccountInUse: {
+                        // TODO: Send account already in use netMsg
+                        printf("User account already in use: %s\n", identMsg.username);
+                        RemoveClient(client.peer);
+                        break;
+                    }
+                    case ErrorType::ServerFull: {
+                        // TODO: Send server full netMsg
+                        printf("Server full, kicking new user: %s\n", identMsg.username);
+                        RemoveClient(client.peer);
+                        break;
+                    }
+                }
+                break;
+            }
+
+            client.connectionToken = netMsg.connectionToken;
+            client.playerId = playerInfo->id;
+
+            assert(identMsg.usernameLength);
+            playerInfo->SetName(identMsg.username, identMsg.usernameLength);
+
+            Player *player = serverWorld->AddPlayer(playerInfo->id);
+            assert(player);
+            player->body.Teleport(serverWorld->GetWorldSpawn());
+
+            SendWelcomeBasket(client);
             break;
         } case NetMessage::Type::ChatMessage: {
             NetMessage_ChatMessage &chatMsg = netMsg.data.chatMsg;
@@ -1122,7 +1201,7 @@ ErrorType NetServer::RemoveClient(ENetPeer *peer)
     SV_Client *client = FindClient(peer);
     if (client) {
         const PlayerInfo *playerInfo = serverWorld->FindPlayerInfo(client->playerId);
-        if (playerInfo) {
+        if (playerInfo && playerInfo->id) {
             E_ASSERT(BroadcastPlayerLeave(playerInfo->id), "Failed to broadcast player leave notification");
 
             const char *message = SafeTextFormat("%.*s left the game.", playerInfo->nameLength, playerInfo->name);
@@ -1132,13 +1211,17 @@ ErrorType NetServer::RemoveClient(ENetPeer *peer)
             chatMsg.messageLength = (uint32_t)MIN(messageLength, CHATMSG_LENGTH_MAX);
             memcpy(chatMsg.message, message, chatMsg.messageLength);
             E_ASSERT(BroadcastChatMessage(chatMsg), "Failed to broadcast player leave chat msg");
-        }
 
-        serverWorld->RemovePlayer(client->playerId);
+            serverWorld->RemovePlayer(client->playerId);
+            serverWorld->RemovePlayerInfo(client->playerId);
+        }
         *client = {};
     }
-    peer->data = 0;
-    enet_peer_reset(peer);
+
+    // TODO: Send a packet with a reason back to the client, e.g. for invalid login info, /kick, etc.
+    enet_peer_disconnect(peer, 0);
+    //peer->data = 0;
+    //enet_peer_reset(peer);
     return ErrorType::Success;
 }
 

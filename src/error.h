@@ -12,6 +12,9 @@ enum class ErrorType {
     PeerSendFailed,
     PlayerNotFound,
     EnemyNotFound,
+    PancakeVerifyFailed,
+    ServerFull,
+    UserAccountInUse,
     Count
 };
 

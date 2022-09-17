@@ -74,8 +74,8 @@
 #define SV_DEFAULT_PORT             4040
 #define SV_SINGLEPLAYER_HOST        "localhost"
 #define SV_SINGLEPLAYER_PORT        4039
-#define SV_SINGLEPLAYER_USER        "user"
-#define SV_SINGLEPLAYER_PASS        "pass"
+#define SV_SINGLEPLAYER_USER        "guest"
+#define SV_SINGLEPLAYER_PASS        "guest"
 #define SV_USERNAME                 "SERVER"
 #define SV_MAX_PLAYERS              8
 #define SV_MAX_ENEMIES              32

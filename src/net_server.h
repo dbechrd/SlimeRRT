@@ -48,6 +48,13 @@ private:
     static const char *LOG_SRC;
     NetMessage netMsg {};
     ENetBuffer rawPacket {};
+    struct {
+        uint32_t length;
+        uint8_t *data;
+    } fbs_users;
+
+    ErrorType SaveUserData(const char *filename);
+    ErrorType LoadUserData(const char *filename);
 
     ErrorType SendRaw              (const SV_Client &client, const void *data, size_t size);
     ErrorType SendMsg              (const SV_Client &client, NetMessage &message);

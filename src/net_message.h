@@ -10,20 +10,20 @@
 struct NetMessage_Identify {
     // TODO: Encrypt packet
     uint32_t usernameLength {};
-    char     username       [USERNAME_LENGTH_MAX]{};
+    char     username       [USERNAME_LENGTH_MAX + 1]{};
     uint32_t passwordLength {};
-    char     password       [PASSWORD_LENGTH_MAX]{};
+    char     password       [PASSWORD_LENGTH_MAX + 1]{};
 };
 
 struct NetMessage_Welcome {
     uint32_t motdLength  {};
-    char     motd        [MOTD_LENGTH_MAX]{};  // message of the day
-    uint32_t playerId    {};                   // client's assigned playerId
-    uint32_t playerCount {};                   // players in game
+    char     motd        [MOTD_LENGTH_MAX + 1]{};  // message of the day
+    uint32_t playerId    {};                       // client's assigned playerId
+    uint32_t playerCount {};                       // players in game
     struct NetMessage_Welcome_Player {
         uint32_t  id           {};
         uint32_t  nameLength   {};
-        char      name         [USERNAME_LENGTH_MAX]{};
+        char      name         [USERNAME_LENGTH_MAX + 1]{};
     } players[SV_MAX_PLAYERS]{};  // player info
 };
 
@@ -38,7 +38,7 @@ struct NetMessage_ChatMessage {
         Count
     };
     double   recvAt         {};
-    char     timestampStr   [TIMESTAMP_LENGTH]{};  // hh:MM:SS AM
+    char     timestampStr   [TIMESTAMP_LENGTH + 1]{};  // hh:MM:SS AM
     Source   source         {};
     uint32_t id             {};
     uint32_t messageLength  {};
@@ -78,7 +78,7 @@ struct NetMessage_GlobalEvent {
     struct PlayerJoin {
         uint32_t playerId   {};
         uint32_t nameLength {};
-        char     name       [USERNAME_LENGTH_MAX]{};
+        char     name       [USERNAME_LENGTH_MAX + 1]{};
     };
 
     struct PlayerLeave {

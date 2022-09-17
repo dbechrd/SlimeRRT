@@ -33,18 +33,30 @@ const Vector3 World::GetWorldSpawn(void)
     return worldSpawn;
 };
 
-PlayerInfo *World::AddPlayerInfo(const char *name, uint32_t nameLength, uint32_t playerId)
+ErrorType World::AddPlayerInfo(const char *name, uint32_t nameLength, PlayerInfo **result)
 {
+    DLB_ASSERT(name);
+    DLB_ASSERT(nameLength >= USERNAME_LENGTH_MIN);
+    DLB_ASSERT(nameLength <= USERNAME_LENGTH_MAX);
+    DLB_ASSERT(result);
+
+    PlayerInfo *existingPlayer = FindPlayerInfoByName(name, nameLength);
+    if (existingPlayer) {
+        return ErrorType::UserAccountInUse;
+    }
+
     for (int i = 0; i < ARRAY_SIZE(playerInfos); i++) {
         PlayerInfo &playerInfo = playerInfos[i];
         if (!playerInfo.nameLength) {
-            playerInfo.id = playerId ? playerId : i + 1;
+            // We found a free slot
+            playerInfo.id = i + 1;
             playerInfo.nameLength = (uint32_t)MIN(nameLength, USERNAME_LENGTH_MAX);
             memcpy(playerInfo.name, name, playerInfo.nameLength);
-            return &playerInfo;
+            *result = &playerInfo;
+            return ErrorType::Success;
         }
     }
-    return 0;
+    return ErrorType::ServerFull;
 }
 
 PlayerInfo *World::FindPlayerInfo(uint32_t playerId)
@@ -56,6 +68,21 @@ PlayerInfo *World::FindPlayerInfo(uint32_t playerId)
     }
     return 0;
 }
+
+PlayerInfo *World::FindPlayerInfoByName(const char *name, size_t nameLength)
+{
+    if (!name || !nameLength) {
+        return 0;
+    }
+
+    for (PlayerInfo &playerInfo : playerInfos) {
+        if (nameLength == playerInfo.nameLength && !strncmp(name, playerInfo.name, playerInfo.nameLength)) {
+            return &playerInfo;
+        }
+    }
+    return 0;
+}
+
 
 void World::RemovePlayerInfo(uint32_t playerId)
 {
@@ -118,16 +145,8 @@ Player *World::LocalPlayer(void)
 
 Player *World::FindPlayerByName(const char *name, size_t nameLength)
 {
-    if (!name || !nameLength) {
-        return 0;
-    }
-
-    for (PlayerInfo &playerInfo : playerInfos) {
-        if (nameLength == playerInfo.nameLength && !strncmp(name, playerInfo.name, playerInfo.nameLength)) {
-            return FindPlayer(playerInfo.id);
-        }
-    }
-    return 0;
+    PlayerInfo *playerInfo = FindPlayerInfoByName(name, nameLength);
+    return playerInfo ? FindPlayer(playerInfo->id) : 0;
 }
 
 Player *World::FindClosestPlayer(Vector2 worldPos, float maxDist, float *distSq = 0)

@@ -41,21 +41,22 @@ struct World {
     ////////////////////////////////////////////
     // vvv DO NOT HOLD A POINTER TO THESE! vvv
     //
-    PlayerInfo       *AddPlayerInfo     (const char *name, uint32_t nameLength, uint32_t playerId = 0);
-    PlayerInfo       *FindPlayerInfo    (uint32_t playerId);
-    void              RemovePlayerInfo  (uint32_t playerId);
+    ErrorType   AddPlayerInfo        (const char *name, uint32_t nameLength, PlayerInfo **result);
+    PlayerInfo *FindPlayerInfo       (uint32_t playerId);
+    PlayerInfo *FindPlayerInfoByName (const char *name, size_t nameLength);
+    void        RemovePlayerInfo     (uint32_t playerId);
 
-    Player           *AddPlayer         (uint32_t playerId);
-    Player           *FindPlayer        (uint32_t playerId);
-    Player           *LocalPlayer       (void);
-    Player           *FindPlayerByName  (const char *name, size_t nameLength);
-    Player           *FindClosestPlayer (Vector2 worldPos, float maxDist, float *distSq);
-    void              RemovePlayer      (uint32_t playerId);
+    Player     *AddPlayer            (uint32_t playerId);
+    Player     *FindPlayer           (uint32_t playerId);
+    Player     *LocalPlayer          (void);
+    Player     *FindPlayerByName     (const char *name, size_t nameLength);
+    Player     *FindClosestPlayer    (Vector2 worldPos, float maxDist, float *distSq);
+    void        RemovePlayer         (uint32_t playerId);
 
-    Enemy  &SpawnSam    (void);
-    Enemy  *SpawnEnemy  (uint32_t enemyId, Vector2 origin);
-    Enemy  *FindEnemy   (uint32_t enemyId);
-    void    RemoveEnemy (uint32_t enemyId);
+    Enemy      &SpawnSam             (void);
+    Enemy      *SpawnEnemy           (uint32_t enemyId, Vector2 origin);
+    Enemy      *FindEnemy            (uint32_t enemyId);
+    void        RemoveEnemy          (uint32_t enemyId);
     //
     // ^^^ DO NOT HOLD A POINTER TO THESE! ^^^
     ////////////////////////////////////////////

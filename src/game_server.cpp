@@ -1,9 +1,6 @@
 #include "game_server.h"
 #include "net_server.h"
-#include <chrono>
-#include <future>
-
-using namespace std::chrono_literals;
+#include "users_generated.h"
 
 const char *GameServer::LOG_SRC = "GameServer";
 

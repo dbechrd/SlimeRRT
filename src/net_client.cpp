@@ -759,11 +759,16 @@ void NetClient::ProcessMsg(ENetPacket &packet)
 
             switch (globalEvent.type) {
                 case NetMessage_GlobalEvent::Type::PlayerJoin: {
-                    //const NetMessage_GlobalEvent::PlayerJoin &joinEvent = globalEvent.data.playerJoin;
-                    //serverWorld->AddPlayerInfo(joinEvent.name, joinEvent.nameLength, joinEvent.playerId);
+                    const NetMessage_GlobalEvent::PlayerJoin &joinEvent = globalEvent.data.playerJoin;
+                    PlayerInfo *playerInfo = serverWorld->FindPlayerInfo(joinEvent.playerId);
+                    if (!playerInfo) {
+                        serverWorld->AddPlayerInfo(joinEvent.name, joinEvent.nameLength, &playerInfo);
+                        playerInfo->id = joinEvent.playerId;
+                    }
                     break;
                 } case NetMessage_GlobalEvent::Type::PlayerLeave: {
-                    assert(!"Deprecated");
+                    const NetMessage_GlobalEvent::PlayerLeave &leaveEvent = globalEvent.data.playerLeave;
+                    serverWorld->RemovePlayerInfo(globalEvent.data.playerLeave.playerId);
                     break;
                 }
             }

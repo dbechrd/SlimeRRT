@@ -1284,12 +1284,18 @@ void UI::MainMenu(bool &escape, GameClient &game)
                     }
                 } else {
                     ImGui::PushFont(g_fonts.imFontHack48);
-                    if (UI::MenuItemClick("Dandyland via DNS")) {
-                        // TODO: Put login form here
-                        if (game.netClient.Connect(game.args.host, game.args.port, game.args.user, game.args.pass) != ErrorType::Success) {
-                            TraceLog(LOG_ERROR, "Failed to connect to local server");
-                        }
+                    ////////////////////////////////////////////////////////////////
+                    // TODO: Load these options from user's saved servers
+                    ErrorType err = ErrorType::Success;
+                    if (UI::MenuItemClick("Dandyland - guest")) {
+                        err = game.netClient.Connect(game.args.host, game.args.port, game.args.user, game.args.pass);
+                    } else if (UI::MenuItemClick("Dandyland - owl")) {
+                        err = game.netClient.Connect(game.args.host, game.args.port, "owl", "awesome");
                     }
+                    if (err != ErrorType::Success) {
+                        TraceLog(LOG_ERROR, "Failed to connect to server");
+                    }
+                    ////////////////////////////////////////////////////////////////
                     ImGui::PopFont();
 
                     if (ImGui::Button("Add server")) {
@@ -1754,6 +1760,7 @@ void UI::InventoryItemTooltip(ItemStack &invStack, int slot, Player &player, Net
             const char *moveSpeedFlatText = "00.0 movement speed";
             const char *valueText = "sell @ 00.00";
 #if CL_DEBUG_ADVANCED_ITEM_TOOLTIPS
+            const char *itemUidText = "uid: 000000";
             const char *itemTypeText = "itemType: 0000";
 #endif
 
@@ -1765,6 +1772,7 @@ void UI::InventoryItemTooltip(ItemStack &invStack, int slot, Player &player, Net
             maxWidth = MAX(maxWidth, ImGui::CalcTextSize(moveSpeedFlatText).x * hasMoveSpeedFlat);
             maxWidth = MAX(maxWidth, ImGui::CalcTextSize(valueText).x * hasValue);
 #if CL_DEBUG_ADVANCED_ITEM_TOOLTIPS
+            maxWidth = MAX(maxWidth, ImGui::CalcTextSize(itemUidText).x);
             maxWidth = MAX(maxWidth, ImGui::CalcTextSize(itemTypeText).x);
 #endif
             maxWidth += 8.0f;
@@ -1828,8 +1836,10 @@ void UI::InventoryItemTooltip(ItemStack &invStack, int slot, Player &player, Net
             }
 
 #if CL_DEBUG_ADVANCED_ITEM_TOOLTIPS
+            CenterNextItem(itemUidText);
+            ImGui::TextColored(RayToImColor(MAGENTA), "uid: %06d", item.uid);
             CenterNextItem(itemTypeText);
-            ImGui::TextColored(RayToImColor(MAGENTA), "itemType: %04d", proto.itemType);
+            ImGui::TextColored(RayToImColor(MAGENTA), "itemType: %04d", item.type);
 #endif
 
             ImGui::EndTooltip();
