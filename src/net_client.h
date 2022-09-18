@@ -1,6 +1,7 @@
 #pragma once
 #include "chat.h"
 #include "controller.h"
+#include "fbs.h"
 #include "dlb_types.h"
 
 struct World;
@@ -43,10 +44,18 @@ struct NetClient {
     void      CloseSocket         (void);
     bool      ConnectedAndSpawned (void) const;
 
+    const FBS_Buffer &FBS_Servers(void) const {
+        return fbs_servers;
+    }
+
 private:
     static const char *LOG_SRC;
     NetMessage tempMsg {};
     ENetBuffer rawPacket {};
+    FBS_Buffer fbs_servers {};
+
+    ErrorType SaveServerDB(const char *filename);
+    ErrorType LoadServerDB(const char *filename);
 
     ErrorType   SendRaw           (const void *data, size_t size);
     ErrorType   SendMsg           (NetMessage &message);

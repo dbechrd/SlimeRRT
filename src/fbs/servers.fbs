@@ -1,0 +1,18 @@
+namespace DB;
+
+table Server {
+    display_name:string (key);
+    hostname:string;
+    port:uint16;
+    user:string;
+    pass:string;
+}
+
+table ServerDB {
+    servers:[Server];
+}
+
+root_type ServerDB;
+
+file_identifier "SERV";
+file_extension "svr";

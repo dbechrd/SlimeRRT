@@ -1,15 +1,15 @@
-namespace Slime;
+namespace DB;
 
-table UserAccount {
+table User {
     username:string (key);
     password:string;
 }
 
-table Users {
-    accounts:[UserAccount];
+table UserDB {
+    accounts:[User];
 }
 
-root_type Users;
+root_type UserDB;
 
 file_identifier "USER";
 file_extension "usr";

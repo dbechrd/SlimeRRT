@@ -1,6 +1,7 @@
 #pragma once
 #include "chat.h"
 #include "error.h"
+#include "fbs.h"
 #include "item_world.h"
 #include "dlb_murmur3.h"
 #include <cstdint>
@@ -48,13 +49,10 @@ private:
     static const char *LOG_SRC;
     NetMessage netMsg {};
     ENetBuffer rawPacket {};
-    struct {
-        uint32_t length;
-        uint8_t *data;
-    } fbs_users;
+    FBS_Buffer fbs_users {};
 
-    ErrorType SaveUserData(const char *filename);
-    ErrorType LoadUserData(const char *filename);
+    ErrorType SaveUserDB(const char *filename);
+    ErrorType LoadUserDB(const char *filename);
 
     ErrorType SendRaw              (const SV_Client &client, const void *data, size_t size);
     ErrorType SendMsg              (const SV_Client &client, NetMessage &message);

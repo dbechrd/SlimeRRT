@@ -1,6 +1,7 @@
 #include "net_client.h"
 #include "bit_stream.h"
 #include "chat.h"
+#include "servers_generated.h"
 #include "world.h"
 #include "raylib/raylib.h"
 #include "enet_zpl.h"
@@ -12,8 +13,48 @@
 
 const char *NetClient::LOG_SRC = "NetClient";
 
+ErrorType NetClient::SaveServerDB(const char *filename)
+{
+    flatbuffers::FlatBufferBuilder fbb;
+
+    auto tpjGuest = DB::CreateServerDirect(fbb, "TPJ Guest", "slime.theprogrammingjunkie.com", SV_DEFAULT_PORT, "guest", "guest");
+
+    std::vector<flatbuffers::Offset<DB::Server>> servers{ tpjGuest };
+    auto serverDB = DB::CreateServerDBDirect(fbb, &servers);
+
+    DB::FinishServerDBBuffer(fbb, serverDB);
+    if (!SaveFileData(filename, fbb.GetBufferPointer(), fbb.GetSize())) {
+        printf("Uh oh, it didn't work :(\n");
+    }
+
+    return ErrorType::Success;
+}
+
+ErrorType NetClient::LoadServerDB(const char *filename)
+{
+    fbs_servers.data = LoadFileData(filename, &fbs_servers.length);
+    DLB_ASSERT(fbs_servers.length);
+
+    flatbuffers::Verifier verifier(fbs_servers.data, fbs_servers.length);
+    if (!DB::VerifyServerDBBuffer(verifier)) {
+        E_ASSERT(ErrorType::PancakeVerifyFailed, "Uh oh, data verification failed\n");
+    }
+    const DB::ServerDB *serverDB = DB::GetServerDB(fbs_servers.data);
+    if (!serverDB->Verify(verifier)) {
+        E_ASSERT(ErrorType::PancakeVerifyFailed, "Uh oh, data verification failed\n");
+    }
+
+    const DB::Server *tpjGuest = serverDB->servers()->LookupByKey("TPJ Guest");
+    DLB_ASSERT(tpjGuest);
+
+    return ErrorType::Success;
+}
+
 NetClient::NetClient(void)
 {
+    SaveServerDB("db/servers.dat");
+    LoadServerDB("db/servers.dat");
+
     rawPacket.dataLength = PACKET_SIZE_MAX;
     rawPacket.data = calloc(rawPacket.dataLength, sizeof(uint8_t));
 }
@@ -22,6 +63,7 @@ NetClient::~NetClient(void)
 {
     CloseSocket();
     free(rawPacket.data);
+    UnloadFileData(fbs_servers.data);
 }
 
 ErrorType NetClient::OpenSocket(void)

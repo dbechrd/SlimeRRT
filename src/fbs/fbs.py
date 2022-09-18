@@ -20,8 +20,9 @@ schemas = glob.glob(schema_pattern)
 for schema in schemas:
     name = os.path.splitext(schema)[0]
     if action == "json":
-        run(f"flatc -t --size-prefixed {name}.fbs -- {name}.dat")
+        #run(f"flatc -t --size-prefixed {name}.fbs -- {name}.dat")
+        run(f"flatc -t {name}.fbs -- {name}.dat")
     elif action == "gen":
-        run(f"flatc --cpp --gen-mutable --gen-name-strings --reflect-names -o ..\..\..\include\ {schema}")
+        run(f"flatc --cpp --gen-mutable --gen-name-strings --reflect-names -o ..\..\include\ {schema}")
     else:
         print(f"Unknown action {action}")

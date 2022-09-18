@@ -2,6 +2,7 @@
 #include "bit_stream.h"
 #include "helpers.h"
 #include "error.h"
+#include "users_generated.h"
 #include "raylib/raylib.h"
 #include "dlb_types.h"
 #include <cassert>
@@ -14,21 +15,21 @@
 
 const char *NetServer::LOG_SRC = "NetServer";
 
-ErrorType NetServer::SaveUserData(const char *filename)
+ErrorType NetServer::SaveUserDB(const char *filename)
 {
     flatbuffers::FlatBufferBuilder fbb;
 
-    auto uaGuest = Slime::CreateUserAccountDirect(fbb, "guest", "guest");
-    auto uaDandy = Slime::CreateUserAccountDirect(fbb, "dandy", "asdf");
-    auto uaOwl   = Slime::CreateUserAccountDirect(fbb, "owl",   "awesome");
-    auto uaKash  = Slime::CreateUserAccountDirect(fbb, "kash",  "shroom");
+    auto uaGuest = DB::CreateUserDirect(fbb, "guest", "guest");
+    auto uaDandy = DB::CreateUserDirect(fbb, "dandy", "asdf");
+    auto uaOwl   = DB::CreateUserDirect(fbb, "owl",   "awesome");
+    auto uaKash  = DB::CreateUserDirect(fbb, "kash",  "shroom");
 
-    std::vector<flatbuffers::Offset<Slime::UserAccount>> userAccounts{
+    std::vector<flatbuffers::Offset<DB::User>> users{
         uaGuest, uaDandy, uaOwl, uaKash
     };
-    auto users = Slime::CreateUsersDirect(fbb, &userAccounts);
+    auto userDB = DB::CreateUserDBDirect(fbb, &users);
 
-    Slime::FinishUsersBuffer(fbb, users);
+    DB::FinishUserDBBuffer(fbb, userDB);
     if (!SaveFileData(filename, fbb.GetBufferPointer(), fbb.GetSize())) {
         printf("Uh oh, it didn't work :(\n");
     }
@@ -36,21 +37,21 @@ ErrorType NetServer::SaveUserData(const char *filename)
     return ErrorType::Success;
 }
 
-ErrorType NetServer::LoadUserData(const char *filename)
+ErrorType NetServer::LoadUserDB(const char *filename)
 {
     fbs_users.data = LoadFileData(filename, &fbs_users.length);
     DLB_ASSERT(fbs_users.length);
 
     flatbuffers::Verifier verifier(fbs_users.data, fbs_users.length);
-    if (!Slime::VerifyUsersBuffer(verifier)) {
+    if (!DB::VerifyUserDBBuffer(verifier)) {
         E_ASSERT(ErrorType::PancakeVerifyFailed, "Uh oh, data verification failed\n");
     }
-    const Slime::Users *users = Slime::GetUsers(fbs_users.data);
-    if (!users->Verify(verifier)) {
+    const DB::UserDB *userDB = DB::GetUserDB(fbs_users.data);
+    if (!userDB->Verify(verifier)) {
         E_ASSERT(ErrorType::PancakeVerifyFailed, "Uh oh, data verification failed\n");
     }
 
-    const Slime::UserAccount *dandy = users->accounts()->LookupByKey("dandy");
+    const DB::User *dandy = userDB->accounts()->LookupByKey("dandy");
     DLB_ASSERT(dandy);
 
     return ErrorType::Success;
@@ -58,8 +59,8 @@ ErrorType NetServer::LoadUserData(const char *filename)
 
 NetServer::NetServer(void)
 {
-    SaveUserData("data/fbs/users.dat");
-    LoadUserData("data/fbs/users.dat");
+    SaveUserDB("db/users.dat");
+    LoadUserDB("db/users.dat");
 
     rawPacket.dataLength = PACKET_SIZE_MAX;
     rawPacket.data = calloc(rawPacket.dataLength, sizeof(uint8_t));
@@ -1039,11 +1040,11 @@ void NetServer::ProcessMsg(SV_Client &client, ENetPacket &packet)
         case NetMessage::Type::Identify: {
             NetMessage_Identify &identMsg = netMsg.data.identify;
 
-            const Slime::Users *users = Slime::GetUsers(fbs_users.data);
-            const Slime::UserAccount *account = users->accounts()->LookupByKey(identMsg.username);
-            if (account) {
-                const char *password = account->password()->data();
-                uint32_t passwordLen = account->password()->size();
+            const DB::UserDB *users = DB::GetUserDB(fbs_users.data);
+            const DB::User *user = users->accounts()->LookupByKey(identMsg.username);
+            if (user) {
+                const char *password = user->password()->data();
+                uint32_t passwordLen = user->password()->size();
                 if (identMsg.passwordLength == passwordLen && !strncmp(identMsg.password, password, passwordLen)) {
                     printf("Successful auth as user: %s\n", identMsg.username);
                 } else {

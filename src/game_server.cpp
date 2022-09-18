@@ -1,6 +1,5 @@
 #include "game_server.h"
 #include "net_server.h"
-#include "users_generated.h"
 
 const char *GameServer::LOG_SRC = "GameServer";
 
