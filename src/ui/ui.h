@@ -104,7 +104,7 @@ private:
     static bool BreadcrumbButton(const char *label, Menu menu, bool *escape);
     static void BreadcrumbText(const char *text);
     static bool MenuBackButton(Menu menu, bool *escape);
-    static bool MenuItemClick(const char *label);
+    static bool MenuItem(const char *label);
     static void MenuMultiplayer(bool &escape, GameClient &game);
     static void MenuMultiplayerNew(bool &escape);
     static void InventoryItemTooltip(ItemStack &invStack, int slot, Player &player, NetClient &netClient);
