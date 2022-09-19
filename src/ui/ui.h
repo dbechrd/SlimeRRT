@@ -81,8 +81,7 @@ private:
     static const char *hoverLabel;
     static const char *prevHoverLabel;
 
-    static void MenuTitle(const char *text);
-    static void MenuTitle(const ImVec4 &color, const char *text);
+    static void MenuTitle(const char *text, const ImVec4 &color = { 0, 1, 0, 1 });
     static void SliderFloatLeft(const char *label, float *v, float min, float max);
     static void SliderIntLeft(const char *label, int *v, int min, int max);
 
@@ -104,7 +103,7 @@ private:
     static bool BreadcrumbButton(const char *label, Menu menu, bool *escape);
     static void BreadcrumbText(const char *text);
     static bool MenuBackButton(Menu menu, bool *escape);
-    static bool MenuItem(const char *label);
+    static bool MenuButton(const char *label, const ImVec2 &size = { 600, 0 });
     static void MenuMultiplayer(bool &escape, GameClient &game);
     static void MenuMultiplayerNew(bool &escape);
     static void InventoryItemTooltip(ItemStack &invStack, int slot, Player &player, NetClient &netClient);

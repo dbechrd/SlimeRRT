@@ -204,16 +204,7 @@ static void CenterNextItem(const char *text)
     ImGui::SetCursorPosX(cursorX + (windowContentWidth - textWidth) * 0.5f);
 }
 
-void UI::MenuTitle(const char *text)
-{
-    ImGui::PushFont(g_fonts.imFontHack64);
-    ImGui::Text(text);
-    ImGui::Spacing();
-    ImGui::Spacing();
-    ImGui::PopFont();
-}
-
-void UI::MenuTitle(const ImVec4 &color, const char *text)
+void UI::MenuTitle(const char *text, const ImVec4 &color)
 {
     ImGui::PushFont(g_fonts.imFontHack64);
     ImGui::TextColored(color, text);
@@ -1116,9 +1107,9 @@ bool UI::MenuBackButton(Menu menu, bool *escape)
     return pressed;
 }
 
-bool UI::MenuItem(const char *label)
+bool UI::MenuButton(const char *label, const ImVec2 &size)
 {
-    ImGui::Button(label, { 600, 0 });
+    ImGui::Button(label, size);
     if (ImGui::IsItemHovered()) {
         UI::hoverLabel = label;
     }
@@ -1129,7 +1120,7 @@ void UI::MenuMultiplayer(bool &escape, GameClient &game) {
     bool back = UI::BreadcrumbButton("Main Menu", Menu::Main, 0);
     UI::BreadcrumbText("Multiplayer");
 
-    UI::MenuTitle({ 0, 1, 0, 1 }, "Join a server");
+    UI::MenuTitle("Join a server");
 
     thread_local const char *message = 0;
     thread_local bool msgIsError = false;
@@ -1162,7 +1153,7 @@ void UI::MenuMultiplayer(bool &escape, GameClient &game) {
             for (auto iter = serverDB->servers()->cbegin(); iter != serverDB->servers()->cend(); iter++) {
                 const DB::Server &server = **iter;
 
-                if (UI::MenuItem(server.display_name()->c_str())) {
+                if (UI::MenuButton(server.display_name()->c_str())) {
                     TraceLog(LOG_INFO, "Attempting to connect to server: %s\n%s@%s:%hu",
                         server.display_name()->c_str(),
                         server.user()->c_str(),
@@ -1175,11 +1166,11 @@ void UI::MenuMultiplayer(bool &escape, GameClient &game) {
 
                 }
                 ImGui::SameLine();
-                if (ImGui::Button(">")) {
+                if (UI::MenuButton(">", { 0, 0 })) {
 
                 }
                 ImGui::SameLine();
-                if (ImGui::Button("x")) {
+                if (UI::MenuButton("x", { 0, 0 })) {
 
                 }
             }
@@ -1189,7 +1180,7 @@ void UI::MenuMultiplayer(bool &escape, GameClient &game) {
                 TraceLog(LOG_ERROR, "Failed to connect to server");
             }
 
-            if (UI::MenuItem("Add server")) {
+            if (UI::MenuButton("Add server")) {
                 mainMenu = Menu::Multiplayer_New;
             }
         }
@@ -1398,14 +1389,14 @@ void UI::MainMenu(bool &escape, GameClient &game)
             //    break;
             //}
 
-            UI::MenuTitle({ 0, 1, 0, 1 }, "Slime Game");
+            UI::MenuTitle("Slime Game");
 
             ImGui::PushFont(g_fonts.imFontHack48);
 
             const char *items[] = { "Single player", "Multiplayer", "Audio", "Quit" };
             int pressedIdx = -1;
             for (int i = 0; i < ARRAY_SIZE(items); i++) {
-                if (UI::MenuItem(items[i])) {
+                if (UI::MenuButton(items[i])) {
                     pressedIdx = i;
                 }
             }
@@ -1432,7 +1423,7 @@ void UI::MainMenu(bool &escape, GameClient &game)
 
             if (game.netClient.IsDisconnected()) {
                 ImGui::PushFont(g_fonts.imFontHack48);
-                if (UI::MenuItem("Dandyland")) {
+                if (UI::MenuButton("Dandyland")) {
                     game.localServer = new GameServer(game.args);
                     if (game.netClient.Connect(game.args.host, game.args.port, game.args.user, game.args.pass) != ErrorType::Success) {
                         TraceLog(LOG_ERROR, "Failed to connect to local server");
