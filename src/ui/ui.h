@@ -70,14 +70,70 @@ private:
     static bool disconnectRequested;
     static bool quitRequested;
 
-    enum Menu : int {
-        Main,
-        Singleplayer,
-        Multiplayer,
-        Multiplayer_New,
-        Audio
+    enum MenuID {
+        Menu_Null,
+        Menu_Quit,
+        Menu_Main,
+        Menu_Singleplayer,
+        Menu_Multiplayer,
+        Menu_Multiplayer_EditServer,
+        Menu_Audio
     };
-    static Menu mainMenu;
+    struct Menu {
+        MenuID id;
+        const char *name;  // menu button and breadcrumb
+        const char *title; // title at top of this menu when active
+    };
+    class MenuStack {
+    public:
+        MenuStack(void) { menus[0] = { Menu_Main, "Main Menu", "Slime Game" }; count = 1; }
+        bool Push(MenuID id, const char *name, const char *title) {
+            if (count < ARRAY_SIZE(menus)) {
+                menus[count++] = { id, name, title };
+                return true;
+            }
+            return false;
+        }
+        void Begin(void) {
+            prevBeginID = beginID;
+            beginID = menuStack.Last().id;
+        }
+        bool Changed(void) {
+            return Last().id != beginID;
+        }
+        bool ChangedSinceLastFrame(void) {
+            return beginID != prevBeginID;
+        }
+        const Menu &Get(int index) {
+            if (index < 0 || index >= count) {
+                DLB_ASSERT(!"Out of bounds");
+                index = 0;
+            }
+            return menus[index];
+        }
+        const Menu &Last(void) {
+            return menus[count - 1];
+        }
+        bool Pop(void) {
+            if (count > 1) {
+                menus[count--] = {};
+                return true;
+            }
+            return false;
+        }
+        void BackTo(MenuID id) {
+            while (menuStack.Last().id != id) {
+                if (!menuStack.Pop()) break;
+            };
+        }
+        int Count(void) { return count; }
+    private:
+        Menu menus[8];
+        int count;
+        MenuID beginID;
+        MenuID prevBeginID;
+    };
+    static MenuStack menuStack;
     static const char *hoverLabel;
     static const char *prevHoverLabel;
 
@@ -100,9 +156,9 @@ private:
     static const ImGuiTableSortSpecs *itemSortSpecs;
     static int  ItemCompareWithSortSpecs(const void *lhs, const void *rhs);
 
-    static bool BreadcrumbButton(const char *label, Menu menu, bool *escape);
-    static void BreadcrumbText(const char *text);
-    static bool MenuBackButton(Menu menu, bool *escape);
+    static bool BreadcrumbButton(const char *label);
+    static void Breadcrumbs(void);
+    static bool MenuBackButton(MenuID menu);
     static bool MenuButton(const char *label, const ImVec2 &size = { 600, 0 });
     static void MenuMultiplayer(bool &escape, GameClient &game);
     static void MenuMultiplayerNew(bool &escape);

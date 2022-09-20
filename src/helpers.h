@@ -70,6 +70,7 @@
 #define SUBTILE_W 8
 #define SUBTILE_H SUBTILE_W
 
+#define SV_HOSTNAME_LENGTH_MIN      3
 #define SV_HOSTNAME_LENGTH_MAX      256
 #define SV_DEFAULT_PORT             4040
 #define SV_SINGLEPLAYER_HOST        "localhost"

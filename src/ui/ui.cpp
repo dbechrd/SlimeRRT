@@ -23,7 +23,7 @@ bool UI::showItemProtoEditor = false;
 bool UI::disconnectRequested = false;
 bool UI::quitRequested = false;
 
-UI::Menu UI::mainMenu = UI::Menu::Main;
+UI::MenuStack UI::menuStack {};
 const char *UI::hoverLabel = 0;
 const char *UI::prevHoverLabel = 0;
 
@@ -1046,60 +1046,51 @@ int UI::OldRaylibMenu(const Font &font, const char **items, size_t itemCount)
     return itemPressed;
 }
 
-bool UI::BreadcrumbButton(const char *label, Menu menu, bool *escape)
+bool UI::BreadcrumbButton(const char *label)
 {
-    ImGui::PushFont(g_fonts.imFontHack16);
-    if (label[0] == '#') {
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0, 0, 0, 0));
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0, 0, 0, 0));
-    }
     ImGui::Button(label);
-    if (label[0] == '#') {
-        ImGui::PopStyleColor(3);
-        ImGui::SameLine();
-        ImGui::Text("");
-        ImGui::SameLine();
-        ImGui::PopFont();
-        return false;
+    if (ImGui::IsItemHovered()) {
+        UI::hoverLabel = label;
     }
-
-    if (ImGui::IsItemHovered()) UI::hoverLabel = label;
-    bool pressed = (ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
-        ImGui::IsMouseHoveringRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax()));
-    if ((escape && *escape) || pressed) {
-        //Catalog::g_sounds.Play(Catalog::SoundID::Squish2, 1.0f + dlb_rand32f_variance(0.1f));
-        mainMenu = menu;
-        if (escape) *escape = false;
-    }
-    ImGui::SameLine();
-    ImGui::Text(" -> ");
-    ImGui::SameLine();
-    ImGui::PopFont();
+    bool pressed = ImGui::IsItemClicked(ImGuiMouseButton_Left);
     return pressed;
 }
 
-void UI::BreadcrumbText(const char *text)
+void UI::Breadcrumbs(void)
 {
-    ImGui::PushFont(g_fonts.imFontHack16);
-    ImGui::Text(text);
-    ImGui::PopFont();
+    MenuID breadcrumbClicked = Menu_Null;
+    for (int i = 0; i < menuStack.Count() - 1; i++) {
+        const Menu &menu = menuStack.Get(i);
+
+        if (UI::BreadcrumbButton(menu.name)) {
+            breadcrumbClicked = menu.id;
+        }
+
+        ImGui::SameLine();
+        ImGui::Text(">");
+        ImGui::SameLine();
+    }
+
+    ImGui::BeginDisabled(true);
+    UI::BreadcrumbButton(menuStack.Last().name);
+    ImGui::EndDisabled();
+
+    if (breadcrumbClicked) {
+        menuStack.BackTo(breadcrumbClicked);
+    }
 }
 
-bool UI::MenuBackButton(Menu menu, bool *escape)
+bool UI::MenuBackButton(MenuID menu)
 {
-    return false;
-
     ImGui::PushFont(g_fonts.imFontHack32);
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
     ImGui::Button("< Back");
     if (ImGui::IsItemHovered()) UI::hoverLabel = "< Back";
     bool pressed = (ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
                     ImGui::IsMouseHoveringRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax()));
-    if ((escape && *escape) || pressed) {
+    if (pressed) {
         //Catalog::g_sounds.Play(Catalog::SoundID::Squish2, 1.0f + dlb_rand32f_variance(0.1f));
-        mainMenu = menu;
-        if (escape) *escape = false;
+        menuStack.BackTo(menu);
     }
     ImGui::PopStyleColor(1);
     ImGui::PopFont();
@@ -1117,11 +1108,6 @@ bool UI::MenuButton(const char *label, const ImVec2 &size)
 }
 
 void UI::MenuMultiplayer(bool &escape, GameClient &game) {
-    bool back = UI::BreadcrumbButton("Main Menu", Menu::Main, 0);
-    UI::BreadcrumbText("Multiplayer");
-
-    UI::MenuTitle("Join a server");
-
     thread_local const char *message = 0;
     thread_local bool msgIsError = false;
     thread_local bool connecting = false;
@@ -1167,7 +1153,7 @@ void UI::MenuMultiplayer(bool &escape, GameClient &game) {
                 }
                 ImGui::SameLine();
                 if (UI::MenuButton(">", { 0, 0 })) {
-
+                    menuStack.Push(Menu_Multiplayer_EditServer, "Edit Server", "Edit Server");
                 }
                 ImGui::SameLine();
                 if (UI::MenuButton("x", { 0, 0 })) {
@@ -1180,14 +1166,12 @@ void UI::MenuMultiplayer(bool &escape, GameClient &game) {
                 TraceLog(LOG_ERROR, "Failed to connect to server");
             }
 
-            if (UI::MenuButton("Add server")) {
-                mainMenu = Menu::Multiplayer_New;
+            if (UI::MenuButton("Add Server")) {
+                menuStack.Push(Menu_Multiplayer_EditServer, "Add Server", "Add Server");
             }
         }
 
-        if (back || escape) {
-            escape = false;
-            mainMenu = Menu::Main;
+        if (menuStack.Changed()) {
             reset = true;
         }
     } else if (game.netClient.IsConnecting()) {
@@ -1213,8 +1197,8 @@ void UI::MenuMultiplayer(bool &escape, GameClient &game) {
             ImGui::Text("");
         }
 
-        if (back || escape || ImGui::Button("Cancel")) {
-            escape = false;
+        const bool cancel = ImGui::Button("Cancel");
+        if (cancel || menuStack.Changed()) {
             disconnectRequested = true;
             reset = true;
         }
@@ -1232,56 +1216,56 @@ void UI::MenuMultiplayer(bool &escape, GameClient &game) {
 }
 
 void UI::MenuMultiplayerNew(bool &escape) {
-    if (UI::BreadcrumbButton("Main Menu", Menu::Main, 0)) {
-        return;
-    }
-    if (UI::BreadcrumbButton("Multiplayer", Menu::Multiplayer, &escape)) {
-        return;
-    }
-    UI::BreadcrumbText("Add Server");
-    if (MenuBackButton(Menu::Multiplayer, &escape)) {
-        return;
-    }
-
-    UI::MenuTitle("Add Server");
-
-    thread_local char host[SV_HOSTNAME_LENGTH_MAX + 1]{ "slime.theprogrammingjunkie.com" };
+    thread_local char hostname[SV_HOSTNAME_LENGTH_MAX + 1];
     thread_local int  port = SV_DEFAULT_PORT;
-    thread_local char username[USERNAME_LENGTH_MAX + 1]{ "guest" };
-    thread_local char password[PASSWORD_LENGTH_MAX + 1]{ "pizza" };
+    thread_local char username[USERNAME_LENGTH_MAX + 1];
+    thread_local char password[PASSWORD_LENGTH_MAX + 1];
     thread_local const char *message = 0;
+    thread_local bool showPassword = false;
     bool formValid = true;
+
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 0, 4 });
 
     ImGui::Text("Host / IP:");
     ImGui::SameLine();
     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-    ImGui::InputText("##multiplayer_new_host", host, sizeof(host)); //, ImGuiInputTextFlags_Password | ImGuiInputTextFlags_ReadOnly);
+    if (menuStack.ChangedSinceLastFrame()) {
+        ImGui::SetKeyboardFocusHere();
+    }
+    ImGui::InputText("##multiplayer_new_host", hostname, sizeof(hostname)); //, ImGuiInputTextFlags_Password | ImGuiInputTextFlags_ReadOnly);
 
     ImGui::Text("Port #   :");
     ImGui::SameLine();
     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
     ImGui::InputInt("##multiplayer_new_port", &port, 1, 100); //, ImGuiInputTextFlags_ReadOnly);
-    port = CLAMP(port, 0, USHRT_MAX);
+    port = CLAMP(port, 1, USHRT_MAX);
 
     ImGui::Text("Username :");
     ImGui::SameLine();
-    // https://github.com/ocornut/imgui/issues/455#issuecomment-167440172
-    if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && !ImGui::IsAnyItemActive() && !ImGui::IsMouseClicked(0)) {
-        ImGui::SetKeyboardFocusHere();
-    }
     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
     ImGui::InputText("##multiplayer_new_username", username, sizeof(username));
 
     ImGui::Text("Password :");
     ImGui::SameLine();
-    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-    ImGui::InputText("##multiplayer_new_password", password, sizeof(password), ImGuiInputTextFlags_Password);
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 85);
+    ImGui::InputText("##multiplayer_new_password", password, sizeof(password), showPassword ? 0 : ImGuiInputTextFlags_Password);
+    ImGui::SameLine();
+    if (ImGui::Button(showPassword ? "***" : "ABC", { 85, 0 })) {
+        showPassword = !showPassword;
+    }
+
+    ImGui::PopStyleVar();
 
     message = 0;
     thread_local char buf[64]{};
+    size_t hostnameLen = strnlen(hostname, sizeof(hostname));
     size_t usernameLen = strnlen(username, sizeof(username));
     size_t passwordLen = strnlen(password, sizeof(password));
-    if (usernameLen < USERNAME_LENGTH_MIN || usernameLen > USERNAME_LENGTH_MAX) {
+    if (hostnameLen < SV_HOSTNAME_LENGTH_MIN || hostnameLen > SV_HOSTNAME_LENGTH_MAX) {
+        formValid = false;
+        snprintf(buf, sizeof(buf), "Host/IP must be between %d-%d characters", SV_HOSTNAME_LENGTH_MIN, SV_HOSTNAME_LENGTH_MAX);
+        message = buf;
+    } else if (usernameLen < USERNAME_LENGTH_MIN || usernameLen > USERNAME_LENGTH_MAX) {
         formValid = false;
         snprintf(buf, sizeof(buf), "Username must be between %d-%d characters", USERNAME_LENGTH_MIN, USERNAME_LENGTH_MAX);
         message = buf;
@@ -1300,17 +1284,18 @@ void UI::MenuMultiplayerNew(bool &escape) {
         ImGui::Text("");
     }
 
-    ImGui::BeginDisabled(message);
 
-    int stylesPushed = 1;
-    ImGui::PushStyleColor(ImGuiCol_Button, formValid ? 0xFFBF8346 : 0xFF666666);
+    int stylesPushed = 0;
+    ImGui::PushStyleColor(ImGuiCol_Button, formValid ? 0xFFBF8346 : 0xFF666666); stylesPushed++;
     if (!formValid) {
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, 0xFF666666);
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive, 0xFF666666);
-        stylesPushed += 2;
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, 0xFF666666); stylesPushed++;
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, 0xFF666666); stylesPushed++;
     }
+    ImGui::BeginDisabled(message);
     bool login = ImGui::Button("Save##login_window:save");
+    ImGui::EndDisabled();
     ImGui::PopStyleColor(stylesPushed);
+
     ImGuiIO &io = ImGui::GetIO();
     if (formValid && (login ||
         IsKeyPressed(io.KeyMap[ImGuiKey_Enter]) ||
@@ -1328,22 +1313,28 @@ void UI::MenuMultiplayerNew(bool &escape) {
     bool cancel = ImGui::Button("Cancel##login_window:cancel");
     //ImGui::PopStyleColor();
 
-    ImGui::EndDisabled();
 
     if (cancel) {
-        mainMenu = Menu::Multiplayer;
+        menuStack.Pop();
     }
 
-    //if (cancel || escape) {
-    //    memset(username, 0, sizeof(username));
-    //    memset(password, 0, sizeof(password));
-    //    escape = false;
-    //}
+    if (menuStack.Changed()) {
+        memset(hostname, 0, sizeof(hostname));
+        memset(username, 0, sizeof(username));
+        memset(password, 0, sizeof(password));
+        showPassword = false;
+    }
+
     return;
 }
 
 void UI::MainMenu(bool &escape, GameClient &game)
 {
+    menuStack.Begin();
+    if (escape && menuStack.Pop()) {
+        escape = false;
+    }
+
     ImVec2 menuCenter{
         screenSize.x / 2.0f,
         screenSize.y / 2.0f
@@ -1374,52 +1365,53 @@ void UI::MainMenu(bool &escape, GameClient &game)
         ImGuiWindowFlags_NoSavedSettings
     );
 
-    Menu oldMenu = mainMenu;
     const char *hoverLabel = 0;
 
-    switch (mainMenu) {
-        case Menu::Main: {
-            UI::BreadcrumbButton("##breadcrumb", Menu::Main, &escape);
-            UI::BreadcrumbText("");
+    // Breadcrumbs
+    ImGui::PushFont(g_fonts.imFontHack16);
+    if (menuStack.Count() > 1) {
+        UI::Breadcrumbs();
+    } else {
+        // HACK(dlb): This just takes up the same amount of space as a BreadcrumbButton
+        // would, without showing the button, to keep menu titles vertically aligned.
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0, 0, 0, 0));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0, 0, 0, 0));
+        ImGui::Button("##breadcrumb_placeholder");
+        ImGui::PopStyleColor(3);
+    }
+    ImGui::PopFont();
 
-            // This seems dangerous/annoying if user is spamming escape to get back to root menu
-            //if (escape) {
-            //    quitRequested = true;
-            //    escape = false;
-            //    break;
-            //}
+    UI::MenuTitle(menuStack.Last().title);
 
-            UI::MenuTitle("Slime Game");
-
+    switch (menuStack.Last().id) {
+        case Menu_Main: {
             ImGui::PushFont(g_fonts.imFontHack48);
 
-            const char *items[] = { "Single player", "Multiplayer", "Audio", "Quit" };
+            const UI::Menu menus[] = {
+                { Menu_Singleplayer, "Single Player", "Choose a world"  },
+                { Menu_Multiplayer , "Multiplayer"  , "Choose a server" },
+                { Menu_Audio       , "Audio"        , "Audio Settings"  },
+                { Menu_Quit        , "Quit"         , "Quit"            },
+            };
             int pressedIdx = -1;
-            for (int i = 0; i < ARRAY_SIZE(items); i++) {
-                if (UI::MenuButton(items[i])) {
-                    pressedIdx = i;
+            for (int i = 0; i < ARRAY_SIZE(menus); i++) {
+                if (UI::MenuButton(menus[i].name)) {
+                    if (menus[i].id == Menu_Quit) {
+                        quitRequested = true;
+                    } else {
+                        menuStack.Push(menus[i].id, menus[i].name, menus[i].title);
+                    }
                 }
-            }
-            switch (pressedIdx) {
-                case 0: mainMenu = Menu::Singleplayer; break;
-                case 1: mainMenu = Menu::Multiplayer;  break;
-                case 2: mainMenu = Menu::Audio;        break;
-                case 3: quitRequested = true;          break;
             }
 
             ImGui::PopFont();
             break;
-        } case Menu::Singleplayer: {
-            bool back = UI::BreadcrumbButton("Main Menu", Menu::Main, 0);
-            UI::BreadcrumbText("Single player");
-
-            UI::MenuTitle("Choose a world");
-
+        } case Menu_Singleplayer: {
             thread_local const char *message = 0;
             thread_local bool loading = false;
             thread_local size_t loadingIdx = 0;
             thread_local double loadingIdxLastUpdate = 0;
-            thread_local bool reset = false;
 
             if (game.netClient.IsDisconnected()) {
                 ImGui::PushFont(g_fonts.imFontHack48);
@@ -1430,12 +1422,6 @@ void UI::MainMenu(bool &escape, GameClient &game)
                     }
                 }
                 ImGui::PopFont();
-
-                if (back || escape) {
-                    escape = false;
-                    mainMenu = Menu::Main;
-                    break;
-                }
             } else if (game.netClient.IsConnecting()) {
                 const char *text[]{
                     "Loading   ",
@@ -1457,36 +1443,26 @@ void UI::MainMenu(bool &escape, GameClient &game)
                     ImGui::Text("");
                 }
 
-                if (back || escape || ImGui::Button("Cancel")) {
-                    escape = false;
+                const bool cancel = ImGui::Button("Cancel");
+                if (cancel || menuStack.Changed()) {
                     disconnectRequested = true;
-                    reset = true;
                 }
-            } else if (game.netClient.IsConnected()) {
-                reset = true;
             }
 
-            if (reset) {
+            if (game.netClient.IsConnected() || disconnectRequested) {
                 message = 0;
                 loading = false;
                 loadingIdx = 0;
-                reset = false;
             }
 
             break;
-        } case Menu::Multiplayer: {
+        } case Menu_Multiplayer: {
             UI::MenuMultiplayer(escape, game);
             break;
-        } case Menu::Multiplayer_New: {
+        } case Menu_Multiplayer_EditServer: {
             UI::MenuMultiplayerNew(escape);
             break;
-        } case Menu::Audio: {
-            if (UI::BreadcrumbButton("Main Menu", Menu::Main, &escape)) break;
-            UI::BreadcrumbText("Audio");
-            if (MenuBackButton(Menu::Main, &escape)) break;
-
-            UI::MenuTitle("Audio Settings");
-
+        } case Menu_Audio: {
             ImGui::PushFont(g_fonts.imFontHack48);
             SliderFloatLeft("##Master", &Catalog::g_mixer.masterVolume, 0.0f, 1.0f);
             SliderFloatLeft("##Music ", &Catalog::g_mixer.musicVolume, 0.0f, 1.0f);
@@ -1523,7 +1499,7 @@ void UI::MainMenu(bool &escape, GameClient &game)
         }
     }
 
-    if (mainMenu != oldMenu) {
+    if (menuStack.Changed()) {
         //Catalog::g_sounds.Play(
         //    mainMenu > oldMenu ? Catalog::SoundID::Squish1 : Catalog::SoundID::Squish2,
         //    1.0f + dlb_rand32f_variance(0.1f)*0
@@ -1562,10 +1538,7 @@ void UI::InGameMenu(bool &escape, bool connectedToServer)
     ImGui::SetNextWindowPos(menuCenter, 0, ImVec2(0.5f, 0.5f));
     ImGui::SetNextWindowSize(ImVec2(600, 400));
 
-    thread_local enum class Menu {
-        Main,
-        Audio
-    } currentMenu = Menu::Main;
+    thread_local MenuID currentMenu = Menu_Main;
 
     bool menuOpen = ImGui::BeginPopupModal(menuId, 0,
         //ImGuiWindowFlags_NoTitleBar |
@@ -1579,7 +1552,7 @@ void UI::InGameMenu(bool &escape, bool connectedToServer)
 
     if (menuOpen) {
         switch (currentMenu) {
-            case Menu::Main: {
+            case Menu_Main: {
                 if (menuOpen && escape) {
                     ImGui::CloseCurrentPopup();
                     escape = false;
@@ -1597,7 +1570,7 @@ void UI::InGameMenu(bool &escape, bool connectedToServer)
                 }
                 ImGui::MenuItem("Audio");
                 if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
-                    currentMenu = Menu::Audio;
+                    currentMenu = Menu_Audio;
                 }
                 if (connectedToServer) {
                     ImGui::MenuItem("Log Off");
@@ -1614,9 +1587,9 @@ void UI::InGameMenu(bool &escape, bool connectedToServer)
                 }
                 ImGui::PopFont();
                 break;
-            } case Menu::Audio: {
+            } case Menu_Audio: {
                 if ((menuOpen && escape) || ImGui::Button("< Back")) {
-                    currentMenu = Menu::Main;
+                    currentMenu = Menu_Main;
                     escape = false;
                     break;
                 }
