@@ -1158,6 +1158,37 @@ void NetServer::ProcessMsg(SV_Client &client, ENetPacket &packet)
                 }
             }
             break;
+         } case NetMessage::Type::TileInteract: {
+            NetMessage_TileInteract &tileInteract = netMsg.data.tileInteract;
+
+            // TODO(security): Validate params, discard if invalid
+            Player *player = serverWorld->FindPlayer(client.playerId);
+            if (player) {
+                Tile *tile = serverWorld->map.TileAtWorld(tileInteract.tileX, tileInteract.tileY);
+                if (tile && tile->object.IsIteractable()) {
+                    switch (tile->object.type) {
+                        case ObjectType_Rock01: {
+                            // TODO: Move this out to e.g. tile->object.Interact() or something..
+                            if (!tile->object.HasFlag(ObjectFlag_Rock01_Overturned)) {
+                                TraceLog(LOG_DEBUG, "[SRV] TileInteract: Rock attempting to roll loot.");
+                                // TODO(v1): Make LootTableID::LT_Rock01
+                                // TODO(v2): Look up loot table id based on where the player is
+                                // TODO(v3): Account for player's magic find bonus
+                                serverWorld->lootSystem.RollDrops(LootTableID::LT_Slime, [&](ItemStack dropStack) {
+                                    serverWorld->itemSystem.SpawnItem(
+                                        { tileInteract.tileX, tileInteract.tileY }, dropStack.uid, dropStack.count
+                                    );
+                                });
+                                tile->object.SetFlag(ObjectFlag_Rock01_Overturned);
+                            } else {
+                                TraceLog(LOG_DEBUG, "[SRV] TileInteract: Rock already overturned.");
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+            break;
         } default: {
             E_INFO("Unexpected netMsg itemClass: %s", netMsg.TypeString());
             break;

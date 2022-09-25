@@ -216,6 +216,23 @@ void GameClient::PlayMode_PollController(PlayerControllerState &input)
     const bool processKeyboard = !io.WantCaptureKeyboard;
     const bool processMouse = !io.WantCaptureKeyboard && !io.WantCaptureMouse;
     input.Query(processMouse, processKeyboard, g_spycam.freeRoam);
+
+    if (netClient.serverWorld) {
+        if (input.primary) {
+            Vector2 mousePos = GetMousePosition();
+            Vector2 worldPos = g_spycam.ScreenToWorld(mousePos);
+
+            // TODO: First check if we clicked a player, npc, enemy, etc. (with precendence)
+
+            // Check if there's an interactable object on the clicked tile
+            const Tile *tile = netClient.serverWorld->map.TileAtWorld(worldPos.x, worldPos.y);
+            // TODO: Don't send messages for exhausted tiles, e.g. rocks that are already overturned. Refactor out.
+            if (tile && tile->object.IsIteractable()) {
+                input.primary = false;
+                netClient.SendTileInteract(worldPos.x, worldPos.y);
+            }
+        }
+    }
 }
 
 ErrorType GameClient::PlayMode_Network()
@@ -485,7 +502,7 @@ void GameClient::PlayMode_DrawWorld(PlayerControllerState &input)
     }
 #endif
 
-    UI::Dialog(*netClient.serverWorld);
+    //UI::Dialog(*netClient.serverWorld);
 
     EndMode2D();
 }

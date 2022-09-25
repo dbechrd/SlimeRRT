@@ -209,6 +209,11 @@ struct NetMessage_SlotDrop {
     uint32_t count  {};
 };
 
+struct NetMessage_TileInteract {
+    float tileX {};
+    float tileY {};
+};
+
 struct NetMessage {
     enum class Type : uint32_t {
         Unknown,
@@ -224,6 +229,7 @@ struct NetMessage {
         SlotClick,
         SlotScroll,
         SlotDrop,
+        TileInteract,
         Count
     };
     static const char *TypeString(Type type)
@@ -242,6 +248,7 @@ struct NetMessage {
             case Type::SlotClick       : return "SlotClick";
             case Type::SlotScroll      : return "SlotScroll";
             case Type::SlotDrop        : return "SlotDrop";
+            case Type::TileInteract    : return "TileInteract";
             default: return "NetMessage::Type::???";
         }
     }
@@ -266,6 +273,7 @@ struct NetMessage {
         NetMessage_SlotClick       slotClick;
         NetMessage_SlotScroll      slotScroll;
         NetMessage_SlotDrop        slotDrop;
+        NetMessage_TileInteract    tileInteract;
     } data{};
 
     size_t Serialize(ENetBuffer &buffer);

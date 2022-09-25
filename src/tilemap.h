@@ -111,7 +111,7 @@ struct Tilemap {
     void GenerateMinimap    (Vector2 worldPos);
     int16_t CalcChunk       (float world) const;
     int16_t CalcChunkTile   (float world) const;
-    const Tile *TileAtWorld (float x, float y) const;  // Return tile at pixel position in world space, assert on failure
+    Tile *TileAtWorld       (float x, float y);  // Return tile at pixel position in world space, or null
     Chunk &FindOrGenChunk   (World &world, int16_t x, int16_t y);
 };
 

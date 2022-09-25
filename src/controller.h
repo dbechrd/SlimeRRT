@@ -16,7 +16,7 @@ struct PlayerControllerState {
     bool          walkSouth  {};
     bool          walkWest   {};
     bool          run        {};
-    bool          attack     {};
+    bool          primary    {};
     PlayerInvSlot selectSlot {};
 
     // Non-networked input
@@ -60,7 +60,7 @@ struct InputSample {
     bool          walkSouth  {};
     bool          walkWest   {};
     bool          run        {};
-    bool          attack     {};
+    bool          primary    {};
     PlayerInvSlot selectSlot {};  // user requesting to change active slot
     bool          skipFx     {};  // once the input has been processed once, don't trigger FX (particles, sounds, etc.)
 
@@ -80,7 +80,7 @@ struct InputSample {
         walkSouth  = controllerState.walkSouth;
         walkWest   = controllerState.walkWest;
         run        = controllerState.run;
-        attack     = controllerState.attack;
+        primary    = controllerState.primary;
         selectSlot = controllerState.selectSlot;
         skipFx     = false;
     }
@@ -93,7 +93,7 @@ struct InputSample {
             walkSouth  == other.walkSouth  &&
             walkWest   == other.walkWest   &&
             run        == other.run        &&
-            attack     == other.attack     &&
+            primary    == other.primary    &&
             selectSlot == other.selectSlot
         );
     }

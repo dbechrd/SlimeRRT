@@ -59,7 +59,7 @@ enum : ObjectFlags {
 
     // shared flags (first 8 bits)
     ObjectFlag_Collide                  = 0x0100,
-    ObjectFlag_Unused1                  = 0x0200,
+    ObjectFlag_Interact                 = 0x0200,
     ObjectFlag_Unused2                  = 0x0400,
     ObjectFlag_Unused3                  = 0x0800,
     ObjectFlag_Unused4                  = 0x1000,
@@ -84,15 +84,16 @@ struct Object {
         return flags & flag;
     }
 
-    inline bool IsCollidable(void) const {
-        return HasFlag(ObjectFlag_Collide);
+    inline void SetFlag(ObjectFlags flag) {
+        flags |= flag;
     }
 
-    inline bool IsWalkable(void) const {
-        return !HasFlag(ObjectFlag_Collide);
+    inline void ClearFlag(ObjectFlags flag) {
+        flags &= ~flag;
     }
 
-    inline bool IsSpawnable(void) const {
-        return !HasFlag(ObjectFlag_Collide);
-    }
+    inline bool IsIteractable(void) const { return HasFlag(ObjectFlag_Interact); }
+    inline bool IsCollidable(void) const { return HasFlag(ObjectFlag_Collide); }
+    inline bool IsWalkable(void) const { return !HasFlag(ObjectFlag_Collide); }
+    inline bool IsSpawnable(void) const { return !HasFlag(ObjectFlag_Collide); }
 };

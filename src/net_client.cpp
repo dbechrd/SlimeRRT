@@ -241,6 +241,16 @@ ErrorType NetClient::SendSlotDrop(int slot, uint32_t count)
     return result;
 }
 
+ErrorType NetClient::SendTileInteract(float worldX, float worldY)
+{
+    memset(&tempMsg, 0, sizeof(tempMsg));
+    tempMsg.type = NetMessage::Type::TileInteract;
+    tempMsg.data.tileInteract.tileX = worldX;
+    tempMsg.data.tileInteract.tileY = worldY;
+    ErrorType result = SendMsg(tempMsg);
+    return result;
+}
+
 ErrorType NetClient::SendPlayerInput(void)
 {
     if (!worldHistory.Count() || !inputHistory.Count()) {

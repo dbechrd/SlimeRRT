@@ -177,7 +177,7 @@ bool Player::Attack(void)
     return false;
 }
 
-void Player::Update(InputSample &input, const Tilemap &map)
+void Player::Update(InputSample &input, Tilemap &map)
 {
     thread_local ActionState lastAction = ActionState::None;
 
@@ -234,7 +234,7 @@ void Player::Update(InputSample &input, const Tilemap &map)
         Vector2 moveOffset = v2_scale(v2_normalize(move), METERS_TO_PIXELS(speed) * input.dt);
         moveBuffer = v2_add(moveBuffer, moveOffset);
 
-        if (input.attack && Attack()) {
+        if (input.primary && Attack()) {
             if (!input.skipFx) {
                 Catalog::g_sounds.Play(Catalog::SoundID::Whoosh, 1.0f + dlb_rand32f_variance(0.1f));
             }

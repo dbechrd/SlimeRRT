@@ -102,7 +102,7 @@ int16_t Tilemap::CalcChunkTile(float world) const
     return (int16_t)tile;
 }
 
-const Tile *Tilemap::TileAtWorld(float x, float y) const
+Tile *Tilemap::TileAtWorld(float x, float y)
 {
     const int chunkX = CalcChunk(x);
     const int chunkY = CalcChunk(y);
@@ -137,16 +137,17 @@ const Tile *Tilemap::TileAtWorld(float x, float y) const
     DLB_ASSERT(tileY < CHUNK_H);
 #endif
 
+    Tile *tile = 0;
     auto iter = chunksIndex.find(Chunk::Hash(chunkX, chunkY));
     if (iter != chunksIndex.end()) {
         size_t chunkIdx = iter->second;
         DLB_ASSERT(chunkIdx < chunks.size());
-        const Chunk &chunk = chunks[chunkIdx];
+        Chunk &chunk = chunks[chunkIdx];
         size_t tileIdx = tileY * CHUNK_W + tileX;
         DLB_ASSERT(tileIdx < ARRAY_SIZE(chunk.tiles));
-        return &chunk.tiles[tileY * CHUNK_W + tileX];
+        tile = &chunk.tiles[tileY * CHUNK_W + tileX];
     }
-    return 0;
+    return tile;
 }
 
 Chunk &Tilemap::FindOrGenChunk(World &world, int16_t chunkX, int16_t chunkY)
@@ -191,8 +192,7 @@ Chunk &Tilemap::FindOrGenChunk(World &world, int16_t chunkX, int16_t chunkY)
             float y = (float)((chunk.y * CHUNK_H + tileY) * TILE_W);
 
             TileType tileType{};
-            ObjectType objectType{};
-            ObjectFlags objectFlags{};
+            Object tileObject{};
 
             const double elev = g_noise.Seq1(x, y, FREQ_ELEVATION);
             if (elev < 0.2) {
@@ -227,8 +227,8 @@ Chunk &Tilemap::FindOrGenChunk(World &world, int16_t chunkX, int16_t chunkY)
                         tileType = TileType_Flowers;
                     } else if (NOISE_BETWEEN(decoNoise, 0.05, 0.06)) {
                         // Meadow stones
-                        objectType = ObjectType_Rock01;
-                        objectFlags |= ObjectFlag_Collide;
+                        tileObject.type = ObjectType_Rock01;
+                        tileObject.SetFlag(ObjectFlag_Collide | ObjectFlag_Interact);
                     }
                 }
             } else if (elev < 0.92) {
@@ -298,8 +298,7 @@ Chunk &Tilemap::FindOrGenChunk(World &world, int16_t chunkX, int16_t chunkY)
                             NOISE_BETWEEN(roadNoise, 0.70, 0.73)) {
                         } else {
                             tileType = TileType_Dirt;
-                            objectType = ObjectType_None;
-                            objectFlags = 0;
+                            tileObject = {};
                         }
                         break;
                     }
@@ -310,8 +309,7 @@ Chunk &Tilemap::FindOrGenChunk(World &world, int16_t chunkX, int16_t chunkY)
 
             Tile &tile = chunk.tiles[tileY * CHUNK_W + tileX];
             tile.type = tileType;
-            tile.object.type = objectType;
-            tile.object.flags = objectFlags;
+            tile.object = tileObject;
             tileCount++;
         }
     }

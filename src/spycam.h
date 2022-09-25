@@ -16,10 +16,19 @@ struct Spycam {
     const Camera2D &GetCamera(void) const { return camera; }
     Vector2 WorldToScreen(Vector2 world) const {
         Vector2 screen{
-            world.x + camera.offset.x - camera.target.x,
-            world.y + camera.offset.y - camera.target.y
+            world.x - camera.target.x + camera.offset.x,
+            world.y - camera.target.y + camera.offset.y
         };
         return screen;
+    }
+    Vector2 ScreenToWorld(Vector2 screen) const {
+        Vector2 mouseWorld{
+            //screen.x + camera.target.x - camera.offset.x,
+            //screen.y + camera.target.y - camera.offset.y
+            cameraRect.x + screen.x * GetInvZoom(),
+            cameraRect.y + screen.y * GetInvZoom()
+        };
+        return mouseWorld;
     }
 
     Vector2 cameraGoal {};

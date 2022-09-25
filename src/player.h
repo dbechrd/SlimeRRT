@@ -339,7 +339,7 @@ struct Player : Drawable {
     Vector2   WorldTopCenter2D (void) const;
     Vector3   GetAttachPoint   (AttachPoint attachPoint) const;
     ItemStack GetSelectedStack (void) const;
-    void      Update           (InputSample &input, const Tilemap &map);
+    void      Update           (InputSample &input, Tilemap &map);
 
     float Depth (void) const;
     bool  Cull  (const Rectangle& cullRect) const;

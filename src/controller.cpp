@@ -43,7 +43,7 @@ void PlayerControllerState::Query(bool processMouse, bool processKeyboard, bool 
             } else {
                 cameraSpeedDelta = GetMouseWheelMove();
             }
-            attack = IsMouseButtonDown(MOUSE_LEFT_BUTTON);
+            primary = IsMouseButtonPressed(MOUSE_LEFT_BUTTON);
         }
         if (processKeyboard) {
             walkNorth = IsKeyDown(KEY_W) && !IsKeyDown(KEY_S);

@@ -59,7 +59,7 @@ bool UI::QuitRequested()
     return quitRequested;
 }
 
-void UI::TileHoverOutline(const Tilemap &map)
+void UI::TileHoverOutline(Tilemap &map)
 {
     assert(spycam);
 
@@ -932,7 +932,7 @@ void UI::Chat(const Font &font, int fontSize, World &world, NetClient &netClient
     }
 }
 
-void UI::TileHoverTip(const Font &font, const Tilemap &map)
+void UI::TileHoverTip(const Font &font, Tilemap &map)
 {
     const Tile *mouseTile = map.TileAtWorld(mouseWorld.x, mouseWorld.y);
     if (!mouseTile) {
@@ -2116,7 +2116,7 @@ void UI::Inventory(const Texture &invItems, Player& player, NetClient &netClient
 
 void UI::Dialog(World &world)
 {
-    return;
+    //return;
 
     Player *player = world.LocalPlayer();
     if (!player) {

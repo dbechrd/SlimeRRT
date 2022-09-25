@@ -118,7 +118,7 @@ size_t NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer)
                     stream.Process(sample.walkSouth);
                     stream.Process(sample.walkWest);
                     stream.Process(sample.run);
-                    stream.Process(sample.attack);
+                    stream.Process(sample.primary);
                     assert(PlayerInvSlot_Count > 0);
                     stream.Process(sample.selectSlot, 8, 0, PlayerInvSlot_Count - 1);
                 }
@@ -390,6 +390,12 @@ size_t NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer)
             stream.Process((uint8_t &)slotDrop.slotId, 8, 0, PlayerInvSlot_Count - 1);
             stream.Align();
             stream.Process(slotDrop.count);
+            break;
+        } case NetMessage::Type::TileInteract: {
+            NetMessage_TileInteract &tileInteract = data.tileInteract;
+            stream.Process(tileInteract.tileX);
+            stream.Process(tileInteract.tileY);
+            stream.Align();
             break;
         } default: {
             assert(!"Unrecognized NetMessageType");

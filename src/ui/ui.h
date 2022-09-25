@@ -32,7 +32,7 @@ struct UI {
     static bool QuitRequested();
 
     // World UI
-    static void TileHoverOutline(const Tilemap &map);
+    static void TileHoverOutline(Tilemap &map);
     static void WorldGrid();
 
     // Screen UI
@@ -45,7 +45,7 @@ struct UI {
     static void HUD(const Font &font, World &world, const DebugStats &debugStats);
     static void QuickHUD(const Font &font, const Player &player, const Tilemap &tilemap);
     static void Chat(const Font &font, int fontSize, World &world, NetClient &netClient, bool &escape);
-    static void TileHoverTip(const Font &font, const Tilemap &map);
+    static void TileHoverTip(const Font &font, Tilemap &map);
     static int  OldRaylibMenu(const Font &font, const char **items, size_t itemCount);
     static void MainMenu(bool &escape, GameClient &game);
     static void InGameMenu(bool &escape, bool connectedToServer);
