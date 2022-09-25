@@ -1,6 +1,7 @@
 #pragma once
 #include "tileset.h"
 #include "math.h"
+#include "object.h"
 #include "dlb_rand.h"
 #include "OpenSimplex2F.h"
 #include <vector>
@@ -88,9 +89,9 @@ private:
 } g_noise;
 
 struct Chunk {
-    int16_t x{};  // chunk x offset
-    int16_t y{};  // chunk y offset
-    Tile tiles[CHUNK_W * CHUNK_W]{};  // 32x32 tiles per chunk
+    int16_t x     {};                     // chunk x offset
+    int16_t y     {};                     // chunk y offset
+    Tile    tiles [CHUNK_W * CHUNK_W]{};  // 32x32 tiles per chunk
 
     inline ChunkHash Hash(void) const {
         return ((uint16_t)x << 16) | (uint16_t)y;

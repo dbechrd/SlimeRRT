@@ -128,10 +128,10 @@ private:
         }
         int Count(void) { return count; }
     private:
-        Menu menus[8];
-        int count;
-        MenuID beginID;
-        MenuID prevBeginID;
+        Menu   menus       [8]{};   // menu stack data
+        int    count       {};      // current size of menu stack
+        MenuID beginID     {};      // id of menu active at frame start
+        MenuID prevBeginID {};      // id of menu active at previous frame start
     };
     static MenuStack menuStack;
     static const char *hoverLabel;

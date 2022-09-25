@@ -71,6 +71,8 @@ Vector2 Player::WorldTopCenter2D(void) const
 {
     Vector3 worldTopC3D = WorldTopCenter3D();
     Vector2 worldTopC2D = { worldTopC3D.x, worldTopC3D.y - worldTopC3D.z };
+    worldTopC2D.x = floorf(worldTopC2D.x);
+    worldTopC2D.y = floorf(worldTopC2D.y);
     return worldTopC2D;
 }
 
@@ -244,6 +246,7 @@ void Player::Update(InputSample &input, const Tilemap &map)
 
             Vector2 newPos = v2_add(pos, moveBuffer);
             const Tile *newTile = map.TileAtWorld(newPos.x, newPos.y);
+            bool newWalkable = newTile && newTile->IsWalkable();
 
             // NOTE: This extra logic allows the player to slide when attempting to move diagonally against a wall
             // NOTE: If current tile isn't walkable, allow player to walk off it. This may not be the best solution
@@ -251,19 +254,21 @@ void Player::Update(InputSample &input, const Tilemap &map)
             // way to end up on an unwalkable tile is to spawn there.
             // TODO: We should fix spawning to ensure player spawns on walkable tile (can probably just manually
             // generate something interesting in the center of the world that overwrites procgen, like Don't
-            // Starve's fancy arrival portal.
+            // Starve's fancy arrival portal).
             if (walkable) {
-                if (!newTile || !newTile->IsWalkable()) {
+                if (!newWalkable) {
                     // XY unwalkable, try only X offset
                     newPos = pos;
                     newPos.x += moveBuffer.x;
                     newTile = map.TileAtWorld(newPos.x, newPos.y);
-                    if (!newTile || !newTile->IsWalkable()) {
+                    newWalkable = newTile && newTile->IsWalkable();
+                    if (!newWalkable) {
                         // X unwalkable, try only Y offset
                         newPos = pos;
                         newPos.y += moveBuffer.y;
                         newTile = map.TileAtWorld(newPos.x, newPos.y);
-                        if (!newTile || !newTile->IsWalkable()) {
+                        newWalkable = newTile && newTile->IsWalkable();
+                        if (!newWalkable) {
                             // XY, and both slide directions are all unwalkable
                             moveBuffer.x = 0.0f;
                             moveBuffer.y = 0.0f;
@@ -282,7 +287,8 @@ void Player::Update(InputSample &input, const Tilemap &map)
                 }
             }
 
-            if (Move(moveBuffer)) {
+            const bool moved = Move(moveBuffer);
+            if (moved) {
                 thread_local double lastFootstep = 0;
                 double timeSinceLastFootstep = g_clock.now - lastFootstep;
                 float distanceMoved = v2_length(moveBuffer);
@@ -291,7 +297,20 @@ void Player::Update(InputSample &input, const Tilemap &map)
                     lastFootstep = g_clock.now;
                 }
             }
-
+#if 0
+            printf("[%s] %s %s -> %s, + %.02f, %.02f %.02f, %.02f -> %.02f, %.02f\n",
+                g_clock.server ? "                                                                            SRV" : "CLI",
+                moved ? "M" : "-",
+                walkable ? "-" : "C",
+                newWalkable ? "-" : "C",
+                moveOffset.x,
+                moveOffset.y,
+                pos.x,
+                pos.y,
+                body.GroundPosition().x,
+                body.GroundPosition().y
+            );
+#endif
             moveBuffer = {};
         }
     }

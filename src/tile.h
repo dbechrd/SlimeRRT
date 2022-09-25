@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include "object.h"
 
 typedef uint8_t TileType;
 
@@ -45,6 +46,7 @@ enum : TileType {
 
 struct Tile {
     TileType type{};
+    Object object{};
 
     const char *ToString() const {
         switch (type) {
@@ -61,7 +63,8 @@ struct Tile {
     }
 
     inline bool IsWalkable() const {
-        return true; //tileType != TileType::Water;
+        //return type != TileType::Water;
+        return object.IsWalkable();
     }
 
     inline bool IsSwimmable() const {

@@ -4,6 +4,7 @@
 
 enum class TilesetID {
     TS_Overworld,
+    TS_Objects,
     Count
 };
 

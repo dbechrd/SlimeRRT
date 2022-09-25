@@ -13,6 +13,10 @@ Body3D::Body3D(void)
     gravityScale = 1.0f;
 }
 
+#if GF_SKIP_BODY_POS_FLOOR
+    #define floorf(x) (x)
+#endif
+
 inline Vector3 Body3D::WorldPosition(void) const
 {
     Vector3 worldPosition = position;
@@ -69,6 +73,8 @@ inline Vector2 Body3D::VisualPosition(void) const
     visualPosition.y = floorf(visualPosition.y);
     return visualPosition;
 }
+
+#undef floorf
 
 inline void Body3D::Teleport(Vector3 pos)
 {

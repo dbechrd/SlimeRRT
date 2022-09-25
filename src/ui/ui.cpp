@@ -208,8 +208,9 @@ void UI::MenuTitle(const char *text, const ImVec4 &color)
 {
     ImGui::PushFont(g_fonts.imFontHack64);
     ImGui::TextColored(color, text);
-    ImGui::Spacing();
-    ImGui::Spacing();
+    ImGui::Dummy({ 0, 10 });
+    ImGui::Separator();
+    ImGui::Dummy({ 0, 10 });
     ImGui::PopFont();
 }
 
@@ -1166,7 +1167,7 @@ void UI::MenuMultiplayer(bool &escape, GameClient &game) {
                 TraceLog(LOG_ERROR, "Failed to connect to server");
             }
 
-            if (UI::MenuButton("Add Server")) {
+            if (UI::MenuButton("[+] Add Server")) {
                 menuStack.Push(Menu_Multiplayer_EditServer, "Add Server", "Add Server");
             }
         }
@@ -1224,9 +1225,10 @@ void UI::MenuMultiplayerNew(bool &escape) {
     thread_local bool showPassword = false;
     bool formValid = true;
 
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 0, 4 });
+    int styleVars = 0;
+    //ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 0, 4 }); styleVars++;
 
-    ImGui::Text("Host / IP:");
+    ImGui::Text("Host / IP ");
     ImGui::SameLine();
     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
     if (menuStack.ChangedSinceLastFrame()) {
@@ -1234,18 +1236,18 @@ void UI::MenuMultiplayerNew(bool &escape) {
     }
     ImGui::InputText("##multiplayer_new_host", hostname, sizeof(hostname)); //, ImGuiInputTextFlags_Password | ImGuiInputTextFlags_ReadOnly);
 
-    ImGui::Text("Port #   :");
+    ImGui::Text("Port #    ");
     ImGui::SameLine();
     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
     ImGui::InputInt("##multiplayer_new_port", &port, 1, 100); //, ImGuiInputTextFlags_ReadOnly);
     port = CLAMP(port, 1, USHRT_MAX);
 
-    ImGui::Text("Username :");
+    ImGui::Text("Username  ");
     ImGui::SameLine();
     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
     ImGui::InputText("##multiplayer_new_username", username, sizeof(username));
 
-    ImGui::Text("Password :");
+    ImGui::Text("Password  ");
     ImGui::SameLine();
     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 85);
     ImGui::InputText("##multiplayer_new_password", password, sizeof(password), showPassword ? 0 : ImGuiInputTextFlags_Password);
@@ -1254,7 +1256,7 @@ void UI::MenuMultiplayerNew(bool &escape) {
         showPassword = !showPassword;
     }
 
-    ImGui::PopStyleVar();
+    ImGui::PopStyleVar(styleVars);
 
     message = 0;
     thread_local char buf[64]{};
@@ -1339,7 +1341,6 @@ void UI::MainMenu(bool &escape, GameClient &game)
         screenSize.x / 2.0f,
         screenSize.y / 2.0f
     };
-    float windowPaddingY = 200.0f;
     ImGui::SetNextWindowPos(menuCenter, 0, ImVec2(0.5f, 0.5f));
     ImGui::SetNextWindowSize(ImVec2(screenSize.x, screenSize.y));
 
@@ -1347,7 +1348,7 @@ void UI::MainMenu(bool &escape, GameClient &game)
 
     int styleVars = 0;
     int colorVars = 0;
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(400.0f, 200.0f)); styleVars++;
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(200.0f, 100.0f)); styleVars++;
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 0.0f)); styleVars++;
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(16.0f, 8.0f)); styleVars++;
     ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f)); styleVars++;

@@ -188,6 +188,7 @@ int main(int argc, char *argv[])
 #include "net_message.cpp"
 #include "net_server.cpp"
 #include "net_stat.cpp"
+#include "object.cpp"
 #include "OpenSimplex2F.c"
 #include "particles.cpp"
 #include "perlin.cpp"

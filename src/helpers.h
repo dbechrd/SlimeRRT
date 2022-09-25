@@ -28,6 +28,7 @@
     #define RUN_TESTS 0
 #endif
 
+#define GF_SKIP_BODY_POS_FLOOR           1
 #define CL_CULL_ON_PUSH                  1
 #define CL_CURSOR_ITEM_HIDES_POINTER     0
 #define CL_CURSOR_ITEM_RELATIVE_TERRARIA 0

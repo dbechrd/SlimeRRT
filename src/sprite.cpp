@@ -139,7 +139,10 @@ void sprite_draw_body(const Sprite &sprite, const Body3D &body, const Color &col
 {
 #if CL_DEBUG_SNAPSHOT_SHADOW
 #if 1
-    const Vector3 serverPos = body.WorldPositionServer();
+    Vector3 serverPos = body.WorldPositionServer();
+    serverPos.x = floorf(serverPos.x);
+    serverPos.y = floorf(serverPos.y);
+    serverPos.z = floorf(serverPos.z);
     const Rectangle serverRect = sprite_world_rect(sprite, serverPos);
     sprite_draw(sprite, serverRect, GRAY);
 #else
@@ -160,7 +163,10 @@ void sprite_draw_body(const Sprite &sprite, const Body3D &body, const Color &col
 #endif
 #endif
 
-    const Vector3 worldPos = body.WorldPosition();
+    Vector3 worldPos = body.WorldPosition();
+    worldPos.x = floorf(worldPos.x);
+    worldPos.y = floorf(worldPos.y);
+    worldPos.z = floorf(worldPos.z);
     //DrawCircle(worldPos.x, worldPos.y - worldPos.z, 3.0f, RED);
     const Rectangle bodyRect = sprite_world_rect(sprite, worldPos);
     sprite_draw(sprite, bodyRect, color);

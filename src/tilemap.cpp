@@ -172,24 +172,27 @@ Chunk &Tilemap::FindOrGenChunk(World &world, int16_t chunkX, int16_t chunkY)
     constexpr double FREQ_ROADS_NOISE                           = 1.0 / 400;
     constexpr double FREQ_ISLAND                                = 1.0 / 3000;
     constexpr double FREQ_BEACH_FALLOFF                         = 1.0 / 400;
-    constexpr double FREQ_MEADOW_FLOWERS                        = 1.0 / 100;
+    constexpr double FREQ_MEADOW_DETAILS                        = 1.0 / 100;
     constexpr double FREQ_FOREST_MEADOW_FALLOFF                 = 1.0 / 800;
     constexpr double FREQ_FOREST_TREES                          = 1.0 / 200;
     constexpr double FREQ_FOREST_MOUNTAINTOP_LAKE_BEACH_FALLOFF = 1.0 / 300;
     constexpr double FREQ_MOUNTAINTOP_LAKE_FALLOFF              = 1.0 / 600;
+
+#define NOISE_BETWEEN(noise, a, b) ((noise) >= (a) && (noise) < (b))
 
     size_t tileCount = 0;
     for (int tileY = 0; tileY < CHUNK_H; tileY++) {
         for (int tileX = 0; tileX < CHUNK_W; tileX++) {
             int tileIdx = tileY * CHUNK_W + tileX;
             assert(tileIdx < ARRAY_SIZE(chunk.tiles));
-            Tile &tile = chunk.tiles[tileY * CHUNK_W + tileX];
 
             // World coords, in pixels
             float x = (float)((chunk.x * CHUNK_W + tileX) * TILE_W);
             float y = (float)((chunk.y * CHUNK_H + tileY) * TILE_W);
 
             TileType tileType{};
+            ObjectType objectType{};
+            ObjectFlags objectFlags{};
 
             const double elev = g_noise.Seq1(x, y, FREQ_ELEVATION);
             if (elev < 0.2) {
@@ -216,11 +219,16 @@ Chunk &Tilemap::FindOrGenChunk(World &world, int16_t chunkX, int16_t chunkY)
                 // Meadow
                 tileType = TileType_Grass;
 
-                // Meadow flowers
+                // Meadow details (decorations/objects)
                 if (tileType == TileType_Grass) {
-                    const double falloffNoise = g_noise.Seq1(x, y, FREQ_MEADOW_FLOWERS);
-                    if (falloffNoise >= 0.95) {
+                    const double decoNoise = g_noise.Seq1(x, y, FREQ_MEADOW_DETAILS);
+                    if (NOISE_BETWEEN(decoNoise, 0, 0.05)) {
+                        // Meadow flowers
                         tileType = TileType_Flowers;
+                    } else if (NOISE_BETWEEN(decoNoise, 0.05, 0.06)) {
+                        // Meadow stones
+                        objectType = ObjectType_Rock01;
+                        objectFlags |= ObjectFlag_Collide;
                     }
                 }
             } else if (elev < 0.92) {
@@ -282,7 +290,6 @@ Chunk &Tilemap::FindOrGenChunk(World &world, int16_t chunkX, int16_t chunkY)
                     const double road = g_noise.Seq1(x, y, FREQ_ROADS);
                     if (road >= 0.5 && road <= 0.55) {
                         const double roadNoise = g_noise.Seq1(x, y, FREQ_ROADS_NOISE);
-#define NOISE_BETWEEN(noise, a, b) ((noise) >= (a) && (noise) <= (b))
                         if (NOISE_BETWEEN(roadNoise, 0.15, 0.17) ||
                             NOISE_BETWEEN(roadNoise, 0.20, 0.28) ||
                             NOISE_BETWEEN(roadNoise, 0.31, 0.37) ||
@@ -291,20 +298,25 @@ Chunk &Tilemap::FindOrGenChunk(World &world, int16_t chunkX, int16_t chunkY)
                             NOISE_BETWEEN(roadNoise, 0.70, 0.73)) {
                         } else {
                             tileType = TileType_Dirt;
+                            objectType = ObjectType_None;
+                            objectFlags = 0;
                         }
-#undef NOISE_BETWEEN
                         break;
                     }
                     break;
                 }
                 default: break;
             }
-#undef PERIOD
-#undef FREQ
+
+            Tile &tile = chunk.tiles[tileY * CHUNK_W + tileX];
             tile.type = tileType;
+            tile.object.type = objectType;
+            tile.object.flags = objectFlags;
             tileCount++;
         }
     }
+
+#undef NOISE_BETWEEN
 
     assert(tileCount == ARRAY_SIZE(chunk.tiles));
 

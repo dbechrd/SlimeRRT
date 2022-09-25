@@ -708,6 +708,9 @@ size_t World::DrawMap(const Spycam &spycam)
             const Tile *tile = map.TileAtWorld(xx, yy);
             if (tile) {
                 tileset_draw_tile(map.tilesetId, tile->type, { xx, yy }, WHITE);
+                if (tile->object.type) {
+                    tileset_draw_tile(TilesetID::TS_Objects, tile->object.type, { xx, yy }, WHITE);
+                }
 
                 //uint8_t r = tile->base;
                 //uint8_t g = tile->baseNoise;
