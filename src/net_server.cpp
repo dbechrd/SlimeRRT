@@ -168,16 +168,18 @@ ErrorType NetServer::SendMsg(const SV_Client &client, NetMessage &message)
     return ErrorType::Success;
 }
 
-ErrorType NetServer::BroadcastMsg(NetMessage &message)
+ErrorType NetServer::BroadcastMsg(NetMessage &message, std::function<bool(SV_Client &client)> clientFilter)
 {
     ErrorType err_code = ErrorType::Success;
 
     // Broadcast netMsg to all connected clients
     for (int i = 0; i < SV_MAX_PLAYERS; i++) {
         SV_Client &client = clients[i];
-        ErrorType result = SendMsg(clients[i], message);
-        if (result != ErrorType::Success) {
-            err_code = result;
+        if (clientFilter && clientFilter(client)) {
+            ErrorType result = SendMsg(clients[i], message);
+            if (result != ErrorType::Success) {
+                err_code = result;
+            }
         }
     }
 
@@ -322,6 +324,31 @@ void NetServer::SendNearbyChunks(SV_Client &client)
             }
         }
     }
+}
+
+ErrorType NetServer::BroadcastTileUpdate(float worldX, float worldY, const Tile &tile)
+{
+    memset(&netMsg, 0, sizeof(netMsg));
+    netMsg.type = NetMessage::Type::TileUpdate;
+    NetMessage_TileUpdate &tileUpdate = netMsg.data.tileUpdate;
+    tileUpdate.worldX = worldX;
+    tileUpdate.worldY = worldY;
+    tileUpdate.tile = tile;
+
+    // Broadcast to nearby players
+    E_ASSERT(BroadcastMsg(netMsg, [&](SV_Client &client) {
+        const Player *player = serverWorld->FindPlayer(client.playerId);
+        if (player) {
+            Vector3 playerPos = player->body.WorldPosition();
+            if (v3_distance_sq(playerPos, { worldX, worldY, 0 }) < SQUARED(SV_TILE_UPDATE_DIST)) {
+                E_INFO("Sending tile update to player %d", client.playerId);
+                return true;
+            }
+        }
+        return false;
+    }), "Failed to broadcast tile update");
+
+    return ErrorType::Success;
 }
 
 ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
@@ -1169,7 +1196,7 @@ void NetServer::ProcessMsg(SV_Client &client, ENetPacket &packet)
                     switch (tile->object.type) {
                         case ObjectType_Rock01: {
                             // TODO: Move this out to e.g. tile->object.Interact() or something..
-                            if (!tile->object.HasFlag(ObjectFlag_Rock01_Overturned)) {
+                            if (!tile->object.HasFlag(ObjectFlag_Stone_Overturned)) {
                                 TraceLog(LOG_DEBUG, "[SRV] TileInteract: Rock attempting to roll loot.");
                                 // TODO(v1): Make LootTableID::LT_Rock01
                                 // TODO(v2): Look up loot table id based on where the player is
@@ -1179,8 +1206,8 @@ void NetServer::ProcessMsg(SV_Client &client, ENetPacket &packet)
                                         { tileInteract.tileX, tileInteract.tileY }, dropStack.uid, dropStack.count
                                     );
                                 });
-                                tile->object.SetFlag(ObjectFlag_Rock01_Overturned);
-                                // TODO: Send tile update to all clients in the area
+                                tile->object.SetFlag(ObjectFlag_Stone_Overturned);
+                                BroadcastTileUpdate(tileInteract.tileX, tileInteract.tileY, *tile);
                             } else {
                                 TraceLog(LOG_DEBUG, "[SRV] TileInteract: Rock already overturned.");
                             }

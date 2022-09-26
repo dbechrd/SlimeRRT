@@ -29,6 +29,8 @@
 #endif
 
 #define GF_SKIP_BODY_POS_FLOOR           1
+#define GF_LOOT_TABLE_MONTE_CARLO        (1 && _DEBUG)
+
 #define CL_CULL_ON_PUSH                  1
 #define CL_CURSOR_ITEM_HIDES_POINTER     0
 #define CL_CURSOR_ITEM_RELATIVE_TERRARIA 0
@@ -47,6 +49,7 @@
 #define CL_DEMO_SNAPSHOT_RADII           (0 && _DEBUG)
 #define CL_DEMO_SPAWN_RADII              (0 && _DEBUG)
 #define CL_DEMO_VIEW_RTREE               (0 && _DEBUG)
+
 #define SV_DEBUG_INPUT_SAMPLES           (0 && _DEBUG)
 #define SV_DEBUG_WORLD_CHUNKS            (0 && _DEBUG)
 #define SV_DEBUG_WORLD_ENEMIES           (0 && _DEBUG)
@@ -91,6 +94,7 @@
 #define SV_INPUT_HISTORY            SV_TICK_RATE
 #define SV_INPUT_HISTORY_DT_MAX     0.1  //(5.0 * SV_TICK_DT)  // discard buffered inputs that exceed a sane dt accumulation
 #define SV_WORLD_HISTORY            SV_TICK_RATE
+#define SV_TILE_UPDATE_DIST         METERS_TO_PIXELS(20.0f)
 // NOTE: max diagonal distance at 1080p is 1100 + radius units. 1200px allows for a ~50px wide entity
 #if 1
 #define SV_PLAYER_NEARBY_THRESHOLD  METERS_TO_PIXELS(20.0f)  // how close a player has to be to appear in your snapshot

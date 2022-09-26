@@ -57,7 +57,7 @@ private:
     ErrorType SendRaw              (const SV_Client &client, const void *data, size_t size);
     ErrorType SendMsg              (const SV_Client &client, NetMessage &message);
     ErrorType BroadcastRaw         (const void *data, size_t size);
-    ErrorType BroadcastMsg         (NetMessage &message);
+    ErrorType BroadcastMsg         (NetMessage &message, std::function<bool(SV_Client &client)> clientFilter = nullptr);
     ErrorType SendWelcomeBasket    (SV_Client &client);
     ErrorType BroadcastChatMessage (NetMessage_ChatMessage &chatMsg);
     ErrorType BroadcastPlayerJoin  (const PlayerInfo &playerInfo);
@@ -65,6 +65,7 @@ private:
     ErrorType SendPlayerState      (const SV_Client &client, const Player &otherPlayer, bool nearby, bool spawned);
     ErrorType SendEnemyState       (const SV_Client &client, const Enemy &enemy, bool nearby, bool spawned);
     ErrorType SendItemState        (const SV_Client &client, const ItemWorld &item, bool nearby, bool spawned);
+    ErrorType BroadcastTileUpdate  (float worldX, float worldY, const Tile &tile);
 
     bool IsValidInput (const SV_Client &client, const InputSample &sample);
     bool ParseCommand (SV_Client &client, NetMessage_ChatMessage &chatMsg);

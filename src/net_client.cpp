@@ -459,6 +459,17 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                 map.GenerateMinimap(player->body.GroundPosition());
             }
             break;
+        } case NetMessage::Type::TileUpdate: {
+            NetMessage_TileUpdate &tileUpdate = tempMsg.data.tileUpdate;
+
+            Tile *tile = serverWorld->map.TileAtWorld(tileUpdate.worldX, tileUpdate.worldY);
+            if (tile) {
+                tile->type = tileUpdate.tile.type;
+                tile->object.type = tileUpdate.tile.object.type;
+                tile->object.flags = tileUpdate.tile.object.flags;
+            }
+
+            break;
         } case NetMessage::Type::WorldSnapshot: {
             const WorldSnapshot &netSnapshot = tempMsg.data.worldSnapshot;
             WorldSnapshot &worldSnapshot = worldHistory.Alloc();

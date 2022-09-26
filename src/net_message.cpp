@@ -143,6 +143,17 @@ size_t NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer)
             stream.Align();
 
             break;
+        } case NetMessage::Type::TileUpdate: {
+            NetMessage_TileUpdate &tileUpdate = data.tileUpdate;
+
+            stream.Process(tileUpdate.worldX);
+            stream.Process(tileUpdate.worldY);
+
+            stream.Process(tileUpdate.tile.type, 4, 0, TileType_Count - 1);
+            stream.Process(tileUpdate.tile.object.type, 4, 0, ObjectType_Count - 1);
+            stream.Process(tileUpdate.tile.object.flags);
+
+            break;
         } case NetMessage::Type::WorldSnapshot: {
             WorldSnapshot &worldSnapshot = data.worldSnapshot;
 

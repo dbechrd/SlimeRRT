@@ -16,26 +16,11 @@ LootSystem::LootSystem(void)
     AddDropToTable(LootTableID::LT_Slime, ItemClass_Ring,     1, 1, 0.025f);
     AddDropToTable(LootTableID::LT_Slime, ItemClass_Amulet,   1, 1, 0.025f);
 
-    for (int i = 0; i < 1000; i++) {
-        RollDrops(LootTableID::LT_Slime, [&](ItemStack dropStack) {});
-    }
-
-    printf("Roll results:\n"
-        "  Empty    %3d (%.03f)\n"
-        "  Currency %3d (%.03f)\n"
-        "  Weapon   %3d (%.03f)\n"
-        "  Armor    %3d (%.03f)\n"
-        "  Ring     %3d (%.03f)\n"
-        "  Amulet   %3d (%.03f)\n",
-        rollsPerClass[ItemClass_Empty], rollsPerClass[ItemClass_Empty] / 3000.0f,
-        rollsPerClass[ItemClass_Currency], rollsPerClass[ItemClass_Currency] / 3000.0f,
-        rollsPerClass[ItemClass_Weapon], rollsPerClass[ItemClass_Weapon] / 3000.0f,
-        rollsPerClass[ItemClass_Armor], rollsPerClass[ItemClass_Armor] / 3000.0f,
-        rollsPerClass[ItemClass_Ring], rollsPerClass[ItemClass_Ring] / 3000.0f,
-        rollsPerClass[ItemClass_Amulet], rollsPerClass[ItemClass_Amulet] / 3000.0f
-    );
-
     Validate();
+
+#if GF_LOOT_TABLE_MONTE_CARLO
+    MonteCarlo(LootTableID::LT_Slime, 10000);
+#endif
 }
 
 void LootSystem::InitLootTable(LootTableID lootTableId, uint8_t maxDrops)
@@ -83,6 +68,32 @@ void LootSystem::Validate(void)
         // prefer to keep that explicit. I may change my mind later.
         float error = fabsf(1.0f - pctTotal);
         DLB_ASSERT(error < 0.001f);
+    }
+}
+
+void LootSystem::MonteCarlo(LootTableID lootTableId, int iterations)
+{
+    for (int i = 0; i < iterations; i++) {
+        RollDrops(lootTableId, [&](ItemStack dropStack) {});
+    }
+
+    printf("Roll results:\n");
+    LootTable &table = lootTableRegistry[(size_t)lootTableId];
+    for (int i = 0; i < ARRAY_SIZE(table.drops); i++) {
+        LootDrop &drop = table.drops[i];
+        if (drop.maxCount) {
+            const int rolls = rollsPerClass[(int)drop.itemClass];
+            const float actualPct = rolls / ((float)table.maxDrops * iterations);
+            float error = fabsf(drop.pctChance - actualPct);
+            printf("  %-10s [%.03f] %5d rolls [%.03f %%] %.03f error\n",
+                ItemClassToString(drop.itemClass),
+                drop.pctChance,
+                rolls,
+                actualPct,
+                error
+            );
+            DLB_ASSERT(error < 0.01f);
+        }
     }
 }
 

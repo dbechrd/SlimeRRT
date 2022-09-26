@@ -9,7 +9,7 @@ enum : ObjectType {
 
     ObjectType_MossyStone,
     ObjectType_Rock01,
-    ObjectType_Unused02,
+    ObjectType_Rock01_Overturned,
     ObjectType_Unused03,
     ObjectType_Unused04,
     ObjectType_Unused05,
@@ -50,9 +50,7 @@ enum : ObjectFlags {
     ObjectFlag_None                     = 0,
 
     // per-type flags (last 8 bits)
-    ObjectFlag_MossyStone_Overturned    = 0x01,
-
-    ObjectFlag_Rock01_Overturned        = 0x01,
+    ObjectFlag_Stone_Overturned         = 0x01,
 
     ObjectFlag_Door_Opened              = 0x01,
     ObjectFlag_Door_Locked              = 0x02,
@@ -96,4 +94,17 @@ struct Object {
     inline bool IsCollidable(void) const { return HasFlag(ObjectFlag_Collide); }
     inline bool IsWalkable(void) const { return !HasFlag(ObjectFlag_Collide); }
     inline bool IsSpawnable(void) const { return !HasFlag(ObjectFlag_Collide); }
+
+    ObjectType EffectiveType(void) const {
+        ObjectType effectiveType = type;
+        switch (type) {
+            case ObjectType_Rock01: {
+                if (HasFlag(ObjectFlag_Stone_Overturned)) {
+                    effectiveType = ObjectType_Rock01_Overturned;
+                }
+                break;
+            }
+        }
+        return effectiveType;
+    }
 };

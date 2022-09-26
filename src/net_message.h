@@ -54,6 +54,12 @@ struct NetMessage_WorldChunk {
     Chunk chunk {};
 };
 
+struct NetMessage_TileUpdate {
+    float worldX;
+    float worldY;
+    Tile tile;
+};
+
 struct NetMessage_GlobalEvent {
     enum class Type : uint32_t {
         Unknown,
@@ -222,6 +228,7 @@ struct NetMessage {
         ChatMessage,
         Input,
         WorldChunk,
+        TileUpdate,
         WorldSnapshot,
         GlobalEvent,
         NearbyEvent,
@@ -241,6 +248,7 @@ struct NetMessage {
             case Type::Welcome         : return "Welcome";
             case Type::Input           : return "Input";
             case Type::WorldChunk      : return "WorldChunk";
+            case Type::TileUpdate      : return "TileUpdate";
             case Type::WorldSnapshot   : return "WorldSnapshot";
             case Type::GlobalEvent     : return "GlobalEvent";
             case Type::NearbyEvent     : return "NearbyEvent";
@@ -266,6 +274,7 @@ struct NetMessage {
         NetMessage_Welcome         welcome;
         NetMessage_Input           input;
         NetMessage_WorldChunk      worldChunk;
+        NetMessage_TileUpdate      tileUpdate;
         WorldSnapshot              worldSnapshot;
         NetMessage_GlobalEvent     globalEvent;
         NetMessage_NearbyEvent     nearbyEvent;
