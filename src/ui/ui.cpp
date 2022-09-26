@@ -1348,7 +1348,7 @@ void UI::MainMenu(bool &escape, GameClient &game)
 
     int styleVars = 0;
     int colorVars = 0;
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(200.0f, 100.0f)); styleVars++;
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(300.0f, 200.0f)); styleVars++;
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 0.0f)); styleVars++;
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(16.0f, 8.0f)); styleVars++;
     ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f)); styleVars++;

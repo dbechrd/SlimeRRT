@@ -17,9 +17,12 @@ ErrorType NetClient::SaveServerDB(const char *filename)
 {
     flatbuffers::FlatBufferBuilder fbb;
 
-    auto tpjGuest = DB::CreateServerDirect(fbb, "TPJ Guest", "slime.theprogrammingjunkie.com", SV_DEFAULT_PORT, "guest", "guest");
+    auto tpjGuest = DB::CreateServerDirect(fbb, "Guest", "slime.theprogrammingjunkie.com", SV_DEFAULT_PORT, "guest", "guest");
+    auto tpjDandy = DB::CreateServerDirect(fbb, "Dandy", "slime.theprogrammingjunkie.com", SV_DEFAULT_PORT, "dandy", "asdf");
+    auto tpjOwl = DB::CreateServerDirect(fbb, "Owl", "slime.theprogrammingjunkie.com", SV_DEFAULT_PORT, "owl", "awesome");
+    auto tpjKenneth = DB::CreateServerDirect(fbb, "Kenneth", "slime.theprogrammingjunkie.com", SV_DEFAULT_PORT, "kenneth", "mushroom");
 
-    std::vector<flatbuffers::Offset<DB::Server>> servers{ tpjGuest };
+    std::vector<flatbuffers::Offset<DB::Server>> servers{ tpjGuest, tpjDandy, tpjOwl, tpjKenneth };
     auto serverDB = DB::CreateServerDBDirect(fbb, &servers);
 
     DB::FinishServerDBBuffer(fbb, serverDB);
@@ -44,7 +47,7 @@ ErrorType NetClient::LoadServerDB(const char *filename)
         E_ASSERT(ErrorType::PancakeVerifyFailed, "Uh oh, data verification failed\n");
     }
 
-    const DB::Server *tpjGuest = serverDB->servers()->LookupByKey("TPJ Guest");
+    const DB::Server *tpjGuest = serverDB->servers()->LookupByKey("Guest");
     DLB_ASSERT(tpjGuest);
 
     return ErrorType::Success;

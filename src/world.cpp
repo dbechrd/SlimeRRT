@@ -101,8 +101,8 @@ Player *World::AddPlayer(uint32_t playerId)
         return 0;
     }
 
-    const PlayerInfo *playerInfo = FindPlayerInfo(playerId);
-    assert(playerInfo->nameLength);
+    //const PlayerInfo *playerInfo = FindPlayerInfo(playerId);
+    //assert(playerInfo->nameLength);
 
     for (int i = 0; i < SV_MAX_PLAYERS; i++) {
         Player &player = players[i];

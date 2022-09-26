@@ -22,7 +22,7 @@ ErrorType NetServer::SaveUserDB(const char *filename)
     auto uaGuest = DB::CreateUserDirect(fbb, "guest", "guest");
     auto uaDandy = DB::CreateUserDirect(fbb, "dandy", "asdf");
     auto uaOwl   = DB::CreateUserDirect(fbb, "owl",   "awesome");
-    auto uaKash  = DB::CreateUserDirect(fbb, "kash",  "shroom");
+    auto uaKash  = DB::CreateUserDirect(fbb, "kenneth",  "shroom");
 
     std::vector<flatbuffers::Offset<DB::User>> users{
         uaGuest, uaDandy, uaOwl, uaKash
@@ -175,7 +175,7 @@ ErrorType NetServer::BroadcastMsg(NetMessage &message, std::function<bool(SV_Cli
     // Broadcast netMsg to all connected clients
     for (int i = 0; i < SV_MAX_PLAYERS; i++) {
         SV_Client &client = clients[i];
-        if (clientFilter && clientFilter(client)) {
+        if (!clientFilter || clientFilter(client)) {
             ErrorType result = SendMsg(clients[i], message);
             if (result != ErrorType::Success) {
                 err_code = result;
