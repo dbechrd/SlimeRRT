@@ -90,7 +90,16 @@ struct Object {
         flags &= ~flag;
     }
 
-    inline bool IsIteractable(void) const { return HasFlag(ObjectFlag_Interact); }
+    bool IsIteractable(void) const {
+        bool interact = HasFlag(ObjectFlag_Interact);
+        switch (type) {
+            case ObjectType_Rock01: {
+                interact = !HasFlag(ObjectFlag_Stone_Overturned);
+                break;
+            }
+        }
+        return interact;
+    }
     inline bool IsCollidable(void) const { return HasFlag(ObjectFlag_Collide); }
     inline bool IsWalkable(void) const { return !HasFlag(ObjectFlag_Collide); }
     inline bool IsSpawnable(void) const { return !HasFlag(ObjectFlag_Collide); }

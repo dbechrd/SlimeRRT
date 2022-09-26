@@ -112,6 +112,7 @@ struct Tilemap {
     int16_t CalcChunk       (float world) const;
     int16_t CalcChunkTile   (float world) const;
     Tile *TileAtWorld       (float x, float y);  // Return tile at pixel position in world space, or null
+    Vector2 TileCenter      (Vector2 world) const;  // Return tile center in world position
     Chunk &FindOrGenChunk   (World &world, int16_t x, int16_t y);
 };
 

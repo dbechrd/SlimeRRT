@@ -216,23 +216,6 @@ void GameClient::PlayMode_PollController(PlayerControllerState &input)
     const bool processKeyboard = !io.WantCaptureKeyboard;
     const bool processMouse = !io.WantCaptureKeyboard && !io.WantCaptureMouse;
     input.Query(processMouse, processKeyboard, g_spycam.freeRoam);
-
-    if (netClient.serverWorld) {
-        if (input.primary) {
-            Vector2 mousePos = GetMousePosition();
-            Vector2 worldPos = g_spycam.ScreenToWorld(mousePos);
-
-            // TODO: First check if we clicked a player, npc, enemy, etc. (with precendence)
-
-            // Check if there's an interactable object on the clicked tile
-            const Tile *tile = netClient.serverWorld->map.TileAtWorld(worldPos.x, worldPos.y);
-            // TODO: Don't send messages for exhausted tiles, e.g. rocks that are already overturned. Refactor out.
-            if (tile && tile->object.IsIteractable()) {
-                input.primary = false;
-                netClient.SendTileInteract(worldPos.x, worldPos.y);
-            }
-        }
-    }
 }
 
 ErrorType GameClient::PlayMode_Network()
@@ -510,6 +493,27 @@ void GameClient::PlayMode_DrawWorld(PlayerControllerState &input)
 void GameClient::PlayMode_DrawScreen(double frameDt, PlayerControllerState &input)
 {
     assert(netClient.serverWorld);
+
+    // Handle mouse hover/click on important things
+    {
+        Vector2 worldPos = g_spycam.ScreenToWorld(GetMousePosition());
+
+        // TODO: First check if we clicked a player, npc, enemy, etc. (with precedence)
+
+        // Check if there's an interactable object on the clicked tile
+        const Tile *tile = netClient.serverWorld->map.TileAtWorld(worldPos.x, worldPos.y);
+        // TODO: Don't send messages for exhausted tiles, e.g. rocks that are already overturned. Refactor out.
+        if (tile && tile->object.IsIteractable()) {
+            Vector2 worldCenter = netClient.serverWorld->map.TileCenter(worldPos);
+            Vector2 screenCenter = g_spycam.WorldToScreen(worldCenter);
+            screenCenter.y -= 10;
+            HealthBar::Draw(screenCenter, "Loose Rock", {});
+            if (input.primary) {
+                input.primary = false;
+                netClient.SendTileInteract(worldPos.x, worldPos.y);
+            }
+        }
+    }
 
     // Render mouse tile tooltip
     if (input.dbgFindMouseTile) {

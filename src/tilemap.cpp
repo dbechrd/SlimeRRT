@@ -150,6 +150,14 @@ Tile *Tilemap::TileAtWorld(float x, float y)
     return tile;
 }
 
+Vector2 Tilemap::TileCenter(Vector2 world) const
+{
+    Vector2 tileCenter{};
+    tileCenter.x = floorf(world.x / TILE_W) * TILE_W + (TILE_W * 0.5f);
+    tileCenter.y = floorf(world.y / TILE_W) * TILE_W + (TILE_W * 0.5f);
+    return tileCenter;
+}
+
 Chunk &Tilemap::FindOrGenChunk(World &world, int16_t chunkX, int16_t chunkY)
 {
     ChunkHash chunkHash = Chunk::Hash(chunkX, chunkY);
