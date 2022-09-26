@@ -1180,6 +1180,7 @@ void NetServer::ProcessMsg(SV_Client &client, ENetPacket &packet)
                                     );
                                 });
                                 tile->object.SetFlag(ObjectFlag_Rock01_Overturned);
+                                // TODO: Send tile update to all clients in the area
                             } else {
                                 TraceLog(LOG_DEBUG, "[SRV] TileInteract: Rock already overturned.");
                             }

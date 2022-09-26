@@ -40,6 +40,8 @@ struct LootSystem {
 private:
     void InitLootTable(LootTableID lootTableId, uint8_t maxDrops);
     void AddDropToTable(LootTableID lootTableId, ItemClass itemClass, uint32_t min, uint32_t max, float pctChance);
+    void Validate(void);
 
     LootTable lootTableRegistry[(size_t)LootTableID::Count]{};
+    int rollsPerClass[ItemClass_Count]{};  // DEBUG stat counter for drops
 };

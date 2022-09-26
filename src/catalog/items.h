@@ -607,12 +607,12 @@ struct ItemDatabase {
 
         const ItemProto &proto = g_item_catalog.FindProto(type);
         if (proto.IsScalar()) {
-            printf("Reusing memoized scalar item for type: %d\n", type);
+            //printf("Reusing memoized scalar item for type: %d\n", type);
             DLB_ASSERT(items[type].type == type);
             DLB_ASSERT(items[type].uid == type);
             return type;
         } else {
-            printf("Rolling new item for type: %d\n", type);
+            //printf("Rolling new item for type: %d\n", type);
             const Item &item = items.emplace_back(nextUid, type);
             byUid[item.uid] = (uint32_t)items.size() - 1;
             return item.uid;
