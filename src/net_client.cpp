@@ -317,15 +317,13 @@ void NetClient::ReconcilePlayer(void)
         return;
     }
 
-    // Client is close enough, don't re-sync to server position
+    // Client presumably hasn't moved; skip reconciliation
     const Vector3 localPos = player->body.WorldPosition();
     const Vector3 serverPos = playerSnapshot->position;
-    if (v3_distance_sq(localPos, serverPos) < SQUARED(METERS_TO_PIXELS(1))) {
+    if (v3_distance_sq(localPos, serverPos) < SQUARED(CL_MAX_PLAYER_POS_DESYNC_DIST)) {
         return;
     }
-    TraceLog(LOG_DEBUG, "Too far from server pos; reconciling");
 
-    // TODO: Do this more smoothly
     // Roll back local player to server snapshot location
     if (playerSnapshot->flags & PlayerSnapshot::Flags_Position) {
         player->body.Teleport(playerSnapshot->position);
@@ -382,6 +380,17 @@ void NetClient::ReconcilePlayer(void)
         );
         printf("\n");
 #endif
+    }
+
+    // NOTE(dlb): This isn't really necessary, but prevents a _tiny_ amount of stutter vs. when it's
+    // turned off. I think it's fine for now..
+    if (g_clientSmoothReconcile) {
+        Vector3 oldPos = localPos;
+        Vector3 newPos = player->body.WorldPosition();
+        Vector3 delta = v3_sub(newPos, oldPos);
+        Vector3 smoothDelta = v3_scale(delta, g_clientPlayerRecconcileSmoothFactor);
+        Vector3 smoothNewPos = v3_add(oldPos, smoothDelta);
+        player->body.Teleport(smoothNewPos);
     }
 
     // TODO(dlb): This seems redundant. Doesn't it already happen in ProcessMsg??
@@ -751,10 +760,11 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                 ItemWorld *item = serverWorld->itemSystem.Find(itemSnapshot.id);
                 if (!item) {
 #if CL_DEBUG_WORLD_ITEMS
-                    TraceLog(LOG_DEBUG, "Trying to spawn item: item #%u, catalog #%u, count %u",
-                        itemSnapshot.type,
-                        itemSnapshot.catalogId,
-                        itemSnapshot.stackCount);
+                    TraceLog(LOG_DEBUG, "Trying to spawn item: uid %u, count %u, id %u",
+                        itemSnapshot.itemUid,
+                        itemSnapshot.stackCount,
+                        itemSnapshot.id
+                    );
 #endif
                     item = serverWorld->itemSystem.SpawnItem(
                         itemSnapshot.position,
@@ -768,13 +778,8 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                     }
                     spawned = true;
                 }
-#if CL_DEBUG_WORLD_ITEMS
-                if (itemSnapshot.flags != ItemSnapshot::Flags_None) {
-                    TraceLog(LOG_DEBUG, "Snapshot: item #%u", itemSnapshot.type);
-                }
-#endif
-                const bool posChanged = itemSnapshot.flags & ItemSnapshot::Flags_Position;
 
+                const bool posChanged = itemSnapshot.flags & ItemSnapshot::Flags_Position;
                 if (posChanged) {
                     const Vector3Snapshot *prevState{};
                     if (item->body.positionHistory.Count()) {
@@ -814,9 +819,6 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                             Catalog::g_sounds.Play(Catalog::SoundID::Gold, 1.0f + dlb_rand32f_variance(0.2f), true);
                         }
                     }
-#if CL_DEBUG_WORLD_ITEMS
-                    TraceLog(LOG_DEBUG, "Snapshot: item #%u stack count = %u", item->type, item->stack.count);
-#endif
                 }
             }
             break;

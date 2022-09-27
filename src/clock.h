@@ -1,4 +1,6 @@
 #pragma once
+#include <cassert>
+#include <cstdio>
 
 struct Clock {
     //uint64_t tick;
@@ -32,7 +34,11 @@ struct Clock {
         nowPrev = glfwNow;
 
         // Daily clock
+#if CL_DAY_NIGHT_CYCLE
         const double dayClockNow = server ? now : (serverNow ? serverNow : now);
+#else
+        const double dayClockNow = 0;
+#endif
         const double dayClockScale = (1.0 / SV_TIME_SECONDS_IN_DAY);
         const double dayClockStartTime = SV_TIME_WHEN_GAME_STARTS;
         const double dayClockScaled = (dayClockStartTime + dayClockNow) * dayClockScale;

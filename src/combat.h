@@ -19,8 +19,7 @@ struct Combat {
     bool        droppedHitLoot   {};  // loot on hit? could be fun for some slime ball items to fly off when attacking
     bool        droppedDeathLoot {};  // loot on death, proper loot roll
 
-    inline float DealDamage(float damage)
-    {
+    inline float DealDamage(float damage) {
         const float dealt = CLAMP(damage, 0.0f, hitPoints);
         hitPoints -= dealt;
         if (!hitPoints) {

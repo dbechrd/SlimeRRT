@@ -61,25 +61,25 @@ struct World {
     // ^^^ DO NOT HOLD A POINTER TO THESE! ^^^
     ////////////////////////////////////////////
 
-    void SV_Simulate(double dt);
-    void DespawnDeadEntities(void);
+    void   SV_Simulate         (double dt);
+    void   DespawnDeadEntities (void);
 
-    void CL_Interpolate(double renderAt);
-    void CL_Extrapolate(double dt);
-    void CL_Animate(double dt);
-    void CL_DespawnStaleEntities(void);
+    void   CL_Interpolate          (double renderAt);
+    void   CL_Extrapolate          (double dt);
+    void   CL_Animate              (double dt);
+    void   CL_DespawnStaleEntities (void);
 
-    void EnableCulling(Rectangle cullRect);
-    size_t DrawMap(const Spycam &spycam);
-    void DrawItems(void);
-    void DrawEntities(void);
-    void DrawParticles(void);
-    void DrawFlush(void);
+    void   EnableCulling (Rectangle cullRect);
+    size_t DrawMap       (const Spycam &spycam);
+    void   DrawItems     (void);
+    void   DrawEntities  (void);
+    void   DrawParticles (void);
+    void   DrawFlush     (void);
 
 private:
-    void SV_SimPlayers(double dt);
-    void SV_SimEnemies(double dt);
-    void SV_SimItems(double dt);
+    void SV_SimPlayers (double dt);
+    void SV_SimEnemies (double dt);
+    void SV_SimItems   (double dt);
 
     bool CL_InterpolateBody(Body3D &body, double renderAt, Direction &direction);
 

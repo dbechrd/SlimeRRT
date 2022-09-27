@@ -28,14 +28,15 @@
     #define RUN_TESTS 0
 #endif
 
-#define GF_SKIP_BODY_POS_FLOOR           1
-#define GF_LOOT_TABLE_MONTE_CARLO        (1 && _DEBUG)
-
+#define GF_SKIP_BODY_FLOORF              1
+#define GF_LOOT_TABLE_MONTE_CARLO        (0 && _DEBUG)
 #define CL_CULL_ON_PUSH                  1
 #define CL_CURSOR_ITEM_HIDES_POINTER     0
 #define CL_CURSOR_ITEM_RELATIVE_TERRARIA 0
 #define CL_CURSOR_ITEM_TEXT_BOTTOM_LEFT  1
 #define CL_PIXEL_FIXER                   1
+#define CL_SMOOTH_PLAYER_RECONCILIATION  1
+#define CL_DEBUG_SNAPSHOT_SHADOW         (1 && _DEBUG)
 #define CL_DEBUG_ADVANCED_ITEM_TOOLTIPS  (1 && _DEBUG)
 #define CL_DEBUG_PLAYER_RECONCILIATION   (0 && _DEBUG)
 #define CL_DEBUG_REALLY_LONG_TIMEOUT     (0 && _DEBUG)
@@ -43,13 +44,11 @@
 #define CL_DEBUG_SPEEDHAX                (1 && _DEBUG)
 #define CL_DEBUG_WORLD_CHUNKS            (0 && _DEBUG)
 #define CL_DEBUG_WORLD_ITEMS             (0 && _DEBUG)
-#define CL_DEBUG_SNAPSHOT_SHADOW         (0 && _DEBUG)
 #define CL_DEMO_AI_TRACKING              (0 && _DEBUG)
 #define CL_DEMO_BODY_RECT                (0 && _DEBUG)
 #define CL_DEMO_SNAPSHOT_RADII           (0 && _DEBUG)
 #define CL_DEMO_SPAWN_RADII              (0 && _DEBUG)
 #define CL_DEMO_VIEW_RTREE               (0 && _DEBUG)
-
 #define SV_DEBUG_INPUT_SAMPLES           (0 && _DEBUG)
 #define SV_DEBUG_WORLD_CHUNKS            (0 && _DEBUG)
 #define SV_DEBUG_WORLD_ENEMIES           (0 && _DEBUG)
@@ -132,20 +131,23 @@
 #define SNAPSHOT_SEND_RATE            20  //SV_TICK_RATE  //MIN(30, SV_TICK_RATE)
 #define SNAPSHOT_SEND_DT              (1.0 / SV_TICK_RATE)
 #define SNAPSHOT_MAX_PLAYERS          SV_MAX_PLAYERS
-#define SNAPSHOT_MAX_ENEMIES           MIN(64, SV_MAX_ENEMIES)
+#define SNAPSHOT_MAX_ENEMIES          MIN(64, SV_MAX_ENEMIES)
 #define SNAPSHOT_MAX_ITEMS            MIN(64, SV_MAX_ITEMS)
 
 #define CL_FRAME_DT_MAX               (2.0 * SV_TICK_DT)
 #define CL_INPUT_SEND_RATE_LIMIT      60 // max # of input packets to sender to server per second
 #define CL_INPUT_SEND_RATE_LIMIT_DT   (1.0 / CL_INPUT_SEND_RATE_LIMIT)
-#define CL_INPUT_SAMPLES_MAX          SV_TICK_RATE  // send up to 1 second of samples per packet
-#define CL_INPUT_HISTORY              SV_TICK_RATE  // how many samples to keep around client side
+#define CL_INPUT_SAMPLES_MAX          (SV_TICK_RATE * 10) // send up to 1 second of samples per packet
+#define CL_INPUT_HISTORY              (SV_TICK_RATE * 10) // how many samples to keep around client side
 #define CL_WORLD_HISTORY              (SV_TICK_RATE / 2 + 1)  // >= 500 ms of data
 #define CL_CHAT_HISTORY               256
 #define CL_FARAWAY_BUFFER_RADIUS      (SV_STALE_RADIUS * 2.0f)
 #define CL_PLAYER_FARAWAY_THRESHOLD   (SV_PLAYER_NEARBY_THRESHOLD + CL_FARAWAY_BUFFER_RADIUS)
 #define CL_ENEMY_FARAWAY_THRESHOLD    (SV_ENEMY_NEARBY_THRESHOLD + CL_FARAWAY_BUFFER_RADIUS)
 #define CL_INVENTORY_UPDATE_SLOTS_MAX 256
+#define CL_MAX_PLAYER_POS_DESYNC_DIST METERS_TO_PIXELS(0.01)  // less than 1 pixel delta allowed
+#define CL_PLAYER_POS_SMOOTH_FACTOR   0.5f
+#define CL_DAY_NIGHT_CYCLE            0
 
 //#define PACKET_SIZE_MAX         1024
 #define PACKET_SIZE_MAX         16384
@@ -177,6 +179,8 @@
 //------------------------------------------------------------------------------
 extern Shader g_sdfShader;
 extern uint8_t g_inputMsecHax;
+extern bool g_clientSmoothReconcile;
+extern float g_clientPlayerRecconcileSmoothFactor;
 
 void DrawTextFont(Font font, const char *text, float posX, float posY, float offsetX, float offsetY, int fontSize, const Color &color);
 const char *SafeTextFormat(const char *text, ...);

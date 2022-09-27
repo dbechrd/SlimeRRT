@@ -92,9 +92,9 @@ struct ItemSnapshot {
     };
 
     uint32_t flags      {};
-    uint32_t id         {};
-    Vector3  position   {};  // spawn, move
-    ItemType itemUid    {};  // spawn
+    uint32_t id         {};  // worldItem id
+    Vector3  position   {};  // world position
+    ItemUID  itemUid    {};  // item DB uid
     uint32_t stackCount {};  // spawn, partial pickup, combine nearby stacks (future)
 };
 

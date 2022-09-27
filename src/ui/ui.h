@@ -160,7 +160,7 @@ private:
     static void Breadcrumbs(void);
     static bool MenuBackButton(MenuID menu);
     static bool MenuButton(const char *label, const ImVec2 &size = { 600, 0 });
-    static void MenuMultiplayer(bool &escape, GameClient &game);
-    static void MenuMultiplayerNew(bool &escape);
+    static void MenuMultiplayer(GameClient &game);
+    static void MenuMultiplayerNew();
     static void InventoryItemTooltip(ItemStack &invStack, int slot, Player &player, NetClient &netClient);
 };

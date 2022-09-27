@@ -13,7 +13,7 @@ Body3D::Body3D(void)
     gravityScale = 1.0f;
 }
 
-#if GF_SKIP_BODY_POS_FLOOR
+#if GF_SKIP_BODY_FLOORF
     #define floorf(x) (x)
 #endif
 

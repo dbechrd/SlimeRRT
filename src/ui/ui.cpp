@@ -178,9 +178,9 @@ void UI::Menubar(const NetClient &netClient)
     if (ImGui::BeginMainMenuBar()) {
         if (ImGui::BeginMenu("Debug")) {
             ImGui::MenuItem("Demo Window", 0, &showDemoWindow);
-            ImGui::MenuItem("Particle Config", 0, &showParticleConfig);
-            ImGui::MenuItem("Netstat", 0, &showNetstatWindow);
             ImGui::MenuItem("Item Proto Editor", 0, &showItemProtoEditor);
+            ImGui::MenuItem("Netstat", 0, &showNetstatWindow);
+            ImGui::MenuItem("Particle Config", 0, &showParticleConfig);
             ImGui::EndMenu();
         }
         ImGui::EndMainMenuBar();
@@ -345,9 +345,29 @@ void UI::Netstat(NetClient &netClient, double renderAt)
 
 #if CL_DEBUG_SPEEDHAX
     int msecHax = g_inputMsecHax;
-    UI::SliderIntLeft("##g_inputMsecHax", &msecHax, 0, UINT8_MAX);
+    ImGui::Text("InputMsSpeedhax");
+    ImGui::SameLine();
+    ImGui::SliderInt("##g_inputMsecHax", &msecHax, 0, UINT8_MAX);
     g_inputMsecHax = (uint8_t)msecHax;
 #endif
+
+    ImGui::Text("Smooth reconcile");
+    ImGui::SameLine();
+    ImGui::Checkbox("##g_clientSmoothReconcile", &g_clientSmoothReconcile);
+
+    ImGui::Text("Reconcile smooth factor");
+    ImGui::SameLine();
+    ImGui::SliderFloat("##g_clientPlayerRecconcileSmoothFactor", &g_clientPlayerRecconcileSmoothFactor, 0.01f, 1.0f);
+
+    if (ImGui::Button("Force de-sync")) {
+        Player *player = netClient.serverWorld->LocalPlayer();
+        if (player) {
+            Vector3 worldPos = player->body.WorldPosition();
+            worldPos.x += METERS_TO_PIXELS(3.0f);
+            worldPos.y += METERS_TO_PIXELS(3.0f);
+            player->body.Teleport(worldPos);
+        }
+    }
 
     ImGui::End();
 }
@@ -1108,7 +1128,7 @@ bool UI::MenuButton(const char *label, const ImVec2 &size)
     return ImGui::IsItemClicked(ImGuiMouseButton_Left);
 }
 
-void UI::MenuMultiplayer(bool &escape, GameClient &game) {
+void UI::MenuMultiplayer(GameClient &game) {
     thread_local const char *message = 0;
     thread_local bool msgIsError = false;
     thread_local bool connecting = false;
@@ -1216,7 +1236,7 @@ void UI::MenuMultiplayer(bool &escape, GameClient &game) {
     }
 }
 
-void UI::MenuMultiplayerNew(bool &escape) {
+void UI::MenuMultiplayerNew() {
     thread_local char hostname[SV_HOSTNAME_LENGTH_MAX + 1];
     thread_local int  port = SV_DEFAULT_PORT;
     thread_local char username[USERNAME_LENGTH_MAX + 1];
@@ -1445,7 +1465,7 @@ void UI::MainMenu(bool &escape, GameClient &game)
                 }
 
                 const bool cancel = ImGui::Button("Cancel");
-                if (cancel || menuStack.Changed()) {
+                if (cancel) {
                     disconnectRequested = true;
                 }
             }
@@ -1458,10 +1478,10 @@ void UI::MainMenu(bool &escape, GameClient &game)
 
             break;
         } case Menu_Multiplayer: {
-            UI::MenuMultiplayer(escape, game);
+            UI::MenuMultiplayer(game);
             break;
         } case Menu_Multiplayer_EditServer: {
-            UI::MenuMultiplayerNew(escape);
+            UI::MenuMultiplayerNew();
             break;
         } case Menu_Audio: {
             ImGui::PushFont(g_fonts.imFontHack48);
@@ -1505,6 +1525,7 @@ void UI::MainMenu(bool &escape, GameClient &game)
         //    mainMenu > oldMenu ? Catalog::SoundID::Squish1 : Catalog::SoundID::Squish2,
         //    1.0f + dlb_rand32f_variance(0.1f)*0
         //);
+        disconnectRequested = true;
     } else if (UI::hoverLabel != UI::prevHoverLabel) {
         Catalog::g_sounds.Play(Catalog::SoundID::Click1, (UI::hoverLabel ? 1.0f : 0.97f) + dlb_rand32f_variance(0.01f), true);
         UI::prevHoverLabel = UI::hoverLabel;

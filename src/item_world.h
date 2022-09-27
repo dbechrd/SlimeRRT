@@ -16,12 +16,12 @@ struct ItemWorld : Drawable {
     uint32_t  droppedByPlayerId {};
     ItemWorld *next             {};
 
-    Vector3 WorldCenter(void) const;
-    Vector3 WorldTopCenter(void) const;
-    float Depth(void) const;
-    bool Cull(const Rectangle& cullRect) const;
-    void Update(double dt);
-    void Draw(World &world);
+    Vector3 WorldCenter    (void) const;
+    Vector3 WorldTopCenter (void) const;
+    float   Depth          (void) const;
+    bool    Cull           (const Rectangle& cullRect) const;
+    void    Update         (double dt);
+    void    Draw           (World &world);
 
 private:
     ItemStack namedStack {};

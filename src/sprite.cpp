@@ -124,8 +124,8 @@ static void sprite_draw(const Sprite &sprite, Rectangle screenRect, Color color)
         DrawTextureTiled(sprite.spriteDef->spritesheet->texture, sheetRect, screenRect, { 0.0f, 0.0f }, 0.0f,
             sprite.scale, color);
     } else {
-        // Draw magenta rectangle
-        DrawRectangleRec(screenRect, MAGENTA);
+        // Draw colored rectangle
+        DrawRectangleRec(screenRect, color);
     }
 
 #if CL_DEMO_BODY_RECT

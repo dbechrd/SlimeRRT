@@ -19,10 +19,10 @@ ErrorType NetServer::SaveUserDB(const char *filename)
 {
     flatbuffers::FlatBufferBuilder fbb;
 
-    auto uaGuest = DB::CreateUserDirect(fbb, "guest", "guest");
-    auto uaDandy = DB::CreateUserDirect(fbb, "dandy", "asdf");
-    auto uaOwl   = DB::CreateUserDirect(fbb, "owl",   "awesome");
-    auto uaKash  = DB::CreateUserDirect(fbb, "kenneth",  "shroom");
+    auto uaGuest = DB::CreateUserDirect(fbb, "guest",   "guest");
+    auto uaDandy = DB::CreateUserDirect(fbb, "dandy",   "asdf");
+    auto uaOwl   = DB::CreateUserDirect(fbb, "owl",     "awesome");
+    auto uaKash  = DB::CreateUserDirect(fbb, "kenneth", "shroom");
 
     std::vector<flatbuffers::Offset<DB::User>> users{
         uaGuest, uaDandy, uaOwl, uaKash
