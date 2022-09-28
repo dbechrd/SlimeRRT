@@ -3,8 +3,6 @@
 #include <cassert>
 #include <stdlib.h>
 
-Tileset g_tilesets[(size_t)TilesetID::Count];
-
 static void tileset_load(TilesetID tilesetId, const char *texturePath);
 
 void tileset_init(void)

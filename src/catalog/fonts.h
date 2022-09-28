@@ -12,4 +12,6 @@ struct Fonts {
     Font fontBig{};
     Font fontSdf24{};
     Font fontSdf72{};
-} g_fonts;
+};
+
+thread_local Fonts g_fonts{};

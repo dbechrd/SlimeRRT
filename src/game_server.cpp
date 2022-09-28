@@ -22,10 +22,15 @@ ErrorType GameServer::Run(const Args &args)
 {
     error_init("server.log");
 
+#if 0
     if (args.standalone) {
         // Load data that GameClient would have already loaded otherwise
         g_item_catalog.LoadData();
     }
+#else
+    // This is per-thread now.. I don't think sharing it is a good idea?
+    g_item_catalog.LoadData();
+#endif
 
     World *world = new World;
 

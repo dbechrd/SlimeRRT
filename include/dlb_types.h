@@ -146,9 +146,8 @@ extern dlb_assert_handler_def *dlb_assert_handler;
     else { \
         if (dlb_assert_handler) { \
             (*dlb_assert_handler)(#expr, __FILE__, __LINE__); \
-            assert(0); \
-        } else { \
-            assert(0); \
         } \
+        __debugbreak(); \
+        exit(-1); \
     }
 //------------------------------------------------------------------------------

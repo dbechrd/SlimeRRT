@@ -30,5 +30,7 @@ namespace Catalog {
 
     private:
         ParticleEffectDef byId[(size_t)ParticleEffectID::Count]{};
-    } g_particleFx;
+    };
+
+    thread_local ParticleFX g_particleFx{};
 }

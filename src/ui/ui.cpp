@@ -1856,9 +1856,10 @@ void UI::InventoryItemTooltip(ItemStack &invStack, int slot, Player &player, Net
 
 #if CL_DEBUG_ADVANCED_ITEM_TOOLTIPS
             CenterNextItem(itemUidText);
-            ImGui::TextColored(RayToImColor(MAGENTA), "uid: %06d", item.uid);
+            ImVec4 uidColor = item.uid == invStack.uid ? RayToImColor(DARKPURPLE) : RayToImColor(RED);
+            ImGui::TextColored(uidColor, "uid: %06d", invStack.uid);
             CenterNextItem(itemTypeText);
-            ImGui::TextColored(RayToImColor(MAGENTA), "itemType: %04d", item.type);
+            ImGui::TextColored(RayToImColor(DARKPURPLE), "itemType: %04d", item.type);
 #endif
 
             ImGui::EndTooltip();

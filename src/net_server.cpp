@@ -1113,7 +1113,28 @@ void NetServer::ProcessMsg(SV_Client &client, ENetPacket &packet)
 
             Player *player = serverWorld->AddPlayer(playerInfo->id);
             assert(player);
+
+            // TODO: Load player's spawn location from save file
             player->body.Teleport(serverWorld->GetWorldSpawn());
+
+            // TODO: Load selected slot from save file
+            player->inventory.selectedSlot = PlayerInvSlot_Hotbar_0;
+
+            // TODO: Load inventory from save file
+            ItemUID longSword = g_item_db.Spawn(ItemType_Weapon_Long_Sword);
+            ItemUID dagger = g_item_db.Spawn(ItemType_Weapon_Dagger);
+            ItemUID blackBook = g_item_db.Spawn(ItemType_Book_BlackSkull);
+            ItemUID silverCoin = g_item_db.Spawn(ItemType_Currency_Silver);
+            player->inventory.slots[PlayerInvSlot_Hotbar_0].stack = { longSword, 1 };
+            player->inventory.slots[0].stack = { dagger, 1 };
+            player->inventory.slots[1].stack = { blackBook, 3 };
+            player->inventory.slots[10].stack = { silverCoin, 10 };
+            player->inventory.slots[11].stack = { silverCoin, 20 };
+            player->inventory.slots[12].stack = { silverCoin, 30 };
+            player->inventory.slots[13].stack = { silverCoin, 40 };
+            player->inventory.slots[14].stack = { silverCoin, 50 };
+            player->inventory.slots[15].stack = { silverCoin, 60 };
+            player->inventory.slots[16].stack = { silverCoin, 70 };
 
             SendWelcomeBasket(client);
             break;

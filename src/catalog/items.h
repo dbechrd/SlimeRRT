@@ -526,7 +526,9 @@ private:
     Texture   tex{};
     CSV       csv{};
     ItemProto protos[ItemType_Count]{};
-} g_item_catalog;
+};
+
+thread_local ItemCatalog g_item_catalog{};
 
 struct Item {
     ItemUID  uid        {};
@@ -603,6 +605,11 @@ struct ItemDatabase {
     }
 
     ItemUID Spawn(ItemType type) {
+        DLB_ASSERT(g_clock.server);
+
+        if (!nextUid && g_clock.server) {
+            nextUid = 9999;
+        }
         nextUid = MAX(ItemType_Count, nextUid + 1); // Prevent reserved IDs from being used on overflow
 
         const ItemProto &proto = g_item_catalog.FindProto(type);
@@ -620,14 +627,19 @@ struct ItemDatabase {
     }
 
     const Item& Find(ItemUID uid) {
-        uint32_t idx = byUid[uid];
-        return items[idx];
+        const auto &iter = byUid.find(uid);
+        if (iter != byUid.end()) {
+            return items[iter->second];
+        }
+        return items[0];
     }
 private:
     uint32_t nextUid = 0;
     std::vector<Item> items{};
     std::unordered_map<ItemUID, uint32_t> byUid{};  // map of item.uid -> items[] index
-} g_item_db;
+};
+
+thread_local ItemDatabase g_item_db{};
 
 // TODO: Rename to ItemStack after done refactoring
 struct ItemStack {

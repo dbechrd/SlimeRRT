@@ -4,11 +4,6 @@
 #include <cmath>
 #include <cstdio>
 
-Shader g_sdfShader{};
-uint8_t g_inputMsecHax{};
-bool g_clientSmoothReconcile = true;
-float g_clientPlayerRecconcileSmoothFactor = CL_PLAYER_POS_SMOOTH_FACTOR;
-
 static Color ShadowColor(const Color color)
 {
     Color shadow_color = color;

@@ -37,5 +37,7 @@ namespace Catalog {
     private:
         Music byId[(size_t)TrackID::Count]{};
         Music MissingOggTrack(void);
-    } g_tracks;
+    };
+
+    thread_local Tracks g_tracks{};
 }

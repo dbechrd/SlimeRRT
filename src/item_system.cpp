@@ -39,9 +39,10 @@ ItemWorld *ItemSystem::SpawnItem(Vector3 pos, ItemUID itemUid, uint32_t count, E
         }
         worldItem.euid = euid;
     } else {
-        thread_local uint32_t nextUid = 0;
-        nextUid++;
-        worldItem.euid = MAX(1, nextUid); // Prevent ID zero from being used on overflow
+        // TODO: Make euid (entity uid) a global thing for world items, npcs, enemies, rocks, etc?
+        thread_local uint32_t nextEuid = 0;
+        nextEuid++;
+        worldItem.euid = MAX(1, nextEuid); // Prevent ID zero from being used on overflow
     }
 
     uint32_t stackLimit = g_item_db.Find(itemUid).Proto().stackLimit;

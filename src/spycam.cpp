@@ -1,7 +1,5 @@
 #include "spycam.h"
 
-Spycam g_spycam;
-
 void Spycam::Init(Vector2 offset)
 {
     //cameraGoal = position;

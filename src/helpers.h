@@ -36,7 +36,7 @@
 #define CL_CURSOR_ITEM_TEXT_BOTTOM_LEFT  1
 #define CL_PIXEL_FIXER                   1
 #define CL_SMOOTH_PLAYER_RECONCILIATION  1
-#define CL_DEBUG_SNAPSHOT_SHADOW         (1 && _DEBUG)
+#define CL_DEBUG_SNAPSHOT_SHADOW         (0 && _DEBUG)
 #define CL_DEBUG_ADVANCED_ITEM_TOOLTIPS  (1 && _DEBUG)
 #define CL_DEBUG_PLAYER_RECONCILIATION   (0 && _DEBUG)
 #define CL_DEBUG_REALLY_LONG_TIMEOUT     (0 && _DEBUG)
@@ -137,8 +137,8 @@
 #define CL_FRAME_DT_MAX               (2.0 * SV_TICK_DT)
 #define CL_INPUT_SEND_RATE_LIMIT      60 // max # of input packets to sender to server per second
 #define CL_INPUT_SEND_RATE_LIMIT_DT   (1.0 / CL_INPUT_SEND_RATE_LIMIT)
-#define CL_INPUT_SAMPLES_MAX          (SV_TICK_RATE * 10) // send up to 1 second of samples per packet
-#define CL_INPUT_HISTORY              (SV_TICK_RATE * 10) // how many samples to keep around client side
+#define CL_INPUT_SAMPLES_MAX          (SV_TICK_RATE) // send up to 1 second of samples per packet
+#define CL_INPUT_HISTORY              (SV_TICK_RATE) // how many samples to keep around client side
 #define CL_WORLD_HISTORY              (SV_TICK_RATE / 2 + 1)  // >= 500 ms of data
 #define CL_CHAT_HISTORY               256
 #define CL_FARAWAY_BUFFER_RADIUS      (SV_STALE_RADIUS * 2.0f)
@@ -177,10 +177,10 @@
 //------------------------------------------------------------------------------
 // Helper functions
 //------------------------------------------------------------------------------
-extern Shader g_sdfShader;
-extern uint8_t g_inputMsecHax;
-extern bool g_clientSmoothReconcile;
-extern float g_clientPlayerRecconcileSmoothFactor;
+thread_local Shader g_sdfShader{};
+thread_local uint8_t g_inputMsecHax{};
+thread_local bool g_clientSmoothReconcile = true;
+thread_local float g_clientPlayerRecconcileSmoothFactor = CL_PLAYER_POS_SMOOTH_FACTOR;
 
 void DrawTextFont(Font font, const char *text, float posX, float posY, float offsetX, float offsetY, int fontSize, const Color &color);
 const char *SafeTextFormat(const char *text, ...);

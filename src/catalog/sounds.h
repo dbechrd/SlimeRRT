@@ -6,7 +6,7 @@ namespace Catalog {
         float masterVolume = 1.0f;
         float musicVolume = 1.0f;
         float sfxVolume = 1.0f;
-    } g_mixer;
+    };
 
     enum class SoundID {
         Empty,
@@ -44,5 +44,8 @@ namespace Catalog {
         Sound byId            [(size_t)SoundID::Count]{};
 
         Sound MissingOggSound(void);
-    } g_sounds;
+    };
+
+    thread_local MasterMixer g_mixer{};
+    thread_local Sounds g_sounds{};
 }

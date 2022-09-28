@@ -19,5 +19,7 @@ namespace Catalog {
 
     private:
         Spritesheet byId[(size_t)SpritesheetID::Count];
-    } g_spritesheets;
+    };
+
+    thread_local Spritesheets g_spritesheets{};
 }

@@ -32,23 +32,6 @@ void Player::Init()
     // TODO: Load selected slot from save file / server
     inventory.selectedSlot = PlayerInvSlot_Hotbar_0;
 
-    // TODO: Load inventory from save file / server
-    ItemUID longSword  = g_item_db.Spawn(ItemType_Weapon_Long_Sword);
-    ItemUID dagger     = g_item_db.Spawn(ItemType_Weapon_Dagger);
-    ItemUID blackBook  = g_item_db.Spawn(ItemType_Book_BlackSkull);
-    ItemUID silverCoin = g_item_db.Spawn(ItemType_Currency_Silver);
-
-    inventory.slots[PlayerInvSlot_Hotbar_0].stack = { longSword, 1 };
-    inventory.slots[ 0].stack = { dagger, 1 };
-    inventory.slots[ 1].stack = { blackBook, 3 };
-    inventory.slots[10].stack = { silverCoin, 10 };
-    inventory.slots[11].stack = { silverCoin, 20 };
-    inventory.slots[12].stack = { silverCoin, 30 };
-    inventory.slots[13].stack = { silverCoin, 40 };
-    inventory.slots[14].stack = { silverCoin, 50 };
-    inventory.slots[15].stack = { silverCoin, 60 };
-    inventory.slots[16].stack = { silverCoin, 70 };
-
     // TODO: Load stats from save file / server
     //stats.coinsCollected = 33;
     //stats.slimesSlain = 44;

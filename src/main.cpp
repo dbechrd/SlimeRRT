@@ -19,11 +19,6 @@ DLB_ASSERT_HANDLER(handle_assert)
         "----------------------------------------\n",
         filename, line, expr
     );
-    fflush(stdout);
-    fflush(stderr);
-    __debugbreak();
-    assert(0);
-    exit(-1);
 }
 dlb_assert_handler_def *dlb_assert_handler = handle_assert;
 
@@ -164,7 +159,6 @@ int main(int argc, char *argv[])
 #include "catalog/spritesheets.cpp"
 #include "catalog/tracks.cpp"
 #include "chat.cpp"
-#include "clock.cpp"
 #include "controller.cpp"
 #include "draw_command.cpp"
 #include "enemy.cpp"

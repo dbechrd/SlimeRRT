@@ -15,7 +15,7 @@ struct Tileset {
     size_t    tilesPerRow  {};
 };
 
-extern Tileset g_tilesets[(size_t)TilesetID::Count];
+thread_local Tileset g_tilesets[(size_t)TilesetID::Count]{};
 
 void tileset_init(void);
 const Rectangle &tileset_tile_rect(TilesetID tilesetId, TileType tileType);

@@ -43,4 +43,4 @@ private:
     float     smoothing    = 0.2f;
 };
 
-extern Spycam g_spycam;
+thread_local Spycam g_spycam{};

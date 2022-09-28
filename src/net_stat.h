@@ -10,6 +10,6 @@ struct NetStat_Frame {
 
 #define FOOOOOOOO sizeof(NetStat_Frame)
 
-struct {
+thread_local struct {
     RingBuffer<NetStat_Frame, 60> buffer {};
 } g_netstat;

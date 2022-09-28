@@ -4,7 +4,6 @@
 
 #define CSV_DEBUG_PRINT 0
 
-
 void ItemCatalog::LoadTextures(void) {
     tex = LoadTexture("data/texture/item/joecreates.png");
 }

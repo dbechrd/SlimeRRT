@@ -86,7 +86,7 @@ struct Noise {
 private:
     OpenSimplexEnv       * ose {};
     OpenSimplexGradients * osg {};
-} g_noise;
+};
 
 struct Chunk {
     int16_t x     {};                     // chunk x offset
@@ -122,3 +122,5 @@ struct MapSystem {
 private:
     std::vector<Tilemap> maps {};
 };
+
+thread_local Noise g_noise{};

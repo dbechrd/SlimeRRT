@@ -52,4 +52,4 @@ struct Clock {
     }
 };
 
-extern thread_local Clock g_clock;
+thread_local Clock g_clock{};
