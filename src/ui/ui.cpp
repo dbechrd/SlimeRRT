@@ -481,8 +481,8 @@ void UI::ItemProtoEditor(World &world)
             ImGui::TableNextColumn();
             if (ImGui::Button("Spwn")) {
                 // TODO: Send command to server to spawn (via chat?)
-                ItemUID uid = g_item_db.Spawn(proto.itemType);
-                world.itemSystem.SpawnItem(world.LocalPlayer()->body.WorldPosition(), uid, 1);
+                //ItemUID uid = g_item_db.SV_Spawn(proto.itemType);
+                //world.itemSystem.SpawnItem(world.LocalPlayer()->body.WorldPosition(), uid, 1);
             } else if (ImGui::IsItemHovered()) {
                 ImGui::BeginTooltip();
                 ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);

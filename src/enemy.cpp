@@ -87,29 +87,7 @@ void Enemy::UpdateDirection(Vector2 offset)
 
 void Enemy::Update(World &world, double dt)
 {
-    if (combat.diedAt) {
-        if (combat.droppedDeathLoot) {
-            return;
-        }
-
-        uint32_t coins = world.lootSystem.RollCoins(combat.lootTableId, (int)sprite.scale);
-        assert(coins);
-
-        //ItemType coinType{};
-        //const float chance = dlb_rand32f_range(0, 1);
-        //if (chance < 100.0f / 111.0f) {
-        //    coinType = ItemType::Currency_Copper;
-        //} else if (chance < 10.0f / 111.0f) {
-        //    coinType = ItemType::Currency_Silver;
-        //} else {
-        //    coinType = ItemType::Currency_Gilded;
-        //}
-
-        world.lootSystem.RollDrops(combat.lootTableId, [&](ItemStack dropStack) {
-            world.itemSystem.SpawnItem(WorldCenter(), dropStack.uid, dropStack.count);
-        });
-        combat.droppedDeathLoot = true;
-    } else {
+    if (!combat.diedAt) {
         switch (type) {
             case Type_Slime: Monster::slime_update(*this, dt, world); break;
             default: break;

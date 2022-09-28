@@ -167,96 +167,138 @@ size_t NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer)
             stream.Align();
 
             for (size_t i = 0; i < worldSnapshot.playerCount; i++) {
-                PlayerSnapshot &player = worldSnapshot.players[i];
-                stream.Process(player.id, 32, 1, UINT32_MAX);
-                stream.Process((uint32_t &)player.flags);
-                if (player.flags & PlayerSnapshot::Flags_Position) {
-                    stream.Process(player.position.x);
-                    stream.Process(player.position.y);
-                    stream.Process(player.position.z);
+                PlayerSnapshot &playerSnap = worldSnapshot.players[i];
+                stream.Process(playerSnap.id, 32, 1, UINT32_MAX);
+                stream.Process((uint32_t &)playerSnap.flags);
+                if (playerSnap.flags & PlayerSnapshot::Flags_Position) {
+                    stream.Process(playerSnap.position.x);
+                    stream.Process(playerSnap.position.y);
+                    stream.Process(playerSnap.position.z);
                 }
-                if (player.flags & PlayerSnapshot::Flags_Direction) {
-                    stream.Process((uint8_t &)player.direction, 3, (uint8_t)Direction::North, (uint8_t)Direction::NorthWest);
+                if (playerSnap.flags & PlayerSnapshot::Flags_Direction) {
+                    stream.Process((uint8_t &)playerSnap.direction, 3, (uint8_t)Direction::North, (uint8_t)Direction::NorthWest);
                     stream.Align();
                 }
-                if (player.flags & PlayerSnapshot::Flags_Speed) {
-                    stream.Process(player.speed);
+                if (playerSnap.flags & PlayerSnapshot::Flags_Speed) {
+                    stream.Process(playerSnap.speed);
                 }
-                if (player.flags & PlayerSnapshot::Flags_Health) {
-                    stream.Process(player.hitPoints);
+                if (playerSnap.flags & PlayerSnapshot::Flags_Health) {
+                    stream.Process(playerSnap.hitPoints);
                 }
-                if (player.flags & PlayerSnapshot::Flags_HealthMax) {
-                    stream.Process(player.hitPointsMax);
+                if (playerSnap.flags & PlayerSnapshot::Flags_HealthMax) {
+                    stream.Process(playerSnap.hitPointsMax);
                 }
-                if (player.flags & PlayerSnapshot::Flags_Level) {
-                    stream.Process(player.level);
+                if (playerSnap.flags & PlayerSnapshot::Flags_Level) {
+                    stream.Process(playerSnap.level);
                 }
-                if (player.flags & PlayerSnapshot::Flags_XP) {
-                    stream.Process(player.xp);
+                if (playerSnap.flags & PlayerSnapshot::Flags_XP) {
+                    stream.Process(playerSnap.xp);
                 }
-                if (player.flags & PlayerSnapshot::Flags_Inventory) {
-                    stream.Process((uint8_t &)player.inventory.selectedSlot, 8, 0, PlayerInvSlot_Count - 1);
-                    const size_t slotCount = ARRAY_SIZE(player.inventory.slots);
-                    thread_local bool slotMap[slotCount];
-                    memset(slotMap, 0, sizeof(slotMap));
-                    for (size_t i = 0; i < slotCount; i++) {
-                        ItemStack &invStack = player.inventory.slots[i].stack;
-                        slotMap[i] = invStack.count > 0;
-                        stream.Process(slotMap[i]);
+                if (playerSnap.flags & PlayerSnapshot::Flags_Inventory) {
+                    if (stream.Writing()) {
+                        TraceLog(LOG_DEBUG, "Sending player inventory update for player %u\n", playerSnap.id);
+                    }
+
+                    stream.Process((uint8_t &)playerSnap.inventory.selectedSlot, 8, 0, PlayerInvSlot_Count - 1);
+
+                    const size_t slotCount = ARRAY_SIZE(playerSnap.inventory.slots);
+                    bool slotMap[slotCount]{};
+                    for (size_t slot = 0; slot < slotCount; slot++) {
+                        ItemStack &invStack = playerSnap.inventory.slots[slot].stack;
+                        slotMap[slot] = invStack.count > 0;
+                        stream.Process(slotMap[slot]);
                     }
                     stream.Align();
-                    for (size_t i = 0; i < slotCount; i++) {
-                        if (slotMap[i]) {
-                            ItemStack &invStack = player.inventory.slots[i].stack;
+
+                    for (size_t slot = 0; slot < slotCount; slot++) {
+                        if (slotMap[slot]) {
+                            ItemStack &invStack = playerSnap.inventory.slots[slot].stack;
                             stream.Process(invStack.uid);
                             stream.Process(invStack.count);
                             DLB_ASSERT(invStack.uid);  // ensure stack with count > 0 has valid item ID
+
+                            Item &item = g_item_db.FindOrCreate(invStack.uid);
+                            DLB_ASSERT(item.uid);
+                            if (stream.Writing()) {
+                                DLB_ASSERT(item.type);
+                            }
+                            stream.Process(item.type);
+
+                            // Default items have no rolled affixes that need to be sync'd
+                            if (item.uid < ItemType_Count) {
+                                continue;
+                            }
+
+                            const size_t affixCount = ARRAY_SIZE(item.affixes);
+                            bool affixMap[affixCount]{};
+                            for (int affix = 0; affix < affixCount; affix++) {
+                                affixMap[affix] = item.affixes[affix].type != ItemAffix_Empty;
+                                stream.Process(affixMap[affix]);
+                            }
+                            stream.Align();
+
+                            for (int affix = 0; affix < affixCount; affix++) {
+                                if (affixMap[affix]) {
+                                    stream.Process(item.affixes[affix].type, 4, 0, ItemAffix_Count);
+                                    stream.Process(item.affixes[affix].value.min);
+                                    stream.Process(item.affixes[affix].value.max);
+                                } else {
+                                    item.affixes[affix] = {};
+                                }
+                            }
                         }
                     }
                 }
             }
 
             for (size_t i = 0; i < worldSnapshot.enemyCount; i++) {
-                EnemySnapshot &enemy = worldSnapshot.enemies[i];
-                stream.Process(enemy.id, 32, 1, UINT32_MAX);
-                stream.Process((uint32_t &)enemy.flags);
-                if (enemy.flags & EnemySnapshot::Flags_Position) {
-                    stream.Process(enemy.position.x);
-                    stream.Process(enemy.position.y);
-                    stream.Process(enemy.position.z);
+                EnemySnapshot &enemySnap = worldSnapshot.enemies[i];
+                stream.Process(enemySnap.id, 32, 1, UINT32_MAX);
+                stream.Process((uint32_t &)enemySnap.flags);
+                if (enemySnap.flags & EnemySnapshot::Flags_Position) {
+                    stream.Process(enemySnap.position.x);
+                    stream.Process(enemySnap.position.y);
+                    stream.Process(enemySnap.position.z);
                 }
-                if (enemy.flags & EnemySnapshot::Flags_Direction) {
-                    stream.Process((uint8_t &)enemy.direction, 3, (uint8_t)Direction::North, (uint8_t)Direction::NorthWest);
+                if (enemySnap.flags & EnemySnapshot::Flags_Direction) {
+                    stream.Process((uint8_t &)enemySnap.direction, 3, (uint8_t)Direction::North, (uint8_t)Direction::NorthWest);
                     stream.Align();
                 }
-                if (enemy.flags & EnemySnapshot::Flags_Scale) {
-                    stream.Process(enemy.scale);
+                if (enemySnap.flags & EnemySnapshot::Flags_Scale) {
+                    stream.Process(enemySnap.scale);
                 }
-                if (enemy.flags & EnemySnapshot::Flags_Health) {
-                    stream.Process(enemy.hitPoints);
+                if (enemySnap.flags & EnemySnapshot::Flags_Health) {
+                    stream.Process(enemySnap.hitPoints);
                 }
-                if (enemy.flags & EnemySnapshot::Flags_HealthMax) {
-                    stream.Process(enemy.hitPointsMax);
+                if (enemySnap.flags & EnemySnapshot::Flags_HealthMax) {
+                    stream.Process(enemySnap.hitPointsMax);
                 }
-                if (enemy.flags & EnemySnapshot::Flags_Level) {
-                    stream.Process(enemy.level);
+                if (enemySnap.flags & EnemySnapshot::Flags_Level) {
+                    stream.Process(enemySnap.level);
                 }
             }
 
             for (size_t i = 0; i < worldSnapshot.itemCount; i++) {
-                ItemSnapshot &item = worldSnapshot.items[i];
-                stream.Process(item.id, 32, 1, UINT32_MAX);
-                stream.Process((uint32_t &)item.flags);
-                if (item.flags & ItemSnapshot::Flags_Position) {
-                    stream.Process(item.position.x);
-                    stream.Process(item.position.y);
-                    stream.Process(item.position.z);
+                ItemSnapshot &itemSnap = worldSnapshot.items[i];
+                stream.Process(itemSnap.id, 32, 1, UINT32_MAX);
+                stream.Process((uint32_t &)itemSnap.flags);
+                if (itemSnap.flags & ItemSnapshot::Flags_Position) {
+                    stream.Process(itemSnap.position.x);
+                    stream.Process(itemSnap.position.y);
+                    stream.Process(itemSnap.position.z);
                 }
-                if (item.flags & ItemSnapshot::Flags_ItemUid) {
-                    stream.Process(item.itemUid);
+                if (itemSnap.flags & ItemSnapshot::Flags_ItemUid) {
+                    stream.Process(itemSnap.itemUid);
+
+                    Item &item = g_item_db.FindOrCreate(itemSnap.itemUid);
+                    DLB_ASSERT(item.uid);
+                    if (stream.Writing()) {
+                        DLB_ASSERT(item.type);
+                    }
+                    stream.Process(item.type);
                 }
-                if (item.flags & ItemSnapshot::Flags_StackCount) {
-                    stream.Process(item.stackCount);
+                if (itemSnap.flags & ItemSnapshot::Flags_StackCount) {
+                    stream.Process(itemSnap.stackCount);
                 }
             }
 

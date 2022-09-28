@@ -33,8 +33,7 @@ struct PlayerSnapshot {
             Flags_Health    |
             Flags_HealthMax |
             Flags_Level     |
-            Flags_XP        |
-            Flags_Inventory ,
+            Flags_XP        ,
     };
 
     uint32_t        flags        {};

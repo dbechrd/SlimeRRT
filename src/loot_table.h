@@ -35,7 +35,7 @@ struct LootTable {
 struct LootSystem {
     LootSystem(void);
     uint32_t RollCoins(LootTableID lootTableId, int monster_lvl);
-    void     RollDrops(LootTableID lootTableId, std::function<void(ItemStack dropStack)> callback);
+    void     SV_RollDrops(LootTableID lootTableId, std::function<void(ItemStack dropStack)> callback);
 
 private:
     void InitLootTable(LootTableID lootTableId, uint8_t maxDrops);

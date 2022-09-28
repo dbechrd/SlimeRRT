@@ -386,7 +386,16 @@ void World::SV_SimEnemies(double dt)
         if (!enemy.id) {
             continue;
         }
+
         enemy.Update(*this, dt);
+
+        if (!enemy.combat.droppedDeathLoot) {
+            lootSystem.SV_RollDrops(enemy.combat.lootTableId, [&](ItemStack dropStack) {
+                itemSystem.SpawnItem(enemy.WorldCenter(), dropStack.uid, dropStack.count);
+            });
+
+            enemy.combat.droppedDeathLoot = true;
+        }
     }
 }
 

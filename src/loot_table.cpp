@@ -79,7 +79,7 @@ void LootSystem::Validate(void)
 void LootSystem::MonteCarlo(LootTableID lootTableId, int iterations)
 {
     for (int i = 0; i < iterations; i++) {
-        RollDrops(lootTableId, [&](ItemStack dropStack) {});
+        SV_RollDrops(lootTableId, [&](ItemStack dropStack) {});
     }
 
     printf("Roll results:\n");
@@ -115,7 +115,7 @@ uint32_t LootSystem::RollCoins(LootTableID lootTableId, int monster_lvl)
     return coins;
 }
 
-void LootSystem::RollDrops(LootTableID lootTableId, std::function<void(ItemStack dropStack)> callback)
+void LootSystem::SV_RollDrops(LootTableID lootTableId, std::function<void(ItemStack dropStack)> callback)
 {
     if (lootTableId == LootTableID::LT_Empty) {
         return;
@@ -146,7 +146,7 @@ void LootSystem::RollDrops(LootTableID lootTableId, std::function<void(ItemStack
                     for (ItemType itemType = 0; itemType < ItemType_Count; itemType++) {
                         const ItemProto &proto = g_item_catalog.FindProto(itemType);
                         if (proto.itemClass == drop.itemClass) {
-                            dropStack.uid = g_item_db.Spawn(itemType);
+                            dropStack.uid = g_item_db.SV_Spawn(itemType);
                             dropStack.count = dlb_rand32u_range(drop.minCount, drop.maxCount);
                             break;
                         }

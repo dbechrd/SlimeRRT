@@ -66,6 +66,7 @@ struct InventorySlot {
 struct PlayerInventory {
     PlayerInvSlot selectedSlot {};  // NOTE: for hotbar, needs rework
     InventorySlot slots        [PlayerInvSlot_Count]{};
+    bool          dirty        {true};  // Used server-side to determine whether client needs a new inv snapshot
     bool          skipUpdate   {};  // HACK: Simulate inv action to see if it's valid client-side without actually performing it
 
     void TexRect(const Texture &invItems, ItemType itemId, Vector2 &min, Vector2 &max)
@@ -123,6 +124,7 @@ struct PlayerInventory {
             ItemStack tmp = a.stack;
             a.stack = b.stack;
             b.stack = tmp;
+            dirty = true;
         }
     }
 
@@ -167,6 +169,7 @@ struct PlayerInventory {
             if (dst.stack.count) {
                 dst.stack.uid = item.uid;
             }
+            dirty = true;
         }
         if (dstFull) *dstFull = (dst.stack.count == stackLimit);
         return transfer > 0;

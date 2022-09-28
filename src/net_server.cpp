@@ -383,11 +383,15 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
         }
 
         uint32_t flags = PlayerSnapshot::Flags_None;
-        if (client.playerId == otherPlayer.id) {
+        if (otherPlayer.id == player.id) {
             // Always send player's entire state to to themselves
             // This could be smarter, but if we don't do it, then ReconcilePlayer() can get
             // desync'd from snapshot frequency and "miss" things like teleport events.
             flags = PlayerSnapshot::Flags_Owner;
+            if (player.inventory.dirty) {
+                flags |= PlayerSnapshot::Flags_Inventory;
+                player.inventory.dirty = false;
+            }
         } else {
             // TODO: Make despawn threshold > spawn threshold to prevent spam on event horizon
             const float distSq = v2_length_sq(v2_sub(player.body.GroundPosition(), otherPlayer.body.GroundPosition()));
@@ -1121,10 +1125,10 @@ void NetServer::ProcessMsg(SV_Client &client, ENetPacket &packet)
             player->inventory.selectedSlot = PlayerInvSlot_Hotbar_0;
 
             // TODO: Load inventory from save file
-            ItemUID longSword = g_item_db.Spawn(ItemType_Weapon_Long_Sword);
-            ItemUID dagger = g_item_db.Spawn(ItemType_Weapon_Dagger);
-            ItemUID blackBook = g_item_db.Spawn(ItemType_Book_BlackSkull);
-            ItemUID silverCoin = g_item_db.Spawn(ItemType_Currency_Silver);
+            ItemUID longSword = g_item_db.SV_Spawn(ItemType_Weapon_Long_Sword);
+            ItemUID dagger = g_item_db.SV_Spawn(ItemType_Weapon_Dagger);
+            ItemUID blackBook = g_item_db.SV_Spawn(ItemType_Book_BlackSkull);
+            ItemUID silverCoin = g_item_db.SV_Spawn(ItemType_Currency_Silver);
             player->inventory.slots[PlayerInvSlot_Hotbar_0].stack = { longSword, 1 };
             player->inventory.slots[0].stack = { dagger, 1 };
             player->inventory.slots[1].stack = { blackBook, 3 };
@@ -1222,7 +1226,7 @@ void NetServer::ProcessMsg(SV_Client &client, ENetPacket &packet)
                                 // TODO(v1): Make LootTableID::LT_Rock01
                                 // TODO(v2): Look up loot table id based on where the player is
                                 // TODO(v3): Account for player's magic find bonus
-                                serverWorld->lootSystem.RollDrops(LootTableID::LT_Slime, [&](ItemStack dropStack) {
+                                serverWorld->lootSystem.SV_RollDrops(LootTableID::LT_Slime, [&](ItemStack dropStack) {
                                     serverWorld->itemSystem.SpawnItem(
                                         { tileInteract.tileX, tileInteract.tileY }, dropStack.uid, dropStack.count
                                     );

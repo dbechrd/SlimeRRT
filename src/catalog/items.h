@@ -604,7 +604,7 @@ struct ItemDatabase {
         }
     }
 
-    ItemUID Spawn(ItemType type) {
+    ItemUID SV_Spawn(ItemType type) {
         DLB_ASSERT(g_clock.server);
 
         if (!nextUid && g_clock.server) {
@@ -632,6 +632,17 @@ struct ItemDatabase {
             return items[iter->second];
         }
         return items[0];
+    }
+
+    Item &FindOrCreate(ItemUID uid) {
+        const auto &iter = byUid.find(uid);
+        if (iter != byUid.end()) {
+            return items[iter->second];
+        }
+        Item &newItem = items.emplace_back();
+        newItem.uid = uid;
+        byUid[newItem.uid] = (uint32_t)items.size() - 1;
+        return newItem;
     }
 private:
     uint32_t nextUid = 0;
