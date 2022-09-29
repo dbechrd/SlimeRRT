@@ -509,8 +509,7 @@ void GameClient::PlayMode_DrawScreen(double frameDt, PlayerControllerState &inpu
             Vector2 screenCenter = g_spycam.WorldToScreen(worldCenter);
             screenCenter.y -= 10;
             HealthBar::Draw(screenCenter, "Loose Rock", {});
-            if (input.primary) {
-                input.primary = false;
+            if (input.primaryPress) {
                 netClient.SendTileInteract(worldPos.x, worldPos.y);
             }
         }

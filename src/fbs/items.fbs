@@ -1,0 +1,20 @@
+include "item_affix.fbs";
+include "item_class.fbs";
+include "item_type.fbs";
+
+namespace DB;
+
+table Item {
+    uid:uint32 (key);
+    item_type:ItemType;
+    affixes:[ItemAffix];
+}
+
+table ItemDB {
+    items:[Item];
+}
+
+root_type ItemDB;
+
+file_identifier "ITEM";
+file_extension "itm";

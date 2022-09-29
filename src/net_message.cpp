@@ -195,9 +195,9 @@ size_t NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer)
                     stream.Process(playerSnap.xp);
                 }
                 if (playerSnap.flags & PlayerSnapshot::Flags_Inventory) {
-                    if (stream.Writing()) {
-                        TraceLog(LOG_DEBUG, "Sending player inventory update for player %u\n", playerSnap.id);
-                    }
+                    //if (stream.Writing()) {
+                    //    TraceLog(LOG_DEBUG, "Sending player inventory update for player %u\n", playerSnap.id);
+                    //}
 
                     stream.Process((uint8_t &)playerSnap.inventory.selectedSlot, 8, 0, PlayerInvSlot_Count - 1);
 

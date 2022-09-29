@@ -11,13 +11,14 @@ struct PlayerControllerState {
     bool dbgToggleVsync   {};
 
     // Networked input
-    bool          walkNorth  {};
-    bool          walkEast   {};
-    bool          walkSouth  {};
-    bool          walkWest   {};
-    bool          run        {};
-    bool          primary    {};
-    PlayerInvSlot selectSlot {};
+    bool          walkNorth    {};
+    bool          walkEast     {};
+    bool          walkSouth    {};
+    bool          walkWest     {};
+    bool          run          {};
+    bool          primaryPress {};
+    bool          primaryHold  {};
+    PlayerInvSlot selectSlot   {};
 
     // Non-networked input
     bool toggleInventory      {};
@@ -80,7 +81,7 @@ struct InputSample {
         walkSouth  = controllerState.walkSouth;
         walkWest   = controllerState.walkWest;
         run        = controllerState.run;
-        primary    = controllerState.primary;
+        primary    = controllerState.primaryHold;
         selectSlot = controllerState.selectSlot;
         skipFx     = false;
     }

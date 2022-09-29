@@ -21,15 +21,8 @@ struct ServerBuilder;
 struct ServerDB;
 struct ServerDBBuilder;
 
-inline const flatbuffers::TypeTable *ServerTypeTable();
-
-inline const flatbuffers::TypeTable *ServerDBTypeTable();
-
 struct Server FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   typedef ServerBuilder Builder;
-  static const flatbuffers::TypeTable *MiniReflectTypeTable() {
-    return ServerTypeTable();
-  }
   static FLATBUFFERS_CONSTEXPR_CPP11 const char *GetFullyQualifiedName() {
     return "DB.Server";
   }
@@ -160,9 +153,6 @@ inline flatbuffers::Offset<Server> CreateServerDirect(
 
 struct ServerDB FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   typedef ServerDBBuilder Builder;
-  static const flatbuffers::TypeTable *MiniReflectTypeTable() {
-    return ServerDBTypeTable();
-  }
   static FLATBUFFERS_CONSTEXPR_CPP11 const char *GetFullyQualifiedName() {
     return "DB.ServerDB";
   }
@@ -217,43 +207,6 @@ inline flatbuffers::Offset<ServerDB> CreateServerDBDirect(
   return DB::CreateServerDB(
       _fbb,
       servers__);
-}
-
-inline const flatbuffers::TypeTable *ServerTypeTable() {
-  static const flatbuffers::TypeCode type_codes[] = {
-    { flatbuffers::ET_STRING, 0, -1 },
-    { flatbuffers::ET_STRING, 0, -1 },
-    { flatbuffers::ET_USHORT, 0, -1 },
-    { flatbuffers::ET_STRING, 0, -1 },
-    { flatbuffers::ET_STRING, 0, -1 }
-  };
-  static const char * const names[] = {
-    "display_name",
-    "hostname",
-    "port",
-    "user",
-    "pass"
-  };
-  static const flatbuffers::TypeTable tt = {
-    flatbuffers::ST_TABLE, 5, type_codes, nullptr, nullptr, nullptr, names
-  };
-  return &tt;
-}
-
-inline const flatbuffers::TypeTable *ServerDBTypeTable() {
-  static const flatbuffers::TypeCode type_codes[] = {
-    { flatbuffers::ET_SEQUENCE, 1, 0 }
-  };
-  static const flatbuffers::TypeFunction type_refs[] = {
-    DB::ServerTypeTable
-  };
-  static const char * const names[] = {
-    "servers"
-  };
-  static const flatbuffers::TypeTable tt = {
-    flatbuffers::ST_TABLE, 1, type_codes, type_refs, nullptr, nullptr, names
-  };
-  return &tt;
 }
 
 inline const DB::ServerDB *GetServerDB(const void *buf) {

@@ -389,7 +389,7 @@ void World::SV_SimEnemies(double dt)
 
         enemy.Update(*this, dt);
 
-        if (!enemy.combat.droppedDeathLoot) {
+        if (enemy.combat.diedAt && !enemy.combat.droppedDeathLoot) {
             lootSystem.SV_RollDrops(enemy.combat.lootTableId, [&](ItemStack dropStack) {
                 itemSystem.SpawnItem(enemy.WorldCenter(), dropStack.uid, dropStack.count);
             });

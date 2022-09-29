@@ -1,0 +1,34 @@
+enum ItemAffixType:uint8 {
+    empty,                     // no affix
+    
+    // [1-3] - [5-9] damage
+    damage_min,
+    damage_max,
+
+    //damage_source_pct_health,  // damage to deal as a percentage of source health
+    //damage_target_pct_health,  // damage to deal as a percentage of target health
+
+    // [1-3] - [5-9] knockback
+    knockback_min,
+    knockback_max,
+
+    // [3%-5%] damage as knockback
+    knockback_pct_damage,  // percent of damage to deal as knockback
+
+    // [3%-5%] increased movement speed
+    move_speed,
+
+    // calculated on drop, based on other affixes, where it spawned, value bonus effects, etc.
+    value,       
+}
+
+table ItemAffixProto {
+    type:ItemAffixType;
+    min:uint8;
+    max:uint8;
+}
+
+table ItemAffix {
+    type:ItemAffixType;
+    value:uint8;
+}

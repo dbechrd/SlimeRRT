@@ -1,0 +1,23 @@
+include "item_affix.fbs";
+include "item_class.fbs";
+include "item_type.fbs";
+
+namespace DB;
+
+table ItemProto {
+    item_type:ItemType (key);
+    item_class:ItemClass;
+    name_singular:string;
+    name_plural:string;
+    stack_limit:uint8;
+    affixes:[ItemAffixProto];
+}
+
+table ItemProtoDB {
+    protos:[ItemProto];
+}
+
+root_type ItemProtoDB;
+
+file_identifier "IPRO";
+file_extension "ipr";

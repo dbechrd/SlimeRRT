@@ -21,15 +21,8 @@ struct UserBuilder;
 struct UserDB;
 struct UserDBBuilder;
 
-inline const flatbuffers::TypeTable *UserTypeTable();
-
-inline const flatbuffers::TypeTable *UserDBTypeTable();
-
 struct User FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   typedef UserBuilder Builder;
-  static const flatbuffers::TypeTable *MiniReflectTypeTable() {
-    return UserTypeTable();
-  }
   static FLATBUFFERS_CONSTEXPR_CPP11 const char *GetFullyQualifiedName() {
     return "DB.User";
   }
@@ -111,9 +104,6 @@ inline flatbuffers::Offset<User> CreateUserDirect(
 
 struct UserDB FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   typedef UserDBBuilder Builder;
-  static const flatbuffers::TypeTable *MiniReflectTypeTable() {
-    return UserDBTypeTable();
-  }
   static FLATBUFFERS_CONSTEXPR_CPP11 const char *GetFullyQualifiedName() {
     return "DB.UserDB";
   }
@@ -168,37 +158,6 @@ inline flatbuffers::Offset<UserDB> CreateUserDBDirect(
   return DB::CreateUserDB(
       _fbb,
       accounts__);
-}
-
-inline const flatbuffers::TypeTable *UserTypeTable() {
-  static const flatbuffers::TypeCode type_codes[] = {
-    { flatbuffers::ET_STRING, 0, -1 },
-    { flatbuffers::ET_STRING, 0, -1 }
-  };
-  static const char * const names[] = {
-    "username",
-    "password"
-  };
-  static const flatbuffers::TypeTable tt = {
-    flatbuffers::ST_TABLE, 2, type_codes, nullptr, nullptr, nullptr, names
-  };
-  return &tt;
-}
-
-inline const flatbuffers::TypeTable *UserDBTypeTable() {
-  static const flatbuffers::TypeCode type_codes[] = {
-    { flatbuffers::ET_SEQUENCE, 1, 0 }
-  };
-  static const flatbuffers::TypeFunction type_refs[] = {
-    DB::UserTypeTable
-  };
-  static const char * const names[] = {
-    "accounts"
-  };
-  static const flatbuffers::TypeTable tt = {
-    flatbuffers::ST_TABLE, 1, type_codes, type_refs, nullptr, nullptr, names
-  };
-  return &tt;
 }
 
 inline const DB::UserDB *GetUserDB(const void *buf) {
