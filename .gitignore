@@ -5,3 +5,4 @@ secret.txt
 imgui.ini
 build/
 genesis.db
+src/fbs/*.json
