@@ -1,8 +1,8 @@
 namespace DB;
 
 table User {
-    username:string (key);
-    password:string;
+    username:string (key);  // 32 bytes
+    password:string;        // 64 bytes
 }
 
 table UserDB {

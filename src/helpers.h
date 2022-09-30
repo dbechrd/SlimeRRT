@@ -19,6 +19,13 @@
 #define POSITION_EPSILON 0.0001f
 #define VELOCITY_EPSILON 0.001f
 
+// Flatbuffers
+#define FBSTR(s, len)  (memset(buf, 0, sizeof(buf)),memcpy(buf, s, strlen(s)),fbb.CreateString((buf), (len)))
+#define FB_DESC(s)     FBSTR(s, SERV_DESC_LENGTH_MAX)
+#define FB_HOST(s)     FBSTR(s, HOSTNAME_LENGTH_MAX)
+#define FB_USER(s)     FBSTR(s, USERNAME_LENGTH_MAX)
+#define FB_PASS(s)     FBSTR(s, PASSWORD_LENGTH_MAX)
+
 //------------------------------------------------------------------------------
 // Feature flags
 //------------------------------------------------------------------------------
@@ -73,8 +80,6 @@
 #define SUBTILE_W 8
 #define SUBTILE_H SUBTILE_W
 
-#define SV_HOSTNAME_LENGTH_MIN      3
-#define SV_HOSTNAME_LENGTH_MAX      256
 #define SV_DEFAULT_PORT             4040
 #define SV_SINGLEPLAYER_HOST        "localhost"
 #define SV_SINGLEPLAYER_PORT        4039
@@ -154,6 +159,10 @@
 // Min/max ASCII value for username/password/motd/message, etc.
 #define STRING_ASCII_MIN        32
 #define STRING_ASCII_MAX        126
+#define SERV_DESC_LENGTH_MIN    0
+#define SERV_DESC_LENGTH_MAX    64
+#define HOSTNAME_LENGTH_MIN     3
+#define HOSTNAME_LENGTH_MAX     256
 #define USERNAME_LENGTH_MIN     2
 #define USERNAME_LENGTH_MAX     32
 #define PASSWORD_LENGTH_MIN     4   // TODO: Increase to 8

@@ -5,13 +5,6 @@
 #include "users_generated.h"
 #include "raylib/raylib.h"
 #include "dlb_types.h"
-#include <cassert>
-#include <cstdlib>
-#include <cstdio>
-#include <cstring>
-#include <ctime>
-#include <new>
-#include <vector>
 
 const char *NetServer::LOG_SRC = "NetServer";
 
@@ -19,10 +12,11 @@ ErrorType NetServer::SaveUserDB(const char *filename)
 {
     flatbuffers::FlatBufferBuilder fbb;
 
-    auto uaGuest = DB::CreateUserDirect(fbb, "guest",   "guest");
-    auto uaDandy = DB::CreateUserDirect(fbb, "dandy",   "asdf");
-    auto uaOwl   = DB::CreateUserDirect(fbb, "owl",     "awesome");
-    auto uaKash  = DB::CreateUserDirect(fbb, "kenneth", "shroom");
+    char buf[1024]{};
+    auto uaGuest = DB::CreateUser(fbb, FB_USER("guest"),   FB_PASS("guest"));
+    auto uaDandy = DB::CreateUser(fbb, FB_USER("dandy"),   FB_PASS("asdf"));
+    auto uaOwl   = DB::CreateUser(fbb, FB_USER("owl"),     FB_PASS("awesome"));
+    auto uaKash  = DB::CreateUser(fbb, FB_USER("kenneth"), FB_PASS("shroom"));
 
     std::vector<flatbuffers::Offset<DB::User>> users{
         uaGuest, uaDandy, uaOwl, uaKash
@@ -46,13 +40,18 @@ ErrorType NetServer::LoadUserDB(const char *filename)
     if (!DB::VerifyUserDBBuffer(verifier)) {
         E_ASSERT(ErrorType::PancakeVerifyFailed, "Uh oh, data verification failed\n");
     }
-    const DB::UserDB *userDB = DB::GetUserDB(fbs_users.data);
-    if (!userDB->Verify(verifier)) {
-        E_ASSERT(ErrorType::PancakeVerifyFailed, "Uh oh, data verification failed\n");
-    }
 
-    const DB::User *dandy = userDB->accounts()->LookupByKey("dandy");
+    //const DB::UserDB *userDB = DB::GetUserDB(fbs_users.data);
+    DB::UserDB *userDB = DB::GetMutableUserDB(fbs_users.data);
+    //const DB::User *dandy = userDB->accounts()->LookupByKey("dandy");
+    DB::User *dandy = userDB->mutable_accounts()->MutableLookupByKey("dandy");
     DLB_ASSERT(dandy);
+
+    DLB_ASSERT(dandy->mutable_username()->size() == USERNAME_LENGTH_MAX);
+    DLB_ASSERT(dandy->mutable_password()->size() == PASSWORD_LENGTH_MAX);
+
+    char *user = dandy->mutable_username()->data();
+    char *pass = dandy->mutable_password()->data();
 
     return ErrorType::Success;
 }
@@ -1075,8 +1074,7 @@ void NetServer::ProcessMsg(SV_Client &client, ENetPacket &packet)
             const DB::User *user = users->accounts()->LookupByKey(identMsg.username);
             if (user) {
                 const char *password = user->password()->data();
-                uint32_t passwordLen = user->password()->size();
-                if (identMsg.passwordLength == passwordLen && !strncmp(identMsg.password, password, passwordLen)) {
+                if (!strncmp(identMsg.password, password, PASSWORD_LENGTH_MAX)) {
                     printf("Successful auth as user: %s\n", identMsg.username);
                 } else {
                     printf("Incorrect password for user: %s\n", identMsg.username);

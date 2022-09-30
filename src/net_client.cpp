@@ -17,10 +17,16 @@ ErrorType NetClient::SaveServerDB(const char *filename)
 {
     flatbuffers::FlatBufferBuilder fbb;
 
-    auto tpjGuest = DB::CreateServerDirect(fbb, "Guest", "slime.theprogrammingjunkie.com", SV_DEFAULT_PORT, "guest", "guest");
-    auto tpjDandy = DB::CreateServerDirect(fbb, "Dandy", "slime.theprogrammingjunkie.com", SV_DEFAULT_PORT, "dandy", "asdf");
-    auto tpjOwl = DB::CreateServerDirect(fbb, "Owl", "slime.theprogrammingjunkie.com", SV_DEFAULT_PORT, "owl", "awesome");
-    auto tpjKenneth = DB::CreateServerDirect(fbb, "Kenneth", "slime.theprogrammingjunkie.com", SV_DEFAULT_PORT, "kenneth", "mushroom");
+    //auto tpjGuest   = DB::CreateServer(fbb, FB_DESC("Guest"  ), FB_HOST("slime.theprogrammingjunkie.com"), SV_DEFAULT_PORT, FB_USER("guest"  ), FB_PASS("guest"   ));
+    //auto tpjDandy   = DB::CreateServer(fbb, FB_DESC("Dandy"  ), FB_HOST("slime.theprogrammingjunkie.com"), SV_DEFAULT_PORT, FB_USER("dandy"  ), FB_PASS("asdf"    ));
+    //auto tpjOwl     = DB::CreateServer(fbb, FB_DESC("Owl"    ), FB_HOST("slime.theprogrammingjunkie.com"), SV_DEFAULT_PORT, FB_USER("owl"    ), FB_PASS("awesome" ));
+    //auto tpjKenneth = DB::CreateServer(fbb, FB_DESC("Kenneth"), FB_HOST("slime.theprogrammingjunkie.com"), SV_DEFAULT_PORT, FB_USER("kenneth"), FB_PASS("mushroom"));
+
+    char buf[1024]{};
+    auto tpjGuest   = DB::CreateServer(fbb, FB_DESC("Guest"  ), FB_HOST("slime.theprogrammingjunkie.com"), SV_DEFAULT_PORT, FB_USER("guest"  ), FB_PASS("guest"   ));
+    auto tpjDandy   = DB::CreateServer(fbb, FB_DESC("Dandy"  ), FB_HOST("slime.theprogrammingjunkie.com"), SV_DEFAULT_PORT, FB_USER("dandy"  ), FB_PASS("asdf"    ));
+    auto tpjOwl     = DB::CreateServer(fbb, FB_DESC("Owl"    ), FB_HOST("slime.theprogrammingjunkie.com"), SV_DEFAULT_PORT, FB_USER("owl"    ), FB_PASS("awesome" ));
+    auto tpjKenneth = DB::CreateServer(fbb, FB_DESC("Kenneth"), FB_HOST("slime.theprogrammingjunkie.com"), SV_DEFAULT_PORT, FB_USER("kenneth"), FB_PASS("mushroom"));
 
     std::vector<flatbuffers::Offset<DB::Server>> servers{ tpjGuest, tpjDandy, tpjOwl, tpjKenneth };
     auto serverDB = DB::CreateServerDBDirect(fbb, &servers);
@@ -42,11 +48,8 @@ ErrorType NetClient::LoadServerDB(const char *filename)
     if (!DB::VerifyServerDBBuffer(verifier)) {
         E_ASSERT(ErrorType::PancakeVerifyFailed, "Uh oh, data verification failed\n");
     }
-    const DB::ServerDB *serverDB = DB::GetServerDB(fbs_servers.data);
-    if (!serverDB->Verify(verifier)) {
-        E_ASSERT(ErrorType::PancakeVerifyFailed, "Uh oh, data verification failed\n");
-    }
 
+    const DB::ServerDB *serverDB = DB::GetServerDB(fbs_servers.data);
     const DB::Server *tpjGuest = serverDB->servers()->LookupByKey("Guest");
     DLB_ASSERT(tpjGuest);
 
@@ -55,7 +58,7 @@ ErrorType NetClient::LoadServerDB(const char *filename)
 
 NetClient::NetClient(void)
 {
-    SaveServerDB("db/servers.dat");
+    //SaveServerDB("db/servers.dat");
     LoadServerDB("db/servers.dat");
 
     rawPacket.dataLength = PACKET_SIZE_MAX;
@@ -113,7 +116,7 @@ ErrorType NetClient::Connect(const char *serverHost, unsigned short serverPort, 
     enet_host_flush(client);
 
     this->serverHostLength = strlen(serverHost);
-    strncpy(this->serverHost, serverHost, SV_HOSTNAME_LENGTH_MAX);
+    strncpy(this->serverHost, serverHost, HOSTNAME_LENGTH_MAX);
     this->serverPort = serverPort;
     this->usernameLength = strlen(username);
     strncpy(this->username, username, USERNAME_LENGTH_MAX);

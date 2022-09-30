@@ -17,11 +17,23 @@ namespace DB {
 
 struct User;
 struct UserBuilder;
+struct UserT;
 
 struct UserDB;
 struct UserDBBuilder;
+struct UserDBT;
+
+struct UserT : public flatbuffers::NativeTable {
+  typedef User TableType;
+  static FLATBUFFERS_CONSTEXPR_CPP11 const char *GetFullyQualifiedName() {
+    return "DB.UserT";
+  }
+  std::string username{};
+  std::string password{};
+};
 
 struct User FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef UserT NativeTableType;
   typedef UserBuilder Builder;
   static FLATBUFFERS_CONSTEXPR_CPP11 const char *GetFullyQualifiedName() {
     return "DB.User";
@@ -56,6 +68,9 @@ struct User FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
            verifier.VerifyString(password()) &&
            verifier.EndTable();
   }
+  UserT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(UserT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static flatbuffers::Offset<User> Pack(flatbuffers::FlatBufferBuilder &_fbb, const UserT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
 };
 
 struct UserBuilder {
@@ -102,7 +117,22 @@ inline flatbuffers::Offset<User> CreateUserDirect(
       password__);
 }
 
+flatbuffers::Offset<User> CreateUser(flatbuffers::FlatBufferBuilder &_fbb, const UserT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct UserDBT : public flatbuffers::NativeTable {
+  typedef UserDB TableType;
+  static FLATBUFFERS_CONSTEXPR_CPP11 const char *GetFullyQualifiedName() {
+    return "DB.UserDBT";
+  }
+  std::vector<std::unique_ptr<DB::UserT>> accounts{};
+  UserDBT() = default;
+  UserDBT(const UserDBT &o);
+  UserDBT(UserDBT&&) FLATBUFFERS_NOEXCEPT = default;
+  UserDBT &operator=(UserDBT o) FLATBUFFERS_NOEXCEPT;
+};
+
 struct UserDB FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef UserDBT NativeTableType;
   typedef UserDBBuilder Builder;
   static FLATBUFFERS_CONSTEXPR_CPP11 const char *GetFullyQualifiedName() {
     return "DB.UserDB";
@@ -123,6 +153,9 @@ struct UserDB FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
            verifier.VerifyVectorOfTables(accounts()) &&
            verifier.EndTable();
   }
+  UserDBT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(UserDBT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static flatbuffers::Offset<UserDB> Pack(flatbuffers::FlatBufferBuilder &_fbb, const UserDBT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
 };
 
 struct UserDBBuilder {
@@ -158,6 +191,73 @@ inline flatbuffers::Offset<UserDB> CreateUserDBDirect(
   return DB::CreateUserDB(
       _fbb,
       accounts__);
+}
+
+flatbuffers::Offset<UserDB> CreateUserDB(flatbuffers::FlatBufferBuilder &_fbb, const UserDBT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+inline UserT *User::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<UserT>(new UserT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void User::UnPackTo(UserT *_o, const flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = username(); if (_e) _o->username = _e->str(); }
+  { auto _e = password(); if (_e) _o->password = _e->str(); }
+}
+
+inline flatbuffers::Offset<User> User::Pack(flatbuffers::FlatBufferBuilder &_fbb, const UserT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateUser(_fbb, _o, _rehasher);
+}
+
+inline flatbuffers::Offset<User> CreateUser(flatbuffers::FlatBufferBuilder &_fbb, const UserT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const UserT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _username = _fbb.CreateString(_o->username);
+  auto _password = _o->password.empty() ? 0 : _fbb.CreateString(_o->password);
+  return DB::CreateUser(
+      _fbb,
+      _username,
+      _password);
+}
+
+inline UserDBT::UserDBT(const UserDBT &o) {
+  accounts.reserve(o.accounts.size());
+  for (const auto &accounts_ : o.accounts) { accounts.emplace_back((accounts_) ? new DB::UserT(*accounts_) : nullptr); }
+}
+
+inline UserDBT &UserDBT::operator=(UserDBT o) FLATBUFFERS_NOEXCEPT {
+  std::swap(accounts, o.accounts);
+  return *this;
+}
+
+inline UserDBT *UserDB::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<UserDBT>(new UserDBT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void UserDB::UnPackTo(UserDBT *_o, const flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = accounts(); if (_e) { _o->accounts.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->accounts[_i]) { _e->Get(_i)->UnPackTo(_o->accounts[_i].get(), _resolver); } else { _o->accounts[_i] = std::unique_ptr<DB::UserT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->accounts.resize(0); } }
+}
+
+inline flatbuffers::Offset<UserDB> UserDB::Pack(flatbuffers::FlatBufferBuilder &_fbb, const UserDBT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateUserDB(_fbb, _o, _rehasher);
+}
+
+inline flatbuffers::Offset<UserDB> CreateUserDB(flatbuffers::FlatBufferBuilder &_fbb, const UserDBT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const UserDBT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _accounts = _o->accounts.size() ? _fbb.CreateVector<flatbuffers::Offset<DB::User>> (_o->accounts.size(), [](size_t i, _VectorArgs *__va) { return CreateUser(*__va->__fbb, __va->__o->accounts[i].get(), __va->__rehasher); }, &_va ) : 0;
+  return DB::CreateUserDB(
+      _fbb,
+      _accounts);
 }
 
 inline const DB::UserDB *GetUserDB(const void *buf) {
@@ -214,6 +314,18 @@ inline void FinishSizePrefixedUserDBBuffer(
     flatbuffers::FlatBufferBuilder &fbb,
     flatbuffers::Offset<DB::UserDB> root) {
   fbb.FinishSizePrefixed(root, UserDBIdentifier());
+}
+
+inline std::unique_ptr<DB::UserDBT> UnPackUserDB(
+    const void *buf,
+    const flatbuffers::resolver_function_t *res = nullptr) {
+  return std::unique_ptr<DB::UserDBT>(GetUserDB(buf)->UnPack(res));
+}
+
+inline std::unique_ptr<DB::UserDBT> UnPackSizePrefixedUserDB(
+    const void *buf,
+    const flatbuffers::resolver_function_t *res = nullptr) {
+  return std::unique_ptr<DB::UserDBT>(GetSizePrefixedUserDB(buf)->UnPack(res));
 }
 
 }  // namespace DB

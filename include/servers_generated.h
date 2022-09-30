@@ -17,39 +17,54 @@ namespace DB {
 
 struct Server;
 struct ServerBuilder;
+struct ServerT;
 
 struct ServerDB;
 struct ServerDBBuilder;
+struct ServerDBT;
+
+struct ServerT : public flatbuffers::NativeTable {
+  typedef Server TableType;
+  static FLATBUFFERS_CONSTEXPR_CPP11 const char *GetFullyQualifiedName() {
+    return "DB.ServerT";
+  }
+  std::string desc{};
+  std::string host{};
+  uint16_t port = 0;
+  std::string user{};
+  std::string pass{};
+};
 
 struct Server FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef ServerT NativeTableType;
   typedef ServerBuilder Builder;
   static FLATBUFFERS_CONSTEXPR_CPP11 const char *GetFullyQualifiedName() {
     return "DB.Server";
   }
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_DISPLAY_NAME = 4,
-    VT_HOSTNAME = 6,
+    VT_DESC = 4,
+    VT_HOST = 6,
     VT_PORT = 8,
     VT_USER = 10,
     VT_PASS = 12
   };
-  const flatbuffers::String *display_name() const {
-    return GetPointer<const flatbuffers::String *>(VT_DISPLAY_NAME);
+  const flatbuffers::String *desc() const {
+    return GetPointer<const flatbuffers::String *>(VT_DESC);
   }
-  flatbuffers::String *mutable_display_name() {
-    return GetPointer<flatbuffers::String *>(VT_DISPLAY_NAME);
+  flatbuffers::String *mutable_desc() {
+    return GetPointer<flatbuffers::String *>(VT_DESC);
   }
   bool KeyCompareLessThan(const Server *o) const {
-    return *display_name() < *o->display_name();
+    return *desc() < *o->desc();
   }
-  int KeyCompareWithValue(const char *_display_name) const {
-    return strcmp(display_name()->c_str(), _display_name);
+  int KeyCompareWithValue(const char *_desc) const {
+    return strcmp(desc()->c_str(), _desc);
   }
-  const flatbuffers::String *hostname() const {
-    return GetPointer<const flatbuffers::String *>(VT_HOSTNAME);
+  const flatbuffers::String *host() const {
+    return GetPointer<const flatbuffers::String *>(VT_HOST);
   }
-  flatbuffers::String *mutable_hostname() {
-    return GetPointer<flatbuffers::String *>(VT_HOSTNAME);
+  flatbuffers::String *mutable_host() {
+    return GetPointer<flatbuffers::String *>(VT_HOST);
   }
   uint16_t port() const {
     return GetField<uint16_t>(VT_PORT, 0);
@@ -71,10 +86,10 @@ struct Server FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
-           VerifyOffsetRequired(verifier, VT_DISPLAY_NAME) &&
-           verifier.VerifyString(display_name()) &&
-           VerifyOffset(verifier, VT_HOSTNAME) &&
-           verifier.VerifyString(hostname()) &&
+           VerifyOffsetRequired(verifier, VT_DESC) &&
+           verifier.VerifyString(desc()) &&
+           VerifyOffset(verifier, VT_HOST) &&
+           verifier.VerifyString(host()) &&
            VerifyField<uint16_t>(verifier, VT_PORT, 2) &&
            VerifyOffset(verifier, VT_USER) &&
            verifier.VerifyString(user()) &&
@@ -82,17 +97,20 @@ struct Server FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
            verifier.VerifyString(pass()) &&
            verifier.EndTable();
   }
+  ServerT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(ServerT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static flatbuffers::Offset<Server> Pack(flatbuffers::FlatBufferBuilder &_fbb, const ServerT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
 };
 
 struct ServerBuilder {
   typedef Server Table;
   flatbuffers::FlatBufferBuilder &fbb_;
   flatbuffers::uoffset_t start_;
-  void add_display_name(flatbuffers::Offset<flatbuffers::String> display_name) {
-    fbb_.AddOffset(Server::VT_DISPLAY_NAME, display_name);
+  void add_desc(flatbuffers::Offset<flatbuffers::String> desc) {
+    fbb_.AddOffset(Server::VT_DESC, desc);
   }
-  void add_hostname(flatbuffers::Offset<flatbuffers::String> hostname) {
-    fbb_.AddOffset(Server::VT_HOSTNAME, hostname);
+  void add_host(flatbuffers::Offset<flatbuffers::String> host) {
+    fbb_.AddOffset(Server::VT_HOST, host);
   }
   void add_port(uint16_t port) {
     fbb_.AddElement<uint16_t>(Server::VT_PORT, port, 0);
@@ -110,48 +128,63 @@ struct ServerBuilder {
   flatbuffers::Offset<Server> Finish() {
     const auto end = fbb_.EndTable(start_);
     auto o = flatbuffers::Offset<Server>(end);
-    fbb_.Required(o, Server::VT_DISPLAY_NAME);
+    fbb_.Required(o, Server::VT_DESC);
     return o;
   }
 };
 
 inline flatbuffers::Offset<Server> CreateServer(
     flatbuffers::FlatBufferBuilder &_fbb,
-    flatbuffers::Offset<flatbuffers::String> display_name = 0,
-    flatbuffers::Offset<flatbuffers::String> hostname = 0,
+    flatbuffers::Offset<flatbuffers::String> desc = 0,
+    flatbuffers::Offset<flatbuffers::String> host = 0,
     uint16_t port = 0,
     flatbuffers::Offset<flatbuffers::String> user = 0,
     flatbuffers::Offset<flatbuffers::String> pass = 0) {
   ServerBuilder builder_(_fbb);
   builder_.add_pass(pass);
   builder_.add_user(user);
-  builder_.add_hostname(hostname);
-  builder_.add_display_name(display_name);
+  builder_.add_host(host);
+  builder_.add_desc(desc);
   builder_.add_port(port);
   return builder_.Finish();
 }
 
 inline flatbuffers::Offset<Server> CreateServerDirect(
     flatbuffers::FlatBufferBuilder &_fbb,
-    const char *display_name = nullptr,
-    const char *hostname = nullptr,
+    const char *desc = nullptr,
+    const char *host = nullptr,
     uint16_t port = 0,
     const char *user = nullptr,
     const char *pass = nullptr) {
-  auto display_name__ = display_name ? _fbb.CreateString(display_name) : 0;
-  auto hostname__ = hostname ? _fbb.CreateString(hostname) : 0;
+  auto desc__ = desc ? _fbb.CreateString(desc) : 0;
+  auto host__ = host ? _fbb.CreateString(host) : 0;
   auto user__ = user ? _fbb.CreateString(user) : 0;
   auto pass__ = pass ? _fbb.CreateString(pass) : 0;
   return DB::CreateServer(
       _fbb,
-      display_name__,
-      hostname__,
+      desc__,
+      host__,
       port,
       user__,
       pass__);
 }
 
+flatbuffers::Offset<Server> CreateServer(flatbuffers::FlatBufferBuilder &_fbb, const ServerT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct ServerDBT : public flatbuffers::NativeTable {
+  typedef ServerDB TableType;
+  static FLATBUFFERS_CONSTEXPR_CPP11 const char *GetFullyQualifiedName() {
+    return "DB.ServerDBT";
+  }
+  std::vector<std::unique_ptr<DB::ServerT>> servers{};
+  ServerDBT() = default;
+  ServerDBT(const ServerDBT &o);
+  ServerDBT(ServerDBT&&) FLATBUFFERS_NOEXCEPT = default;
+  ServerDBT &operator=(ServerDBT o) FLATBUFFERS_NOEXCEPT;
+};
+
 struct ServerDB FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef ServerDBT NativeTableType;
   typedef ServerDBBuilder Builder;
   static FLATBUFFERS_CONSTEXPR_CPP11 const char *GetFullyQualifiedName() {
     return "DB.ServerDB";
@@ -172,6 +205,9 @@ struct ServerDB FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
            verifier.VerifyVectorOfTables(servers()) &&
            verifier.EndTable();
   }
+  ServerDBT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(ServerDBT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static flatbuffers::Offset<ServerDB> Pack(flatbuffers::FlatBufferBuilder &_fbb, const ServerDBT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
 };
 
 struct ServerDBBuilder {
@@ -207,6 +243,82 @@ inline flatbuffers::Offset<ServerDB> CreateServerDBDirect(
   return DB::CreateServerDB(
       _fbb,
       servers__);
+}
+
+flatbuffers::Offset<ServerDB> CreateServerDB(flatbuffers::FlatBufferBuilder &_fbb, const ServerDBT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+inline ServerT *Server::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<ServerT>(new ServerT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void Server::UnPackTo(ServerT *_o, const flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = desc(); if (_e) _o->desc = _e->str(); }
+  { auto _e = host(); if (_e) _o->host = _e->str(); }
+  { auto _e = port(); _o->port = _e; }
+  { auto _e = user(); if (_e) _o->user = _e->str(); }
+  { auto _e = pass(); if (_e) _o->pass = _e->str(); }
+}
+
+inline flatbuffers::Offset<Server> Server::Pack(flatbuffers::FlatBufferBuilder &_fbb, const ServerT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateServer(_fbb, _o, _rehasher);
+}
+
+inline flatbuffers::Offset<Server> CreateServer(flatbuffers::FlatBufferBuilder &_fbb, const ServerT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const ServerT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _desc = _fbb.CreateString(_o->desc);
+  auto _host = _o->host.empty() ? 0 : _fbb.CreateString(_o->host);
+  auto _port = _o->port;
+  auto _user = _o->user.empty() ? 0 : _fbb.CreateString(_o->user);
+  auto _pass = _o->pass.empty() ? 0 : _fbb.CreateString(_o->pass);
+  return DB::CreateServer(
+      _fbb,
+      _desc,
+      _host,
+      _port,
+      _user,
+      _pass);
+}
+
+inline ServerDBT::ServerDBT(const ServerDBT &o) {
+  servers.reserve(o.servers.size());
+  for (const auto &servers_ : o.servers) { servers.emplace_back((servers_) ? new DB::ServerT(*servers_) : nullptr); }
+}
+
+inline ServerDBT &ServerDBT::operator=(ServerDBT o) FLATBUFFERS_NOEXCEPT {
+  std::swap(servers, o.servers);
+  return *this;
+}
+
+inline ServerDBT *ServerDB::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = std::unique_ptr<ServerDBT>(new ServerDBT());
+  UnPackTo(_o.get(), _resolver);
+  return _o.release();
+}
+
+inline void ServerDB::UnPackTo(ServerDBT *_o, const flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = servers(); if (_e) { _o->servers.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { if(_o->servers[_i]) { _e->Get(_i)->UnPackTo(_o->servers[_i].get(), _resolver); } else { _o->servers[_i] = std::unique_ptr<DB::ServerT>(_e->Get(_i)->UnPack(_resolver)); }; } } else { _o->servers.resize(0); } }
+}
+
+inline flatbuffers::Offset<ServerDB> ServerDB::Pack(flatbuffers::FlatBufferBuilder &_fbb, const ServerDBT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateServerDB(_fbb, _o, _rehasher);
+}
+
+inline flatbuffers::Offset<ServerDB> CreateServerDB(flatbuffers::FlatBufferBuilder &_fbb, const ServerDBT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const ServerDBT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _servers = _o->servers.size() ? _fbb.CreateVector<flatbuffers::Offset<DB::Server>> (_o->servers.size(), [](size_t i, _VectorArgs *__va) { return CreateServer(*__va->__fbb, __va->__o->servers[i].get(), __va->__rehasher); }, &_va ) : 0;
+  return DB::CreateServerDB(
+      _fbb,
+      _servers);
 }
 
 inline const DB::ServerDB *GetServerDB(const void *buf) {
@@ -263,6 +375,18 @@ inline void FinishSizePrefixedServerDBBuffer(
     flatbuffers::FlatBufferBuilder &fbb,
     flatbuffers::Offset<DB::ServerDB> root) {
   fbb.FinishSizePrefixed(root, ServerDBIdentifier());
+}
+
+inline std::unique_ptr<DB::ServerDBT> UnPackServerDB(
+    const void *buf,
+    const flatbuffers::resolver_function_t *res = nullptr) {
+  return std::unique_ptr<DB::ServerDBT>(GetServerDB(buf)->UnPack(res));
+}
+
+inline std::unique_ptr<DB::ServerDBT> UnPackSizePrefixedServerDB(
+    const void *buf,
+    const flatbuffers::resolver_function_t *res = nullptr) {
+  return std::unique_ptr<DB::ServerDBT>(GetSizePrefixedServerDB(buf)->UnPack(res));
 }
 
 }  // namespace DB

@@ -1,11 +1,19 @@
 namespace DB;
 
+//struct Server {
+//    desc:[uint8:64]; // (key);  // 64 bytes
+//    host:[uint8:256];        // 256 bytes
+//    port:uint16;
+//    user:[uint8:32];        // 32 bytes
+//    pass:[uint8:64];        // 64 bytes
+//}
+
 table Server {
-    display_name:string (key);
-    hostname:string;
+    desc:string (key);  // 64 bytes
+    host:string;        // 256 bytes
     port:uint16;
-    user:string;
-    pass:string;
+    user:string;        // 32 bytes
+    pass:string;        // 64 bytes
 }
 
 table ServerDB {

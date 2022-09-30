@@ -26,7 +26,10 @@ for schema in schemas:
         #run(f"flatc -t --size-prefixed {name}.fbs -- {name}.dat")
         run(f"flatc -t {name}.fbs -- {name}.dat")
     elif action == "gen":
-        #run(f"flatc --cpp --gen-mutable --gen-name-strings --reflect-names -o ..\..\include\ {schema}")
-        run(f"flatc --cpp --gen-mutable --gen-name-strings -o ..\..\include\ {schema}")
+        # --gen-mutable       allow user to scalar fields in-place
+        # --gen-name-strings  generate string converters for e.g. enums
+        # --gen-object-api    allow user to Pack/Unpack to native C++ objects
+        # --reflect-names     generate RTTI for field types, names, etc.
+        run(f"flatc --cpp --gen-mutable --gen-name-strings --gen-object-api -o ..\..\include\ {schema}")
     else:
         print(f"Unknown action {action}")

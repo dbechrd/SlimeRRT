@@ -74,7 +74,7 @@
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <LanguageStandard>stdcpplatest</LanguageStandard>
-      <DisableSpecificWarnings>4505;6011;26451;26812;26819;33011</DisableSpecificWarnings>
+      <DisableSpecificWarnings>4505;6011;26439;26451;26812;26819;33011</DisableSpecificWarnings>
       <WarningLevel>Level3</WarningLevel>
       <ShowIncludes>true</ShowIncludes>
     </ClCompile>

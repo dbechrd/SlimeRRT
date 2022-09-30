@@ -7,7 +7,7 @@
 struct World;
 
 struct NetClient {
-    char     serverHost       [SV_HOSTNAME_LENGTH_MAX]{};
+    char     serverHost       [HOSTNAME_LENGTH_MAX]{};
     size_t   serverHostLength {};
     uint16_t serverPort       {};
     size_t   usernameLength   {};
@@ -45,7 +45,7 @@ struct NetClient {
     void      CloseSocket         (void);
     bool      ConnectedAndSpawned (void) const;
 
-    const FBS_Buffer &FBS_Servers(void) const {
+    FBS_Buffer &FBS_Servers(void) {
         return fbs_servers;
     }
 
