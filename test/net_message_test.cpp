@@ -12,18 +12,18 @@ void net_message_test_snapshot()
     msgWritten.data.worldSnapshot.lastInputAck = 1900;
     msgWritten.data.worldSnapshot.inputOverflow = 0.016731f;
     msgWritten.data.worldSnapshot.playerCount = 1;
-    msgWritten.data.worldSnapshot.enemyCount = 1;
+    msgWritten.data.worldSnapshot.npcCount = 1;
     PlayerSnapshot &player = msgWritten.data.worldSnapshot.players[0];
     player.id = 69;
     player.flags = PlayerSnapshot::Flags_Health | PlayerSnapshot::Flags_HealthMax;
     player.hitPoints = 70;
     player.hitPointsMax = 100;
 
-    EnemySnapshot &enemy = msgWritten.data.worldSnapshot.enemies[0];
-    enemy.id = 70;
-    enemy.flags = EnemySnapshot::Flags_Health | EnemySnapshot::Flags_HealthMax;
-    enemy.hitPoints = 140.0f;
-    enemy.hitPointsMax = 150.0f;
+    NpcSnapshot &npc = msgWritten.data.worldSnapshot.npcs[0];
+    npc.id = 70;
+    npc.flags = NpcSnapshot::Flags_Health | NpcSnapshot::Flags_HealthMax;
+    npc.hitPoints = 140.0f;
+    npc.hitPointsMax = 150.0f;
 
     ENetBuffer rawPacket{ PACKET_SIZE_MAX, calloc(PACKET_SIZE_MAX, sizeof(uint8_t)) };
     msgWritten.Serialize(rawPacket);
@@ -39,17 +39,17 @@ void net_message_test_snapshot()
     assert(msgRead.lastInputAck == msgWritten.data.worldSnapshot.lastInputAck);
     assert(msgRead.inputOverflow == msgWritten.data.worldSnapshot.inputOverflow);
     assert(msgRead.playerCount == msgWritten.data.worldSnapshot.playerCount);
-    assert(msgRead.enemyCount == msgWritten.data.worldSnapshot.enemyCount);
+    assert(msgRead.npcCount == msgWritten.data.worldSnapshot.npcCount);
 
     PlayerSnapshot &playerRead = msgRead.players[0];
     assert(playerRead.id == player.id);
     assert(playerRead.hitPointsMax == player.hitPointsMax);
     assert(playerRead.hitPoints == player.hitPoints);
 
-    EnemySnapshot &enemyRead = msgRead.enemies[0];
-    assert(enemyRead.id == enemy.id);
-    assert(enemyRead.hitPoints == enemy.hitPoints);
-    assert(enemyRead.hitPointsMax == enemy.hitPointsMax);
+    NpcSnapshot &npcRead = msgRead.npcs[0];
+    assert(npcRead.id == npc.id);
+    assert(npcRead.hitPoints == npc.hitPoints);
+    assert(npcRead.hitPointsMax == npc.hitPointsMax);
 
     delete &msgWritten;
     free(rawPacket.data);

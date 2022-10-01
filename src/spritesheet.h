@@ -43,6 +43,9 @@ struct Spritesheet {
     char *                   buf        {};  // file buffer (needs to be freed with UnloadFileData())
 
     ~Spritesheet();
-    bool LoadFromFile(const char *fileName);
+    ErrorType LoadFromFile(const char *filename);
     const SpriteDef *FindSprite(const char *name) const;
+
+private:
+    const char *LOG_SRC = "Spritesheet";
 };

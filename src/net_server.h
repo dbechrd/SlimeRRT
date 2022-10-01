@@ -22,7 +22,7 @@ struct SV_Client {
 
     //RingBuffer<WorldSnapshot, SV_WORLD_HISTORY> worldHistory {};
     std::unordered_map<uint32_t, PlayerSnapshot> playerHistory {};
-    std::unordered_map<uint32_t, EnemySnapshot>  enemyHistory  {};
+    std::unordered_map<uint32_t, NpcSnapshot>    npcHistory    {};
     std::unordered_map<EntityUID, ItemSnapshot>  itemHistory   {};
     std::unordered_set<ChunkHash>                chunkHistory  {};  // TODO: RingBuffer, this set will grow indefinitely
 };
@@ -63,7 +63,7 @@ private:
     ErrorType BroadcastPlayerJoin  (const PlayerInfo &playerInfo);
     ErrorType BroadcastPlayerLeave (uint32_t playerId);
     ErrorType SendPlayerState      (const SV_Client &client, const Player &otherPlayer, bool nearby, bool spawned);
-    ErrorType SendEnemyState       (const SV_Client &client, const Enemy &enemy, bool nearby, bool spawned);
+    ErrorType SendNPCState         (const SV_Client &client, const NPC &npc, bool nearby, bool spawned);
     ErrorType SendItemState        (const SV_Client &client, const ItemWorld &item, bool nearby, bool spawned);
     ErrorType BroadcastTileUpdate  (float worldX, float worldY, const Tile &tile);
 

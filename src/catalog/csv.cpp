@@ -27,9 +27,10 @@ CSV::Error CSV::ReadFromFile(const char *filename)
     CSV::Reader reader{};
     reader.ReadFromMemory(*this, fileData, fileBytes);
 
-    printf("Reading CSV [%s]: %s\n", filename, reader.StatusMsg());
-    if (reader.StatusCode() != CSV::SUCCESS) {
-        printf(reader.StatusMsg());
+    if (reader.StatusCode() == CSV::SUCCESS) {
+        E_INFO("%s: %s", filename, reader.StatusMsg());
+    } else {
+        E_ERROR(ErrorType::FileReadFailed, "%s: %s", filename, reader.StatusMsg());
     }
     return reader.StatusCode();
 }
@@ -65,15 +66,15 @@ const char *CSV::Reader::StatusMsg()
     if (!msg[0]) {
         switch (err) {
             case Error::SUCCESS: {
-                snprintf(msg, sizeof(msg), "SUCCESS: Successfully parsed %u rows with %u columns each.\n", row, columns);
+                snprintf(msg, sizeof(msg), "Successfully parsed %u rows with %u columns each.", row, columns);
                 break;
             }
             case Error::ERR_COLUMN_MISTMATCH: {
-                snprintf(msg, sizeof(msg), "ERR_COLUMN_MISMATCH: Row %u has %u columns, expected %u.\n", row, column, columns);
+                snprintf(msg, sizeof(msg), "ERR_COLUMN_MISMATCH: Row %u has %u columns, expected %u.", row, column, columns);
                 break;
             }
             default: {
-                snprintf(msg, sizeof(msg), "ERR_UNKNOWN: Unexpected error code %d.\n", err);
+                snprintf(msg, sizeof(msg), "ERR_UNKNOWN: Unexpected error code %d.", err);
                 break;
             }
         }

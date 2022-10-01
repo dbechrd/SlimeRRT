@@ -12,7 +12,8 @@
 
 DLB_ASSERT_HANDLER(handle_assert)
 {
-    TraceLog(LOG_ERROR,
+    const char *LOG_SRC = "DLB_ASSERT";
+    E_ERROR(ErrorType::AssertFailed,
         "\n---[DLB_ASSERT_HANDLER]-----------------\n"
         "Source file: %s:%d\n\n"
         "%s\n"
@@ -163,7 +164,6 @@ int main(int argc, char *argv[])
 #include "chat.cpp"
 #include "controller.cpp"
 #include "draw_command.cpp"
-#include "enemy.cpp"
 #include "error.cpp"
 #include "fx/blood.cpp"
 #include "fx/gem.cpp"
@@ -179,7 +179,8 @@ int main(int argc, char *argv[])
 #include "item_system.cpp"
 #include "item_world.cpp"
 #include "loot_table.cpp"
-#include "monster/slime.cpp"
+#include "entities/npc.cpp"
+#include "entities/slime.cpp"
 #include "net_client.cpp"
 #include "net_message.cpp"
 #include "net_server.cpp"

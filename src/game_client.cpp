@@ -38,7 +38,7 @@ inline void RainbowParticlesDamagePlayer(Particle &particle, void *userData)
     const Vector3 gut = player->GetAttachPoint(Player::AttachPoint::Gut);
     const float particleToGut = v3_length_sq(v3_sub(gut, particleWorld));
     if (particleToGut < SQUARED(METERS_TO_PIXELS(0.2f))) {
-        player->combat.DealDamage(0.1f);
+        player->combat.TakeDamage(0.1f);
     }
 }
 
@@ -221,7 +221,7 @@ void GameClient::PlayMode_PollController(PlayerControllerState &input)
 
 ErrorType GameClient::PlayMode_Network()
 {
-    E_ERROR(netClient.Receive(), "Failed to receive packets");
+    E_CHECKMSG(netClient.Receive(), "Failed to receive packets");
 
     if (UI::DisconnectRequested(netClient.IsDisconnected())) {
         netClient.Disconnect();
@@ -577,7 +577,7 @@ ErrorType GameClient::Run(void)
         // Time is of the essence
         const double frameDt = g_clock.update(glfwGetTime());
 
-        E_ERROR(PlayMode_Network(), "Failed to do message processing");
+        E_CHECKMSG(PlayMode_Network(), "Failed to do message processing");
 
         PlayMode_Audio(frameDt);
 

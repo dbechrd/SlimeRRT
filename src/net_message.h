@@ -1,7 +1,7 @@
 #pragma once
 #include "bit_stream.h"
 #include "controller.h"
-#include "enemy.h"
+#include "entities/entities.h"
 #include "player.h"
 #include "tilemap.h"
 #include "world_snapshot.h"

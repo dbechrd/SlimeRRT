@@ -1,38 +1,15 @@
-#include "enemy.h"
+#include "npc.h"
 #include "draw_command.h"
 #include "healthbar.h"
 #include "helpers.h"
 #include "maths.h"
-#include "monster/monster.h"
 #include "shadow.h"
 #include "spritesheet.h"
 #include "dlb_rand.h"
 #include <cassert>
 #include "particles.h"
 
-void Enemy::Init(Type type)
-{
-    assert(!sprite.scale);
-
-    this->type = type;
-    SetName(CSTR("Enemy"));
-
-    body.speed = 1.0f;
-    body.drag = 0.95f;
-    body.friction = 0.95f;
-
-    combat.level = 1;
-    combat.hitPointsMax = 1.0f;
-    combat.hitPoints = combat.hitPointsMax;
-    combat.meleeDamage = 1.0f;
-    combat.xpMin = 1;
-    combat.xpMax = 1;
-    combat.lootTableId = LootTableID::LT_Empty;
-
-    sprite.scale = 1.0f;
-}
-
-void Enemy::SetName(const char *newName, uint32_t newNameLen)
+void NPC::SetName(const char *newName, uint32_t newNameLen)
 {
     memset(name, 0, nameLength);
     nameLength = MIN(newNameLen, USERNAME_LENGTH_MAX);
@@ -42,19 +19,24 @@ void Enemy::SetName(const char *newName, uint32_t newNameLen)
     }
 }
 
-Vector3 Enemy::WorldCenter(void) const
+Vector3 NPC::WorldCenter(void) const
 {
     const Vector3 worldC = v3_add(body.WorldPosition(), sprite_center(sprite));
     return worldC;
 }
 
-Vector3 Enemy::WorldTopCenter(void) const
+Vector3 NPC::WorldTopCenter(void) const
 {
     const Vector3 worldTopC = v3_add(body.WorldPosition(), sprite_top_center(sprite));
     return worldTopC;
 }
 
-void Enemy::UpdateDirection(Vector2 offset)
+float NPC::TakeDamage(float damage)
+{
+    return combat.TakeDamage(damage);
+}
+
+void NPC::UpdateDirection(Vector2 offset)
 {
     Direction prevDirection = sprite.direction;
     if (offset.x > 0.0f) {
@@ -85,32 +67,44 @@ void Enemy::UpdateDirection(Vector2 offset)
     }
 }
 
-void Enemy::Update(World &world, double dt)
+void NPC::Update(World &world, double dt)
 {
-    if (!combat.diedAt) {
-        switch (type) {
-            case Type_Slime: Monster::slime_update(*this, dt, world); break;
-            default: break;
-        }
+    switch (type) {
+        case Type::Type_Slime: Slime::Update(*this, world, dt); break;
     }
 
     body.Update(dt);
     sprite_update(sprite, dt);
     combat.Update(dt);
+
+    if (g_clock.server && combat.diedAt && !combat.droppedDeathLoot) {
+#if _DEBUG
+        // If this fires, we're probably doing multiple interp/extrap for NPCs now, and need a flag similar
+        // to input.skipFx in Player::Update() to prevent loot from rolling many times client-side.
+        thread_local double lastRan = g_clock.now;
+        DLB_ASSERT(g_clock.now > lastRan);
+        lastRan = g_clock.now;
+#endif
+        world.lootSystem.SV_RollDrops(combat.lootTableId, [&](ItemStack dropStack) {
+            world.itemSystem.SpawnItem(WorldCenter(), dropStack.uid, dropStack.count);
+        });
+
+        combat.droppedDeathLoot = true;
+    }
 }
 
-float Enemy::Depth(void) const
+float NPC::Depth(void) const
 {
     return body.GroundPosition().y;
 }
 
-bool Enemy::Cull(const Rectangle &cullRect) const
+bool NPC::Cull(const Rectangle &cullRect) const
 {
     bool cull = sprite_cull_body(sprite, body, cullRect);
     return cull;
 }
 
-void Enemy::Draw(World &world)
+void NPC::Draw(World &world)
 {
     const Vector3 worldPos = body.WorldPosition();
     if (combat.hitPoints) {

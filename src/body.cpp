@@ -59,7 +59,7 @@ inline Vector2 Body3D::GroundPositionServer(void) const
 
 inline Vector2 Body3D::PrevGroundPosition(void) const
 {
-    Vector2 prevGroundPosition = { prevPosition.x, prevPosition.y };
+    Vector2 prevGroundPosition = { positionPrev.x, positionPrev.y };
     prevGroundPosition.x = floorf(prevGroundPosition.x);
     prevGroundPosition.y = floorf(prevGroundPosition.y);
     return prevGroundPosition;
@@ -78,43 +78,27 @@ inline Vector2 Body3D::VisualPosition(void) const
 
 inline void Body3D::Teleport(Vector3 pos)
 {
-    prevPosition = position;
-    position.x = pos.x;
-    position.y = pos.y;
-    position.z = pos.z;
-    lastMoved = g_clock.now;
+    destPosition.x = pos.x;
+    destPosition.y = pos.y;
+    destPosition.z = pos.z;
 }
 
 inline void Body3D::Move(Vector2 offset)
 {
-    prevPosition = position;
-    position.x += offset.x;
-    position.y += offset.y;
-    lastMoved = g_clock.now;
+    destPosition.x += offset.x;
+    destPosition.y += offset.y;
 }
 
 inline void Body3D::Move3D(Vector3 offset)
 {
-    prevPosition = position;
-    position.x += offset.x;
-    position.y += offset.y;
-    position.z += offset.z;
-    lastMoved = g_clock.now;
-}
-
-inline bool Body3D::Bounced(void) const
-{
-    return bounced;
+    destPosition.x += offset.x;
+    destPosition.y += offset.y;
+    destPosition.z += offset.z;
 }
 
 inline bool Body3D::OnGround(void) const
 {
     return position.z == 0.0f;
-}
-
-inline bool Body3D::JustLanded(void) const
-{
-    return landed;
 }
 
 inline bool Body3D::Resting(void) const
@@ -125,6 +109,21 @@ inline bool Body3D::Resting(void) const
 inline bool Body3D::Idle(void) const
 {
     return idle;
+}
+
+inline bool Body3D::Jumped(void) const
+{
+    return jumped;
+}
+
+inline bool Body3D::Landed(void) const
+{
+    return landed;
+}
+
+inline bool Body3D::Bounced(void) const
+{
+    return bounced;
 }
 
 inline double Body3D::TimeSinceLastMove(void) const
@@ -141,7 +140,15 @@ inline void Body3D::ApplyForce(Vector3 force)
 
 void Body3D::Update(double dt)
 {
-    prevPosition = position;
+    positionPrev = position;
+    position = destPosition;
+
+    DLB_ASSERT(isfinite(position.x));
+    DLB_ASSERT(isfinite(position.y));
+    DLB_ASSERT(isfinite(position.z));
+    DLB_ASSERT(isfinite(velocity.x));
+    DLB_ASSERT(isfinite(velocity.y));
+    DLB_ASSERT(isfinite(velocity.z));
 
     // Simulate physics if body not resting
     if (!Resting()) {
@@ -157,7 +164,7 @@ void Body3D::Update(double dt)
             // Clamp tiny velocities to zero
             const Vector3 zero = { 0, 0, 0 };
             if ((fabsf(velocity.z) - gravity * (float)dt) < VELOCITY_EPSILON) {
-                //TraceLog(LOG_DEBUG, "Resting body since velocity due to gravity");
+                //E_DEBUG("Resting body since velocity due to gravity");
                 velocity = zero;
                 position.z = 0.0f;
             } else {
@@ -173,13 +180,20 @@ void Body3D::Update(double dt)
                 velocity.y *= friction_coef;
             }
         }
+
+        DLB_ASSERT(isfinite(position.x));
+        DLB_ASSERT(isfinite(position.y));
+        DLB_ASSERT(isfinite(position.z));
+        DLB_ASSERT(isfinite(velocity.x));
+        DLB_ASSERT(isfinite(velocity.y));
+        DLB_ASSERT(isfinite(velocity.z));
     }
 
-    // NOTE: Position can be updated manually outside of physics sim (e.g. player Move() controller)
-    if (!v3_equal(position, prevPosition, POSITION_EPSILON)) {
+    if (!v3_equal(position, positionPrev, POSITION_EPSILON)) {
         lastMoved = g_clock.now;
     }
-    landed = (prevPosition.z > 0.0f && position.z == 0.0f);
+    jumped = (positionPrev.z == 0.0f && position.z > 0.0f);
+    landed = (positionPrev.z > 0.0f && position.z == 0.0f);
     bounced = bounced && !v3_is_zero(velocity);
 
     const double timeSinceLastMove = g_clock.now - lastMoved;

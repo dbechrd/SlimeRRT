@@ -43,12 +43,12 @@ ErrorType GameServer::Run(const Args &args)
 
     netServer.serverWorld = world;
 
-    E_ERROR(netServer.OpenSocket(args.port), "Failed to open socket");
+    E_CHECKMSG(netServer.OpenSocket(args.port), "Failed to open socket");
 
     g_clock.server = true;
 
     while (!args.serverQuit) {
-        E_ERROR(netServer.Listen(), "Failed to listen on socket");
+        E_CHECKMSG(netServer.Listen(), "Failed to listen on socket");
 
         const double now = glfwGetTime();
         const double dt = now - g_clock.nowPrev;
@@ -65,7 +65,7 @@ ErrorType GameServer::Run(const Args &args)
             // Time is of the essence
             g_clock.now += SV_TICK_DT;
             world->tick++;
-            //TraceLog(LOG_DEBUG, "tick: %u now: %f clock: %f dt: %f", world->tick, now, g_clock.now, dt);
+            //E_DEBUG("tick: %u now: %f clock: %f dt: %f", world->tick, now, g_clock.now, dt);
 #if 0
             // DEBUG: Drop all client inputs if server was paused for too long in debugger
             if (tickDt > SV_DEBUG_TICK_DT_MAX) {
@@ -91,7 +91,7 @@ ErrorType GameServer::Run(const Args &args)
 
                 Player *player = world->FindPlayer(client.playerId);
                 if (!player) {
-                    TraceLog(LOG_DEBUG, "Player not found, cannot simulate");
+                    E_DEBUG("Player not found, cannot simulate");
                     continue;
                 }
                 assert(client.playerId == player->id);
@@ -114,7 +114,7 @@ ErrorType GameServer::Run(const Args &args)
                         int first = client.lastInputAck + 1;
                         int last = oldestInputSeqToProcess - 1;
                         int count = (last - first) + 1;
-                        TraceLog(LOG_WARNING, "SVR [tick: %u] discard old input: %u - %u (%u samples)", world->tick, first, last, count);
+                        E_WARN("SVR [tick: %u] discard old input: %u - %u (%u samples)", world->tick, first, last, count);
                         client.lastInputAck = last;
                     }
                 }
@@ -126,7 +126,7 @@ ErrorType GameServer::Run(const Args &args)
                     for (size_t i = 0; i < inputHistoryLen && processedDt < SV_TICK_DT; i++) {
                         InputSample input = client.inputHistory.At(i);
                         if (input.seq <= client.lastInputAck) {
-                            //TraceLog(LOG_WARNING, "Ignoring old input #%u from %u\n", sample.seq, sample.ownerId);
+                            //E_WARN("Ignoring old input #%u from %u\n", sample.seq, sample.ownerId);
                             continue;
                         }
 
@@ -147,7 +147,7 @@ ErrorType GameServer::Run(const Args &args)
                             input.dt -= client.inputOverflow;
                         }
 
-                        //TraceLog(LOG_DEBUG, "SVR SQ: %u OS: %f S: %f", input.seq, origInput.dt, input.dt);
+                        //E_DEBUG("SVR SQ: %u OS: %f S: %f", input.seq, origInput.dt, input.dt);
                         player->Update(input, world->map);
                     }
                 }
@@ -159,12 +159,12 @@ ErrorType GameServer::Run(const Args &args)
 
                 if (g_clock.now - client.lastSnapshotSentAt > SNAPSHOT_SEND_DT) {
     #if SV_DEBUG_INPUT_SAMPLES
-                    TraceLog(LOG_DEBUG, "Sending snapshot for tick %u / input seq #%u, to player %u\n", world->tick, client.lastInputAck, client.playerId);
+                    E_DEBUG("Sending snapshot for tick %u / input seq #%u, to player %u\n", world->tick, client.lastInputAck, client.playerId);
     #endif
                     // Send snapshot
-                    E_ERROR(netServer.SendWorldSnapshot(client), "Failed to send world snapshot");
+                    E_CHECKMSG(netServer.SendWorldSnapshot(client), "Failed to send world snapshot");
                 } else {
-                    //TraceLog(LOG_DEBUG, "Skipping shapshot for %u", client.playerId);
+                    //E_DEBUG("Skipping shapshot for %u", client.playerId);
                 }
 
                 // TODO: Send global events

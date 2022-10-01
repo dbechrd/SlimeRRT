@@ -20,13 +20,13 @@ ItemWorld *ItemSystem::SpawnItem(Vector3 pos, ItemUID itemUid, uint32_t count, E
     DLB_ASSERT(count);
 
     if (!count) {
-        TraceLog(LOG_WARNING, "Not spawning item stack with count 0.");
+        E_WARN("Not spawning item stack with count 0.");
         return 0;
     }
 
     if (worldItems.size() == SV_MAX_ITEMS) {
         // TODO: Delete oldest item instead of discarding the new one
-        TraceLog(LOG_ERROR, "Item pool is full; discarding item.");
+        E_WARN("Item pool is full; discarding item.");
         return 0;
     }
     ItemWorld worldItem{};
@@ -34,7 +34,7 @@ ItemWorld *ItemSystem::SpawnItem(Vector3 pos, ItemUID itemUid, uint32_t count, E
     if (euid) {
         ItemWorld *existingItemWithId = Find(euid);
         if (existingItemWithId) {
-            TraceLog(LOG_ERROR, "Trying to spawn a world item that already exists in the world.");
+            E_WARN("Trying to spawn a world item that already exists in the world.");
             return 0;
         }
         worldItem.euid = euid;
@@ -94,18 +94,17 @@ ItemWorld *ItemSystem::Find(EntityUID euid)
     return &worldItems[idx];
 }
 
-bool ItemSystem::Remove(EntityUID euid)
+ErrorType ItemSystem::Remove(EntityUID euid)
 {
 #if SV_DEBUG_WORLD_ITEMS
-    TraceLog(LOG_DEBUG, "Despawning item %u", euid);
+    E_DEBUG("Despawning item %u", euid);
 #endif
     auto elem = byEuid.find(euid);
     if (elem == byEuid.end()) {
-        //TraceLog(LOG_WARNING, "Cannot remove an item that doesn't exist. uid: %u", uid);
-        return false;
+        E_WARN("Cannot remove an item that doesn't exist. euid: %u", euid);
+        return ErrorType::Success;
     }
 
-    bool success = false;
     uint32_t idx = elem->second;
     uint32_t len = (uint32_t)worldItems.size();
     if (idx < len) {
@@ -121,16 +120,15 @@ bool ItemSystem::Remove(EntityUID euid)
             // Update size
             worldItems.pop_back();
         }
-        success = true;
     } else {
-        TraceLog(LOG_ERROR, "Item index out of range. uid: %u idx: %zu size: %zu", euid, idx, worldItems.size());
+        E_CHECKMSG(ErrorType::OutOfBounds, "Item index out of range. uid: %u idx: %zu size: %zu", euid, idx, worldItems.size());
     }
     byEuid.erase(euid);
 
 #if SV_DEBUG_WORLD_ITEMS
-    TraceLog(LOG_DEBUG, "Despawned item %u", uid);
+    E_DEBUG("Despawned item %u", uid);
 #endif
-    return success;
+    return ErrorType::Success;
 }
 
 void ItemSystem::Update(double dt)
@@ -165,7 +163,7 @@ void ItemSystem::DespawnDeadEntities(double pickupDespawnDelay)
             DLB_ASSERT(item.stack.uid);
             // NOTE: If remove succeeds, don't increment index, next element to check is in the
             // same slot now.
-            i += !Remove(item.euid);
+            i += (Remove(item.euid) == ErrorType::Success);
         } else {
             i++;
         }

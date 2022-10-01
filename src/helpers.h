@@ -80,7 +80,7 @@
 #define SV_SINGLEPLAYER_PASS        "guest"
 #define SV_USERNAME                 "SERVER"
 #define SV_MAX_PLAYERS              8
-#define SV_MAX_ENEMIES              32
+#define SV_MAX_NPCS                 1
 #define SV_MAX_ITEMS                256 //4096
 #define SV_WORLD_ITEM_LIFETIME      120 //600 // despawn items after 10 minutes
 #define SV_TICK_RATE                50
@@ -95,16 +95,16 @@
 // NOTE: max diagonal distance at 1080p is 1100 + radius units. 1200px allows for a ~50px wide entity
 #if 1
 #define SV_PLAYER_NEARBY_THRESHOLD  METERS_TO_PIXELS(20.0f)  // how close a player has to be to appear in your snapshot
-#define SV_ENEMY_NEARBY_THRESHOLD   METERS_TO_PIXELS(20.0f)  // how close an enemy has to be to appear in your snapshot
+#define SV_NPC_NEARBY_THRESHOLD     METERS_TO_PIXELS(20.0f)  // how close an NPC has to be to appear in your snapshot
 #define SV_ENEMY_MIN_SPAWN_DIST     METERS_TO_PIXELS(5.0f)//METERS_TO_PIXELS(15.0f)  // closest enemies can spawn to a player
 #define SV_ENEMY_DESPAWN_RADIUS     METERS_TO_PIXELS(40.0f)  // furthest enemies can be from a player before despawning
 #define SV_ITEM_NEARBY_THRESHOLD    METERS_TO_PIXELS(20.0f)  // how close an item has to be to receive a snapshot
 #else
-#define SV_PLAYER_NEARBY_THRESHOLD  300.0f  // how close a player has to be to appear in your snapshot
-#define SV_ENEMY_NEARBY_THRESHOLD   300.0f  // how close an enemy has to be to appear in your snapshot
-#define SV_ENEMY_MIN_SPAWN_DIST     METERS_TO_PIXELS(4.0f)  // closest enemies can spawn to a player
-#define SV_ENEMY_DESPAWN_RADIUS     METERS_TO_PIXELS(7.0f)  // furthest enemies can be from a player before despawning
-#define SV_ITEM_NEARBY_THRESHOLD    300.0f                  // how close an item has to be to receive a snapshot
+#define SV_PLAYER_NEARBY_THRESHOLD  300.0f                   // how close a player has to be to appear in your snapshot
+#define SV_NPC_NEARBY_THRESHOLD     300.0f                   // how close an NPC has to be to appear in your snapshot
+#define SV_ENEMY_MIN_SPAWN_DIST     METERS_TO_PIXELS(4.0f)   // closest enemies can spawn to a player
+#define SV_ENEMY_DESPAWN_RADIUS     METERS_TO_PIXELS(7.0f)   // furthest enemies can be from a player before despawning
+#define SV_ITEM_NEARBY_THRESHOLD    300.0f                   // how close an item has to be to receive a snapshot
 #endif
 #define SV_ITEM_ATTRACT_DIST        METERS_TO_PIXELS(1.0f)   // how close player should be to item to attract it
 #define SV_ITEM_PICKUP_DIST         METERS_TO_PIXELS(0.3f)   // how close player should be to item to pick it up
@@ -113,8 +113,8 @@
 #define SV_STALE_RADIUS             50.0f                    // unknown.. was this supposed to be used for something?
 #define SV_PLAYER_MOVE_SPEED        3.0f                     // how fast player walks, in meters
 #define SV_PLAYER_CORPSE_LIFETIME   8.0                      // how long to wait after a player dies to despawn their corpse
-#define SV_ENEMY_CORPSE_LIFETIME    4.0                      // how long to wait after an enemy dies to despawn their corpse
-#define SV_ENEMY_STALE_LIFETIME     4.0                      // how long to wait to receive the next snapshot before despawning an enemy
+#define SV_NPC_CORPSE_LIFETIME      4.0                      // how long to wait after an NPC dies to despawn their corpse
+#define SV_NPC_STALE_LIFETIME       4.0                      // how long to wait to receive the next snapshot before despawning an NPC
 #define SV_RESPAWN_TIMER            5.0                      // how long to make player stare at nothing before respawning
 #define SV_COMMAND_MAX_ARGS         16                       // max # of args a chat command can have
 #define SV_SLIME_MOVE_SPEED         2.0f                     // how fast slimes can move (i.e. jump)
@@ -129,7 +129,7 @@
 #define SNAPSHOT_SEND_RATE            20  //SV_TICK_RATE  //MIN(30, SV_TICK_RATE)
 #define SNAPSHOT_SEND_DT              (1.0 / SV_TICK_RATE)
 #define SNAPSHOT_MAX_PLAYERS          SV_MAX_PLAYERS
-#define SNAPSHOT_MAX_ENEMIES          MIN(64, SV_MAX_ENEMIES)
+#define SNAPSHOT_MAX_NPCS             MIN(64, SV_MAX_NPCS)
 #define SNAPSHOT_MAX_ITEMS            MIN(64, SV_MAX_ITEMS)
 
 #define CL_FRAME_DT_MAX               (2.0 * SV_TICK_DT)
@@ -141,7 +141,7 @@
 #define CL_CHAT_HISTORY               256
 #define CL_FARAWAY_BUFFER_RADIUS      (SV_STALE_RADIUS * 2.0f)
 #define CL_PLAYER_FARAWAY_THRESHOLD   (SV_PLAYER_NEARBY_THRESHOLD + CL_FARAWAY_BUFFER_RADIUS)
-#define CL_ENEMY_FARAWAY_THRESHOLD    (SV_ENEMY_NEARBY_THRESHOLD + CL_FARAWAY_BUFFER_RADIUS)
+#define CL_NPC_FARAWAY_THRESHOLD      (SV_NPC_NEARBY_THRESHOLD + CL_FARAWAY_BUFFER_RADIUS)
 #define CL_INVENTORY_UPDATE_SLOTS_MAX 256
 #define CL_MAX_PLAYER_POS_DESYNC_DIST METERS_TO_PIXELS(0.01)  // less than 1 pixel delta allowed
 #define CL_PLAYER_POS_SMOOTH_FACTOR   0.5f
@@ -160,6 +160,7 @@
 #define USERNAME_LENGTH_MAX     32
 #define PASSWORD_LENGTH_MIN     4   // TODO: Increase to 8
 #define PASSWORD_LENGTH_MAX     64
+#define ENTITY_NAME_LENGTH_MAX  64
 #define TIMESTAMP_LENGTH        12  // hh:MM:SS AM
 #define MOTD_LENGTH_MIN         0
 #define MOTD_LENGTH_MAX         64

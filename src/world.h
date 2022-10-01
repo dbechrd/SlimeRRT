@@ -7,7 +7,7 @@
 #include "item_world.h"
 #include "particles.h"
 #include "player.h"
-#include "enemy.h"
+#include "entities/entities.h"
 #include "spycam.h"
 #include "tilemap.h"
 #include "world_snapshot.h"
@@ -24,7 +24,7 @@ struct World {
     Player         players        [SV_MAX_PLAYERS]{};
     PlayerInfo     playerInfos    [SV_MAX_PLAYERS]{};
     // TODO: SlimeSystem or EnemySystem
-    Enemy          enemies        [SV_MAX_ENEMIES]{};
+    NPC            npcs           [SV_MAX_NPCS]{};
     ItemSystem     itemSystem     {};
     LootSystem     lootSystem     {};
     MapSystem      mapSystem      {};
@@ -53,10 +53,10 @@ struct World {
     Player     *FindClosestPlayer    (Vector2 worldPos, float maxDist, float *distSq);
     void        RemovePlayer         (uint32_t playerId);
 
-    Enemy      &SpawnSam             (void);
-    Enemy      *SpawnEnemy           (uint32_t enemyId, Vector2 origin);
-    Enemy      *FindEnemy            (uint32_t enemyId);
-    void        RemoveEnemy          (uint32_t enemyId);
+    NPC        &SpawnSam             (void);
+    NPC        *SpawnEnemy           (uint32_t npcId, Vector2 origin);
+    NPC        *FindNpc              (uint32_t npcId);
+    void        RemoveNpc            (uint32_t npcId);
     //
     // ^^^ DO NOT HOLD A POINTER TO THESE! ^^^
     ////////////////////////////////////////////
@@ -77,8 +77,9 @@ struct World {
     void   DrawFlush     (void);
 
 private:
+    const char *LOG_SRC = "World";
     void SV_SimPlayers (double dt);
-    void SV_SimEnemies (double dt);
+    void SV_SimNpcs    (double dt);
     void SV_SimItems   (double dt);
 
     bool CL_InterpolateBody(Body3D &body, double renderAt, Direction &direction);

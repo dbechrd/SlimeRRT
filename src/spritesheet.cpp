@@ -50,9 +50,6 @@
     PATH_SEPARATOR \
     FILENAME
 
-
-
-
 struct Token {
     enum class Type {
         Unknown,
@@ -70,23 +67,24 @@ struct Scanner {
     bool DiscardChar(char c);
     bool DiscardString(const char *str);
     char PeekChar() const;
-    bool ConsumePositiveInt(int *value);
+    ErrorType ConsumePositiveInt(int *value);
     StringView ConsumeString_Alpha();
     StringView ConsumeString_Name();
-    bool ConsumeString_Path(char *buf, size_t bufLength);
+    ErrorType ConsumeString_Path(char *buf, size_t bufLength);
     void DiscardWhitespace();
     void DiscardNewlines();
     void DiscardComment();
     void DiscardWhitespaceNewlinesComments();
     Token::Type GetIdentifierType(StringView tok);
-    Token ParseIdentifier();
-    bool ParseHeader(Spritesheet &spritesheet);
-    bool ParseFrame(SpriteFrame &frame);
-    bool ParseAnimation(SpriteAnim &animation);
-    bool ParseSprite(SpriteDef &sprite);
-    bool ParseSpritesheet(Spritesheet &spritesheet);
+    ErrorType ParseIdentifier(Token *token);
+    ErrorType ParseHeader(Spritesheet &spritesheet);
+    ErrorType ParseFrame(SpriteFrame &frame);
+    ErrorType ParseAnimation(SpriteAnim &animation);
+    ErrorType ParseSprite(SpriteDef &sprite);
+    ErrorType ParseSpritesheet(Spritesheet &spritesheet);
 
 public:
+    const char *LOG_SRC = "Scanner";
     const char *fileName;
     size_t cursor;
     size_t length;
@@ -131,7 +129,7 @@ char Scanner::PeekChar() const
     return c;
 }
 
-bool Scanner::ConsumePositiveInt(int *value)
+ErrorType Scanner::ConsumePositiveInt(int *value)
 {
     bool foundNum = false;
     int accum = 0;
@@ -142,8 +140,7 @@ bool Scanner::ConsumePositiveInt(int *value)
                 accum = accum * 10 + (int)(c - '0');
                 if (accum < 0) {
                     // TODO: Better error info (line/column)
-                    TraceLog(LOG_ERROR, "'%s': Integer overflow in ConsumeInt.\n", fileName);
-                    exit(-1);
+                    E_CHECKMSG(ErrorType::Overflow, "'%s': Integer overflow in ConsumeInt.\n", fileName);
                 }
                 foundNum = true;
                 cursor++;
@@ -159,7 +156,10 @@ bool Scanner::ConsumePositiveInt(int *value)
     if (value && foundNum) {
         *value = accum;
     }
-    return foundNum;
+    if (!foundNum) {
+        return ErrorType::NotFound;
+    }
+    return ErrorType::Success;
 }
 
 StringView Scanner::ConsumeString_Alpha()
@@ -207,16 +207,18 @@ StringView Scanner::ConsumeString_Name()
     return view;
 }
 
-bool Scanner::ConsumeString_Path(char *buf, size_t bufLength)
+ErrorType Scanner::ConsumeString_Path(char *buf, size_t bufLength)
 {
     size_t bufCursor = 0;
 
+    bool foundPath = false;
     char c = PeekChar();
     while (c && bufCursor < bufLength) {
         switch (c) {
             PATH {
                 buf[bufCursor] = c;
                 bufCursor++;
+                foundPath = true;
                 cursor++;
                 c = PeekChar();
                 break;
@@ -227,12 +229,12 @@ bool Scanner::ConsumeString_Path(char *buf, size_t bufLength)
         }
     }
 
-    if (c && bufCursor == bufLength) {
-        TraceLog(LOG_ERROR, "%s: Internal buffer is not big enough (max: %zu) to hold that path.\n", fileName, bufLength);
-        assert(!"Internal path buffer not big enough");
-        exit(-1);
+    if (!foundPath) {
+        E_CHECKMSG(ErrorType::FileReadFailed, "Expected path string, found '%c' instead.", c);
+    } else if (c && bufCursor == bufLength) {
+        E_CHECKMSG(ErrorType::FileReadFailed, "%s: Internal buffer is not big enough (max: %zu) to hold that path.\n", fileName, bufLength);
     }
-    return true;
+    return ErrorType::Success;
 }
 
 void Scanner::DiscardWhitespace()
@@ -308,20 +310,21 @@ Token::Type Scanner::GetIdentifierType(StringView tok)
     return type;
 }
 
-Token Scanner::ParseIdentifier()
+ErrorType Scanner::ParseIdentifier(Token *token)
 {
     Token tok{};
     tok.token = ConsumeString_Alpha();
     tok.type = GetIdentifierType(tok.token);
     if (tok.type == Token::Type::Unknown) {
         // TODO: Report better error info (line/column)
-        TraceLog(LOG_ERROR, "Encountered unrecognized tokifer '%.*s' in file '%s'.\n", tok.token.length,
+        E_CHECKMSG(ErrorType::FileReadFailed, "Encountered unrecognized token '%.*s' in file '%s'.\n", tok.token.length,
             tok.token.text, fileName);
     }
-    return tok;
+    if (token) *token = tok;
+    return ErrorType::Success;
 }
 
-bool Scanner::ParseHeader(Spritesheet &spritesheet)
+ErrorType Scanner::ParseHeader(Spritesheet &spritesheet)
 {
 #define USAGE "  Usage: spritesheet <frame_count> <animation_count> <sprite_count> <texture_path>\n" \
               "Example: spritesheet 8 1 1 data/texture/item/coin_copper.png\n"
@@ -332,40 +335,33 @@ bool Scanner::ParseHeader(Spritesheet &spritesheet)
 
     // frame count
     DiscardWhitespaceNewlinesComments();
-    if (!ConsumePositiveInt(&frameCount)) {
-        TraceLog(LOG_ERROR, "'%s': Expected frame_count.\n" USAGE, fileName);
-        return false;
+    if (ConsumePositiveInt(&frameCount) != ErrorType::Success) {
+        E_CHECKMSG(ErrorType::FileReadFailed, "'%s': Expected frame_count.\n" USAGE, fileName);
     } else if (frameCount <= 0) {
-        TraceLog(LOG_ERROR, "'%s': frame_count must be a positive, non-zero integer.\n" USAGE, fileName);
-        return false;
+        E_CHECKMSG(ErrorType::FileReadFailed, "'%s': frame_count must be a positive, non-zero integer.\n" USAGE, fileName);
     }
 
     // animation count
     DiscardWhitespaceNewlinesComments();
-    if (!ConsumePositiveInt(&animationCount)) {
-        TraceLog(LOG_ERROR, "'%s': Expected animation_count.\n" USAGE, fileName);
-        return false;
+    if (ConsumePositiveInt(&animationCount) != ErrorType::Success) {
+        E_CHECKMSG(ErrorType::FileReadFailed, "'%s': Expected animation_count.\n" USAGE, fileName);
     } else if (animationCount < 0) {
-        TraceLog(LOG_ERROR, "'%s': animation_count must be a positive integer or zero.\n" USAGE, fileName);
-        return false;
+        E_CHECKMSG(ErrorType::FileReadFailed, "'%s': animation_count must be a positive integer or zero.\n" USAGE, fileName);
     }
 
     // sprite count
     DiscardWhitespaceNewlinesComments();
-    if (!ConsumePositiveInt(&spriteCount)) {
-        TraceLog(LOG_ERROR, "'%s': Expected sprite_count.\n" USAGE, fileName);
-        return false;
+    if (ConsumePositiveInt(&spriteCount) != ErrorType::Success) {
+        E_CHECKMSG(ErrorType::FileReadFailed, "'%s': Expected sprite_count.\n" USAGE, fileName);
     } else if (spriteCount <= 0) {
-        TraceLog(LOG_ERROR, "'%s': sprite_count must be a positive, non-zero integer.\n" USAGE, fileName);
-        return false;
+        E_CHECKMSG(ErrorType::FileReadFailed, "'%s': sprite_count must be a positive, non-zero integer.\n" USAGE, fileName);
     }
 
     // texture path
     DiscardWhitespaceNewlinesComments();
     char texturePath[256] = {};
-    if (!ConsumeString_Path(texturePath, sizeof(texturePath) - 1)) {
-        TraceLog(LOG_ERROR, "'%s': Expected texture_path. " USAGE "\n", fileName);
-        return false;
+    if (ConsumeString_Path(texturePath, sizeof(texturePath) - 1) != ErrorType::Success) {
+        E_CHECKMSG(ErrorType::FileReadFailed, "'%s': Expected texture_path. " USAGE "\n", fileName);
     }
 
     //--------------------------------------------------------------------------------
@@ -386,16 +382,15 @@ bool Scanner::ParseHeader(Spritesheet &spritesheet)
     // Load spritesheet texture
     spritesheet.texture = LoadTexture(texturePath);
     if (!spritesheet.texture.width) {
-        TraceLog(LOG_ERROR, "'%s': Failed to load spritesheet texture [path: %s].\n", fileName, texturePath);
-        return false;
+        E_CHECKMSG(ErrorType::FileReadFailed, "'%s': Failed to load spritesheet texture [path: %s].\n", fileName, texturePath);
     }
     //--------------------------------------------------------------------------------
 
-    return true;
+    return ErrorType::Success;
 #undef USAGE
 }
 
-bool Scanner::ParseFrame(SpriteFrame &frame)
+ErrorType Scanner::ParseFrame(SpriteFrame &frame)
 {
 #define USAGE "  Usage: frame <name> <x> <y> <width> <height>\n" \
               "Example: frame player_melee_idle 0 0 54 94\n"
@@ -404,49 +399,42 @@ bool Scanner::ParseFrame(SpriteFrame &frame)
     DiscardWhitespaceNewlinesComments();
     frame.name = ConsumeString_Name();
     if (!frame.name.length) {
-        TraceLog(LOG_ERROR, "'%s': Expected name.\n" USAGE, fileName);
-        return false;
+        E_CHECKMSG(ErrorType::FileReadFailed, "'%s': Expected name.\n" USAGE, fileName);
     }
 
     // x
     DiscardWhitespaceNewlinesComments();
-    if (!ConsumePositiveInt(&frame.x)) {
-        TraceLog(LOG_ERROR, "'%s': Expected frame x (left).\n" USAGE, fileName);
-        return false;
+    if (ConsumePositiveInt(&frame.x) != ErrorType::Success) {
+        E_CHECKMSG(ErrorType::FileReadFailed, "'%s': Expected frame x (left).\n" USAGE, fileName);
     }
 
     // y
     DiscardWhitespaceNewlinesComments();
-    if (!ConsumePositiveInt(&frame.y)) {
-        TraceLog(LOG_ERROR, "'%s': Expected frame y (top).\n" USAGE, fileName);
-        return false;
+    if (ConsumePositiveInt(&frame.y) != ErrorType::Success) {
+        E_CHECKMSG(ErrorType::FileReadFailed, "'%s': Expected frame y (top).\n" USAGE, fileName);
     }
 
     // width
     DiscardWhitespaceNewlinesComments();
-    if (!ConsumePositiveInt(&frame.width)) {
-        TraceLog(LOG_ERROR, "'%s': Expected frame width.\n" USAGE, fileName);
-        return false;
+    if (ConsumePositiveInt(&frame.width) != ErrorType::Success) {
+        E_CHECKMSG(ErrorType::FileReadFailed, "'%s': Expected frame width.\n" USAGE, fileName);
     } else if (frame.width <= 0) {
-        TraceLog(LOG_ERROR, "'%s': width must be a positive, non-zero integer.\n" USAGE, fileName);
-        return false;
+        E_CHECKMSG(ErrorType::FileReadFailed, "'%s': width must be a positive, non-zero integer.\n" USAGE, fileName);
     }
 
     // height
     DiscardWhitespaceNewlinesComments();
-    if (!ConsumePositiveInt(&frame.height)) {
-        TraceLog(LOG_ERROR, "'%s': Expected frame height.\n" USAGE, fileName);
-        return false;
+    if (ConsumePositiveInt(&frame.height) != ErrorType::Success) {
+        E_CHECKMSG(ErrorType::FileReadFailed, "'%s': Expected frame height.\n" USAGE, fileName);
     } else if (frame.height <= 0) {
-        TraceLog(LOG_ERROR, "'%s': height must be a positive, non-zero integer.\n" USAGE, fileName);
-        return false;
+        E_CHECKMSG(ErrorType::FileReadFailed, "'%s': height must be a positive, non-zero integer.\n" USAGE, fileName);
     }
 
-    return true;
+    return ErrorType::Success;
 #undef USAGE
 }
 
-bool Scanner::ParseAnimation(SpriteAnim &animation)
+ErrorType Scanner::ParseAnimation(SpriteAnim &animation)
 {
 #define USAGE "  Usage: animation <name> <frame0> [frame1] ... [frame15]\n" \
               "Example: animation coin_spin 0 1 2 3 4 5 6 7\n"
@@ -455,30 +443,34 @@ bool Scanner::ParseAnimation(SpriteAnim &animation)
     DiscardWhitespaceNewlinesComments();
     animation.name = ConsumeString_Name();
     if (!animation.name.length) {
-        TraceLog(LOG_ERROR, "'%s': Expected name.\n" USAGE, fileName);
-        return false;
+        E_CHECKMSG(ErrorType::FileReadFailed, "'%s': Expected name.\n" USAGE, fileName);
     }
 
     // frames
     for (int i = 0; i < SPRITEANIM_MAX_FRAMES; i++) {
         DiscardWhitespaceNewlinesComments();
-        if (ConsumePositiveInt(&animation.frames[i])) {
-            animation.frameCount++;
-        } else {
-            animation.frames[i] = -1;
+        ErrorType err = ConsumePositiveInt(&animation.frames[i]);
+        switch (err) {
+            case ErrorType::Success:
+                animation.frameCount++;
+                break;
+            case ErrorType::NotFound:
+                animation.frames[i] = -1;
+                break;
+            default:
+                E_CHECKMSG(err, "Failed to parse spriteanim frame");
         }
     }
 
     if (!animation.frameCount) {
-        TraceLog(LOG_ERROR, "'%s': Expected at least one frame index.\n" USAGE, fileName);
-        return false;
+        E_CHECKMSG(ErrorType::FileReadFailed, "'%s': Expected at least one frame index.\n" USAGE, fileName);
     }
 
-    return true;
+    return ErrorType::Success;
 #undef USAGE
 }
 
-bool Scanner::ParseSprite(SpriteDef &sprite)
+ErrorType Scanner::ParseSprite(SpriteDef &sprite)
 {
 #define USAGE "  Usage: sprite <name> <anim_n> <anim_e> <anim_s> <anim_w> <anim_ne> <anim_se> <anim_sw> <anim_nw>\n" \
               "Example: sprite player_sword 10 11 12 13 14 15 16 17\n"
@@ -487,8 +479,7 @@ bool Scanner::ParseSprite(SpriteDef &sprite)
     DiscardWhitespaceNewlinesComments();
     sprite.name = ConsumeString_Name();
     if (!sprite.name.length) {
-        TraceLog(LOG_ERROR, "'%s': Expected name.\n" USAGE, fileName);
-        return false;
+        E_CHECKMSG(ErrorType::FileReadFailed, "'%s': Expected name.\n" USAGE, fileName);
     }
 
     // directional animations
@@ -496,17 +487,16 @@ bool Scanner::ParseSprite(SpriteDef &sprite)
         DiscardWhitespaceNewlinesComments();
         if (DiscardChar('-')) {
             sprite.animations[i] = -1;
-        } else if (!ConsumePositiveInt(&sprite.animations[i])) {
-            TraceLog(LOG_ERROR, "'%s': Expected an animation index for each of the %d directions.\n" USAGE, fileName, (int)Direction::Count);
-            return false;
+        } else if (ConsumePositiveInt(&sprite.animations[i]) != ErrorType::Success) {
+            E_CHECKMSG(ErrorType::FileReadFailed, "'%s': Expected an animation index for each of the %d directions.\n" USAGE, fileName, (int)Direction::Count);
         }
     }
 
-    return true;
+    return ErrorType::Success;
 #undef USAGE
 }
 
-bool Scanner::ParseSpritesheet(Spritesheet &spritesheet)
+ErrorType Scanner::ParseSpritesheet(Spritesheet &spritesheet)
 {
     int framesParsed = 0;
     int animationsParsed = 0;
@@ -517,51 +507,40 @@ bool Scanner::ParseSpritesheet(Spritesheet &spritesheet)
     while (c) {
         switch (c) {
             ALPHA {
-                Token tok = ParseIdentifier();
+                Token tok{};
+                E_CHECKMSG(ParseIdentifier(&tok), "Failed to parse token");
                 switch (tok.type) {
                     case Token::Type::Spritesheet: {
-                        if (!ParseHeader(spritesheet)) {
-                            return false;
-                        }
+                        E_CHECKMSG(ParseHeader(spritesheet), "Failed to parse header");
                         break;
                     }
                     case Token::Type::Frame: {
                         SpriteFrame &frame = spritesheet.frames.emplace_back();
-                        if (!ParseFrame(frame)) {
-                            return false;
-                        }
+                        E_CHECKMSG(ParseFrame(frame), "Failed to parse frame");
                         framesParsed++;
                         break;
                     }
                     case Token::Type::Animation: {
                         SpriteAnim &animation = spritesheet.animations.emplace_back();
-                        if (!ParseAnimation(animation)) {
-                            return false;
-                        }
+                        E_CHECKMSG(ParseAnimation(animation), "Failed to parse animation");
                         animationsParsed++;
                         break;
                     }
                     case Token::Type::Sprite: {
                         SpriteDef &sprite = spritesheet.sprites.emplace_back(&spritesheet);
-                        if (!ParseSprite(sprite)) {
-                            return false;
-                        }
+                        E_CHECKMSG(ParseSprite(sprite), "Failed to parse sprite");
                         spritesParsed++;
                         break;
                     }
                     default: {
-                        // TODO: Better error handling
-                        TraceLog(LOG_ERROR, "'%s': Error: Unrecognized token '%.*s'\n.", fileName, tok.token.length, tok.token.text);
-                        assert(!"Unrecognized token");
+                        E_CHECKMSG(ErrorType::FileReadFailed, "'%s': Error: Unrecognized token '%.*s'\n.", fileName, tok.token.length, tok.token.text);
                         break;
                     }
                 }
                 break;
             }
             default: {
-                // TODO: Better error handling
-                TraceLog(LOG_ERROR, "'%s': Error: Unexpected character '%c'\n.", fileName, c);
-                assert(!"Unexpected character");
+                E_CHECKMSG(ErrorType::FileReadFailed, "'%s': Error: Unexpected character '%c'\n.", fileName, c);
                 break;
             }
         }
@@ -569,7 +548,7 @@ bool Scanner::ParseSpritesheet(Spritesheet &spritesheet)
         c = PeekChar();
     }
 
-    return true;
+    return ErrorType::Success;
 }
 
 SpriteDef::SpriteDef(const Spritesheet *spritesheet)
@@ -577,20 +556,19 @@ SpriteDef::SpriteDef(const Spritesheet *spritesheet)
     this->spritesheet = spritesheet;
 }
 
-bool Spritesheet::LoadFromFile(const char *fileName)
+ErrorType Spritesheet::LoadFromFile(const char *filename)
 {
-    buf = (char *)LoadFileData(fileName, &bufLength);
+    buf = (char *)LoadFileData(filename, &bufLength);
     if (!buf) {
-        return false;
+        E_CHECKMSG(ErrorType::FileReadFailed, "Failed to read file %s", filename);
     }
 
     Scanner scanner = {};
-    scanner.fileName = fileName;
+    scanner.fileName = filename;
     scanner.text = buf;
     scanner.length = bufLength;
 
-    bool success = scanner.ParseSpritesheet(*this);
-    return success;
+    return scanner.ParseSpritesheet(*this);
 }
 
 Spritesheet::~Spritesheet()

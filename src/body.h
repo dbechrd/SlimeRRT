@@ -31,20 +31,24 @@ struct Body3D {
     void Teleport(Vector3 pos);
     void Move(Vector2 offset);
     void Move3D(Vector3 offset);
-    bool Bounced(void) const;
     bool OnGround(void) const;
-    bool JustLanded(void) const;
     bool Resting(void) const;
     bool Idle(void) const;
+    bool Jumped(void) const;
+    bool Landed(void) const;
+    bool Bounced(void) const;
     double TimeSinceLastMove(void) const;
     void ApplyForce(Vector3 force);
     void Update(double dt);
 
 private:
-    Vector3 prevPosition {};
+    const char *LOG_SRC = "Body";
+    Vector3 positionPrev {};
+    Vector3 destPosition {};  // buffer all non-sim move offsets (teleport, etc.)
     Vector3 position     {};
     double  lastUpdated  {};
     double  lastMoved    {};
+    bool    jumped       {};
     bool    landed       {};
     bool    bounced      {};
     bool    idle         {};

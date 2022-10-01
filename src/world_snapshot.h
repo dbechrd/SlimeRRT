@@ -1,5 +1,5 @@
 #pragma once
-#include "enemy.h"
+#include "entities/entities.h"
 #include "player.h"
 #include "dlb_types.h"
 
@@ -48,7 +48,7 @@ struct PlayerSnapshot {
     PlayerInventory inventory    {};  // join, inventory update
 };
 
-struct EnemySnapshot {
+struct NpcSnapshot {
     enum Flags : uint32_t {
         Flags_None      = 0,
         Flags_Despawn   = 1 << 0,
@@ -104,8 +104,8 @@ struct WorldSnapshot {
     float          inputOverflow {};  // amount of next sample after lastInputAck not yet processed
     uint32_t       playerCount   {};  // players in this snapshot
     PlayerSnapshot players       [SNAPSHOT_MAX_PLAYERS]{};
-    uint32_t       enemyCount    {};  // enemies in this snapshot
-    EnemySnapshot  enemies       [SNAPSHOT_MAX_ENEMIES]{};
+    uint32_t       npcCount      {};  // enemies in this snapshot
+    NpcSnapshot    npcs          [SNAPSHOT_MAX_NPCS]{};
     uint32_t       itemCount     {};  // items in this snapshot
     ItemSnapshot   items         [SNAPSHOT_MAX_ITEMS]{};
     double         recvAt        {};  // not sent over network, auto-populated when received

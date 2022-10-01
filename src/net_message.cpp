@@ -1,5 +1,5 @@
 #include "bit_stream.h"
-#include "enemy.h"
+#include "entities/entities.h"
 #include "helpers.h"
 #include "net_message.h"
 #include "tilemap.h"
@@ -122,7 +122,7 @@ size_t NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer)
                     assert(PlayerInvSlot_Count > 0);
                     stream.Process(sample.selectSlot, 8, 0, PlayerInvSlot_Count - 1);
                 }
-                //TraceLog(LOG_DEBUG, "%s sample: %u %f", mode == BitStream::Mode::Reader ? "READ" : "WRITE", sample.seq, sample.dt);
+                //E_DEBUG("%s sample: %u %f", mode == BitStream::Mode::Reader ? "READ" : "WRITE", sample.seq, sample.dt);
             }
             stream.Align();
 
@@ -162,7 +162,7 @@ size_t NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer)
             stream.Process(worldSnapshot.lastInputAck);
             stream.Process(worldSnapshot.inputOverflow);
             stream.Process(worldSnapshot.playerCount, 4, 0, SNAPSHOT_MAX_PLAYERS);
-            stream.Process(worldSnapshot.enemyCount, 9, 0, SNAPSHOT_MAX_ENEMIES);
+            stream.Process(worldSnapshot.npcCount, 9, 0, SNAPSHOT_MAX_NPCS);
             stream.Process(worldSnapshot.itemCount, 9, 0, SNAPSHOT_MAX_ITEMS);
             stream.Align();
 
@@ -196,7 +196,7 @@ size_t NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer)
                 }
                 if (playerSnap.flags & PlayerSnapshot::Flags_Inventory) {
                     //if (stream.Writing()) {
-                    //    TraceLog(LOG_DEBUG, "Sending player inventory update for player %u\n", playerSnap.id);
+                    //    E_DEBUG("Sending player inventory update for player %u\n", playerSnap.id);
                     //}
 
                     stream.Process((uint8_t &)playerSnap.inventory.selectedSlot, 8, 0, PlayerInvSlot_Count - 1);
@@ -251,30 +251,30 @@ size_t NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer)
                 }
             }
 
-            for (size_t i = 0; i < worldSnapshot.enemyCount; i++) {
-                EnemySnapshot &enemySnap = worldSnapshot.enemies[i];
-                stream.Process(enemySnap.id, 32, 1, UINT32_MAX);
-                stream.Process((uint32_t &)enemySnap.flags);
-                if (enemySnap.flags & EnemySnapshot::Flags_Position) {
-                    stream.Process(enemySnap.position.x);
-                    stream.Process(enemySnap.position.y);
-                    stream.Process(enemySnap.position.z);
+            for (size_t i = 0; i < worldSnapshot.npcCount; i++) {
+                NpcSnapshot &npcSnap = worldSnapshot.npcs[i];
+                stream.Process(npcSnap.id, 32, 1, UINT32_MAX);
+                stream.Process((uint32_t &)npcSnap.flags);
+                if (npcSnap.flags & NpcSnapshot::Flags_Position) {
+                    stream.Process(npcSnap.position.x);
+                    stream.Process(npcSnap.position.y);
+                    stream.Process(npcSnap.position.z);
                 }
-                if (enemySnap.flags & EnemySnapshot::Flags_Direction) {
-                    stream.Process((uint8_t &)enemySnap.direction, 3, (uint8_t)Direction::North, (uint8_t)Direction::NorthWest);
+                if (npcSnap.flags & NpcSnapshot::Flags_Direction) {
+                    stream.Process((uint8_t &)npcSnap.direction, 3, (uint8_t)Direction::North, (uint8_t)Direction::NorthWest);
                     stream.Align();
                 }
-                if (enemySnap.flags & EnemySnapshot::Flags_Scale) {
-                    stream.Process(enemySnap.scale);
+                if (npcSnap.flags & NpcSnapshot::Flags_Scale) {
+                    stream.Process(npcSnap.scale);
                 }
-                if (enemySnap.flags & EnemySnapshot::Flags_Health) {
-                    stream.Process(enemySnap.hitPoints);
+                if (npcSnap.flags & NpcSnapshot::Flags_Health) {
+                    stream.Process(npcSnap.hitPoints);
                 }
-                if (enemySnap.flags & EnemySnapshot::Flags_HealthMax) {
-                    stream.Process(enemySnap.hitPointsMax);
+                if (npcSnap.flags & NpcSnapshot::Flags_HealthMax) {
+                    stream.Process(npcSnap.hitPointsMax);
                 }
-                if (enemySnap.flags & EnemySnapshot::Flags_Level) {
-                    stream.Process(enemySnap.level);
+                if (npcSnap.flags & NpcSnapshot::Flags_Level) {
+                    stream.Process(npcSnap.level);
                 }
             }
 

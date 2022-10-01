@@ -62,14 +62,14 @@ struct NetClient {
             // Read file
             file.data = LoadFileData(filename, &file.length);
             if (!file.data || !file.length) {
-                E_ERROR(ErrorType::FileReadFailed, "Failed to read ServerDB file");
+                E_CHECKMSG(ErrorType::FileReadFailed, "Failed to read ServerDB file");
             }
             this->filename = filename;
 
             // Verify fb
             flatbuffers::Verifier verifier(file.data, file.length);
             if (!DB::VerifyServerDBBuffer(verifier)) {
-                E_ERROR(ErrorType::PancakeVerifyFailed, "Failed to verify ServerDB\n");
+                E_CHECKMSG(ErrorType::PancakeVerifyFailed, "Failed to verify ServerDB\n");
             }
 
             // Read fb
@@ -98,11 +98,11 @@ struct NetClient {
 
             // Write file
             if (!SaveFileData(filename, fbb.GetBufferPointer(), fbb.GetSize())) {
-                E_ERROR(ErrorType::FileWriteFailed, "Failed to save ServerDB");
+                E_CHECKMSG(ErrorType::FileWriteFailed, "Failed to save ServerDB");
             }
 
             // Reload new fb from file
-            E_ERROR(Load(filename), "Failed to load ServerDB");
+            E_CHECKMSG(Load(filename), "Failed to load ServerDB");
             return ErrorType::Success;
         }
 
@@ -148,12 +148,13 @@ struct NetClient {
         }
 
     private:
+        const char *LOG_SRC = "ServerDB";
         const char    *filename {};  // name of last loaded file
         DB::ServerDBT *native   {};  // mutable native data structure
     } server_db{};
 
 private:
-    static const char *LOG_SRC;
+    const char *LOG_SRC = "NetClient";
     NetMessage tempMsg {};
     ENetBuffer rawPacket {};
 

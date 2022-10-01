@@ -38,7 +38,7 @@ ErrorType NetServer::LoadUserDB(const char *filename)
 
     flatbuffers::Verifier verifier(fbs_users.data, fbs_users.length);
     if (!DB::VerifyUserDBBuffer(verifier)) {
-        E_ERROR(ErrorType::PancakeVerifyFailed, "Uh oh, data verification failed\n");
+        E_CHECKMSG(ErrorType::PancakeVerifyFailed, "Uh oh, data verification failed\n");
     }
 
     const DB::UserDB *userDB = DB::GetUserDB(fbs_users.data);
@@ -59,7 +59,7 @@ NetServer::NetServer(void)
 
 NetServer::~NetServer(void)
 {
-    TraceLog(LOG_DEBUG, "Killing NetServer");
+    E_DEBUG("Killing NetServer");
     CloseSocket();
     free(rawPacket.data);
     UnloadFileData(fbs_users.data);
@@ -75,7 +75,7 @@ ErrorType NetServer::OpenSocket(unsigned short socketPort)
 
     server = enet_host_create(&address, SV_MAX_PLAYERS, 1, 0, 0);
     while ((!server || !server->socket)) {
-        E_ERROR(ErrorType::HostCreateFailed, "Failed to create host. Check if port(s) %hu already in use.", socketPort);
+        E_CHECKMSG(ErrorType::HostCreateFailed, "Failed to create host. Check if port(s) %hu already in use.", socketPort);
     }
 
     printf("Listening on port %hu...\n", address.port);
@@ -96,10 +96,10 @@ ErrorType NetServer::SendRaw(const SV_Client &client, const void *data, size_t s
     // TODO(dlb): Don't always use reliable flag.. figure out what actually needs to be reliable (e.g. chat)
     ENetPacket *packet = enet_packet_create(data, size, ENET_PACKET_FLAG_RELIABLE);
     if (!packet) {
-        E_ERROR(ErrorType::PacketCreateFailed, "Failed to create packet.");
+        E_CHECKMSG(ErrorType::PacketCreateFailed, "Failed to create packet.");
     }
     if (enet_peer_send(client.peer, 0, packet) < 0) {
-        E_ERROR(ErrorType::PeerSendFailed, "Failed to send connection request.");
+        E_CHECKMSG(ErrorType::PeerSendFailed, "Failed to send connection request.");
     }
     return ErrorType::Success;
 }
@@ -114,7 +114,7 @@ ErrorType NetServer::BroadcastRaw(const void *data, size_t size)
     // TODO(dlb): Don't always use reliable flag.. figure out what actually needs to be reliable (e.g. chat)
     ENetPacket *packet = enet_packet_create(data, size, ENET_PACKET_FLAG_RELIABLE);
     if (!packet) {
-        E_ERROR(ErrorType::PacketCreateFailed, "Failed to create packet.");
+        E_CHECKMSG(ErrorType::PacketCreateFailed, "Failed to create packet.");
     }
 
     // Broadcast netMsg to all connected clients
@@ -152,10 +152,10 @@ ErrorType NetServer::SendMsg(const SV_Client &client, NetMessage &message)
             case NetMessage::Type::GlobalEvent: subType = message.data.globalEvent.TypeString(); break;
             case NetMessage::Type::NearbyEvent: subType = message.data.nearbyEvent.TypeString(); break;
         }
-        //TraceLog(LOG_DEBUG, "[NetServer] Send %s %s (%zu b)", message.TypeString(), subType, bytes);
+        //E_DEBUG("[NetServer] Send %s %s (%zu b)", message.TypeString(), subType, bytes);
     }
 
-    E_ERROR(SendRaw(client, rawPacket.data, bytes), "Failed to send packet");
+    E_CHECKMSG(SendRaw(client, rawPacket.data, bytes), "Failed to send packet");
     return ErrorType::Success;
 }
 
@@ -201,7 +201,7 @@ ErrorType NetServer::SendWelcomeBasket(SV_Client &client)
             memcpy(welcome.players[i].name, serverWorld->playerInfos[i].name, welcome.players[i].nameLength);
             welcome.playerCount++;
         }
-        E_ERROR(SendMsg(client, netMsg), "Failed to send welcome basket");
+        E_CHECKMSG(SendMsg(client, netMsg), "Failed to send welcome basket");
     }
 
     const PlayerInfo *playerInfo = serverWorld->FindPlayerInfo(client.playerId);
@@ -209,7 +209,7 @@ ErrorType NetServer::SendWelcomeBasket(SV_Client &client)
         TraceLog(LOG_ERROR, "Failed to find player info. playerId: %u", client.playerId);
     }
 
-    E_ERROR(BroadcastPlayerJoin(*playerInfo), "Failed to broadcast player join notification");
+    E_CHECKMSG(BroadcastPlayerJoin(*playerInfo), "Failed to broadcast player join notification");
 
     const char *message = SafeTextFormat("%.*s joined the game.", playerInfo->nameLength, playerInfo->name);
     size_t messageLength = strlen(message);
@@ -217,7 +217,7 @@ ErrorType NetServer::SendWelcomeBasket(SV_Client &client)
     chatMsg.source = NetMessage_ChatMessage::Source::Server;
     chatMsg.messageLength = (uint32_t)MIN(messageLength, CHATMSG_LENGTH_MAX);
     memcpy(chatMsg.message, message, chatMsg.messageLength);
-    E_ERROR(BroadcastChatMessage(chatMsg), "Failed to broadcast player join chat msg");
+    E_CHECKMSG(BroadcastChatMessage(chatMsg), "Failed to broadcast player join chat msg");
 
     SendNearbyChunks(client);
     SendWorldSnapshot(client);
@@ -278,20 +278,20 @@ ErrorType NetServer::SendChatMessage(const SV_Client &client, const char *messag
     memset(&netMsg, 0, sizeof(netMsg));
     netMsg.type = NetMessage::Type::ChatMessage;
     netMsg.data.chatMsg = chatMsg;
-    E_ERROR(SendMsg(client, netMsg), "Failed to send chat msg");
+    E_CHECKMSG(SendMsg(client, netMsg), "Failed to send chat msg");
     return ErrorType::Success;
 }
 
 ErrorType NetServer::SendWorldChunk(const SV_Client &client, const Chunk &chunk)
 {
 #if SV_DEBUG_WORLD_CHUNKS
-    TraceLog(LOG_DEBUG, "Sending world chunk [%hd, %hd] to player #%u", chunk.x, chunk.y, client.playerId);
+    E_DEBUG("Sending world chunk [%hd, %hd] to player #%u", chunk.x, chunk.y, client.playerId);
 #endif
     memset(&netMsg, 0, sizeof(netMsg));
     netMsg.type = NetMessage::Type::WorldChunk;
     NetMessage_WorldChunk &worldChunk = netMsg.data.worldChunk;
     worldChunk.chunk = chunk;
-    E_ERROR(SendMsg(client, netMsg), "Failed to send world chunk");
+    E_CHECKMSG(SendMsg(client, netMsg), "Failed to send world chunk");
     return ErrorType::Success;
 }
 
@@ -327,7 +327,7 @@ ErrorType NetServer::BroadcastTileUpdate(float worldX, float worldY, const Tile 
     tileUpdate.tile = tile;
 
     // Broadcast to nearby players
-    E_ERROR(BroadcastMsg(netMsg, [&](SV_Client &client) {
+    E_CHECKMSG(BroadcastMsg(netMsg, [&](SV_Client &client) {
         const Player *player = serverWorld->FindPlayer(client.playerId);
         if (player) {
             Vector3 playerPos = player->body.WorldPosition();
@@ -410,7 +410,7 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
                 } else if (otherPlayer.combat.hitPoints) {
                     flags = PlayerSnapshot::Flags_Spawn;
 #if SV_DEBUG_WORLD_PLAYERS
-                    TraceLog(LOG_DEBUG, "Entered vicinity of player #%u", otherPlayer.id);
+                    E_DEBUG("Entered vicinity of player #%u", otherPlayer.id);
 #endif
                 }
             } else {
@@ -422,7 +422,7 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
                     } else {
                         flags |= PlayerSnapshot::Flags_Despawn;
 #if SV_DEBUG_WORLD_PLAYERS
-                        TraceLog(LOG_DEBUG, "Left vicinity of player #%u", otherPlayer.id);
+                        E_DEBUG("Left vicinity of player #%u", otherPlayer.id);
 #endif
                     }
                 }
@@ -450,64 +450,64 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
         }
     }
 
-    worldSnapshot.enemyCount = 0;
-    uint32_t skippedEnemyCount = 0;
-    for (const Enemy &enemy : serverWorld->enemies) {
-        if (!enemy.id) {
+    worldSnapshot.npcCount = 0;
+    uint32_t skippedNpcCount = 0;
+    for (const NPC &npc : serverWorld->npcs) {
+        if (!npc.type) {
             continue;
         }
-        if (worldSnapshot.enemyCount == ARRAY_SIZE(worldSnapshot.enemies)) {
-            skippedEnemyCount++;
+        if (worldSnapshot.npcCount == ARRAY_SIZE(worldSnapshot.npcs)) {
+            skippedNpcCount++;
             continue;
         }
 
-        uint32_t flags = EnemySnapshot::Flags_None;
-        const float distSq = v3_length_sq(v3_sub(player.body.WorldPosition(), enemy.body.WorldPosition()));
-        const bool nearby = distSq <= SQUARED(SV_ENEMY_NEARBY_THRESHOLD);
-        const auto prevState = client.enemyHistory.find(enemy.id);
-        const bool clientAware = prevState != client.enemyHistory.end();
+        uint32_t flags = NpcSnapshot::Flags_None;
+        const float distSq = v3_length_sq(v3_sub(player.body.WorldPosition(), npc.body.WorldPosition()));
+        const bool nearby = distSq <= SQUARED(SV_NPC_NEARBY_THRESHOLD);
+        const auto prevState = client.npcHistory.find(npc.id);
+        const bool clientAware = prevState != client.npcHistory.end();
         if (nearby) {
             if (clientAware) {
                 // Send delta updates for puppets that the client already knows about
-                if (!v3_equal(enemy.body.WorldPosition(), prevState->second.position, POSITION_EPSILON)) {
-                    flags |= EnemySnapshot::Flags_Position;
+                if (!v3_equal(npc.body.WorldPosition(), prevState->second.position, POSITION_EPSILON)) {
+                    flags |= NpcSnapshot::Flags_Position;
                 }
-                if (enemy.sprite.direction != prevState->second.direction) {
-                    flags |= EnemySnapshot::Flags_Direction;
+                if (npc.sprite.direction != prevState->second.direction) {
+                    flags |= NpcSnapshot::Flags_Direction;
                 }
-                if (enemy.sprite.scale != prevState->second.scale) {
-                    flags |= EnemySnapshot::Flags_Scale;
+                if (npc.sprite.scale != prevState->second.scale) {
+                    flags |= NpcSnapshot::Flags_Scale;
                 }
-                if (enemy.combat.hitPoints != prevState->second.hitPoints) {
-                    flags |= EnemySnapshot::Flags_Health;
+                if (npc.combat.hitPoints != prevState->second.hitPoints) {
+                    flags |= NpcSnapshot::Flags_Health;
                 }
-                if (enemy.combat.hitPointsMax != prevState->second.hitPointsMax) {
-                    flags |= EnemySnapshot::Flags_HealthMax;
+                if (npc.combat.hitPointsMax != prevState->second.hitPointsMax) {
+                    flags |= NpcSnapshot::Flags_HealthMax;
                 }
                 if (flags) {
 #if SV_DEBUG_WORLD_ENEMIES
-                    TraceLog(LOG_DEBUG, "[dbg_enemy:%u] Client aware of enemy and delta sent", enemy.id);
+                    E_DEBUG("[dbg_enemy:%u] Client aware of enemy and delta sent", npc.id);
 #endif
                 }
-            } else if (enemy.combat.hitPoints) {
+            } else if (npc.combat.hitPoints) {
                 // Spawn a new puppet
-                flags = EnemySnapshot::Flags_Spawn;
+                flags = NpcSnapshot::Flags_Spawn;
 #if SV_DEBUG_WORLD_ENEMIES
-                TraceLog(LOG_DEBUG, "[dbg_enemy:%u] Entered vicinity of enemy. Sending spawn.", enemy.id);
+                E_DEBUG("[dbg_enemy:%u] Entered vicinity of enemy. Sending spawn.", npc.id);
 #endif
             }
         } else {
             if (clientAware) {
-                if (prevState->second.flags & EnemySnapshot::Flags_Despawn) {
+                if (prevState->second.flags & NpcSnapshot::Flags_Despawn) {
                     // "Despawn" notification already sent, fogetaboutit
-                    client.enemyHistory.erase(enemy.id);
+                    client.npcHistory.erase(npc.id);
 #if SV_DEBUG_WORLD_ENEMIES
-                    TraceLog(LOG_DEBUG, "[dbg_enemy:%u] Already left vicinity of enemy. Erased history.", enemy.id);
+                    E_DEBUG("[dbg_enemy:%u] Already left vicinity of enemy. Erased history.", npc.id);
 #endif
                 } else {
-                    flags |= EnemySnapshot::Flags_Despawn;
+                    flags |= NpcSnapshot::Flags_Despawn;
 #if SV_DEBUG_WORLD_ENEMIES
-                    TraceLog(LOG_DEBUG, "[dbg_enemy:%u] Left vicinity of enemy. Sending despawn.", enemy.id);
+                    E_DEBUG("[dbg_enemy:%u] Left vicinity of enemy. Sending despawn.", npc.id);
 #endif
                 }
             }
@@ -517,22 +517,22 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
             // TODO: Let Enemy serialize itself by storing a reference in the Snapshot, then
             // having NetMessage::Process call a serialize method and forwarding the BitStream
             // and state flags to it.
-            EnemySnapshot &state = client.enemyHistory[enemy.id];
+            NpcSnapshot &state = client.npcHistory[npc.id];
             state.flags = flags;
-            state.id = enemy.id;
-            state.position = enemy.body.WorldPosition();
-            state.direction = enemy.sprite.direction;
-            state.scale = enemy.sprite.scale;
-            state.hitPoints = enemy.combat.hitPoints;
-            state.hitPointsMax = enemy.combat.hitPointsMax;
-            state.level = enemy.combat.level;
+            state.id = npc.id;
+            state.position = npc.body.WorldPosition();
+            state.direction = npc.sprite.direction;
+            state.scale = npc.sprite.scale;
+            state.hitPoints = npc.combat.hitPoints;
+            state.hitPointsMax = npc.combat.hitPointsMax;
+            state.level = npc.combat.level;
 
-            worldSnapshot.enemies[worldSnapshot.enemyCount] = state;
-            worldSnapshot.enemyCount++;
+            worldSnapshot.npcs[worldSnapshot.npcCount] = state;
+            worldSnapshot.npcCount++;
         }
     }
-    if (skippedEnemyCount) {
-        TraceLog(LOG_DEBUG, "Snapshot full, skipped %u enemies", skippedEnemyCount);
+    if (skippedNpcCount) {
+        E_DEBUG("Snapshot full, skipped %u enemies", skippedNpcCount);
     }
 
     worldSnapshot.itemCount = 0;
@@ -568,7 +568,7 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
                 // Spawn a new puppet
                 flags = ItemSnapshot::Flags_Spawn;
 #if SV_DEBUG_WORLD_ITEMS
-                TraceLog(LOG_DEBUG, "Entered vicinity of item #%u", item.uid);
+                E_DEBUG("Entered vicinity of item #%u", item.uid);
 #endif
             }
         } else {
@@ -579,7 +579,7 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
                 } else {
                     flags |= ItemSnapshot::Flags_Despawn;
 #if SV_DEBUG_WORLD_ITEMS
-                    TraceLog(LOG_DEBUG, "Left vicinity of item #%u", item.uid);
+                    E_DEBUG("Left vicinity of item #%u", item.uid);
 #endif
                 }
             }
@@ -601,10 +601,10 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
         }
     }
     if (skippedItemCount) {
-        TraceLog(LOG_DEBUG, "Snapshot full, skipped %u world items", skippedItemCount);
+        E_DEBUG("Snapshot full, skipped %u world items", skippedItemCount);
     }
 
-    E_ERROR(SendMsg(client, netMsg), "Failed to send world snapshot");
+    E_CHECKMSG(SendMsg(client, netMsg), "Failed to send world snapshot");
     client.lastSnapshotSentAt = g_clock.now;
     return ErrorType::Success;
 }
@@ -635,11 +635,11 @@ ErrorType NetServer::SendNearbyEvents(const SV_Client &client)
         }
 
         if (nearby && !wasNearby) {
-            TraceLog(LOG_DEBUG, "Entered vicinity of enemy #%u", enemy.type);
+            E_DEBUG("Entered vicinity of enemy #%u", enemy.type);
         }
 
         if (!nearby && wasNearby) {
-            TraceLog(LOG_DEBUG, "Left vicinity of enemy #%u", enemy.type);
+            E_DEBUG("Left vicinity of enemy #%u", enemy.type);
         }
 
         E_ASSERT(SendEnemyState(client, enemy, nearby, nearby && !wasNearby), "Failed to send nearby enemy state in welcome basket");
@@ -653,7 +653,7 @@ ErrorType NetServer::SendNearbyEvents(const SV_Client &client)
         }
 
         const float distSq     = v3_length_sq(v3_sub(player->body.position, otherPlayer.body.position));
-        const float prevDistSq = v3_length_sq(v3_sub(player->body.prevPosition, otherPlayer.body.prevPosition));
+        const float prevDistSq = v3_length_sq(v3_sub(player->body.positionPrev, otherPlayer.body.positionPrev));
 
         // TODO: Make despawn threshold > spawn threshold to prevent spam on event horizon
         bool nearby    = distSq     <= SQUARED(SV_PLAYER_NEARBY_THRESHOLD);
@@ -673,7 +673,7 @@ ErrorType NetServer::SendNearbyEvents(const SV_Client &client)
         }
 
         const float distSq     = v3_length_sq(v3_sub(player->body.position, enemy.body.position));
-        const float prevDistSq = v3_length_sq(v3_sub(player->body.prevPosition, enemy.body.prevPosition));
+        const float prevDistSq = v3_length_sq(v3_sub(player->body.positionPrev, enemy.body.positionPrev));
 
         // TODO: Make despawn threshold > spawn threshold to prevent spam on event horizon
         bool nearby    = distSq     <= SQUARED(SV_ENEMY_NEARBY_THRESHOLD);
@@ -1189,10 +1189,10 @@ void NetServer::ProcessMsg(SV_Client &client, ENetPacket &packet)
             Player *player = serverWorld->FindPlayer(client.playerId);
             if (player) {
                 // TODO(security): Validate params, discard if invalid
-                TraceLog(LOG_DEBUG, "[SRV] SlotDrop  slotId: %u, count: %u", slotDrop.slotId, slotDrop.count);
+                E_DEBUG("[SRV] SlotDrop  slotId: %u, count: %u", slotDrop.slotId, slotDrop.count);
                 ItemStack dropStack = player->inventory.SlotDrop(slotDrop.slotId, slotDrop.count);
                 if (dropStack.uid && dropStack.count) {
-                    TraceLog(LOG_DEBUG, "[SRV] SpawnItem itemUid: %u, count: %u", dropStack.uid, dropStack.count);
+                    E_DEBUG("[SRV] SpawnItem itemUid: %u, count: %u", dropStack.uid, dropStack.count);
                     ItemWorld *item = serverWorld->itemSystem.SpawnItem(player->body.WorldPosition(), dropStack.uid, dropStack.count);
                     if (item) {
                         item->droppedByPlayerId = player->id;
@@ -1212,7 +1212,7 @@ void NetServer::ProcessMsg(SV_Client &client, ENetPacket &packet)
                         case ObjectType_Rock01: {
                             // TODO: Move this out to e.g. tile->object.Interact() or something..
                             if (!tile->object.HasFlag(ObjectFlag_Stone_Overturned)) {
-                                TraceLog(LOG_DEBUG, "[SRV] TileInteract: Rock attempting to roll loot.");
+                                E_DEBUG("[SRV] TileInteract: Rock attempting to roll loot.");
                                 // TODO(v1): Make LootTableID::LT_Rock01
                                 // TODO(v2): Look up loot table id based on where the player is
                                 // TODO(v3): Account for player's magic find bonus
@@ -1224,7 +1224,7 @@ void NetServer::ProcessMsg(SV_Client &client, ENetPacket &packet)
                                 tile->object.SetFlag(ObjectFlag_Stone_Overturned);
                                 BroadcastTileUpdate(tileInteract.tileX, tileInteract.tileY, *tile);
                             } else {
-                                TraceLog(LOG_DEBUG, "[SRV] TileInteract: Rock already overturned.");
+                                E_DEBUG("[SRV] TileInteract: Rock already overturned.");
                             }
                             break;
                         }
@@ -1277,7 +1277,7 @@ ErrorType NetServer::RemoveClient(ENetPeer *peer)
     if (client) {
         const PlayerInfo *playerInfo = serverWorld->FindPlayerInfo(client->playerId);
         if (playerInfo && playerInfo->id) {
-            E_ERROR(BroadcastPlayerLeave(playerInfo->id), "Failed to broadcast player leave notification");
+            E_CHECKMSG(BroadcastPlayerLeave(playerInfo->id), "Failed to broadcast player leave notification");
 
             const char *message = SafeTextFormat("%.*s left the game.", playerInfo->nameLength, playerInfo->name);
             size_t messageLength = strlen(message);
@@ -1285,7 +1285,7 @@ ErrorType NetServer::RemoveClient(ENetPeer *peer)
             chatMsg.source = NetMessage_ChatMessage::Source::Server;
             chatMsg.messageLength = (uint32_t)MIN(messageLength, CHATMSG_LENGTH_MAX);
             memcpy(chatMsg.message, message, chatMsg.messageLength);
-            E_ERROR(BroadcastChatMessage(chatMsg), "Failed to broadcast player leave chat msg");
+            E_CHECKMSG(BroadcastChatMessage(chatMsg), "Failed to broadcast player leave chat msg");
 
             serverWorld->RemovePlayer(client->playerId);
             serverWorld->RemovePlayerInfo(client->playerId);

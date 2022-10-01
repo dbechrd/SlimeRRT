@@ -55,6 +55,7 @@ struct UI {
     static void ParticleText(Vector2 pos, const char *text);
 
 private:
+    static inline const char *LOG_SRC = "UI";
     static const PlayerControllerState *input;
     static Vector2 mouseScreen;
     static Vector2 mouseWorld;

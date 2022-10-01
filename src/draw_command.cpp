@@ -2,7 +2,7 @@
 #include "item_world.h"
 #include "particles.h"
 #include "player.h"
-#include "enemy.h"
+#include "entities/entities.h"
 #include <cassert>
 #include <cstdlib>
 #include <cstring>

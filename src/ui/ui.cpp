@@ -598,7 +598,7 @@ void UI::HUD(const Font &font, World &world, const DebugStats &debugStats)
     PUSH_TEXT(text, RED);
     text = SafeTextFormat("Times sword swung %u", player->stats.timesSwordSwung);
     PUSH_TEXT(text, RED);
-    text = SafeTextFormat("Slimes slain      %u", player->stats.enemiesSlain[Enemy::Type_Slime]);
+    text = SafeTextFormat("Slimes slain      %u", player->stats.npcsSlain[NPC::Type_Slime]);
     PUSH_TEXT(text, GREEN);
 
     const Vector2 playerBC = player->body.GroundPosition();
@@ -1166,7 +1166,7 @@ void UI::MenuMultiplayer(GameClient &game) {
                 const DB::Server *server = servers->Get(serverIdx);
                 if (UI::MenuButton((const char *)server->desc()->data())) {
                     uint16_t port = server->port() ? server->port() : SV_DEFAULT_PORT;
-                    TraceLog(LOG_INFO, "Attempting to connect to server: %s\n%s@%s:%hu",
+                    E_INFO("Attempting to connect to server: %s\n%s@%s:%hu",
                         server->desc()->data(),
                         server->user()->data(),
                         server->host()->data(), port

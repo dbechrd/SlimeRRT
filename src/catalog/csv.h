@@ -35,6 +35,8 @@ struct CSV {
         Error StatusCode();
         const char *StatusMsg();
     private:
+        const char *LOG_SRC = "CSV::Reader";
+
         u32   cursor    {};  // Current byte being read (as offset into data array)
         u32   columns   {};  // Number of columns expected per row (based on first row's column count)
         u32   row       {};  // Index of row being parsed (for generating error messages)
@@ -46,4 +48,7 @@ struct CSV {
         void ParseRow(CSV &csv);
         void Parse(CSV &csv, u8 *data, u32 length);
     };
+
+private:
+    const char *LOG_SRC = "CSV";
 };

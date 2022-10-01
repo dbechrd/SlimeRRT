@@ -12,8 +12,6 @@
 #include <ctime>
 #include <memory>
 
-const char *NetClient::LOG_SRC = "NetClient";
-
 ErrorType NetClient::SaveDefaultServerDB(const char *filename)
 {
     DB::ServerT tpjGuest{};
@@ -22,8 +20,8 @@ ErrorType NetClient::SaveDefaultServerDB(const char *filename)
     tpjGuest.port = SV_DEFAULT_PORT;
     tpjGuest.user = "guest";
     tpjGuest.pass = "guest";
-    E_ERROR(server_db.Add(tpjGuest), "Failed to add default server to ServerDB");
-    E_ERROR(server_db.Save(filename), "Failed to save default ServerDB");
+    E_CHECKMSG(server_db.Add(tpjGuest), "Failed to add default server to ServerDB");
+    E_CHECKMSG(server_db.Save(filename), "Failed to save default ServerDB");
     return ErrorType::Success;
 }
 
@@ -51,7 +49,7 @@ ErrorType NetClient::OpenSocket(void)
     }
     client = enet_host_create(nullptr, 1, 1, 0, 0);
     if (!client) {
-        E_ERROR(ErrorType::HostCreateFailed, "Failed to create host.");
+        E_CHECKMSG(ErrorType::HostCreateFailed, "Failed to create host.");
     }
     // TODO(dlb)[cleanup]: This probably isn't providing any additional value on top of if (!client) check
     assert(client->socket);
@@ -67,7 +65,7 @@ ErrorType NetClient::Connect(const char *serverHost, unsigned short serverPort, 
     ENetAddress address{};
 
     if (!client) {
-        E_ERROR(OpenSocket(), "Failed to open socket");
+        E_CHECKMSG(OpenSocket(), "Failed to open socket");
     }
     if (server) {
         Disconnect();
@@ -112,10 +110,10 @@ ErrorType NetClient::SendRaw(const void *data, size_t size)
     // TODO(dlb): Don't always use reliable flag.. figure out what actually needs to be reliable (e.g. chat)
     ENetPacket *packet = enet_packet_create(data, size, ENET_PACKET_FLAG_RELIABLE);
     if (!packet) {
-        E_ERROR(ErrorType::PacketCreateFailed, "Failed to create packet.");
+        E_CHECKMSG(ErrorType::PacketCreateFailed, "Failed to create packet.");
     }
     if (enet_peer_send(server, 0, packet) < 0) {
-        E_ERROR(ErrorType::PeerSendFailed, "Failed to send connection request.");
+        E_CHECKMSG(ErrorType::PeerSendFailed, "Failed to send connection request.");
     }
     return ErrorType::Success;
 }
@@ -131,7 +129,7 @@ ErrorType NetClient::SendMsg(NetMessage &message)
     memset(rawPacket.data, 0, rawPacket.dataLength);
     size_t bytes = message.Serialize(rawPacket);
     //E_INFO("[SEND][%21s][%5u b] %16s ", rawPacket.dataLength, netMsg.TypeString());
-    E_ERROR(SendRaw(rawPacket.data, bytes), "Failed to send packet");
+    E_CHECKMSG(SendRaw(rawPacket.data, bytes), "Failed to send packet");
     return ErrorType::Success;
 }
 
@@ -265,14 +263,14 @@ void NetClient::ReconcilePlayer(void)
 {
     if (!serverWorld || !worldHistory.Count()) {
         // Not connected to server, or no snapshots received yet
-        //TraceLog(LOG_WARNING, "Can't reconcile player; no world");
+        //E_WARN("Can't reconcile player; no world");
         return;
     }
     Player *player = serverWorld->FindPlayer(serverWorld->playerId);
     assert(player);
     if (!player) {
         // playerId is invalid??
-        TraceLog(LOG_WARNING, "Can't reconcile player; no player found");
+        E_WARN("Can't reconcile player; no player found");
         return;
     }
 
@@ -287,7 +285,7 @@ void NetClient::ReconcilePlayer(void)
     assert(playerSnapshot);
     if (!playerSnapshot) {
         // Server sent us a snapshot that doesn't contain our own player??
-        TraceLog(LOG_WARNING, "Can't reconcile player; no snapshot");
+        E_WARN("Can't reconcile player; no snapshot");
         return;
     }
 
@@ -301,13 +299,13 @@ void NetClient::ReconcilePlayer(void)
     // Roll back local player to server snapshot location
     if (playerSnapshot->flags & PlayerSnapshot::Flags_Position) {
         player->body.Teleport(playerSnapshot->position);
-        //TraceLog(LOG_DEBUG, "Teleporting player to %0.2f %0.2f", playerSnapshot->position.x,
+        //E_DEBUG("Teleporting player to %0.2f %0.2f", playerSnapshot->position.x,
         //    playerSnapshot->position.y);
 
         if (inputHistory.Count()) {
             const InputSample &oldestInput = inputHistory.At(0);
             if (latestSnapshot.lastInputAck + 1 < oldestInput.seq) {
-                TraceLog(LOG_WARNING, "inputHistory buffer too small. Server ack'd seq #%u on tick %u, but oldest input we still have is seq #%u",
+                E_WARN("inputHistory buffer too small. Server ack'd seq #%u on tick %u, but oldest input we still have is seq #%u",
                     latestSnapshot.lastInputAck, latestSnapshot.tick, oldestInput.seq);
             }
         }
@@ -318,7 +316,7 @@ void NetClient::ReconcilePlayer(void)
             playerSnapshot->position.y,
             playerSnapshot->position.z);
 #endif
-        //TraceLog(LOG_DEBUG, "Reconcile");
+        //E_DEBUG("Reconcile");
         // Predict player for each input not yet handled by the server
         bool applyOverflow = true;
         for (size_t i = 0; i < inputHistory.Count(); i++) {
@@ -339,7 +337,7 @@ void NetClient::ReconcilePlayer(void)
                     applyOverflow = false;
                 }
 
-                //TraceLog(LOG_DEBUG, "CLI SQ: %u OS: %f S: %f", input.seq, origInput.dt, input.dt);
+                //E_DEBUG("CLI SQ: %u OS: %f S: %f", input.seq, origInput.dt, input.dt);
                 player->Update(input, serverWorld->map);
             }
         }
@@ -421,20 +419,20 @@ void NetClient::ProcessMsg(ENetPacket &packet)
         } case NetMessage::Type::WorldChunk: {
             NetMessage_WorldChunk &worldChunk = tempMsg.data.worldChunk;
 #if CL_DEBUG_WORLD_CHUNKS
-            TraceLog(LOG_DEBUG, "Received world chunk %hd %hd", worldChunk.chunk.x, worldChunk.chunk.y);
+            E_DEBUG("Received world chunk %hd %hd", worldChunk.chunk.x, worldChunk.chunk.y);
 #endif
             Tilemap &map = serverWorld->map;
             auto chunkIter = map.chunksIndex.find(worldChunk.chunk.Hash());
             if (chunkIter != map.chunksIndex.end()) {
 #if CL_DEBUG_WORLD_CHUNKS
-                TraceLog(LOG_DEBUG, "  Updating existing chunk");
+                E_DEBUG("  Updating existing chunk");
 #endif
                 size_t idx = chunkIter->second;
                 assert(idx < map.chunks.size());
                 map.chunks[chunkIter->second] = worldChunk.chunk;
             } else {
 #if CL_DEBUG_WORLD_CHUNKS
-                TraceLog(LOG_DEBUG, "  Adding new chunk to chunk list");
+                E_DEBUG("  Adding new chunk to chunk list");
 #endif
                 map.chunks.emplace_back(worldChunk.chunk);
                 map.chunksIndex[worldChunk.chunk.Hash()] = map.chunks.size() - 1;
@@ -480,7 +478,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                 }
 
                 if (playerSnapshot.flags != PlayerSnapshot::Flags_None) {
-                    //TraceLog(LOG_DEBUG, "Snapshot: player #%u", playerSnapshot.type);
+                    //E_DEBUG("Snapshot: player #%u", playerSnapshot.type);
                 }
 
                 const bool posChanged = playerSnapshot.flags & PlayerSnapshot::Flags_Position;
@@ -496,7 +494,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                     state.recvAt = worldSnapshot.recvAt;
 
                     if (posChanged) {
-                        //TraceLog(LOG_DEBUG, "Snapshot: pos %f %f %f",
+                        //E_DEBUG("Snapshot: pos %f %f %f",
                             //playerSnapshot.position.x,
                             //playerSnapshot.position.y,
                             //playerSnapshot.position.z);
@@ -505,20 +503,20 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                         if (prevState) {
                             state.v = prevState->v;
                         } else {
-                            TraceLog(LOG_WARNING, "Received direction update but prevPosition is not known. playerId: %u", playerSnapshot.id);
+                            E_WARN("Received direction update but previous position is not known. playerId: %u", playerSnapshot.id);
                             state.v = player->body.WorldPosition();
                         }
                     }
 
                     if (dirChanged) {
                         state.direction = playerSnapshot.direction;
-                        //TraceLog(LOG_DEBUG, "Snapshot: dir %d", (char)state.direction);
+                        //E_DEBUG("Snapshot: dir %d", (char)state.direction);
                     } else {
                         if (prevState) {
                             state.direction = prevState->direction;
-                            //TraceLog(LOG_DEBUG, "Snapshot: dir %d (fallback prev)", (char)state.direction);
+                            //E_DEBUG("Snapshot: dir %d (fallback prev)", (char)state.direction);
                         } else {
-                            TraceLog(LOG_WARNING, "Received position update but prevState.direction is not available.");
+                            E_WARN("Received position update but previous position is not available.");
                             state.direction = player->sprite.direction;
                         }
                     }
@@ -529,7 +527,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                 }
                 // TODO: Pos/dir are history based, but these are instantaneous.. hmm.. is that okay?
                 if (playerSnapshot.flags & PlayerSnapshot::Flags_Health) {
-                    //TraceLog(LOG_DEBUG, "Snapshot: health %f", playerSnapshot.hitPoints);
+                    //E_DEBUG("Snapshot: health %f", playerSnapshot.hitPoints);
                     if (!spawned) {
                         if (player->combat.hitPoints && !playerSnapshot.hitPoints) {
                             // Died
@@ -564,11 +562,11 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                     player->combat.hitPoints = playerSnapshot.hitPoints;
                 }
                 if (playerSnapshot.flags & PlayerSnapshot::Flags_HealthMax) {
-                    //TraceLog(LOG_DEBUG, "Snapshot: healthMax %f", playerSnapshot.hitPointsMax);
+                    //E_DEBUG("Snapshot: healthMax %f", playerSnapshot.hitPointsMax);
                     player->combat.hitPointsMax = playerSnapshot.hitPointsMax;
                 }
                 if (playerSnapshot.flags & PlayerSnapshot::Flags_Level) {
-                    //TraceLog(LOG_DEBUG, "Snapshot: level %u", enemySnapshot.level);
+                    //E_DEBUG("Snapshot: level %u", enemySnapshot.level);
                     if (!spawned) {
                         if (playerSnapshot.level && playerSnapshot.level > player->combat.level) {
                             ParticleEffectParams rainbowParams{};
@@ -596,105 +594,99 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                 }
             }
 
-            for (size_t i = 0; i < worldSnapshot.enemyCount; i++) {
-                const EnemySnapshot &enemySnapshot = worldSnapshot.enemies[i];
-                if (enemySnapshot.flags & EnemySnapshot::Flags_Despawn) {
-                    serverWorld->RemoveEnemy(enemySnapshot.id);
+            for (size_t i = 0; i < worldSnapshot.npcCount; i++) {
+                const NpcSnapshot &enemySnapshot = worldSnapshot.npcs[i];
+                if (enemySnapshot.flags & NpcSnapshot::Flags_Despawn) {
+                    serverWorld->RemoveNpc(enemySnapshot.id);
                     continue;
                 }
 
                 bool spawned = false;
-                Enemy *slime = serverWorld->FindEnemy(enemySnapshot.id);
-                if (!slime) {
-                    slime = serverWorld->SpawnEnemy(enemySnapshot.id, {0, 0});
-                    if (!slime) {
+                NPC *npc = serverWorld->FindNpc(enemySnapshot.id);
+                if (!npc) {
+                    npc = serverWorld->SpawnEnemy(enemySnapshot.id, {0, 0});
+                    if (!npc) {
                         continue;
                     }
                     spawned = true;
                 }
 
-                const bool posChanged = enemySnapshot.flags & EnemySnapshot::Flags_Position;
-                const bool dirChanged = enemySnapshot.flags & EnemySnapshot::Flags_Direction;
+                const bool posChanged = enemySnapshot.flags & NpcSnapshot::Flags_Position;
+                const bool dirChanged = enemySnapshot.flags & NpcSnapshot::Flags_Direction;
 
                 if (posChanged || dirChanged) {
                     const Vector3Snapshot *prevState{};
-                    if (slime->body.positionHistory.Count()) {
-                        prevState = &slime->body.positionHistory.Last();
+                    if (npc->body.positionHistory.Count()) {
+                        prevState = &npc->body.positionHistory.Last();
                     }
 
-                    Vector3Snapshot &state = slime->body.positionHistory.Alloc();
+                    Vector3Snapshot &state = npc->body.positionHistory.Alloc();
                     state.recvAt = worldSnapshot.recvAt;
 
                     if (posChanged) {
-                        //TraceLog(LOG_DEBUG, "Snapshot: pos %f %f %f",
+                        //E_DEBUG("Snapshot: pos %f %f %f",
                         //    enemySnapshot.position.x,
                         //    enemySnapshot.position.y,
                         //    enemySnapshot.position.z);
                         state.v = enemySnapshot.position;
-
-                        if (prevState && prevState->v.z == 0.0f && state.v.z != 0.0f) {
-                            //Catalog::SoundID squish = dlb_rand32i_range(0, 1) ? Catalog::SoundID::Squish1 : Catalog::SoundID::Squish2;
-                            Catalog::SoundID squish = Catalog::SoundID::Squish1;
-                            Catalog::g_sounds.Play(squish, 1.0f + dlb_rand32f_variance(0.2f), true);
-                        }
                     } else {
                         if (prevState) {
                             state.v = prevState->v;
                         } else {
-                            TraceLog(LOG_WARNING, "Received direction update but prevPosition is not known.");
-                            state.v = slime->body.WorldPosition();
+                            E_WARN("Received direction update but prevPosition is not known.");
+                            state.v = npc->body.WorldPosition();
                         }
                     }
 
                     if (dirChanged) {
                         state.direction = enemySnapshot.direction;
-                        //TraceLog(LOG_DEBUG, "Snapshot: dir %d", (char)state.direction);
+                        //E_DEBUG("Snapshot: dir %d", (char)state.direction);
                     } else {
                         if (prevState) {
                             state.direction = prevState->direction;
-                            //TraceLog(LOG_DEBUG, "Snapshot: dir %d (fallback prev)", (char)state.direction);
+                            //E_DEBUG("Snapshot: dir %d (fallback prev)", (char)state.direction);
                         } else {
-                            TraceLog(LOG_WARNING, "Received position update but prevState.direction is not available.");
-                            state.direction = slime->sprite.direction;
+                            E_WARN("Received position update but prevState.direction is not available.");
+                            state.direction = npc->sprite.direction;
                         }
                     }
                 }
 
                 // TODO: Pos/dir are history based, but these are instantaneous.. hmm.. is that okay?
-                if (enemySnapshot.flags & EnemySnapshot::Flags_Scale) {
-                    //TraceLog(LOG_DEBUG, "Snapshot: scale %f", (char)enemySnapshot.direction);
-                    slime->sprite.scale = enemySnapshot.scale;
+                if (enemySnapshot.flags & NpcSnapshot::Flags_Scale) {
+                    //E_DEBUG("Snapshot: scale %f", (char)enemySnapshot.direction);
+                    npc->sprite.scale = enemySnapshot.scale;
                 }
-                if (enemySnapshot.flags & EnemySnapshot::Flags_Health) {
-                    //TraceLog(LOG_DEBUG, "Snapshot: health %f", enemySnapshot.hitPoints);
+                if (enemySnapshot.flags & NpcSnapshot::Flags_Health) {
+                    //E_DEBUG("Snapshot: health %f", enemySnapshot.hitPoints);
                     if (!spawned) {
-                        if (slime->combat.hitPoints && !enemySnapshot.hitPoints) {
+                        if (npc->combat.hitPoints && !enemySnapshot.hitPoints) {
                             // Died
-                            slime->combat.diedAt = worldSnapshot.recvAt;
+                            npc->combat.diedAt = worldSnapshot.recvAt;
                             ParticleEffectParams gooParams{};
                             gooParams.particleCountMin = 20;
                             gooParams.particleCountMax = gooParams.particleCountMin;
                             gooParams.durationMin = 2.0f;
                             gooParams.durationMax = gooParams.durationMin;
-                            serverWorld->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Goo, slime->WorldCenter(), gooParams);
+                            serverWorld->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Goo, npc->WorldCenter(), gooParams);
                             Catalog::g_sounds.Play(Catalog::SoundID::Squish2, 0.5f + dlb_rand32f_variance(0.1f), true);
-                        } else if (slime->combat.hitPoints > enemySnapshot.hitPoints) {
+                        } else if (npc->combat.hitPoints > enemySnapshot.hitPoints) {
                             // Took damage
-                            float dmg = slime->combat.hitPoints - enemySnapshot.hitPoints;
+                            float dmg = npc->combat.hitPoints - enemySnapshot.hitPoints;
 
                             ParticleEffectParams gooParams{};
                             gooParams.particleCountMin = 5;
                             gooParams.particleCountMax = gooParams.particleCountMin;
                             gooParams.durationMin = 0.5f;
                             gooParams.durationMax = gooParams.durationMin;
-                            serverWorld->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Goo, slime->WorldCenter(), gooParams);
+                            serverWorld->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Goo, npc->WorldCenter(), gooParams);
 
                             ParticleEffectParams dmgParams{};
                             dmgParams.particleCountMin = (int)MAX(1, floorf(log10f(dmg)));
                             dmgParams.particleCountMax = dmgParams.particleCountMin;
                             dmgParams.durationMin = 3.0f;
                             dmgParams.durationMax = dmgParams.durationMin;
-                            ParticleEffect *dmgFx = serverWorld->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Number, slime->WorldCenter(), dmgParams);
+                            ParticleEffect *dmgFx = serverWorld->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Number, npc->WorldCenter(), dmgParams);
                             if (dmgFx) {
                                 char *text = (char *)calloc(1, 8);
                                 snprintf(text, 16, "%.f", dmg);
@@ -711,15 +703,15 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                             Catalog::g_sounds.Play(Catalog::SoundID::Slime_Stab1, 1.0f + dlb_rand32f_variance(0.4f));
                         }
                     }
-                    slime->combat.hitPoints = enemySnapshot.hitPoints;
+                    npc->combat.hitPoints = enemySnapshot.hitPoints;
                 }
-                if (enemySnapshot.flags & EnemySnapshot::Flags_HealthMax) {
-                    //TraceLog(LOG_DEBUG, "Snapshot: healthMax %f", enemySnapshot.hitPointsMax);
-                    slime->combat.hitPointsMax = enemySnapshot.hitPointsMax;
+                if (enemySnapshot.flags & NpcSnapshot::Flags_HealthMax) {
+                    //E_DEBUG("Snapshot: healthMax %f", enemySnapshot.hitPointsMax);
+                    npc->combat.hitPointsMax = enemySnapshot.hitPointsMax;
                 }
-                if (enemySnapshot.flags & EnemySnapshot::Flags_Level) {
-                    //TraceLog(LOG_DEBUG, "Snapshot: level %u", enemySnapshot.level);
-                    slime->combat.level = enemySnapshot.level;
+                if (enemySnapshot.flags & NpcSnapshot::Flags_Level) {
+                    //E_DEBUG("Snapshot: level %u", enemySnapshot.level);
+                    npc->combat.level = enemySnapshot.level;
                 }
             }
 
@@ -734,7 +726,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                 ItemWorld *item = serverWorld->itemSystem.Find(itemSnapshot.id);
                 if (!item) {
 #if CL_DEBUG_WORLD_ITEMS
-                    TraceLog(LOG_DEBUG, "Trying to spawn item: uid %u, count %u, id %u",
+                    E_DEBUG("Trying to spawn item: uid %u, count %u, id %u",
                         itemSnapshot.itemUid,
                         itemSnapshot.stackCount,
                         itemSnapshot.id
@@ -747,7 +739,6 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                         itemSnapshot.id
                     );
                     if (!item) {
-                        TraceLog(LOG_ERROR, "Failed to spawn item.");
                         continue;
                     }
                     spawned = true;
@@ -764,7 +755,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                     state.recvAt = worldSnapshot.recvAt;
 
                     if (posChanged) {
-                        //TraceLog(LOG_DEBUG, "Snapshot: pos %f %f %f",
+                        //E_DEBUG("Snapshot: pos %f %f %f",
                         //    itemSnapshot.position.x,
                         //    itemSnapshot.position.y,
                         //    itemSnapshot.position.z);
@@ -773,7 +764,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                         if (prevState) {
                             state.v = prevState->v;
                         } else {
-                            TraceLog(LOG_WARNING, "Received direction update but prevPosition is not known.");
+                            E_WARN("Received direction update but prevPosition is not known.");
                             state.v = item->body.WorldPosition();
                         }
                     }
@@ -908,7 +899,7 @@ ErrorType NetClient::Receive(void)
 
                     ProcessMsg(*event.packet);
                     enet_packet_destroy(event.packet);
-                    //TraceLog(LOG_INFO, "[NetClient] RECV\n  %s said %s", senderStr, packet.rawBytes);
+                    //E_INFO("RECV\n  %s said %s", senderStr, packet.rawBytes);
                     break;
                 } case ENET_EVENT_TYPE_DISCONNECT: {
                     E_INFO("Disconnected from server %x:%u.",
