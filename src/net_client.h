@@ -3,6 +3,7 @@
 #include "controller.h"
 #include "fbs.h"
 #include "dlb_types.h"
+#include "servers_generated.h"
 
 struct World;
 
@@ -45,22 +46,119 @@ struct NetClient {
     void      CloseSocket         (void);
     bool      ConnectedAndSpawned (void) const;
 
-    FBS_Buffer &FBS_Servers(void) {
-        return fbs_servers;
-    }
+    // TODO: Should the base multiplayer menu own this data?
+    struct ServerDB {
+        FBS_Buffer          file {};  // raw file buffer
+        const DB::ServerDB *flat {};  // read-only flatbuffer
+
+        ~ServerDB(void) {
+            Unload();
+        }
+
+        ErrorType Load(const char *filename) {
+            // Unload any previously loaded data
+            Unload();
+
+            // Read file
+            file.data = LoadFileData(filename, &file.length);
+            DLB_ASSERT(file.length);
+            this->filename = filename;
+
+            // Verify fb
+            flatbuffers::Verifier verifier(file.data, file.length);
+            if (!DB::VerifyServerDBBuffer(verifier)) {
+                E_ERROR(ErrorType::PancakeVerifyFailed, "Failed to verify ServerDB\n");
+            }
+
+            // Read fb
+            flat = DB::GetServerDB(file.data);
+            return ErrorType::Success;
+        }
+
+        void Unload(void) {
+            delete native;
+            UnloadFileData(file.data);
+            native = 0;
+            flat = 0;
+            file = {};
+        }
+
+        ErrorType Save(const char *filename = 0)
+        {
+            if (!filename) filename = this->filename;
+
+            // Write fb
+            flatbuffers::FlatBufferBuilder fbb;
+            auto newServerDB = flat->Pack(fbb, native);
+            DB::FinishServerDBBuffer(fbb, newServerDB);
+
+            // TODO: Save a backup before overwriting in case we corrupt it
+
+            // Write file
+            if (!SaveFileData(filename, fbb.GetBufferPointer(), fbb.GetSize())) {
+                E_ERROR(ErrorType::FileWriteFailed, "Failed to save ServerDB");
+            }
+
+            // Reload new fb from file
+            E_ERROR(Load(filename), "Failed to load ServerDB");
+            return ErrorType::Success;
+        }
+
+        size_t Size(void) {
+            size_t size = 0;
+            if (flat) {
+                size = flat->servers()->size();
+            }
+            return size;
+        }
+
+        DB::ServerDBT *Data(void) {
+            if (!native) {
+                if (flat) {
+                    native = flat->UnPack();
+                } else {
+                    native = new DB::ServerDBT;
+                }
+            }
+            return native;
+        }
+
+        ErrorType Add(const DB::ServerT &server) {
+            DB::ServerDBT *data = Data();
+            data->servers.push_back(std::make_unique<DB::ServerT>(server));
+            return ErrorType::Success;
+        }
+
+        ErrorType Replace(size_t index, const DB::ServerT &server) {
+            DB::ServerDBT *data = Data();
+            if (index < data->servers.size()) {
+                data->servers[index] = std::make_unique<DB::ServerT>(server);
+            }
+            return ErrorType::Success;
+        }
+
+        ErrorType Delete(size_t index) {
+            DB::ServerDBT *data = Data();
+            if (index < data->servers.size()) {
+                data->servers.erase(data->servers.begin() + index);
+            }
+            return ErrorType::Success;
+        }
+
+    private:
+        const char    *filename {};  // name of last loaded file
+        DB::ServerDBT *native   {};  // mutable native data structure
+    } server_db{};
 
 private:
     static const char *LOG_SRC;
     NetMessage tempMsg {};
     ENetBuffer rawPacket {};
-    FBS_Buffer fbs_servers {};
 
-    ErrorType SaveServerDB(const char *filename);
-    ErrorType LoadServerDB(const char *filename);
-
-    ErrorType   SendRaw           (const void *data, size_t size);
-    ErrorType   SendMsg           (NetMessage &message);
-    ErrorType   Auth              (void);
-    void        ProcessMsg        (ENetPacket &packet);
-    const char *ServerStateString (void);
+    ErrorType   SaveDefaultServerDB (const char *filename);
+    ErrorType   SendRaw             (const void *data, size_t size);
+    ErrorType   SendMsg             (NetMessage &message);
+    ErrorType   Auth                (void);
+    void        ProcessMsg          (ENetPacket &packet);
+    const char *ServerStateString   (void);
 };

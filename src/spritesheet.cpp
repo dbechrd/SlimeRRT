@@ -142,7 +142,7 @@ bool Scanner::ConsumePositiveInt(int *value)
                 accum = accum * 10 + (int)(c - '0');
                 if (accum < 0) {
                     // TODO: Better error info (line/column)
-                    TraceLog(LOG_FATAL, "'%s': Integer overflow in ConsumeInt.\n", fileName);
+                    TraceLog(LOG_ERROR, "'%s': Integer overflow in ConsumeInt.\n", fileName);
                     exit(-1);
                 }
                 foundNum = true;
@@ -228,7 +228,7 @@ bool Scanner::ConsumeString_Path(char *buf, size_t bufLength)
     }
 
     if (c && bufCursor == bufLength) {
-        TraceLog(LOG_FATAL, "%s: Internal buffer is not big enough (max: %zu) to hold that path.\n", fileName, bufLength);
+        TraceLog(LOG_ERROR, "%s: Internal buffer is not big enough (max: %zu) to hold that path.\n", fileName, bufLength);
         assert(!"Internal path buffer not big enough");
         exit(-1);
     }

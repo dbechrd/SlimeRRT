@@ -12,13 +12,15 @@
 
 DLB_ASSERT_HANDLER(handle_assert)
 {
-    TraceLog(LOG_FATAL,
+    TraceLog(LOG_ERROR,
         "\n---[DLB_ASSERT_HANDLER]-----------------\n"
         "Source file: %s:%d\n\n"
         "%s\n"
         "----------------------------------------\n",
         filename, line, expr
     );
+    __debugbreak();
+    exit(EXIT_FAILURE);
 }
 dlb_assert_handler_def *dlb_assert_handler = handle_assert;
 
@@ -92,7 +94,7 @@ int main(int argc, char *argv[])
 
     int enet_code = enet_initialize();
     if (enet_code < 0) {
-        TraceLog(LOG_FATAL, "Failed to initialize network utilities (enet). Error code: %d\n", enet_code);
+        TraceLog(LOG_ERROR, "Failed to initialize network utilities (enet). Error code: %d\n", enet_code);
     }
 
     //--------------------------------------------------------------------------------------

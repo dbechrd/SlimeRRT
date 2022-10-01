@@ -5,6 +5,8 @@ enum class ErrorType {
     Success    = 0,  // No error occurred
     NotConnected,
     AllocFailed,     // Failed to allocate memory
+    FileWriteFailed,
+    FileReadFailed,
     ENetInitFailed,
     HostCreateFailed,
     PacketCreateFailed,
@@ -29,17 +31,6 @@ void error_free();
 //#define E_END_INT return (int)e__code;
 //#define E_CLEAN_END E_CLEANUP E_END;
 
-#define E_ASSERT(err_code, format, ...) \
-do { \
-    ErrorType e__code = (err_code); \
-    if (e__code != ErrorType::Success) { \
-        TraceLog(LOG_FATAL, "[%s:%d]\n[%s][%s (%d)]: " format, \
-            __FILE__, __LINE__, LOG_SRC, #err_code, (int)err_code, __VA_ARGS__); \
-        fflush(stdout); \
-        return (err_code); \
-    } \
-} while(0);
-
 #define E_INFO(format, ...) \
 do { \
     TraceLog(LOG_INFO, "[%s]: " format, LOG_SRC, __VA_ARGS__); fflush(stdout); \
@@ -51,6 +42,13 @@ do { \
     TraceLog(LOG_WARNING, "[%s]: " format, LOG_SRC, __VA_ARGS__); fflush(stdout); \
 } while(0);
 
-//struct Logger {
-//    void Info(const char *text, va_arg_list args);
-//};
+#define E_ERROR(err_code, format, ...) \
+do { \
+    ErrorType e__code = (err_code); \
+    if (e__code != ErrorType::Success) { \
+        TraceLog(LOG_ERROR, "[%s:%d]\n[%s][%s (%d)]: " format, \
+            __FILE__, __LINE__, LOG_SRC, #err_code, (int)err_code, __VA_ARGS__); \
+        fflush(stdout); \
+        return (err_code); \
+    } \
+} while(0);

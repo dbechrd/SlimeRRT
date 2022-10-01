@@ -120,7 +120,7 @@ Player *World::AddPlayer(uint32_t playerId)
     // TODO: Make world->players a RingBuffer if this happens; there must
     // be old/invalid player references hanging around (e.g. if there are 8
     // other players and 1 leaves/joins really fast??)
-    TraceLog(LOG_FATAL, "Failed to add player");
+    TraceLog(LOG_ERROR, "Failed to add player");
     return 0;
 }
 

@@ -49,7 +49,7 @@ static void traceLogCallback(int logType, const char *text, va_list args)
     fputs("\n", stdout);
     fflush(stdout);
 
-    //if (logType == LOG_FATAL) {
+    //if (logType == LOG_ERROR) {
     //    assert(!"Catch in debugger");
     //    if (logFile) fclose(logFile);
     //    //UNUSED(getc(stdin));

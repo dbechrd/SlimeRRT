@@ -19,13 +19,6 @@
 #define POSITION_EPSILON 0.0001f
 #define VELOCITY_EPSILON 0.001f
 
-// Flatbuffers
-#define FBSTR(s, len)  (memset(buf, 0, sizeof(buf)),memcpy(buf, s, strlen(s)),fbb.CreateString((buf), (len)))
-#define FB_DESC(s)     FBSTR(s, SERV_DESC_LENGTH_MAX)
-#define FB_HOST(s)     FBSTR(s, HOSTNAME_LENGTH_MAX)
-#define FB_USER(s)     FBSTR(s, USERNAME_LENGTH_MAX)
-#define FB_PASS(s)     FBSTR(s, PASSWORD_LENGTH_MAX)
-
 //------------------------------------------------------------------------------
 // Feature flags
 //------------------------------------------------------------------------------

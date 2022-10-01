@@ -29,8 +29,9 @@ const char *UI::prevHoverLabel = 0;
 
 const ImGuiTableSortSpecs *UI::itemSortSpecs = 0;
 
-static int editingServerIdx;
-static DB::ServerDBT *editableServerDB;
+#define SERVER_IDX_NONE -2
+#define SERVER_IDX_NEW -1
+static int editingServerIdx = SERVER_IDX_NONE;
 
 void UI::Update(const PlayerControllerState &input, Vector2 screenSize, Spycam *spycam)
 {
@@ -1154,14 +1155,14 @@ void UI::MenuMultiplayer(GameClient &game) {
                 reset = true;
             }
         } else {
-            const FBS_Buffer &fbs_servers = game.netClient.FBS_Servers();
-            const DB::ServerDB *serverDB = DB::GetServerDB(fbs_servers.data);
+            const DB::ServerDB *serverDB = game.netClient.server_db.flat;
             auto servers = serverDB->servers();
 
             // Display user's saved servers
-            ImGui::PushFont(g_fonts.imFontHack48);
             ErrorType err = ErrorType::Success;
-            for (int serverIdx = 0; serverIdx < (int)servers->size(); serverIdx++) {
+            int deleteServerIdx = -1;
+            ImGui::PushFont(g_fonts.imFontHack48);
+            for (int serverIdx = 0; servers && serverIdx < (int)servers->size(); serverIdx++) {
                 const DB::Server *server = servers->Get(serverIdx);
                 if (UI::MenuButton((const char *)server->desc()->data())) {
                     uint16_t port = server->port() ? server->port() : SV_DEFAULT_PORT;
@@ -1183,10 +1184,15 @@ void UI::MenuMultiplayer(GameClient &game) {
                 }
                 ImGui::SameLine();
                 if (UI::MenuButton("x", { 0, 0 })) {
-                    // TODO: Delete server
+                    deleteServerIdx = serverIdx;
                 }
             }
             ImGui::PopFont();
+
+            if (deleteServerIdx >= 0) {
+                game.netClient.server_db.Delete(deleteServerIdx);
+                game.netClient.server_db.Save();
+            }
 
             if (err != ErrorType::Success) {
                 TraceLog(LOG_ERROR, "Failed to connect to server");
@@ -1243,37 +1249,34 @@ void UI::MenuMultiplayer(GameClient &game) {
 }
 
 void UI::MenuMultiplayerNew(NetClient &netClient) {
+    DLB_ASSERT(editingServerIdx != SERVER_IDX_NONE);
+
     thread_local const char *message = 0;
     thread_local bool showPassword = false;
     bool formValid = true;
 
-    if (!editableServerDB) {
-        const FBS_Buffer &fbs_servers = netClient.FBS_Servers();
-        DB::ServerDB *serverDB = DB::GetMutableServerDB(fbs_servers.data);
-        auto servers = serverDB->mutable_servers();
-        editableServerDB = serverDB->UnPack();
-    }
+    thread_local struct {
+        char desc[SERV_DESC_LENGTH_MAX];
+        char host[HOSTNAME_LENGTH_MAX];
+        uint16_t port;
+        char user[USERNAME_LENGTH_MAX];
+        char pass[PASSWORD_LENGTH_MAX];
+    } form{};
 
-    if (editingServerIdx < 0) {
-        editableServerDB->servers.emplace_back(new DB::ServerT());
-        editingServerIdx = (int)(editableServerDB->servers.size() - 1);
-        DB::ServerT &server = *editableServerDB->servers[editingServerIdx].get();
-        server.desc.resize(SERV_DESC_LENGTH_MAX);
-        server.host.resize(HOSTNAME_LENGTH_MAX);
-        server.port = SV_DEFAULT_PORT;
-        server.user.resize(USERNAME_LENGTH_MAX);
-        server.pass.resize(PASSWORD_LENGTH_MAX);
+    if (!form.port) {
+        if (editingServerIdx == SERVER_IDX_NEW) {
+            form.port = SV_DEFAULT_PORT;
+        } else if(editingServerIdx < netClient.server_db.Size()) {
+            const DB::Server &server = *netClient.server_db.flat->servers()->Get(editingServerIdx);
+            strncpy(form.desc, server.desc()->c_str(), sizeof(form.desc));
+            strncpy(form.host, server.host()->c_str(), sizeof(form.host));
+            form.port = server.port();
+            strncpy(form.user, server.user()->c_str(), sizeof(form.user));
+            strncpy(form.pass, server.pass()->c_str(), sizeof(form.pass));
+        } else {
+            DLB_ASSERT(!"Invalid server index");
+        }
     }
-    DB::ServerT &server = *editableServerDB->servers[editingServerIdx].get();
-
-    //server.desc.reserve(SERV_DESC_LENGTH_MAX);
-    //server.host.reserve(HOSTNAME_LENGTH_MAX);
-    //server.user.reserve(USERNAME_LENGTH_MAX);
-    //server.pass.reserve(PASSWORD_LENGTH_MAX);
-    auto &desc = server.desc;
-    auto &host = server.host;
-    auto &user = server.user;
-    auto &pass = server.pass;
 
     int styleVars = 0;
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 0, 4 }); styleVars++;
@@ -1281,7 +1284,7 @@ void UI::MenuMultiplayerNew(NetClient &netClient) {
     ImGui::Text("Description ");
     ImGui::SameLine();
     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-    ImGui::InputText("##multiplayer_new_desc", desc.data(), desc.capacity());
+    ImGui::InputText("##multiplayer_new_desc", CSTR0(form.desc));
 
     ImGui::Text("Host / IP   ");
     ImGui::SameLine();
@@ -1289,24 +1292,24 @@ void UI::MenuMultiplayerNew(NetClient &netClient) {
     if (menuStack.ChangedSinceLastFrame()) {
         ImGui::SetKeyboardFocusHere();
     }
-    ImGui::InputText("##multiplayer_new_host", host.data(), host.capacity()); //, ImGuiInputTextFlags_Password | ImGuiInputTextFlags_ReadOnly);
+    ImGui::InputText("##multiplayer_new_host", CSTR0(form.host)); //, ImGuiInputTextFlags_Password | ImGuiInputTextFlags_ReadOnly);
 
     ImGui::Text("Port #      ");
     ImGui::SameLine();
     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-    int port = server.port;
-    ImGui::InputInt("##multiplayer_new_port", &port, 1, 100); //, ImGuiInputTextFlags_ReadOnly);
-    server.port = CLAMP(port, 1, USHRT_MAX);
+    int portInt = form.port;
+    ImGui::InputInt("##multiplayer_new_port", &portInt, 1, 100); //, ImGuiInputTextFlags_ReadOnly);
+    form.port = CLAMP(portInt, 1, USHRT_MAX);
 
     ImGui::Text("Username    ");
     ImGui::SameLine();
     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
-    ImGui::InputText("##multiplayer_new_user", user.data(), user.capacity());
+    ImGui::InputText("##multiplayer_new_user", CSTR0(form.user));
 
     ImGui::Text("Password    ");
     ImGui::SameLine();
     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 85);
-    ImGui::InputText("##multiplayer_new_pass", pass.data(), pass.capacity(), showPassword ? 0 : ImGuiInputTextFlags_Password);
+    ImGui::InputText("##multiplayer_new_pass", CSTR0(form.pass), showPassword ? 0 : ImGuiInputTextFlags_Password);
     ImGui::SameLine();
     if (ImGui::Button(showPassword ? "***" : "ABC", { 85, 0 })) {
         showPassword = !showPassword;
@@ -1316,9 +1319,9 @@ void UI::MenuMultiplayerNew(NetClient &netClient) {
 
     message = 0;
     thread_local char buf[64]{};
-    size_t hostnameLen = strnlen(host.data(), host.capacity());
-    size_t usernameLen = strnlen(user.data(), user.capacity());
-    size_t passwordLen = strnlen(pass.data(), pass.capacity());
+    size_t hostnameLen = strnlen(CSTR0(form.host));
+    size_t usernameLen = strnlen(CSTR0(form.user));
+    size_t passwordLen = strnlen(CSTR0(form.pass));
     if (hostnameLen < HOSTNAME_LENGTH_MIN) {
         formValid = false;
         snprintf(buf, sizeof(buf), "Host/IP must be at least %d characters", HOSTNAME_LENGTH_MIN);
@@ -1371,30 +1374,18 @@ void UI::MenuMultiplayerNew(NetClient &netClient) {
     //ImGui::PopStyleColor();
 
     if (accept) {
+        DB::ServerT server{};
+        server.desc = std::string(form.desc);
+        server.host = std::string(form.host);
+        server.port = form.port;
+        server.user = std::string(form.user);
+        server.pass = std::string(form.pass);
         if (editingServerIdx >= 0) {
-            // Save changes to existing server list entry
-            FBS_Buffer &fbs_servers = netClient.FBS_Servers();
-            const DB::ServerDB *serverDB = DB::GetServerDB(fbs_servers.data);
-
-            //---------------------------------------------------------------------------
-            // TODO: Move this to a helper function somewhere
-            //---------------------------------------------------------------------------
-            flatbuffers::FlatBufferBuilder fbb;
-            auto newServerDB = serverDB->Pack(fbb, editableServerDB);
-            DB::FinishServerDBBuffer(fbb, newServerDB);
-            // TODO: Save a backup before overwriting in case we corrupt it
-            if (!SaveFileData("db/servers.dat", fbb.GetBufferPointer(), fbb.GetSize())) {
-                printf("Uh oh, it didn't work :(\n");
-            }
-            fbs_servers.data = LoadFileData("db/servers.dat", &fbs_servers.length);
-            DLB_ASSERT(fbs_servers.length);
-            //---------------------------------------------------------------------------
+            netClient.server_db.Replace(editingServerIdx, server);
         } else {
-            // TODO: Handle adding a new one somehow.. Unpack the whole vector? Pre-allocate a bunch of servers?
+            netClient.server_db.Add(server);
         }
-    } else if (cancel) {
-        delete editableServerDB;
-        editableServerDB = 0;
+        netClient.server_db.Save();
     }
 
     if (accept || cancel) {
@@ -1403,6 +1394,8 @@ void UI::MenuMultiplayerNew(NetClient &netClient) {
 
     if (menuStack.Changed()) {
         showPassword = false;
+        editingServerIdx = SERVER_IDX_NONE;
+        memset(&form, 0, sizeof(form));
     }
 
     return;
@@ -1410,6 +1403,7 @@ void UI::MenuMultiplayerNew(NetClient &netClient) {
 
 void UI::MainMenu(bool &escape, GameClient &game)
 {
+    Menu curMenu = menuStack.Last();
     menuStack.Begin();
     if (escape && menuStack.Pop()) {
         escape = false;
@@ -1445,8 +1439,6 @@ void UI::MainMenu(bool &escape, GameClient &game)
     );
 
     const char *hoverLabel = 0;
-
-    Menu curMenu = menuStack.Last();
 
     // Breadcrumbs
     ImGui::PushFont(g_fonts.imFontHack16);

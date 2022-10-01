@@ -43,12 +43,12 @@ ErrorType GameServer::Run(const Args &args)
 
     netServer.serverWorld = world;
 
-    E_ASSERT(netServer.OpenSocket(args.port), "Failed to open socket");
+    E_ERROR(netServer.OpenSocket(args.port), "Failed to open socket");
 
     g_clock.server = true;
 
     while (!args.serverQuit) {
-        E_ASSERT(netServer.Listen(), "Failed to listen on socket");
+        E_ERROR(netServer.Listen(), "Failed to listen on socket");
 
         const double now = glfwGetTime();
         const double dt = now - g_clock.nowPrev;
@@ -162,7 +162,7 @@ ErrorType GameServer::Run(const Args &args)
                     TraceLog(LOG_DEBUG, "Sending snapshot for tick %u / input seq #%u, to player %u\n", world->tick, client.lastInputAck, client.playerId);
     #endif
                     // Send snapshot
-                    E_ASSERT(netServer.SendWorldSnapshot(client), "Failed to send world snapshot");
+                    E_ERROR(netServer.SendWorldSnapshot(client), "Failed to send world snapshot");
                 } else {
                     //TraceLog(LOG_DEBUG, "Skipping shapshot for %u", client.playerId);
                 }

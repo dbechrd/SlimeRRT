@@ -115,7 +115,7 @@ void ChatHistory::Render(const Font &font, int fontSize, World &world, float lef
                 displayName = playerInfo ? SafeTextFormat("[%.*s]", playerInfo->nameLength, playerInfo->name) : "someone";
                 break;
             }
-            default: TraceLog(LOG_FATAL, "Unhandled chat source");
+            default: TraceLog(LOG_ERROR, "Unhandled chat source");
         }
 
         const char *chatText = SafeTextFormat("[%s]%s: %.*s", chatMsg.timestampStr, displayName,

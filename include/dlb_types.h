@@ -138,7 +138,6 @@ static inline void swap_int(int *a, int *b)
 #define DLB_ASSERT_HANDLER(name) \
     void name(const char *expr, const char *filename, u32 line)
 typedef DLB_ASSERT_HANDLER(dlb_assert_handler_def);
-//extern dlb_assert_handler_def *dlb_assert_handler;
 extern dlb_assert_handler_def *dlb_assert_handler;
 
 #define DLB_ASSERT(expr) \

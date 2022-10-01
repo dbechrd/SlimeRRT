@@ -329,7 +329,7 @@ size_t NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer)
                     stream.Align();
                     break;
                 } default: {
-                    TraceLog(LOG_FATAL, "Unexpected message");
+                    TraceLog(LOG_ERROR, "Unexpected message");
                 }
             }
 
@@ -366,11 +366,11 @@ size_t NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer)
                         }
                     }
 #else
-                    TraceLog(LOG_FATAL, "Unexpected message");
+                    TraceLog(LOG_ERROR, "Unexpected message");
 #endif
                     break;
                 } case NetMessage_NearbyEvent::Type::PlayerEquip: {
-                    TraceLog(LOG_FATAL, "Unexpected message");
+                    TraceLog(LOG_ERROR, "Unexpected message");
                     break;
                 } case NetMessage_NearbyEvent::Type::EnemyState: {
 #if 0
@@ -397,7 +397,7 @@ size_t NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer)
                         }
                     }
 #else
-                    TraceLog(LOG_FATAL, "Unexpected message");
+                    TraceLog(LOG_ERROR, "Unexpected message");
 #endif
                     break;
                 } case NetMessage_NearbyEvent::Type::ItemState: {
@@ -417,11 +417,11 @@ size_t NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer)
                         }
                     }
 #else
-                    TraceLog(LOG_FATAL, "Unexpected message");
+                    TraceLog(LOG_ERROR, "Unexpected message");
 #endif
                     break;
                 } default: {
-                    TraceLog(LOG_FATAL, "Unexpected message");
+                    TraceLog(LOG_ERROR, "Unexpected message");
                 }
             }
 

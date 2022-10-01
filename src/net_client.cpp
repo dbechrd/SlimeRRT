@@ -10,56 +10,27 @@
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
+#include <memory>
 
 const char *NetClient::LOG_SRC = "NetClient";
 
-ErrorType NetClient::SaveServerDB(const char *filename)
+ErrorType NetClient::SaveDefaultServerDB(const char *filename)
 {
-    flatbuffers::FlatBufferBuilder fbb;
-
-    //auto tpjGuest   = DB::CreateServer(fbb, FB_DESC("Guest"  ), FB_HOST("slime.theprogrammingjunkie.com"), SV_DEFAULT_PORT, FB_USER("guest"  ), FB_PASS("guest"   ));
-    //auto tpjDandy   = DB::CreateServer(fbb, FB_DESC("Dandy"  ), FB_HOST("slime.theprogrammingjunkie.com"), SV_DEFAULT_PORT, FB_USER("dandy"  ), FB_PASS("asdf"    ));
-    //auto tpjOwl     = DB::CreateServer(fbb, FB_DESC("Owl"    ), FB_HOST("slime.theprogrammingjunkie.com"), SV_DEFAULT_PORT, FB_USER("owl"    ), FB_PASS("awesome" ));
-    //auto tpjKenneth = DB::CreateServer(fbb, FB_DESC("Kenneth"), FB_HOST("slime.theprogrammingjunkie.com"), SV_DEFAULT_PORT, FB_USER("kenneth"), FB_PASS("mushroom"));
-
-    char buf[1024]{};
-    auto tpjGuest   = DB::CreateServer(fbb, FB_DESC("Guest"  ), FB_HOST("slime.theprogrammingjunkie.com"), SV_DEFAULT_PORT, FB_USER("guest"  ), FB_PASS("guest"   ));
-    auto tpjDandy   = DB::CreateServer(fbb, FB_DESC("Dandy"  ), FB_HOST("slime.theprogrammingjunkie.com"), SV_DEFAULT_PORT, FB_USER("dandy"  ), FB_PASS("asdf"    ));
-    auto tpjOwl     = DB::CreateServer(fbb, FB_DESC("Owl"    ), FB_HOST("slime.theprogrammingjunkie.com"), SV_DEFAULT_PORT, FB_USER("owl"    ), FB_PASS("awesome" ));
-    auto tpjKenneth = DB::CreateServer(fbb, FB_DESC("Kenneth"), FB_HOST("slime.theprogrammingjunkie.com"), SV_DEFAULT_PORT, FB_USER("kenneth"), FB_PASS("mushroom"));
-
-    std::vector<flatbuffers::Offset<DB::Server>> servers{ tpjGuest, tpjDandy, tpjOwl, tpjKenneth };
-    auto serverDB = DB::CreateServerDBDirect(fbb, &servers);
-
-    DB::FinishServerDBBuffer(fbb, serverDB);
-    if (!SaveFileData(filename, fbb.GetBufferPointer(), fbb.GetSize())) {
-        printf("Uh oh, it didn't work :(\n");
-    }
-
-    return ErrorType::Success;
-}
-
-ErrorType NetClient::LoadServerDB(const char *filename)
-{
-    fbs_servers.data = LoadFileData(filename, &fbs_servers.length);
-    DLB_ASSERT(fbs_servers.length);
-
-    flatbuffers::Verifier verifier(fbs_servers.data, fbs_servers.length);
-    if (!DB::VerifyServerDBBuffer(verifier)) {
-        E_ASSERT(ErrorType::PancakeVerifyFailed, "Uh oh, data verification failed\n");
-    }
-
-    const DB::ServerDB *serverDB = DB::GetServerDB(fbs_servers.data);
-    const DB::Server *tpjGuest = serverDB->servers()->LookupByKey("Guest");
-    DLB_ASSERT(tpjGuest);
-
+    DB::ServerT tpjGuest{};
+    tpjGuest.desc = "TPJ Guest";
+    tpjGuest.host = "slime.theprogrammingjunkie.com";
+    tpjGuest.port = SV_DEFAULT_PORT;
+    tpjGuest.user = "guest";
+    tpjGuest.pass = "guest";
+    E_ERROR(server_db.Add(tpjGuest), "Failed to add default server to ServerDB");
+    E_ERROR(server_db.Save(filename), "Failed to save default ServerDB");
     return ErrorType::Success;
 }
 
 NetClient::NetClient(void)
 {
-    //SaveServerDB("db/servers.dat");
-    LoadServerDB("db/servers.dat");
+    SaveDefaultServerDB("db/servers.dat");
+    server_db.Load("db/servers.dat");
 
     rawPacket.dataLength = PACKET_SIZE_MAX;
     rawPacket.data = calloc(rawPacket.dataLength, sizeof(uint8_t));
@@ -69,7 +40,6 @@ NetClient::~NetClient(void)
 {
     CloseSocket();
     free(rawPacket.data);
-    UnloadFileData(fbs_servers.data);
 }
 
 ErrorType NetClient::OpenSocket(void)
@@ -80,7 +50,7 @@ ErrorType NetClient::OpenSocket(void)
     }
     client = enet_host_create(nullptr, 1, 1, 0, 0);
     if (!client) {
-        E_ASSERT(ErrorType::HostCreateFailed, "Failed to create host.");
+        E_ERROR(ErrorType::HostCreateFailed, "Failed to create host.");
     }
     // TODO(dlb)[cleanup]: This probably isn't providing any additional value on top of if (!client) check
     assert(client->socket);
@@ -96,7 +66,7 @@ ErrorType NetClient::Connect(const char *serverHost, unsigned short serverPort, 
     ENetAddress address{};
 
     if (!client) {
-        E_ASSERT(OpenSocket(), "Failed to open socket");
+        E_ERROR(OpenSocket(), "Failed to open socket");
     }
     if (server) {
         Disconnect();
@@ -141,10 +111,10 @@ ErrorType NetClient::SendRaw(const void *data, size_t size)
     // TODO(dlb): Don't always use reliable flag.. figure out what actually needs to be reliable (e.g. chat)
     ENetPacket *packet = enet_packet_create(data, size, ENET_PACKET_FLAG_RELIABLE);
     if (!packet) {
-        E_ASSERT(ErrorType::PacketCreateFailed, "Failed to create packet.");
+        E_ERROR(ErrorType::PacketCreateFailed, "Failed to create packet.");
     }
     if (enet_peer_send(server, 0, packet) < 0) {
-        E_ASSERT(ErrorType::PeerSendFailed, "Failed to send connection request.");
+        E_ERROR(ErrorType::PeerSendFailed, "Failed to send connection request.");
     }
     return ErrorType::Success;
 }
@@ -160,7 +130,7 @@ ErrorType NetClient::SendMsg(NetMessage &message)
     memset(rawPacket.data, 0, rawPacket.dataLength);
     size_t bytes = message.Serialize(rawPacket);
     //E_INFO("[SEND][%21s][%5u b] %16s ", rawPacket.dataLength, netMsg.TypeString());
-    E_ASSERT(SendRaw(rawPacket.data, bytes), "Failed to send packet");
+    E_ERROR(SendRaw(rawPacket.data, bytes), "Failed to send packet");
     return ErrorType::Success;
 }
 

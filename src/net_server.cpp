@@ -13,10 +13,10 @@ ErrorType NetServer::SaveUserDB(const char *filename)
     flatbuffers::FlatBufferBuilder fbb;
 
     char buf[1024]{};
-    auto uaGuest = DB::CreateUser(fbb, FB_USER("guest"),   FB_PASS("guest"));
-    auto uaDandy = DB::CreateUser(fbb, FB_USER("dandy"),   FB_PASS("asdf"));
-    auto uaOwl   = DB::CreateUser(fbb, FB_USER("owl"),     FB_PASS("awesome"));
-    auto uaKash  = DB::CreateUser(fbb, FB_USER("kenneth"), FB_PASS("shroom"));
+    auto uaGuest = DB::CreateUser(fbb, fbb.CreateString("guest"),   fbb.CreateString("guest"));
+    auto uaDandy = DB::CreateUser(fbb, fbb.CreateString("dandy"),   fbb.CreateString("asdf"));
+    auto uaOwl   = DB::CreateUser(fbb, fbb.CreateString("owl"),     fbb.CreateString("awesome"));
+    auto uaKash  = DB::CreateUser(fbb, fbb.CreateString("kenneth"), fbb.CreateString("shroom"));
 
     std::vector<flatbuffers::Offset<DB::User>> users{
         uaGuest, uaDandy, uaOwl, uaKash
@@ -38,7 +38,7 @@ ErrorType NetServer::LoadUserDB(const char *filename)
 
     flatbuffers::Verifier verifier(fbs_users.data, fbs_users.length);
     if (!DB::VerifyUserDBBuffer(verifier)) {
-        E_ASSERT(ErrorType::PancakeVerifyFailed, "Uh oh, data verification failed\n");
+        E_ERROR(ErrorType::PancakeVerifyFailed, "Uh oh, data verification failed\n");
     }
 
     //const DB::UserDB *userDB = DB::GetUserDB(fbs_users.data);
@@ -83,7 +83,7 @@ ErrorType NetServer::OpenSocket(unsigned short socketPort)
 
     server = enet_host_create(&address, SV_MAX_PLAYERS, 1, 0, 0);
     while ((!server || !server->socket)) {
-        E_ASSERT(ErrorType::HostCreateFailed, "Failed to create host. Check if port(s) %hu already in use.", socketPort);
+        E_ERROR(ErrorType::HostCreateFailed, "Failed to create host. Check if port(s) %hu already in use.", socketPort);
     }
 
     printf("Listening on port %hu...\n", address.port);
@@ -104,10 +104,10 @@ ErrorType NetServer::SendRaw(const SV_Client &client, const void *data, size_t s
     // TODO(dlb): Don't always use reliable flag.. figure out what actually needs to be reliable (e.g. chat)
     ENetPacket *packet = enet_packet_create(data, size, ENET_PACKET_FLAG_RELIABLE);
     if (!packet) {
-        E_ASSERT(ErrorType::PacketCreateFailed, "Failed to create packet.");
+        E_ERROR(ErrorType::PacketCreateFailed, "Failed to create packet.");
     }
     if (enet_peer_send(client.peer, 0, packet) < 0) {
-        E_ASSERT(ErrorType::PeerSendFailed, "Failed to send connection request.");
+        E_ERROR(ErrorType::PeerSendFailed, "Failed to send connection request.");
     }
     return ErrorType::Success;
 }
@@ -122,7 +122,7 @@ ErrorType NetServer::BroadcastRaw(const void *data, size_t size)
     // TODO(dlb): Don't always use reliable flag.. figure out what actually needs to be reliable (e.g. chat)
     ENetPacket *packet = enet_packet_create(data, size, ENET_PACKET_FLAG_RELIABLE);
     if (!packet) {
-        E_ASSERT(ErrorType::PacketCreateFailed, "Failed to create packet.");
+        E_ERROR(ErrorType::PacketCreateFailed, "Failed to create packet.");
     }
 
     // Broadcast netMsg to all connected clients
@@ -163,7 +163,7 @@ ErrorType NetServer::SendMsg(const SV_Client &client, NetMessage &message)
         //TraceLog(LOG_DEBUG, "[NetServer] Send %s %s (%zu b)", message.TypeString(), subType, bytes);
     }
 
-    E_ASSERT(SendRaw(client, rawPacket.data, bytes), "Failed to send packet");
+    E_ERROR(SendRaw(client, rawPacket.data, bytes), "Failed to send packet");
     return ErrorType::Success;
 }
 
@@ -209,15 +209,15 @@ ErrorType NetServer::SendWelcomeBasket(SV_Client &client)
             memcpy(welcome.players[i].name, serverWorld->playerInfos[i].name, welcome.players[i].nameLength);
             welcome.playerCount++;
         }
-        E_ASSERT(SendMsg(client, netMsg), "Failed to send welcome basket");
+        E_ERROR(SendMsg(client, netMsg), "Failed to send welcome basket");
     }
 
     const PlayerInfo *playerInfo = serverWorld->FindPlayerInfo(client.playerId);
     if (!playerInfo) {
-        TraceLog(LOG_FATAL, "Failed to find player info. playerId: %u", client.playerId);
+        TraceLog(LOG_ERROR, "Failed to find player info. playerId: %u", client.playerId);
     }
 
-    E_ASSERT(BroadcastPlayerJoin(*playerInfo), "Failed to broadcast player join notification");
+    E_ERROR(BroadcastPlayerJoin(*playerInfo), "Failed to broadcast player join notification");
 
     const char *message = SafeTextFormat("%.*s joined the game.", playerInfo->nameLength, playerInfo->name);
     size_t messageLength = strlen(message);
@@ -225,7 +225,7 @@ ErrorType NetServer::SendWelcomeBasket(SV_Client &client)
     chatMsg.source = NetMessage_ChatMessage::Source::Server;
     chatMsg.messageLength = (uint32_t)MIN(messageLength, CHATMSG_LENGTH_MAX);
     memcpy(chatMsg.message, message, chatMsg.messageLength);
-    E_ASSERT(BroadcastChatMessage(chatMsg), "Failed to broadcast player join chat msg");
+    E_ERROR(BroadcastChatMessage(chatMsg), "Failed to broadcast player join chat msg");
 
     SendNearbyChunks(client);
     SendWorldSnapshot(client);
@@ -286,7 +286,7 @@ ErrorType NetServer::SendChatMessage(const SV_Client &client, const char *messag
     memset(&netMsg, 0, sizeof(netMsg));
     netMsg.type = NetMessage::Type::ChatMessage;
     netMsg.data.chatMsg = chatMsg;
-    E_ASSERT(SendMsg(client, netMsg), "Failed to send chat msg");
+    E_ERROR(SendMsg(client, netMsg), "Failed to send chat msg");
     return ErrorType::Success;
 }
 
@@ -299,7 +299,7 @@ ErrorType NetServer::SendWorldChunk(const SV_Client &client, const Chunk &chunk)
     netMsg.type = NetMessage::Type::WorldChunk;
     NetMessage_WorldChunk &worldChunk = netMsg.data.worldChunk;
     worldChunk.chunk = chunk;
-    E_ASSERT(SendMsg(client, netMsg), "Failed to send world chunk");
+    E_ERROR(SendMsg(client, netMsg), "Failed to send world chunk");
     return ErrorType::Success;
 }
 
@@ -335,7 +335,7 @@ ErrorType NetServer::BroadcastTileUpdate(float worldX, float worldY, const Tile 
     tileUpdate.tile = tile;
 
     // Broadcast to nearby players
-    E_ASSERT(BroadcastMsg(netMsg, [&](SV_Client &client) {
+    E_ERROR(BroadcastMsg(netMsg, [&](SV_Client &client) {
         const Player *player = serverWorld->FindPlayer(client.playerId);
         if (player) {
             Vector3 playerPos = player->body.WorldPosition();
@@ -612,7 +612,7 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
         TraceLog(LOG_DEBUG, "Snapshot full, skipped %u world items", skippedItemCount);
     }
 
-    E_ASSERT(SendMsg(client, netMsg), "Failed to send world snapshot");
+    E_ERROR(SendMsg(client, netMsg), "Failed to send world snapshot");
     client.lastSnapshotSentAt = g_clock.now;
     return ErrorType::Success;
 }
@@ -1285,7 +1285,7 @@ ErrorType NetServer::RemoveClient(ENetPeer *peer)
     if (client) {
         const PlayerInfo *playerInfo = serverWorld->FindPlayerInfo(client->playerId);
         if (playerInfo && playerInfo->id) {
-            E_ASSERT(BroadcastPlayerLeave(playerInfo->id), "Failed to broadcast player leave notification");
+            E_ERROR(BroadcastPlayerLeave(playerInfo->id), "Failed to broadcast player leave notification");
 
             const char *message = SafeTextFormat("%.*s left the game.", playerInfo->nameLength, playerInfo->name);
             size_t messageLength = strlen(message);
@@ -1293,7 +1293,7 @@ ErrorType NetServer::RemoveClient(ENetPeer *peer)
             chatMsg.source = NetMessage_ChatMessage::Source::Server;
             chatMsg.messageLength = (uint32_t)MIN(messageLength, CHATMSG_LENGTH_MAX);
             memcpy(chatMsg.message, message, chatMsg.messageLength);
-            E_ASSERT(BroadcastChatMessage(chatMsg), "Failed to broadcast player leave chat msg");
+            E_ERROR(BroadcastChatMessage(chatMsg), "Failed to broadcast player leave chat msg");
 
             serverWorld->RemovePlayer(client->playerId);
             serverWorld->RemovePlayerInfo(client->playerId);
