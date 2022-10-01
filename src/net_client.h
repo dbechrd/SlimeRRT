@@ -61,7 +61,9 @@ struct NetClient {
 
             // Read file
             file.data = LoadFileData(filename, &file.length);
-            DLB_ASSERT(file.length);
+            if (!file.data || !file.length) {
+                E_ERROR(ErrorType::FileReadFailed, "Failed to read ServerDB file");
+            }
             this->filename = filename;
 
             // Verify fb

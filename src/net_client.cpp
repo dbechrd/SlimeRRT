@@ -29,8 +29,9 @@ ErrorType NetClient::SaveDefaultServerDB(const char *filename)
 
 NetClient::NetClient(void)
 {
-    SaveDefaultServerDB("db/servers.dat");
-    server_db.Load("db/servers.dat");
+    if (server_db.Load("db/servers.dat") == ErrorType::FileReadFailed) {
+        SaveDefaultServerDB("db/servers.dat");
+    };
 
     rawPacket.dataLength = PACKET_SIZE_MAX;
     rawPacket.data = calloc(rawPacket.dataLength, sizeof(uint8_t));

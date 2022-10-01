@@ -41,17 +41,9 @@ ErrorType NetServer::LoadUserDB(const char *filename)
         E_ERROR(ErrorType::PancakeVerifyFailed, "Uh oh, data verification failed\n");
     }
 
-    //const DB::UserDB *userDB = DB::GetUserDB(fbs_users.data);
-    DB::UserDB *userDB = DB::GetMutableUserDB(fbs_users.data);
-    //const DB::User *dandy = userDB->accounts()->LookupByKey("dandy");
-    DB::User *dandy = userDB->mutable_accounts()->MutableLookupByKey("dandy");
+    const DB::UserDB *userDB = DB::GetUserDB(fbs_users.data);
+    const DB::User *dandy = userDB->accounts()->LookupByKey("dandy");
     DLB_ASSERT(dandy);
-
-    DLB_ASSERT(dandy->mutable_username()->size() == USERNAME_LENGTH_MAX);
-    DLB_ASSERT(dandy->mutable_password()->size() == PASSWORD_LENGTH_MAX);
-
-    char *user = dandy->mutable_username()->data();
-    char *pass = dandy->mutable_password()->data();
 
     return ErrorType::Success;
 }
