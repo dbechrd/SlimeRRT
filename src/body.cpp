@@ -81,6 +81,10 @@ inline void Body3D::Teleport(Vector3 pos)
     destPosition.x = pos.x;
     destPosition.y = pos.y;
     destPosition.z = pos.z;
+
+    positionPrev = position;
+    position = destPosition;
+    lastMoved = g_clock.now;
 }
 
 inline void Body3D::Move(Vector2 offset)
@@ -201,4 +205,5 @@ void Body3D::Update(double dt)
     idle = timeSinceLastMove > IDLE_THRESHOLD_SECONDS;
     idleChanged = idle != prevIdle;
     lastUpdated = g_clock.now;
+    destPosition = position;
 }

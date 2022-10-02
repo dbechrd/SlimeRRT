@@ -222,6 +222,9 @@ NPC *World::SpawnEnemy(uint32_t id, Vector2 origin)
                 spawnPos.x += origin.x;
                 spawnPos.y += origin.y;
 
+                spawnPos.x = 30;
+                spawnPos.y = 30;
+
                 const Tile *spawnTile = map.TileAtWorld(spawnPos.x, spawnPos.y);
                 if (!spawnTile || !spawnTile->IsSpawnable()) {
                     return 0;
@@ -642,7 +645,7 @@ void World::CL_DespawnStaleEntities(void)
             const float distSq = v3_length_sq(v3_sub(player->body.WorldPosition(), lastPos.v));
             const bool faraway = distSq >= SQUARED(CL_NPC_FARAWAY_THRESHOLD);
             if (faraway) {
-                //E_DEBUG("Despawn far away npc %u", enemy.type);
+                E_TRACE("Despawn far away npc id %u", npc.id);
                 RemoveNpc(npc.id);
                 continue;
             }
@@ -652,7 +655,7 @@ void World::CL_DespawnStaleEntities(void)
             // HACK: Figure out WHY this is happening instead of just despawning. I'm assuming the server just didn't
             // send me a despawn packet for this slime (e.g. because I'm too far away from it??)
             if (g_clock.now - npc.body.positionHistory.Last().recvAt > SV_NPC_STALE_LIFETIME) {
-                E_WARN("Detected stale npc %u", npc.id);
+                //E_WARN("Detected stale npc %u", npc.id);
                 //RemoveSlime(enemy.id);
                 continue;
             }

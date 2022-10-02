@@ -69,22 +69,16 @@ void NPC::UpdateDirection(Vector2 offset)
 
 void NPC::Update(World &world, double dt)
 {
-    switch (type) {
-        case Type::Type_Slime: Slime::Update(*this, world, dt); break;
+    if (!combat.diedAt) {
+        switch (type) {
+            case Type::Type_Slime: Slime::Update(*this, world, dt); break;
+        }
+        body.Update(dt);
+        sprite_update(sprite, dt);
+        combat.Update(dt);
     }
 
-    body.Update(dt);
-    sprite_update(sprite, dt);
-    combat.Update(dt);
-
     if (g_clock.server && combat.diedAt && !combat.droppedDeathLoot) {
-#if _DEBUG
-        // If this fires, we're probably doing multiple interp/extrap for NPCs now, and need a flag similar
-        // to input.skipFx in Player::Update() to prevent loot from rolling many times client-side.
-        thread_local double lastRan = g_clock.now;
-        DLB_ASSERT(g_clock.now > lastRan);
-        lastRan = g_clock.now;
-#endif
         world.lootSystem.SV_RollDrops(combat.lootTableId, [&](ItemStack dropStack) {
             world.itemSystem.SpawnItem(WorldCenter(), dropStack.uid, dropStack.count);
         });

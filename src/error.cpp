@@ -85,8 +85,8 @@ static void traceLogCallback(int logType, const char *text, va_list args)
     switch (logType) {
         case LOG_TRACE   : escCode = STY_BOLD   FG_MAGENTA ; logLevel = "TRACE"; break;
         case LOG_DEBUG   : escCode = STY_BOLD   FG_CYAN    ; logLevel = "DEBUG"; break;
-        case LOG_INFO    : escCode = STY_DIM    FG_WHITE   ; logLevel = "INFO"; break;
-        case LOG_WARNING : escCode = STY_BOLD   FG_YELLOW  ; logLevel = "WARN"; break;
+        case LOG_INFO    : escCode = STY_DIM    FG_WHITE   ; logLevel = "INFO";  break;
+        case LOG_WARNING : escCode = STY_BOLD   FG_YELLOW  ; logLevel = "WARN";  break;
         case LOG_ERROR   : escCode = STY_BOLD   FG_RED     ; logLevel = "ERROR"; break;
         case LOG_FATAL   : escCode = STY_ITALIC FG_RED     ; logLevel = "FATAL"; break;
     }
@@ -132,7 +132,11 @@ void error_init(const char *logPath)
     if (logFile) return;
 
     logFile = fopen(logPath, "w");
+#if 0
     SetTraceLogLevel(LOG_TRACE);
+#else
+    SetTraceLogLevel(LOG_DEBUG);
+#endif
     SetTraceLogCallback(traceLogCallback);
 }
 

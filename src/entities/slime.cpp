@@ -44,9 +44,7 @@ bool Slime::Move(NPC &npc, double dt, Vector2 offset)
     // Check if hasn't moved for a bit
     if (npc.body.TimeSinceLastMove() > npc.state.slime.randJumpIdle) {
         npc.moveState = NPC::Move_Jump;
-        npc.body.velocity.x += offset.x;
-        npc.body.velocity.y += offset.y;
-        npc.body.velocity.z += METERS_TO_PIXELS(4.0f);
+        npc.body.ApplyForce({ offset.x, offset.y, METERS_TO_PIXELS(4.0f) });
         npc.state.slime.randJumpIdle = (double)dlb_rand32f_range(0.5f, 1.5f) / npc.sprite.scale;
         npc.UpdateDirection(offset);
         return true;
@@ -130,8 +128,9 @@ void Slime::Update(NPC &npc, World &world, double dt)
 {
     // Find nearest player
     float enemyToPlayerDistSq = 0.0f;
-    Player *closestPlayer = world.FindClosestPlayer(npc.body.GroundPosition(), SV_ENEMY_DESPAWN_RADIUS,
-        &enemyToPlayerDistSq);
+    Player *closestPlayer = world.FindClosestPlayer(
+        npc.body.GroundPosition(), SV_ENEMY_DESPAWN_RADIUS, &enemyToPlayerDistSq
+    );
     if (!closestPlayer) {
         // No nearby players, insta-kill enemy w/ no loot
         world.RemoveNpc(npc.id);
@@ -171,6 +170,10 @@ void Slime::Update(NPC &npc, World &world, double dt)
 
         if (!willCollide && Move(npc, dt, slimeMoveMag)) {
             // TODO(cleanup): used to play sound effect, might do something else on server?
+            //if (g_clock.server) {
+            //    Vector2 gPos = npc.body.GroundPosition();
+            //    E_DEBUG("Updated slime %u @ %.f, %.f", npc.id, gPos.x, gPos.y);
+            //}
         }
     }
 
@@ -198,10 +201,5 @@ void Slime::Update(NPC &npc, World &world, double dt)
         //Catalog::SoundID squish = dlb_rand32i_range(0, 1) ? Catalog::SoundID::Squish1 : Catalog::SoundID::Squish2;
         Catalog::SoundID squish = Catalog::SoundID::Squish1;
         Catalog::g_sounds.Play(squish, 1.0f + dlb_rand32f_variance(0.2f), true);
-    }
-
-    if (g_clock.server) {
-        Vector2 gPos = npc.body.GroundPosition();
-        E_TRACE("Updated slime %u @ %.f, %.f", npc.id, gPos.x, gPos.y);
     }
 }
