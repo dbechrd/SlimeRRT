@@ -488,17 +488,17 @@ void Player::Draw(World &world)
 #if CL_DEMO_SNAPSHOT_RADII
     {
         const Vector2 visPos = body.VisualPosition();
-        DrawCircleLines((int)visPos.x, (int)visPos.y, SV_ENEMY_NEARBY_THRESHOLD, GREEN);
-        DrawCircleLines((int)visPos.x, (int)visPos.y, CL_ENEMY_FARAWAY_THRESHOLD, RED);
+        DrawCircleLines((int)visPos.x, (int)visPos.y, SV_NPC_NEARBY_THRESHOLD, GREEN);
+        DrawCircleLines((int)visPos.x, (int)visPos.y, CL_NPC_FARAWAY_THRESHOLD, RED);
     }
 #endif
 
 #if CL_DEMO_SPAWN_RADII
     {
         const Vector2 visPos = body.VisualPosition();
-        DrawCircleLines((int)visPos.x, (int)visPos.y, SV_ENEMY_DESPAWN_RADIUS, GREEN);
-        DrawCircleLines((int)visPos.x, (int)visPos.y, SV_ENEMY_NEARBY_THRESHOLD, BLUE);
-        DrawCircleLines((int)visPos.x, (int)visPos.y, SV_ENEMY_MIN_SPAWN_DIST, RED);
+        DrawCircleLines((int)visPos.x, (int)visPos.y, SV_NPC_DESPAWN_RADIUS, GREEN);
+        DrawCircleLines((int)visPos.x, (int)visPos.y, SV_NPC_NEARBY_THRESHOLD, BLUE);
+        DrawCircleLines((int)visPos.x, (int)visPos.y, SV_NPC_MIN_SPAWN_DIST, RED);
     }
 #endif
 

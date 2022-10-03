@@ -1,6 +1,5 @@
 #include "healthbar.h"
 #include <cmath>
-#include <cassert>
 
 Font HealthBar::s_font;
 
@@ -9,10 +8,11 @@ void HealthBar::SetFont(const Font font)
     s_font = font;
 }
 
-void HealthBar::Draw(const Vector2 &topCenter, const char *name, const Combat &combat)
+void HealthBar::Draw(const Vector2 &topCenter, const char *name, const Combat &combat, uint32_t id)
 {
+    bool showHp = combat.hitPointsMax && !(combat.flags & Combat::Flag_TooBigToFail);
     const int fontSize = s_font.baseSize;
-    assert(fontSize);
+    DLB_ASSERT(fontSize);
 
     Vector2 pad{ 4.0f, 2.0f };
     float x = topCenter.x;
@@ -21,19 +21,28 @@ void HealthBar::Draw(const Vector2 &topCenter, const char *name, const Combat &c
     //const char *hpText = SafeTextFormat("HP: %.02f / %.02f", hitPoints, hitPointsMax);
     const char *hpText = 0;
     if (combat.diedAt) {
-        assert(!combat.hitPoints);
+        DLB_ASSERT(!combat.hitPoints);
         hpText = SafeTextFormat("Respawning in %0.1f ...", SV_RESPAWN_TIMER - (g_clock.now - combat.diedAt));
-    } else if (combat.hitPointsMax) {
+    } else if (showHp) {
         hpText = SafeTextFormat("HP: %.f / %.f", combat.hitPoints, combat.hitPointsMax);
     }
 #if CL_DEBUG_SHOW_LEVELS
     const char *nameText = name ? SafeTextFormat("%s (%u)", name, combat.level) : nullptr;
 #else
-    const char *nameText = name ? SafeTextFormat(name) : nullptr;
+    const char *nameText = 0;
+    if (id) {
+        if (name) {
+            nameText = SafeTextFormat("%s [%u]", name, id);
+        } else {
+            nameText = SafeTextFormat("[%u]", id);
+        }
+    } else {
+        nameText = name ? SafeTextFormat("%s [%u]", name, id) : nullptr;
+    }
 #endif
 
 #if 1
-    if (combat.hitPointsMax) {
+    if (showHp) {
         // HACK: Just show name and bar, no HP text.
         hpText = nameText;
         nameText = nullptr;
@@ -54,7 +63,7 @@ void HealthBar::Draw(const Vector2 &topCenter, const char *name, const Combat &c
         nameRect.height = nameRectMeasure.y;
         nameRect.x = x - nameRect.width / 2.0f;
         nameRect.y = y - fontSize;
-        if (combat.hitPointsMax) {
+        if (showHp) {
             nameRect.y -= 4.0f + fontSize;
         }
     } else {
@@ -71,7 +80,7 @@ void HealthBar::Draw(const Vector2 &topCenter, const char *name, const Combat &c
     // Draw background
     DrawRectangleRec(bgRect, Fade(BLACK, 0.5f));
 
-    if (combat.hitPointsMax) {
+    if (showHp) {
         // Draw animated white delta indicator
         Rectangle deltaIndicatorRect = bgRect;
         deltaIndicatorRect.width *= combat.hitPointsSmooth / combat.hitPointsMax;
@@ -87,7 +96,7 @@ void HealthBar::Draw(const Vector2 &topCenter, const char *name, const Combat &c
     // Draw label
     DrawTextFont(s_font, nameText, nameRect.x, nameRect.y, 0, 0, fontSize, WHITE);
 
-    if (combat.hitPointsMax) {
+    if (showHp) {
         DrawRectangleLinesEx(bgRect, 1, BLACK);
     }
 }

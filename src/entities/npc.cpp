@@ -12,11 +12,8 @@
 void NPC::SetName(const char *newName, uint32_t newNameLen)
 {
     memset(name, 0, nameLength);
-    nameLength = MIN(newNameLen, USERNAME_LENGTH_MAX);
+    nameLength = MIN(newNameLen, sizeof(name));
     memcpy(name, newName, nameLength);
-    if (nameLength < USERNAME_LENGTH_MAX) {
-        snprintf(name + nameLength, USERNAME_LENGTH_MAX - nameLength, " %d", id);
-    }
 }
 
 Vector3 NPC::WorldCenter(void) const
@@ -69,13 +66,19 @@ void NPC::UpdateDirection(Vector2 offset)
 
 void NPC::Update(World &world, double dt)
 {
+    DLB_ASSERT(!despawnedAt);
+
+    // Update animations
+    combat.Update(dt);
+    sprite_update(sprite, dt);
+
     if (!combat.diedAt) {
         switch (type) {
             case Type::Type_Slime: Slime::Update(*this, world, dt); break;
         }
         body.Update(dt);
-        sprite_update(sprite, dt);
-        combat.Update(dt);
+    } else if (!body.Resting()) {
+        body.Update(dt);
     }
 
     if (g_clock.server && combat.diedAt && !combat.droppedDeathLoot) {
@@ -100,29 +103,35 @@ bool NPC::Cull(const Rectangle &cullRect) const
 
 void NPC::Draw(World &world)
 {
-    const Vector3 worldPos = body.WorldPosition();
-    if (combat.hitPoints) {
-        // Shadow size based on height from ground
-        // https://yal.cc/top-down-bouncing-loot-effects/
-        Shadow::Draw(worldPos, 16.0f * sprite.scale, -8.0f * sprite.scale);
+    DLB_ASSERT(!despawnedAt);
 
-        sprite_draw_body(sprite, body, Fade(WHITE, 0.7f));
+    const Vector3 worldPos = body.WorldPosition();
+    const Vector3 groundPos = body.GroundPosition3();
+
+    // Usually 1.0, fades to zero after death
+    const float sinceDeath = combat.diedAt ? (float)((g_clock.now - combat.diedAt) / CL_NPC_CORPSE_LIFETIME) : 0;
+    const float deadAlpha = CLAMP(1.0f - sinceDeath, 0, 1);
+
+    // Shadow size based on height from ground
+    // https://yal.cc/top-down-bouncing-loot-effects/
+    Shadow::Draw(groundPos, 16.0f * sprite.scale, -8.0f * sprite.scale, deadAlpha);
+    sprite_draw_body(sprite, body, Fade(WHITE, 0.7f * deadAlpha));
+
+    if (!combat.diedAt) {
         Vector3 topCenter = WorldTopCenter();
-        HealthBar::Draw({ topCenter.x, topCenter.y - topCenter.z }, name, combat);
+        HealthBar::Draw({ topCenter.x, topCenter.y - topCenter.z }, name, combat, id);
+    }
 
 #if CL_DEMO_SNAPSHOT_RADII
-        // DEBUG: Draw stale visual marker if no snapshot received in a while
-        if (body.positionHistory.Count()) {
-            auto &lastPos = body.positionHistory.Last();
-            if (g_clock.now - lastPos.recvAt > 3.0f) {
-                DrawCircleV(body.VisualPosition(), 3.0f, BEIGE);
-            }
+    // DEBUG: Draw stale visual marker if no snapshot received in a while
+    if (body.positionHistory.Count()) {
+        auto &lastPos = body.positionHistory.Last();
+        if (g_clock.now - lastPos.recvAt > CL_NPC_STALE_LIFETIME) {
+            Vector2 vizPos = body.VisualPosition();
+            const int radius = 7;
+            DrawRectangle((int)vizPos.x - 1, (int)vizPos.y - 1, radius + 2, radius + 2, BLACK);
+            DrawRectangle((int)vizPos.x, (int)vizPos.y, radius, radius, ORANGE);
         }
-#endif
-    } else {
-        //const float radius = 5.0f;
-        //DrawRectangleRec({ slimeBC.x - radius, slimeBC.y - radius, radius * 2, radius * 2 }, RED);
-        body.Teleport({ worldPos.x, worldPos.y, 0 });
-        sprite_draw_body(sprite, body, Fade(DARKGREEN, 0.7f));
     }
+#endif
 }

@@ -46,6 +46,14 @@ inline Vector2 Body3D::GroundPosition(void) const
     return groundPosition;
 }
 
+inline Vector3 Body3D::GroundPosition3(void) const
+{
+    Vector3 groundPosition = { position.x, position.y, 0 };
+    groundPosition.x = floorf(groundPosition.x);
+    groundPosition.y = floorf(groundPosition.y);
+    return groundPosition;
+}
+
 inline Vector2 Body3D::GroundPositionServer(void) const
 {
     Vector2 groundPositionServer{};
@@ -156,33 +164,45 @@ void Body3D::Update(double dt)
 
     // Simulate physics if body not resting
     if (!Resting()) {
-        const float gravity = METERS_TO_PIXELS(10.0f);
-        velocity.z -= gravity * gravityScale * (float)dt; // * drag_coef;
+        const float gravity = -METERS_TO_PIXELS(10.0f) * gravityScale;
+        const float accel = gravity;
+
+        // Artificial damping, real drag would be in the direction opposite of motion and higher at higher speeds
+        float damping_coef = 1.0f - CLAMP(drag, 0.0f, 1.0f);
+        //velocity.x *= damping_coef;
+        //velocity.y *= damping_coef;
+        velocity.z *= damping_coef;
+
+        velocity.z += accel * (float)dt; // * drag_coef;
 
         position.x += velocity.x * (float)dt;
         position.y += velocity.y * (float)dt;
         position.z += velocity.z * (float)dt;
 
-        float friction_coef = 1.0f;
+        // Hitting ground
         if (position.z <= 0.0f) {
             // Clamp tiny velocities to zero
             const Vector3 zero = { 0, 0, 0 };
-            if ((fabsf(velocity.z) - gravity * (float)dt) < VELOCITY_EPSILON) {
+            const float accelDueToGravity = gravity * (float)dt;
+            const float nonGravityVelocity = fabsf(velocity.z - accelDueToGravity);
+            if (nonGravityVelocity < VELOCITY_EPSILON) {
                 //E_DEBUG("Resting body since velocity due to gravity");
                 velocity = zero;
                 position.z = 0.0f;
             } else {
                 // Bounce
                 velocity.z *= -restitution;
-                position.z *= -restitution;
+                //position.z *= -restitution;
+                position.z = 0.0f;
                 bounced = true;
-
-                // Apply friction
-                // TODO: Account for dt in friction?
-                friction_coef = 1.0f - CLAMP(friction, 0.0f, 1.0f);
-                velocity.x *= friction_coef;
-                velocity.y *= friction_coef;
             }
+
+            // Apply friction
+            // TODO: Account for dt in friction?
+            float friction_coef = 1.0f - CLAMP(friction, 0.0f, 1.0f);
+            velocity.x *= friction_coef;
+            velocity.y *= friction_coef;
+            velocity.z *= friction_coef;
         }
 
         DLB_ASSERT(isfinite(position.x));

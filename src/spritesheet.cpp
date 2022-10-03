@@ -140,7 +140,7 @@ ErrorType Scanner::ConsumePositiveInt(int *value)
                 accum = accum * 10 + (int)(c - '0');
                 if (accum < 0) {
                     // TODO: Better error info (line/column)
-                    E_CHECKMSG(ErrorType::Overflow, "'%s': Integer overflow in ConsumeInt.\n", fileName);
+                    E_ERROR_RETURN(ErrorType::Overflow, "'%s': Integer overflow in ConsumeInt.\n", fileName);
                 }
                 foundNum = true;
                 cursor++;
@@ -181,6 +181,7 @@ StringView Scanner::ConsumeString_Alpha()
             }
         }
     }
+    DLB_ASSERT(view.length);
     return view;
 }
 
@@ -230,9 +231,9 @@ ErrorType Scanner::ConsumeString_Path(char *buf, size_t bufLength)
     }
 
     if (!foundPath) {
-        E_CHECKMSG(ErrorType::FileReadFailed, "Expected path string, found '%c' instead.", c);
+        E_ERROR_RETURN(ErrorType::FileReadFailed, "Expected path string, found '%c' instead.", c);
     } else if (c && bufCursor == bufLength) {
-        E_CHECKMSG(ErrorType::FileReadFailed, "%s: Internal buffer is not big enough (max: %zu) to hold that path.\n", fileName, bufLength);
+        E_ERROR_RETURN(ErrorType::FileReadFailed, "%s: Internal buffer is not big enough (max: %zu) to hold that path.\n", fileName, bufLength);
     }
     return ErrorType::Success;
 }
@@ -314,11 +315,12 @@ ErrorType Scanner::ParseIdentifier(Token *token)
 {
     Token tok{};
     tok.token = ConsumeString_Alpha();
+    DLB_ASSERT(tok.token.length);
     tok.type = GetIdentifierType(tok.token);
     if (tok.type == Token::Type::Unknown) {
         // TODO: Report better error info (line/column)
-        E_CHECKMSG(ErrorType::FileReadFailed, "Encountered unrecognized token '%.*s' in file '%s'.\n", tok.token.length,
-            tok.token.text, fileName);
+        E_ERROR_RETURN(ErrorType::FileReadFailed, "Encountered unrecognized token '%.*s' in file '%s'.\n",
+            tok.token.length, tok.token.text, fileName);
     }
     if (token) *token = tok;
     return ErrorType::Success;
@@ -336,32 +338,32 @@ ErrorType Scanner::ParseHeader(Spritesheet &spritesheet)
     // frame count
     DiscardWhitespaceNewlinesComments();
     if (ConsumePositiveInt(&frameCount) != ErrorType::Success) {
-        E_CHECKMSG(ErrorType::FileReadFailed, "'%s': Expected frame_count.\n" USAGE, fileName);
+        E_ERROR_RETURN(ErrorType::FileReadFailed, "'%s': Expected frame_count.\n" USAGE, fileName);
     } else if (frameCount <= 0) {
-        E_CHECKMSG(ErrorType::FileReadFailed, "'%s': frame_count must be a positive, non-zero integer.\n" USAGE, fileName);
+        E_ERROR_RETURN(ErrorType::FileReadFailed, "'%s': frame_count must be a positive, non-zero integer.\n" USAGE, fileName);
     }
 
     // animation count
     DiscardWhitespaceNewlinesComments();
     if (ConsumePositiveInt(&animationCount) != ErrorType::Success) {
-        E_CHECKMSG(ErrorType::FileReadFailed, "'%s': Expected animation_count.\n" USAGE, fileName);
+        E_ERROR_RETURN(ErrorType::FileReadFailed, "'%s': Expected animation_count.\n" USAGE, fileName);
     } else if (animationCount < 0) {
-        E_CHECKMSG(ErrorType::FileReadFailed, "'%s': animation_count must be a positive integer or zero.\n" USAGE, fileName);
+        E_ERROR_RETURN(ErrorType::FileReadFailed, "'%s': animation_count must be a positive integer or zero.\n" USAGE, fileName);
     }
 
     // sprite count
     DiscardWhitespaceNewlinesComments();
     if (ConsumePositiveInt(&spriteCount) != ErrorType::Success) {
-        E_CHECKMSG(ErrorType::FileReadFailed, "'%s': Expected sprite_count.\n" USAGE, fileName);
+        E_ERROR_RETURN(ErrorType::FileReadFailed, "'%s': Expected sprite_count.\n" USAGE, fileName);
     } else if (spriteCount <= 0) {
-        E_CHECKMSG(ErrorType::FileReadFailed, "'%s': sprite_count must be a positive, non-zero integer.\n" USAGE, fileName);
+        E_ERROR_RETURN(ErrorType::FileReadFailed, "'%s': sprite_count must be a positive, non-zero integer.\n" USAGE, fileName);
     }
 
     // texture path
     DiscardWhitespaceNewlinesComments();
     char texturePath[256] = {};
     if (ConsumeString_Path(texturePath, sizeof(texturePath) - 1) != ErrorType::Success) {
-        E_CHECKMSG(ErrorType::FileReadFailed, "'%s': Expected texture_path. " USAGE "\n", fileName);
+        E_ERROR_RETURN(ErrorType::FileReadFailed, "'%s': Expected texture_path. " USAGE "\n", fileName);
     }
 
     //--------------------------------------------------------------------------------
@@ -382,7 +384,7 @@ ErrorType Scanner::ParseHeader(Spritesheet &spritesheet)
     // Load spritesheet texture
     spritesheet.texture = LoadTexture(texturePath);
     if (!spritesheet.texture.width) {
-        E_CHECKMSG(ErrorType::FileReadFailed, "'%s': Failed to load spritesheet texture [path: %s].\n", fileName, texturePath);
+        E_ERROR_RETURN(ErrorType::FileReadFailed, "'%s': Failed to load spritesheet texture [path: %s].\n", fileName, texturePath);
     }
     //--------------------------------------------------------------------------------
 
@@ -399,35 +401,35 @@ ErrorType Scanner::ParseFrame(SpriteFrame &frame)
     DiscardWhitespaceNewlinesComments();
     frame.name = ConsumeString_Name();
     if (!frame.name.length) {
-        E_CHECKMSG(ErrorType::FileReadFailed, "'%s': Expected name.\n" USAGE, fileName);
+        E_ERROR_RETURN(ErrorType::FileReadFailed, "'%s': Expected name.\n" USAGE, fileName);
     }
 
     // x
     DiscardWhitespaceNewlinesComments();
     if (ConsumePositiveInt(&frame.x) != ErrorType::Success) {
-        E_CHECKMSG(ErrorType::FileReadFailed, "'%s': Expected frame x (left).\n" USAGE, fileName);
+        E_ERROR_RETURN(ErrorType::FileReadFailed, "'%s': Expected frame x (left).\n" USAGE, fileName);
     }
 
     // y
     DiscardWhitespaceNewlinesComments();
     if (ConsumePositiveInt(&frame.y) != ErrorType::Success) {
-        E_CHECKMSG(ErrorType::FileReadFailed, "'%s': Expected frame y (top).\n" USAGE, fileName);
+        E_ERROR_RETURN(ErrorType::FileReadFailed, "'%s': Expected frame y (top).\n" USAGE, fileName);
     }
 
     // width
     DiscardWhitespaceNewlinesComments();
     if (ConsumePositiveInt(&frame.width) != ErrorType::Success) {
-        E_CHECKMSG(ErrorType::FileReadFailed, "'%s': Expected frame width.\n" USAGE, fileName);
+        E_ERROR_RETURN(ErrorType::FileReadFailed, "'%s': Expected frame width.\n" USAGE, fileName);
     } else if (frame.width <= 0) {
-        E_CHECKMSG(ErrorType::FileReadFailed, "'%s': width must be a positive, non-zero integer.\n" USAGE, fileName);
+        E_ERROR_RETURN(ErrorType::FileReadFailed, "'%s': width must be a positive, non-zero integer.\n" USAGE, fileName);
     }
 
     // height
     DiscardWhitespaceNewlinesComments();
     if (ConsumePositiveInt(&frame.height) != ErrorType::Success) {
-        E_CHECKMSG(ErrorType::FileReadFailed, "'%s': Expected frame height.\n" USAGE, fileName);
+        E_ERROR_RETURN(ErrorType::FileReadFailed, "'%s': Expected frame height.\n" USAGE, fileName);
     } else if (frame.height <= 0) {
-        E_CHECKMSG(ErrorType::FileReadFailed, "'%s': height must be a positive, non-zero integer.\n" USAGE, fileName);
+        E_ERROR_RETURN(ErrorType::FileReadFailed, "'%s': height must be a positive, non-zero integer.\n" USAGE, fileName);
     }
 
     return ErrorType::Success;
@@ -443,7 +445,7 @@ ErrorType Scanner::ParseAnimation(SpriteAnim &animation)
     DiscardWhitespaceNewlinesComments();
     animation.name = ConsumeString_Name();
     if (!animation.name.length) {
-        E_CHECKMSG(ErrorType::FileReadFailed, "'%s': Expected name.\n" USAGE, fileName);
+        E_ERROR_RETURN(ErrorType::FileReadFailed, "'%s': Expected name.\n" USAGE, fileName);
     }
 
     // frames
@@ -458,12 +460,12 @@ ErrorType Scanner::ParseAnimation(SpriteAnim &animation)
                 animation.frames[i] = -1;
                 break;
             default:
-                E_CHECKMSG(err, "Failed to parse spriteanim frame");
+                E_ERROR_RETURN(err, "Failed to parse spriteanim frame");
         }
     }
 
     if (!animation.frameCount) {
-        E_CHECKMSG(ErrorType::FileReadFailed, "'%s': Expected at least one frame index.\n" USAGE, fileName);
+        E_ERROR_RETURN(ErrorType::FileReadFailed, "'%s': Expected at least one frame index.\n" USAGE, fileName);
     }
 
     return ErrorType::Success;
@@ -479,7 +481,7 @@ ErrorType Scanner::ParseSprite(SpriteDef &sprite)
     DiscardWhitespaceNewlinesComments();
     sprite.name = ConsumeString_Name();
     if (!sprite.name.length) {
-        E_CHECKMSG(ErrorType::FileReadFailed, "'%s': Expected name.\n" USAGE, fileName);
+        E_ERROR_RETURN(ErrorType::FileReadFailed, "'%s': Expected name.\n" USAGE, fileName);
     }
 
     // directional animations
@@ -488,7 +490,7 @@ ErrorType Scanner::ParseSprite(SpriteDef &sprite)
         if (DiscardChar('-')) {
             sprite.animations[i] = -1;
         } else if (ConsumePositiveInt(&sprite.animations[i]) != ErrorType::Success) {
-            E_CHECKMSG(ErrorType::FileReadFailed, "'%s': Expected an animation index for each of the %d directions.\n" USAGE, fileName, (int)Direction::Count);
+            E_ERROR_RETURN(ErrorType::FileReadFailed, "'%s': Expected an animation index for each of the %d directions.\n" USAGE, fileName, (int)Direction::Count);
         }
     }
 
@@ -508,39 +510,39 @@ ErrorType Scanner::ParseSpritesheet(Spritesheet &spritesheet)
         switch (c) {
             ALPHA {
                 Token tok{};
-                E_CHECKMSG(ParseIdentifier(&tok), "Failed to parse token");
+                E_ERROR_RETURN(ParseIdentifier(&tok), "Failed to parse token");
                 switch (tok.type) {
                     case Token::Type::Spritesheet: {
-                        E_CHECKMSG(ParseHeader(spritesheet), "Failed to parse header");
+                        E_ERROR_RETURN(ParseHeader(spritesheet), "Failed to parse header");
                         break;
                     }
                     case Token::Type::Frame: {
                         SpriteFrame &frame = spritesheet.frames.emplace_back();
-                        E_CHECKMSG(ParseFrame(frame), "Failed to parse frame");
+                        E_ERROR_RETURN(ParseFrame(frame), "Failed to parse frame");
                         framesParsed++;
                         break;
                     }
                     case Token::Type::Animation: {
                         SpriteAnim &animation = spritesheet.animations.emplace_back();
-                        E_CHECKMSG(ParseAnimation(animation), "Failed to parse animation");
+                        E_ERROR_RETURN(ParseAnimation(animation), "Failed to parse animation");
                         animationsParsed++;
                         break;
                     }
                     case Token::Type::Sprite: {
                         SpriteDef &sprite = spritesheet.sprites.emplace_back(&spritesheet);
-                        E_CHECKMSG(ParseSprite(sprite), "Failed to parse sprite");
+                        E_ERROR_RETURN(ParseSprite(sprite), "Failed to parse sprite");
                         spritesParsed++;
                         break;
                     }
                     default: {
-                        E_CHECKMSG(ErrorType::FileReadFailed, "'%s': Error: Unrecognized token '%.*s'\n.", fileName, tok.token.length, tok.token.text);
+                        E_ERROR_RETURN(ErrorType::FileReadFailed, "'%s': Error: Unrecognized token '%.*s'\n.", fileName, tok.token.length, tok.token.text);
                         break;
                     }
                 }
                 break;
             }
             default: {
-                E_CHECKMSG(ErrorType::FileReadFailed, "'%s': Error: Unexpected character '%c'\n.", fileName, c);
+                E_ERROR_RETURN(ErrorType::FileReadFailed, "'%s': Error: Unexpected character '%c'\n.", fileName, c);
                 break;
             }
         }
@@ -560,7 +562,7 @@ ErrorType Spritesheet::LoadFromFile(const char *filename)
 {
     buf = (char *)LoadFileData(filename, &bufLength);
     if (!buf) {
-        E_CHECKMSG(ErrorType::FileReadFailed, "Failed to read file %s", filename);
+        E_ERROR_RETURN(ErrorType::FileReadFailed, "Failed to read file %s", filename);
     }
 
     Scanner scanner = {};

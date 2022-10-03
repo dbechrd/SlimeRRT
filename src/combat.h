@@ -4,7 +4,8 @@
 #include "dlb_types.h"
 
 struct Combat {
-    enum Flags {
+    typedef uint8_t Flags;
+    enum : Flags {
         Flag_None         = 0x0,
         Flag_TooBigToFail = 0x1,   // Invulerability
         Flag_Unused1      = 0x2,
@@ -34,9 +35,11 @@ struct Combat {
     bool        droppedDeathLoot {};  // loot on death, proper loot roll
 
     inline float TakeDamage(float damage) {
-        if (flags & Flag_TooBigToFail) {
+        if (diedAt || flags & Flag_TooBigToFail) {
             return 0;
         }
+        DLB_ASSERT(hitPoints);
+        DLB_ASSERT(hitPointsMax);
 
         hitPointsPrev = hitPoints;
         const float dealt = CLAMP(damage, 0.0f, hitPoints);
@@ -47,8 +50,15 @@ struct Combat {
         return dealt;
     }
 
+    inline void Despawn() {
+        //hitPoints = 0;
+        //diedAt = g_clock.now;
+        //droppedDeathLoot = true;
+    }
+
     void Update(double dt)
     {
+        DLB_ASSERT(hitPointsMax);
         hitPointsSmooth += (hitPoints - hitPointsSmooth) * CLAMP(5.0f * (float)dt, 0.05f, 1.0f);
     }
 };

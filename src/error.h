@@ -8,7 +8,8 @@ enum class ErrorType {
     NotFound,
     Overflow,
     OutOfBounds,
-    AllocFailed,     // Failed to allocate memory
+    AllocFailed_Full,       // Container is already full
+    AllocFailed_Duplicate,  // ID already in use
     FileWriteFailed,
     FileReadFailed,
     ENetInitFailed,
@@ -36,33 +37,46 @@ void error_free();
 //#define E_CLEAN_END E_CLEANUP E_END;
 
 #define E__LOG(level, format, ...) \
-do { \
-    TraceLog(level, "[%s][%c]: " format, LOG_SRC, g_clock.server ? 'S' : 'C', __VA_ARGS__); \
-    fflush(stdout); \
-} while(0);
+    do { \
+        TraceLog(level, "%11s] %s" format, LOG_SRC, g_clock.server \
+            ? "                                        [S] " \
+            : "[C] ", __VA_ARGS__); \
+        fflush(stdout); \
+    } while(0)
 
+// Standard log msg level helpers
 #define E_TRACE(format, ...) E__LOG(LOG_TRACE, format, __VA_ARGS__)
 #define E_DEBUG(format, ...) E__LOG(LOG_DEBUG, format, __VA_ARGS__)
 #define E_INFO(format, ...) E__LOG(LOG_INFO, format, __VA_ARGS__)
 #define E_WARN(format, ...) E__LOG(LOG_WARNING, format, __VA_ARGS__)
 
-#define E_ERROR(err_code, format, ...) \
-    E__LOG(LOG_ERROR, "%s (%d)\n  %s:%d\n  " format, #err_code, (int)(err_code), __FILE__, __LINE__, __VA_ARGS__);
-
-#define E_CHECKMSG(err_code, format, ...) \
+// Log debug msg if expr is true/not null
+#define E_DEBUG_TRUE(expr, format, ...) \
     do { \
-        if ((err_code) != ErrorType::Success) { \
-            E_ERROR((err_code), format, __VA_ARGS__); \
-            return (err_code); \
+        if (expr) { \
+            E__LOG(LOG_DEBUG, format, __VA_ARGS__); \
         } \
-    } while(0);
+    } while(0)
 
-#if 0
-#define E_CHECK(err_code) \
+// Log debug msg if expr is false/null
+#define E_DEBUG_FALSE(expr, format, ...) E_DEBUG_TRUE(!(expr), format, __VA_ARGS__)
+#define E_DEBUG_NULL E_DEBUG_FALSE
+
+// Log error w/ file/line info and error code, iff err is non-success
+#define E_ERROR(expr, format, ...) \
     do { \
-        if ((err_code) != ErrorType::Success) { \
-            E_ERROR((err_code), ""); \
-            return (err_code); \
+        ErrorType e_error = (expr); \
+        if (e_error != ErrorType::Success) { \
+            E__LOG(LOG_ERROR, "%s (%d)\n  %s:%d\n  " format, #expr, (int)e_error, __FILE__, __LINE__, __VA_ARGS__); \
         } \
-    } while(0);
-#endif
+    } while(0)
+
+// Log error w/ file/line info and error code, iff err is non-success
+#define E_ERROR_RETURN(expr, format, ...) \
+    do { \
+        ErrorType e_error_return = (expr); \
+        if (e_error_return != ErrorType::Success) { \
+            E_ERROR(e_error_return, format, __VA_ARGS__); \
+            return e_error_return; \
+        } \
+    } while(0)

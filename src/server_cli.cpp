@@ -17,8 +17,8 @@ ErrorType ServerCLI::Run(const char *serverHost, unsigned short serverPort)
         title = "[Open to LAN] Attack the slimes!";
     }
 
-    E_CHECKMSG(netClient.OpenSocket(), "Failed to open client socket");
-    E_CHECKMSG(netClient.Connect(serverHost, serverPort, "admin", "abc"), "Failed to connect client");
+    E_ERROR_RETURN(netClient.OpenSocket(), "Failed to open client socket");
+    E_ERROR_RETURN(netClient.Connect(serverHost, serverPort, "admin", "abc"), "Failed to connect client");
 
 #if 0
     // TODO(dlb): Does the server CLI need to know about the world? Would be cool..

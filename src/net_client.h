@@ -62,14 +62,14 @@ struct NetClient {
             // Read file
             file.data = LoadFileData(filename, &file.length);
             if (!file.data || !file.length) {
-                E_CHECKMSG(ErrorType::FileReadFailed, "Failed to read ServerDB file");
+                E_ERROR_RETURN(ErrorType::FileReadFailed, "Failed to read ServerDB file");
             }
             this->filename = filename;
 
             // Verify fb
             flatbuffers::Verifier verifier(file.data, file.length);
             if (!DB::VerifyServerDBBuffer(verifier)) {
-                E_CHECKMSG(ErrorType::PancakeVerifyFailed, "Failed to verify ServerDB\n");
+                E_ERROR_RETURN(ErrorType::PancakeVerifyFailed, "Failed to verify ServerDB\n");
             }
 
             // Read fb
@@ -98,11 +98,11 @@ struct NetClient {
 
             // Write file
             if (!SaveFileData(filename, fbb.GetBufferPointer(), fbb.GetSize())) {
-                E_CHECKMSG(ErrorType::FileWriteFailed, "Failed to save ServerDB");
+                E_ERROR_RETURN(ErrorType::FileWriteFailed, "Failed to save ServerDB");
             }
 
             // Reload new fb from file
-            E_CHECKMSG(Load(filename), "Failed to load ServerDB");
+            E_ERROR_RETURN(Load(filename), "Failed to load ServerDB");
             return ErrorType::Success;
         }
 

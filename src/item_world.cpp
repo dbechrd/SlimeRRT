@@ -112,6 +112,6 @@ void ItemWorld::Draw(World &world)
         //DrawCircleV(body.VisualPosition(), 10.0f, PURPLE);
 
         Vector3 topCenter = WorldTopCenter();
-        HealthBar::Draw({ topCenter.x, topCenter.y - topCenter.z }, name, {});
+        HealthBar::Draw({ topCenter.x, topCenter.y - topCenter.z }, name, {}, euid);
     }
 }

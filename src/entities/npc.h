@@ -7,14 +7,15 @@
 class NPC : public Drawable {
 public:
     enum Type {
-        Type_None  = 0,
-        Type_Slime = 1,
+        Type_None     = 0,
+        Type_Slime    = 1,
+        Type_Townfolk = 2,
         Type_Count
     };
 
     enum MoveState {
         Move_Idle = 0,
-        Move_Jump = 1
+        Move_Jump = 1,
     };
 
     enum ActionState {
@@ -24,6 +25,7 @@ public:
 
     uint32_t    id           {};
     Type        type         {};
+    double      despawnedAt  {};
     uint32_t    nameLength   {};
     char        name         [ENTITY_NAME_LENGTH_MAX]{};
     Body3D      body         {};

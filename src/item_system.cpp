@@ -121,7 +121,7 @@ ErrorType ItemSystem::Remove(EntityUID euid)
             worldItems.pop_back();
         }
     } else {
-        E_CHECKMSG(ErrorType::OutOfBounds, "Item index out of range. uid: %u idx: %zu size: %zu", euid, idx, worldItems.size());
+        E_ERROR_RETURN(ErrorType::OutOfBounds, "Item index out of range. uid: %u idx: %zu size: %zu", euid, idx, worldItems.size());
     }
     byEuid.erase(euid);
 
@@ -157,9 +157,9 @@ void ItemSystem::DespawnDeadEntities(double pickupDespawnDelay)
         // NOTE: Server adds extra pickupDespawnDelay to ensure all clients receive a snapshot
         // containing the pickup flag before despawning the item. This may not be necessary
         // once nearby_events are implemented and send item pickup notifications.
-        if ((item.pickedUpAt && ((g_clock.now - item.pickedUpAt) > pickupDespawnDelay)) ||
-            (item.spawnedAt && ((g_clock.now - item.spawnedAt) > SV_WORLD_ITEM_LIFETIME)))
-        {
+        const bool pickedUpAwhileAgo = (item.pickedUpAt && ((g_clock.now - item.pickedUpAt) > pickupDespawnDelay));
+        const bool spawnedAwhileAgo = (item.spawnedAt && ((g_clock.now - item.spawnedAt) > SV_WORLD_ITEM_LIFETIME));
+        if (pickedUpAwhileAgo || spawnedAwhileAgo) {
             DLB_ASSERT(item.stack.uid);
             // NOTE: If remove succeeds, don't increment index, next element to check is in the
             // same slot now.

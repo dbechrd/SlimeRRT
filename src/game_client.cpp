@@ -221,7 +221,7 @@ void GameClient::PlayMode_PollController(PlayerControllerState &input)
 
 ErrorType GameClient::PlayMode_Network()
 {
-    E_CHECKMSG(netClient.Receive(), "Failed to receive packets");
+    E_ERROR_RETURN(netClient.Receive(), "Failed to receive packets");
 
     if (UI::DisconnectRequested(netClient.IsDisconnected())) {
         netClient.Disconnect();
@@ -577,7 +577,7 @@ ErrorType GameClient::Run(void)
         // Time is of the essence
         const double frameDt = g_clock.update(glfwGetTime());
 
-        E_CHECKMSG(PlayMode_Network(), "Failed to do message processing");
+        E_ERROR_RETURN(PlayMode_Network(), "Failed to do message processing");
 
         PlayMode_Audio(frameDt);
 

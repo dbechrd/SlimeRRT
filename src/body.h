@@ -25,6 +25,7 @@ struct Body3D {
     Vector3 WorldPosition(void) const;
     Vector3 WorldPositionServer(void) const;
     Vector2 GroundPosition(void) const;
+    Vector3 GroundPosition3(void) const;
     Vector2 GroundPositionServer(void) const;
     Vector2 PrevGroundPosition(void) const;
     Vector2 VisualPosition(void) const;

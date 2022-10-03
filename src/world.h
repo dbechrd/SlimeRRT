@@ -14,6 +14,11 @@
 #include "dlb_rand.h"
 #include <vector>
 
+struct NpcList {
+    NPC    *data   {};
+    size_t  length {};
+};
+
 struct World {
     uint64_t       rtt_seed       {};
     dlb_rand32_t   rtt_rand       {};
@@ -23,8 +28,16 @@ struct World {
     uint32_t       playerId       {};
     Player         players        [SV_MAX_PLAYERS]{};
     PlayerInfo     playerInfos    [SV_MAX_PLAYERS]{};
-    // TODO: SlimeSystem or EnemySystem
-    NPC            npcs           [SV_MAX_NPCS]{};
+    // TODO: NpcSystem
+    struct {
+        NPC slimes   [SV_MAX_NPC_SLIMES  ]{};
+        NPC townfolk [SV_MAX_NPC_TOWNFOLK]{};
+        NpcList byType[NPC::Type_Count]{
+            {},
+            { slimes,   ARRAY_SIZE(slimes   ) },
+            { townfolk, ARRAY_SIZE(townfolk) }
+        };
+    } npcs;
     ItemSystem     itemSystem     {};
     LootSystem     lootSystem     {};
     MapSystem      mapSystem      {};
@@ -45,24 +58,22 @@ struct World {
     PlayerInfo *FindPlayerInfo       (uint32_t playerId);
     PlayerInfo *FindPlayerInfoByName (const char *name, size_t nameLength);
     void        RemovePlayerInfo     (uint32_t playerId);
-
     Player     *AddPlayer            (uint32_t playerId);
     Player     *FindPlayer           (uint32_t playerId);
     Player     *LocalPlayer          (void);
     Player     *FindPlayerByName     (const char *name, size_t nameLength);
-    Player     *FindClosestPlayer    (Vector2 worldPos, float maxDist, float *distSq);
+    Player     *FindNearestPlayer    (Vector2 worldPos, float maxDist, Vector2 *dist = 0);
     void        RemovePlayer         (uint32_t playerId);
-
-    NPC        &SpawnSam             (void);
-    NPC        *SpawnEnemy           (uint32_t npcId, Vector2 origin);
+    ErrorType   SpawnSam             (NPC **result);
+    ErrorType   SpawnNpc             (uint32_t id, NPC::Type type, Vector3 worldPos, NPC **result);
     NPC        *FindNpc              (uint32_t npcId);
     void        RemoveNpc            (uint32_t npcId);
     //
     // ^^^ DO NOT HOLD A POINTER TO THESE! ^^^
     ////////////////////////////////////////////
 
-    void   SV_Simulate         (double dt);
-    void   DespawnDeadEntities (void);
+    void   SV_Simulate              (double dt);
+    void   SV_DespawnDeadEntities   (void);
 
     void   CL_Interpolate          (double renderAt);
     void   CL_Extrapolate          (double dt);

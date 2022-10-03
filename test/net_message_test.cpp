@@ -21,6 +21,7 @@ void net_message_test_snapshot()
 
     NpcSnapshot &npc = msgWritten.data.worldSnapshot.npcs[0];
     npc.id = 70;
+    npc.type = NPC::Type_Slime;
     npc.flags = NpcSnapshot::Flags_Health | NpcSnapshot::Flags_HealthMax;
     npc.hitPoints = 140.0f;
     npc.hitPointsMax = 150.0f;
@@ -48,6 +49,7 @@ void net_message_test_snapshot()
 
     NpcSnapshot &npcRead = msgRead.npcs[0];
     assert(npcRead.id == npc.id);
+    assert(npcRead.type == npc.type);
     assert(npcRead.hitPoints == npc.hitPoints);
     assert(npcRead.hitPointsMax == npc.hitPointsMax);
 

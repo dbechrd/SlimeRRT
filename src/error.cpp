@@ -108,13 +108,13 @@ static void traceLogCallback(int logType, const char *text, va_list args)
 #endif
 
     if (logFile) {
-        fprintf(logFile, "[%0.3fs|%s| ", time, logLevel);
+        fprintf(logFile, "[%6.3fs|%s| ", time, logLevel);
         vfprintf(logFile, text, args);
         fputs("\n", logFile);
         fflush(logFile);
     }
 
-    fprintf(stdout, "%s[%0.3fs|%s|", escCode, time, logLevel);
+    fprintf(stdout, "%s[%6.3fs|%s|", escCode, time, logLevel);
     vfprintf(stdout, text, args);
     fputs("\n" RESET, stdout);
     fflush(stdout);

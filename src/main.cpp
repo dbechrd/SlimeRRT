@@ -13,13 +13,7 @@
 DLB_ASSERT_HANDLER(handle_assert)
 {
     const char *LOG_SRC = "DLB_ASSERT";
-    E_ERROR(ErrorType::AssertFailed,
-        "\n---[DLB_ASSERT_HANDLER]-----------------\n"
-        "Source file: %s:%d\n\n"
-        "%s\n"
-        "----------------------------------------\n",
-        filename, line, expr
-    );
+    E_ERROR(ErrorType::AssertFailed, "  %s", expr);
     __debugbreak();
     exit(EXIT_FAILURE);
 }

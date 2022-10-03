@@ -148,14 +148,14 @@ Player *World::FindPlayerByName(const char *name, size_t nameLength)
     return playerInfo ? FindPlayer(playerInfo->id) : 0;
 }
 
-Player *World::FindClosestPlayer(Vector2 worldPos, float maxDist, float *distSq = 0)
+Player *World::FindNearestPlayer(Vector2 worldPos, float maxDist, Vector2 *toPlayer)
 {
     for (Player &player : players) {
-        if (player.id && player.combat.hitPoints) {
-            Vector2 toPlayer = v2_sub(player.body.GroundPosition(), worldPos);
-            const float toPlayerDistSq = v2_length_sq(toPlayer);
+        if (player.id) {
+            Vector2 toPlayerVec = v2_sub(player.body.GroundPosition(), worldPos);
+            const float toPlayerDistSq = v2_length_sq(toPlayerVec);
             if (toPlayerDistSq <= SQUARED(maxDist)) {
-                if (distSq) *distSq = toPlayerDistSq;
+                if (toPlayer) *toPlayer = toPlayerVec;
                 return &player;
             }
         }
@@ -175,92 +175,136 @@ void World::RemovePlayer(uint32_t id)
     *player = {};
 }
 
-NPC &World::SpawnSam(void)
+ErrorType World::SpawnSam(NPC **result)
 {
-    NPC *npc = SpawnEnemy(0, {0, 0});
-    assert(npc);
-    NPC &sam = *npc;
-    sam.SetName(CSTR("Sam"));
-    sam.combat.hitPointsMax = 20.0f; //100000.0f;
-    sam.combat.hitPoints = sam.combat.hitPointsMax;
-    sam.combat.meleeDamage = -1.0f;
-    sam.combat.lootTableId = LootTableID::LT_Sam;
-    sam.body.Teleport(v3_add(GetWorldSpawn(), { -200.0f, 0, 0 }));
-    sam.sprite.scale = 2.0f;
-    return sam;
+    NPC *sam = 0;
+    E_ERROR_RETURN(SpawnNpc(0, NPC::Type_Slime, {0, 0}, &sam), "Failed to spawn Sam");
+
+    DLB_ASSERT(sam);
+    sam->SetName(CSTR("Sam"));
+    sam->combat.hitPointsMax = 20.0f; //100000.0f;
+    sam->combat.hitPoints = sam->combat.hitPointsMax;
+    sam->combat.meleeDamage = -1.0f;
+    sam->combat.lootTableId = LootTableID::LT_Sam;
+    sam->body.Teleport(v3_add(GetWorldSpawn(), { -200.0f, 0, 0 }));
+    sam->sprite.scale = 2.0f;
+
+    if (result) *result = sam;
+    return ErrorType::Success;
 }
 
-NPC *World::SpawnEnemy(uint32_t id, Vector2 origin)
+ErrorType World::SpawnNpc(uint32_t id, NPC::Type type, Vector3 worldPos, NPC **result)
 {
-#if _DEBUG
+    DLB_ASSERT(type > 0);
+    DLB_ASSERT(type < NPC::Type_Count);
+
+    // Only the server should be spawning new npcs; the client merely replicates them by id
+    if (g_clock.server) {
+        DLB_ASSERT(id == 0);
+    } else {
+        DLB_ASSERT(id);
+    }
+
+    NpcList npcList = npcs.byType[type];
     if (id) {
-        for (NPC &npc : npcs) {
+        for (size_t i = 0; i < npcList.length; i++) {
+            NPC &npc = npcList.data[i];
             if (npc.id == id) {
-                assert(!"This npc id is already in use!");
+                // TODO: Is this really an error? Just replace the duplicate with the new state, right?
+                // Not sure if/when this would ever happen and not be a bug though...
+                E_ERROR_RETURN(ErrorType::AllocFailed_Duplicate, "This npc id is already in use!");
             }
         }
     }
-#endif
 
-    for (NPC &npc : npcs) {
-        if (npc.id == 0) {
-            assert(!npc.nameLength);
-            assert(!npc.combat.hitPointsMax);
+    // Find a suitable place to store the new NPC (try to replace by: free -> dead -> alive)
+    NPC *newNpc = 0;
+    NPC *oldestDeadNpc = 0;
+    NPC *oldestAliveNpc = 0;
+    double oldestDeadTime = 0;
+    double oldestAliveTime = 0;
 
-            Vector3 spawnPos{};
-
-            if (g_clock.server) {
-                spawnPos.x = dlb_rand32f_variance(1.0f);
-                spawnPos.y = dlb_rand32f_variance(1.0f);
-                spawnPos = v3_normalize(spawnPos);
-
-                // Scale into correct range for valid spawn ring
-                float mult = dlb_rand32f_range(SV_ENEMY_MIN_SPAWN_DIST, SV_ENEMY_DESPAWN_RADIUS);
-                spawnPos = v3_scale(spawnPos, mult);
-
-                // Translate to whatever point we want to spawn
-                spawnPos.x += origin.x;
-                spawnPos.y += origin.y;
-
-                spawnPos.x = 30;
-                spawnPos.y = 30;
-
-                const Tile *spawnTile = map.TileAtWorld(spawnPos.x, spawnPos.y);
-                if (!spawnTile || !spawnTile->IsSpawnable()) {
-                    return 0;
+    for (size_t i = 0; i < npcList.length; i++) {
+        NPC &npc = npcList.data[i];
+        if (!npc.id) {
+            DLB_ASSERT(!npc.type);
+            DLB_ASSERT(!npc.nameLength);
+            DLB_ASSERT(!npc.combat.hitPointsMax);
+            newNpc = &npc;
+            break;
+        }
+        if (!g_clock.server) {
+            // Keep track of second/third best types of slots on client
+            if (npc.body.positionHistory.Count()) {
+                double staleTime = g_clock.now - npc.body.positionHistory.Last().recvAt;
+                if (npc.combat.diedAt && staleTime > oldestDeadTime) {
+                    oldestDeadNpc = &npc;
                 }
-            }
-#if 0
-            for (Player &player : players) {
-                float spawnDist = v3_length_sq(v3_sub(spawnPos, player.body.WorldPosition()));
-                if (spawnDist < SV_ENEMY_MIN_SPAWN_DIST * SV_ENEMY_MIN_SPAWN_DIST) {
-                    //E_DEBUG("Failed to spawn enemy, too close to player");
-                    //return 0;
+                if (!npc.combat.diedAt && staleTime > oldestAliveTime) {
+                    oldestAliveNpc = &npc;
                 }
-            }
-#endif
-            if (id) {
-                npc.id = id;
             } else {
-                thread_local uint32_t nextId = 0;
-                nextId = MAX(1, nextId + 1); // Prevent ID zero from being used on overflow
-                npc.id = nextId;
+                E_ERROR(ErrorType::EnemyNotFound, "Npc has no position history id: %u", npc.id);
             }
-
-            Slime::Init(npc);
-            if (g_clock.server) {
-                npc.body.Teleport(spawnPos);
-            }
-            E_DEBUG("SpawnEnemy [%u] @ %.f, %.f", npc.id,
-                npc.body.GroundPosition().x,
-                npc.body.GroundPosition().y
-            );
-            return &npc;
         }
     }
 
-    //E_DEBUG("Failed to spawn enemy, mob cap full");
-    return 0;
+    // Server simply stops spawning new mobs if list is full
+    if (g_clock.server && !newNpc) {
+        return ErrorType::AllocFailed_Full;
+    }
+
+    // Client falls back on stealing less ideal slots if their NPC list is full
+    if (!newNpc) {
+        E_WARN("Replacing oldest dead npc with new npc");
+        newNpc = oldestDeadNpc;
+    }
+    if (!newNpc) {
+        E_WARN("Replacing oldest alive npc with new npc");
+        newNpc = oldestAliveNpc;
+    }
+    DLB_ASSERT(newNpc);
+
+    NPC &npc = *newNpc;
+
+    if (id) {
+        npc.id = id;
+    } else {
+        thread_local uint32_t nextId = 0;
+        nextId = MAX(1, nextId + 1); // Prevent ID zero from being used on overflow
+        npc.id = nextId;
+    }
+
+    switch (type) {
+        case NPC::Type_Slime: Slime::Init(npc); break;
+        case NPC::Type_Townfolk: {
+            npc.type = NPC::Type_Townfolk;
+            npc.SetName(CSTR("Townfolk"));
+            npc.combat.hitPointsMax = 1;
+            npc.combat.hitPoints = npc.combat.hitPointsMax;
+            npc.combat.flags |= Combat::Flag_TooBigToFail;
+            // TODO: Shop inventory?
+            //npc.combat.lootTableId = LootTableID::LT_Slime;
+            npc.sprite.scale = 1.0f;
+            // TODO: FindClosestPlayer and update direction in Townfolk::Update()
+            npc.sprite.direction = Direction::South;
+
+            // TODO: Look this up by npc.type in Draw() instead
+            if (!g_clock.server) {
+                const Spritesheet &spritesheet = Catalog::g_spritesheets.FindById(Catalog::SpritesheetID::Slime);
+                const SpriteDef *spriteDef = spritesheet.FindSprite("blue_slime");
+                npc.sprite.spriteDef = spriteDef;
+            }
+            break;
+        }
+    }
+
+    npc.body.Teleport({ worldPos.x, worldPos.y, 0 });
+    E_DEBUG("Spawning npc [%u] @ %.f, %.f", npc.id, worldPos.x, worldPos.y);
+
+    if (result) *result = &npc;
+    return ErrorType::Success;
+
 }
 
 NPC *World::FindNpc(uint32_t id)
@@ -269,9 +313,13 @@ NPC *World::FindNpc(uint32_t id)
         return 0;
     }
 
-    for (NPC &npc : npcs) {
-        if (npc.id == id) {
-            return &npc;
+    for (int type = NPC::Type_None + 1; type < NPC::Type_Count; type++) {
+        NpcList npcList = npcs.byType[type];
+        for (size_t i = 0; i < npcList.length; i++) {
+            NPC &npc = npcList.data[i];
+            if (npc.id == id) {
+                return &npc;
+            }
         }
     }
     return 0;
@@ -329,27 +377,48 @@ void World::SV_SimPlayers(double dt)
                 playerDamage = player.combat.meleeDamage;
             }
 
-            for (NPC &npc : npcs) {
-                if (!npc.id || npc.combat.diedAt) {
-                    continue;
-                }
-
-                Vector3 playerToEnemy = v3_sub(npc.body.WorldPosition(), player.body.WorldPosition());
-                if (v3_length_sq(playerToEnemy) <= SQUARED(playerAttackReach)) {
-                    player.stats.damageDealt += npc.TakeDamage(playerDamage);
-                    if (playerKnockback) {
-                        Vector3 knockbackDir = v3_normalize(playerToEnemy);
-                        Vector3 knockbackVec = v3_scale(knockbackDir, METERS_TO_PIXELS(playerKnockback));
-                        npc.body.ApplyForce(knockbackVec);
+            for (int type = NPC::Type_None + 1; type < NPC::Type_Count; type++) {
+                NpcList npcList = npcs.byType[type];
+                for (size_t i = 0; i < npcList.length; i++) {
+                    NPC &npc = npcList.data[i];
+                    if (!npc.id || npc.combat.diedAt) {
+                        continue;
                     }
-                    if (!npc.combat.hitPoints) {
-                        player.xp += dlb_rand32u_range(npc.combat.xpMin, npc.combat.xpMax);
-                        int overflowXp = player.xp - (player.combat.level * 20u);
-                        if (overflowXp >= 0) {
-                            player.combat.level++;
-                            player.xp = (uint32_t)overflowXp;
+
+                    // Apply damage to nearby NPCs
+                    Vector3 playerToNpc = v3_sub(npc.body.WorldPosition(), player.body.WorldPosition());
+                    if (v3_length_sq(playerToNpc) <= SQUARED(playerAttackReach)) {
+                        player.stats.damageDealt += npc.TakeDamage(playerDamage);
+                        if (playerKnockback) {
+                            Vector3 knockbackDir = v3_normalize(playerToNpc);
+                            Vector3 knockbackVec = v3_scale(knockbackDir, METERS_TO_PIXELS(playerKnockback));
+                            npc.body.ApplyForce(knockbackVec);
                         }
-                        player.stats.npcsSlain[npc.type]++;
+                        if (!npc.combat.hitPoints) {
+                            player.xp += dlb_rand32u_range(npc.combat.xpMin, npc.combat.xpMax);
+                            int overflowXp = player.xp - (player.combat.level * 20u);
+                            if (overflowXp >= 0) {
+                                player.combat.level++;
+                                player.xp = (uint32_t)overflowXp;
+
+                                // Spawn a merchant for the player
+                                if (player.combat.level == 2) {
+                                    Vector3 spawnPos = player.body.WorldPosition();
+                                    spawnPos.y -= 40;
+                                    spawnPos.z = 0;
+                                    NPC *level1Merchant = 0;
+                                    SpawnNpc(0, NPC::Type_Townfolk, spawnPos, &level1Merchant);
+                                    if (level1Merchant) {
+                                        PlayerInfo *playerInfo = FindPlayerInfo(player.id);
+                                        DLB_ASSERT(playerInfo);
+                                        char nameBuf[USERNAME_LENGTH_MAX + 32]{};
+                                        int nameLen = snprintf(CSTR0(nameBuf), "%.*s's Merchant", playerInfo->nameLength, playerInfo->name);
+                                        level1Merchant->SetName(nameBuf, nameLen);
+                                    }
+                                }
+                            }
+                            player.stats.npcsSlain[npc.type]++;
+                        }
                     }
                 }
             }
@@ -379,20 +448,45 @@ void World::SV_SimPlayers(double dt)
 
         // Try to spawn enemies near player
         if (!peaceful && dlb_rand32f() < 0.9f) {
-            SpawnEnemy(0, player.body.GroundPosition());
+            Vector2 spawnPos{};
+            spawnPos.x = dlb_rand32f_variance(1.0f);
+            spawnPos.y = dlb_rand32f_variance(1.0f);
+            spawnPos = v2_normalize(spawnPos);
+
+            // Scale into correct range for valid spawn ring
+            float mult = dlb_rand32f_range(SV_ENEMY_MIN_SPAWN_DIST, SV_ENEMY_DESPAWN_RADIUS);
+            spawnPos = v2_scale(spawnPos, mult);
+
+            // Translate to whatever point we want to spawn
+            Vector2 playerPos = player.body.GroundPosition();
+            spawnPos.x += playerPos.x;
+            spawnPos.y += playerPos.y;
+
+            const Tile *spawnTile = map.TileAtWorld(spawnPos.x, spawnPos.y);
+            if (spawnTile && spawnTile->IsSpawnable()) {
+                Player *anyPlayerTooClose = FindNearestPlayer(spawnPos, SV_ENEMY_MIN_SPAWN_DIST);
+                if (!anyPlayerTooClose) {
+                    SpawnNpc(0, NPC::Type_Slime, { spawnPos.x, spawnPos.y, 0 }, 0);
+                }
+            }
         }
     }
 }
 
 void World::SV_SimNpcs(double dt)
 {
-    for (size_t idx = 0; idx < ARRAY_SIZE(npcs); idx++) {
-        NPC &npc = npcs[idx];
-        if (!npc.id) {
-            continue;
-        }
+    for (int type = NPC::Type_None + 1; type < NPC::Type_Count; type++) {
+        NpcList npcList = npcs.byType[type];
+        for (size_t i = 0; i < npcList.length; i++) {
+            NPC &npc = npcList.data[i];
+            if (!npc.id || npc.despawnedAt) {
+                continue;
+            }
 
-        npc.Update(*this, dt);
+            DLB_ASSERT(npc.type);
+            DLB_ASSERT(npc.combat.hitPointsMax);
+            npc.Update(*this, dt);
+        }
     }
 }
 
@@ -406,7 +500,7 @@ void World::SV_SimItems(double dt)
         assert(item.stack.uid);
         assert(item.stack.count);
 
-        Player *closestPlayer = FindClosestPlayer(item.body.GroundPosition(), SV_ITEM_ATTRACT_DIST);
+        Player *closestPlayer = FindNearestPlayer(item.body.GroundPosition(), SV_ITEM_ATTRACT_DIST);
         if (!closestPlayer || !closestPlayer->id ||
             (item.droppedByPlayerId == closestPlayer->id && g_clock.now < item.spawnedAt + SV_ITEM_REPICKUP_DELAY)
         ) {
@@ -440,7 +534,7 @@ void World::SV_SimItems(double dt)
     itemSystem.Update(dt);
 }
 
-void World::DespawnDeadEntities(void)
+void World::SV_DespawnDeadEntities(void)
 {
 #if 0
     for (size_t i = 0; i < SV_MAX_PLAYERS; i++) {
@@ -457,15 +551,33 @@ void World::DespawnDeadEntities(void)
     }
 #endif
 
-    for (const NPC &npc : npcs) {
-        if (!npc.id) {
-            continue;
+    for (int type = NPC::Type_None + 1; type < NPC::Type_Count; type++) {
+        NpcList npcList = npcs.byType[type];
+        if (type == NPC::Type_Townfolk && !g_clock.server) {
+            DLB_ASSERT(1);
         }
+        for (size_t i = 0; i < npcList.length; i++) {
+            NPC &npc = npcList.data[i];
+            if (!npc.id) {
+                continue;
+            }
 
-        // Check if enemy has been dead for awhile
-        if (npc.combat.diedAt && g_clock.now - npc.combat.diedAt > SV_NPC_CORPSE_LIFETIME) {
-            //E_DEBUG("Despawn stale npc corpse %u", npc.id);
-            RemoveNpc(npc.id);
+            // Despawn npc if they've been dead for awhile
+            if (npc.despawnedAt) {
+                const double sinceDespawn = g_clock.now - npc.despawnedAt;
+                if (sinceDespawn > SV_NPC_DESPAWN_LIFETIME) {
+                    E_DEBUG("Remove despawned npc %u", npc.id);
+                    RemoveNpc(npc.id);
+                    continue;
+                }
+            } else {
+                const double sinceDeath = npc.combat.diedAt ? (g_clock.now - npc.combat.diedAt) : 0;
+                if (sinceDeath > SV_NPC_CORPSE_LIFETIME) {
+                    E_DEBUG("Despawn dead npc %u", npc.id);
+                    npc.despawnedAt = g_clock.now;
+                    continue;
+                }
+            }
         }
     }
 
@@ -547,12 +659,16 @@ void World::CL_Interpolate(double renderAt)
         }
         CL_InterpolateBody(player.body, renderAt, player.sprite.direction);
     }
-    for (NPC &npc : npcs) {
-        if (!npc.type) {
-            continue;
+    for (int type = NPC::Type_None + 1; type < NPC::Type_Count; type++) {
+        NpcList npcList = npcs.byType[type];
+        for (size_t i = 0; i < npcList.length; i++) {
+            NPC &npc = npcList.data[i];
+            if (!npc.type) {
+                continue;
+            }
+            CL_InterpolateBody(npc.body, renderAt, npc.sprite.direction);
+            //npc.Update(*this, g_clock.now - renderAt);
         }
-        CL_InterpolateBody(npc.body, renderAt, npc.sprite.direction);
-        //npc.Update(*this, g_clock.now - renderAt);
     }
     for (ItemWorld &item : itemSystem.worldItems) {
         if (!item.euid) {
@@ -576,11 +692,15 @@ void World::CL_Extrapolate(double dt)
         input.dt = (float)dt;
         player.Update(input, map);
     }
-    for (NPC &npc : npcs) {
-        if (!npc.id) {
-            continue;
+    for (int type = NPC::Type_None + 1; type < NPC::Type_Count; type++) {
+        NpcList npcList = npcs.byType[type];
+        for (size_t i = 0; i < npcList.length; i++) {
+            NPC &npc = npcList.data[i];
+            if (!npc.id) {
+                continue;
+            }
+            npc.Update(*this, dt);
         }
-        npc.Update(*this, dt);
     }
     for (ItemWorld &item : itemSystem.worldItems) {
         if (!item.euid || item.pickedUpAt || g_clock.now < item.spawnedAt + SV_ITEM_PICKUP_DELAY) {
@@ -601,18 +721,20 @@ void World::CL_Animate(double dt)
         }
         player.combat.Update(dt);
     }
-    for (NPC &npc : npcs) {
-        if (!npc.id) {
-            continue;
+    for (int type = NPC::Type_None + 1; type < NPC::Type_Count; type++) {
+        NpcList npcList = npcs.byType[type];
+        for (size_t i = 0; i < npcList.length; i++) {
+            NPC &npc = npcList.data[i];
+            if (!npc.id) {
+                continue;
+            }
+            npc.combat.Update(dt);
         }
-        npc.combat.Update(dt);
     }
 }
 
 void World::CL_DespawnStaleEntities(void)
 {
-    DespawnDeadEntities();
-
     Player *player = FindPlayer(playerId);
     if (!player) {
         TraceLog(LOG_ERROR, "Failed to find player");
@@ -634,35 +756,58 @@ void World::CL_DespawnStaleEntities(void)
     }
 #endif
 
-    for (const NPC &npc : npcs) {
-        if (!npc.id) {
-            continue;
-        }
+    for (int type = NPC::Type_None + 1; type < NPC::Type_Count; type++) {
+        NpcList npcList = npcs.byType[type];
+        for (size_t i = 0; i < npcList.length; i++) {
+            NPC &npc = npcList.data[i];
+            if (!npc.id) {
+                continue;
+            }
 
-        if (npc.body.positionHistory.Count()) {
-            auto &lastPos = npc.body.positionHistory.Last();
-
-            const float distSq = v3_length_sq(v3_sub(player->body.WorldPosition(), lastPos.v));
-            const bool faraway = distSq >= SQUARED(CL_NPC_FARAWAY_THRESHOLD);
-            if (faraway) {
-                E_TRACE("Despawn far away npc id %u", npc.id);
+            // Remove npc immediately if requested by server
+            if (npc.despawnedAt) {
+                E_DEBUG("Remove despawned npc id %u", npc.id);
                 RemoveNpc(npc.id);
                 continue;
             }
 
-            // TODO: This hack doesn't work since we're only sending snapshots when a slime moves, and slimes don't
-            // move unless they have a target. Need to figure out why slime is just chillin and not updating.
-            // HACK: Figure out WHY this is happening instead of just despawning. I'm assuming the server just didn't
-            // send me a despawn packet for this slime (e.g. because I'm too far away from it??)
-            if (g_clock.now - npc.body.positionHistory.Last().recvAt > SV_NPC_STALE_LIFETIME) {
-                //E_WARN("Detected stale npc %u", npc.id);
-                //RemoveSlime(enemy.id);
-                continue;
+            // Remove npc corpse if it's been dead for awhile
+            if (npc.combat.diedAt) {
+                const double sinceDeath = npc.combat.diedAt ? (g_clock.now - npc.combat.diedAt) : 0;
+                if (sinceDeath > CL_NPC_CORPSE_LIFETIME) {
+                    E_DEBUG("Remove dead npc %u", npc.id);
+                    RemoveNpc(npc.id);
+                    continue;
+                }
             }
+
+#if 0
+            if (npc.body.positionHistory.Count()) {
+                auto &lastPos = npc.body.positionHistory.Last();
+
+                const float distSq = v3_length_sq(v3_sub(player->body.WorldPosition(), lastPos.v));
+                const bool faraway = distSq >= SQUARED(CL_NPC_FARAWAY_THRESHOLD);
+                if (faraway) {
+                    E_TRACE("Despawn far away npc id %u", npc.id);
+                    RemoveNpc(npc.id);
+                    continue;
+                }
+
+                // TODO: This hack doesn't work since we're only sending snapshots when a slime moves, and slimes don't
+                // move unless they have a target. Need to figure out why slime is just chillin and not updating.
+                // HACK: Figure out WHY this is happening instead of just despawning. I'm assuming the server just didn't
+                // send me a despawn packet for this slime (e.g. because I'm too far away from it??)
+                if (g_clock.now - npc.body.positionHistory.Last().recvAt > CL_NPC_STALE_LIFETIME) {
+                    //E_WARN("Detected stale npc %u", npc.id);
+                    //RemoveSlime(enemy.id);
+                    continue;
+                }
+            }
+#endif
         }
     }
 
-    itemSystem.DespawnDeadEntities();
+    itemSystem.DespawnDeadEntities(0);
 }
 
 void World::EnableCulling(Rectangle cullRect)
@@ -794,9 +939,13 @@ void World::DrawEntities(void)
         }
     }
 
-    for (NPC &npc : npcs) {
-        if (npc.type) {
-            drawList.Push(npc);
+    for (int type = NPC::Type_None + 1; type < NPC::Type_Count; type++) {
+        NpcList npcList = npcs.byType[type];
+        for (size_t i = 0; i < npcList.length; i++) {
+            NPC &npc = npcList.data[i];
+            if (npc.id) {
+                drawList.Push(npc);
+            }
         }
     }
 }

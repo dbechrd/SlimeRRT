@@ -2,46 +2,73 @@
 spritesheet 8 8 2 data/texture/monster/slime.png
 
 # frame <name> <x> <y> <width> <height>
-# row 1 (slime facing)
-frame slime_north  48 0 48 32
-frame slime_east   96 0 48 32
-frame slime_south 144 0 48 32
-frame slime_west  192 0 48 32
+# row 1
+frame green_slime_north   0 0 48 32
+frame green_slime_east   48 0 48 32
+frame green_slime_south  96 0 48 32
+frame green_slime_west  144 0 48 32
 
-# row 2 (slime attack)
-frame slime_attack_north  48 32 48 32
-frame slime_attack_east   96 32 48 32
-frame slime_attack_south 144 32 48 32
-frame slime_attack_west  192 32 48 32
+# row 2
+frame angry_orange_slime_north   0 32 48 32
+frame angry_orange_slime_east   48 32 48 32
+frame angry_orange_slime_south  96 32 48 32
+frame angry_orange_slime_west  144 32 48 32
+
+# row 3
+frame blue_slime_north   0 64 48 32
+frame blue_slime_east   48 64 48 32
+frame blue_slime_south  96 64 48 32
+frame blue_slime_west  144 64 48 32
+
+# row 4
+frame angry_yellow_slime_north   0 96 48 32
+frame angry_yellow_slime_east   48 96 48 32
+frame angry_yellow_slime_south  96 96 48 32
+frame angry_yellow_slime_west  144 96 48 32
 
 # animation <name> <frame0> [frame1] ... [frame15]
-animation slime_north 0  # slime_north
-animation slime_east  1  # slime_east
-animation slime_south 2  # slime_south
-animation slime_west  3  # slime_west
+animation green_slime_north 0
+animation green_slime_east  1
+animation green_slime_south 2
+animation green_slime_west  3
 
-animation slime_attack_north 4  # slime_attack_north
-animation slime_attack_east  5  # slime_attack_east
-animation slime_attack_south 6  # slime_attack_south
-animation slime_attack_west  7  # slime_attack_west
+animation angry_orange_slime_north 4
+animation angry_orange_slime_east  5
+animation angry_orange_slime_south 6
+animation angry_orange_slime_west  7
+
+animation blue_slime_north 8
+animation blue_slime_east  9
+animation blue_slime_south 10
+animation blue_slime_west  11
+
+animation angry_yellow_slime_north 12
+animation angry_yellow_slime_east  13
+animation angry_yellow_slime_south 14
+animation angry_yellow_slime_west  15
 
 # sprite <name> <anim_n> <anim_ne> <anim_e> <anim_se> <anim_s> <anim_sw> <anim_w> <anim_nw>
-sprite slime
-    0  # slime_north
-    -  # no NE
-    1  # slime_east
-    -  # no SE
-    2  # slime_south
-    -  # no SW
-    3  # slime_west
-    -  # no NW
+#sprite slime
+#    0  # slime_north
+#    -  # no NE
+#    1  # slime_east
+#    -  # no SE
+#    2  # slime_south
+#    -  # no SW
+#    3  # slime_west
+#    -  # no NW
 
-sprite slime_attack
-    4  # slime_attack_north
-    -  # no NE
-    5  # slime_attack_east
-    -  # no SE
-    6  # slime_attack_south
-    -  # no SW
-    7  # slime_attack_west
-    -  # no NW
+#sprite slime_attack
+#    4  # slime_attack_north
+#    -  # no NE
+#    5  # slime_attack_east
+#    -  # no SE
+#    6  # slime_attack_south
+#    -  # no SW
+#    7  # slime_attack_west
+#    -  # no NW
+
+sprite green_slime         0 -  1 -  2 -  3 -
+sprite angry_orange_slime  4 -  5 -  6 -  7 -
+sprite blue_slime          8 -  9 - 10 - 11 -
+sprite angry_yellow_slime 12 - 13 - 14 - 15 -

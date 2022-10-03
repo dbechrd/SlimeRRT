@@ -20,6 +20,7 @@ GameServer::~GameServer()
 
 ErrorType GameServer::Run(const Args &args)
 {
+    g_clock.server = true;
     error_init("server.log");
 
 #if 0
@@ -41,14 +42,14 @@ ErrorType GameServer::Run(const Args &args)
         }
     }
 
+    //world->SpawnNpc(0, NPC::Type_Townfolk, { 0, 0 }, 0);
+
     netServer.serverWorld = world;
 
-    E_CHECKMSG(netServer.OpenSocket(args.port), "Failed to open socket");
-
-    g_clock.server = true;
+    E_ERROR_RETURN(netServer.OpenSocket(args.port), "Failed to open socket");
 
     while (!args.serverQuit) {
-        E_CHECKMSG(netServer.Listen(), "Failed to listen on socket");
+        E_ERROR_RETURN(netServer.Listen(), "Failed to listen on socket");
 
         const double now = glfwGetTime();
         const double dt = now - g_clock.nowPrev;
@@ -162,7 +163,7 @@ ErrorType GameServer::Run(const Args &args)
                     E_DEBUG("Sending snapshot for tick %u / input seq #%u, to player %u\n", world->tick, client.lastInputAck, client.playerId);
     #endif
                     // Send snapshot
-                    E_CHECKMSG(netServer.SendWorldSnapshot(client), "Failed to send world snapshot");
+                    E_ERROR_RETURN(netServer.SendWorldSnapshot(client), "Failed to send world snapshot");
                 } else {
                     //E_DEBUG("Skipping shapshot for %u", client.playerId);
                 }
@@ -174,7 +175,7 @@ ErrorType GameServer::Run(const Args &args)
             }
 
             // Run server tasks
-            world->DespawnDeadEntities();
+            world->SV_DespawnDeadEntities();
         }
     }
 

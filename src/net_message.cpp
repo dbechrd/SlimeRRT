@@ -255,6 +255,14 @@ size_t NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer)
                 NpcSnapshot &npcSnap = worldSnapshot.npcs[i];
                 stream.Process(npcSnap.id, 32, 1, UINT32_MAX);
                 stream.Process((uint32_t &)npcSnap.flags);
+                stream.Process((uint32_t &)npcSnap.type, 4, NPC::Type_None + 1, NPC::Type_Count - 1);
+                if (npcSnap.flags & NpcSnapshot::Flags_Name) {
+                    stream.Process(npcSnap.nameLength, 7, 0, ENTITY_NAME_LENGTH_MAX);
+                    stream.Align();
+                    for (size_t i = 0; i < npcSnap.nameLength; i++) {
+                        stream.ProcessChar(npcSnap.name[i]);
+                    }
+                }
                 if (npcSnap.flags & NpcSnapshot::Flags_Position) {
                     stream.Process(npcSnap.position.x);
                     stream.Process(npcSnap.position.y);

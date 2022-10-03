@@ -6,12 +6,13 @@ void Slime::Init(NPC &npc)
     npc.type = NPC::Type_Slime;
     npc.SetName(CSTR("Slime"));
     npc.body.speed = SV_SLIME_MOVE_SPEED;
-    npc.body.drag = 0.95f;
+    npc.body.drag = 0.01f;
     npc.body.friction = 0.95f;
+    npc.body.restitution = 0.5f;
     npc.combat.level = 1;
     npc.combat.hitPointsMax = 10.0f;
     npc.combat.hitPoints = npc.combat.hitPointsMax;
-    npc.combat.meleeDamage = 10.0f;
+    npc.combat.meleeDamage = 30.0f;
     npc.combat.xpMin = 2;
     npc.combat.xpMax = 4;
     npc.combat.lootTableId = LootTableID::LT_Slime;
@@ -22,7 +23,7 @@ void Slime::Init(NPC &npc)
     // TODO: Look this up by npc.type in Draw() instead
     if (!g_clock.server) {
         const Spritesheet &spritesheet = Catalog::g_spritesheets.FindById(Catalog::SpritesheetID::Slime);
-        const SpriteDef *spriteDef = spritesheet.FindSprite("slime");
+        const SpriteDef *spriteDef = spritesheet.FindSprite("green_slime");
         npc.sprite.spriteDef = spriteDef;
     }
 }
@@ -44,7 +45,7 @@ bool Slime::Move(NPC &npc, double dt, Vector2 offset)
     // Check if hasn't moved for a bit
     if (npc.body.TimeSinceLastMove() > npc.state.slime.randJumpIdle) {
         npc.moveState = NPC::Move_Jump;
-        npc.body.ApplyForce({ offset.x, offset.y, METERS_TO_PIXELS(4.0f) });
+        npc.body.ApplyForce({ offset.x, offset.y, METERS_TO_PIXELS(5.0f) });
         npc.state.slime.randJumpIdle = (double)dlb_rand32f_range(0.5f, 1.5f) / npc.sprite.scale;
         npc.UpdateDirection(offset);
         return true;
@@ -127,23 +128,27 @@ bool Slime::Attack(NPC &npc, double dt)
 void Slime::Update(NPC &npc, World &world, double dt)
 {
     // Find nearest player
-    float enemyToPlayerDistSq = 0.0f;
-    Player *closestPlayer = world.FindClosestPlayer(
-        npc.body.GroundPosition(), SV_ENEMY_DESPAWN_RADIUS, &enemyToPlayerDistSq
-    );
-    if (!closestPlayer) {
+    Vector2 toNearestPlayer{};
+    Player *nearestPlayer = world.FindNearestPlayer(npc.body.GroundPosition(), SV_ENEMY_DESPAWN_RADIUS,
+        &toNearestPlayer);
+
+    // TODO: Make this more general for all enemies that should go away when nobody is nearby
+    // Alternatively, we could store enemies in the world chunk if we want some sort of
+    // mob continuity when a player returns to a previously visited area? Seems less fun.
+    if (!nearestPlayer || nearestPlayer->combat.diedAt) {
         // No nearby players, insta-kill enemy w/ no loot
-        world.RemoveNpc(npc.id);
-        //npc.combat.TakeDamage(npc.combat.hitPoints);
-        //npc.combat.droppedDeathLoot = true;
+        E_DEBUG("No nearby players, mark slime for despawn %u", npc.id);
+        //npc.combat.Despawn();
+        npc.despawnedAt = g_clock.now;
         return;
     }
 
     // Allow enemy to move toward nearest player
-    if (enemyToPlayerDistSq <= SQUARED(SV_SLIME_ATTACK_TRACK)) {
-        Vector2 slimeToPlayer = v2_sub(closestPlayer->body.GroundPosition(), npc.body.GroundPosition());
-        const float slimeToPlayerDist = sqrtf(enemyToPlayerDistSq);
-        const float moveDist = MIN(slimeToPlayerDist, METERS_TO_PIXELS(npc.body.speed) * npc.sprite.scale);
+    const float distToNearestPlayer = v2_length(toNearestPlayer);
+    const float distToAttackTrack = SV_SLIME_ATTACK_TRACK;
+    if (distToNearestPlayer <= SV_SLIME_ATTACK_TRACK) {
+        Vector2 slimeToPlayer = v2_sub(nearestPlayer->body.GroundPosition(), npc.body.GroundPosition());
+        const float moveDist = MIN(distToNearestPlayer, METERS_TO_PIXELS(npc.body.speed) * npc.sprite.scale);
         // 5% -1.0, 95% +1.0f
         const float moveRandMult = 1.0f; //dlb_rand32i_range(1, 100) > 5 ? 1.0f : -1.0f;
         const Vector2 slimeMoveDir = v2_normalize(slimeToPlayer);
@@ -152,11 +157,12 @@ void Slime::Update(NPC &npc, World &world, double dt)
         const Vector3 slimePosNew = v3_add(slimePos, { slimeMoveMag.x, slimeMoveMag.y, 0 });
 
         int willCollide = 0;
-        for (size_t collideIdx = 0; collideIdx < SV_MAX_NPCS; collideIdx++) {
-            NPC &other = world.npcs[collideIdx];
-            if (other.type != NPC::Type_Slime || other.combat.diedAt || other.id <= npc.id) {
+        for (size_t collideIdx = 0; collideIdx < ARRAY_SIZE(world.npcs.slimes); collideIdx++) {
+            NPC &other = world.npcs.slimes[collideIdx];
+            if (other.id <= npc.id || other.combat.diedAt) {
                 continue;
             }
+            DLB_ASSERT(other.type == NPC::Type_Slime);
 
             Vector3 otherSlimePos = other.body.WorldPosition();
             const float radiusScaled = SV_SLIME_RADIUS * npc.sprite.scale;
@@ -178,9 +184,9 @@ void Slime::Update(NPC &npc, World &world, double dt)
     }
 
     // Allow slime to attack if on the ground and close enough to the player
-    if (enemyToPlayerDistSq <= SQUARED(SV_SLIME_ATTACK_REACH)) {
+    if (distToNearestPlayer <= SV_SLIME_ATTACK_REACH) {
         if (!world.peaceful && Attack(npc, dt)) {
-            closestPlayer->combat.TakeDamage(npc.combat.meleeDamage * npc.sprite.scale);
+            nearestPlayer->combat.TakeDamage(npc.combat.meleeDamage * npc.sprite.scale);
         }
     }
 

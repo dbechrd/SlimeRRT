@@ -20,8 +20,8 @@ ErrorType NetClient::SaveDefaultServerDB(const char *filename)
     tpjGuest.port = SV_DEFAULT_PORT;
     tpjGuest.user = "guest";
     tpjGuest.pass = "guest";
-    E_CHECKMSG(server_db.Add(tpjGuest), "Failed to add default server to ServerDB");
-    E_CHECKMSG(server_db.Save(filename), "Failed to save default ServerDB");
+    E_ERROR_RETURN(server_db.Add(tpjGuest), "Failed to add default server to ServerDB");
+    E_ERROR_RETURN(server_db.Save(filename), "Failed to save default ServerDB");
     return ErrorType::Success;
 }
 
@@ -49,7 +49,7 @@ ErrorType NetClient::OpenSocket(void)
     }
     client = enet_host_create(nullptr, 1, 1, 0, 0);
     if (!client) {
-        E_CHECKMSG(ErrorType::HostCreateFailed, "Failed to create host.");
+        E_ERROR_RETURN(ErrorType::HostCreateFailed, "Failed to create host.");
     }
     // TODO(dlb)[cleanup]: This probably isn't providing any additional value on top of if (!client) check
     assert(client->socket);
@@ -65,7 +65,7 @@ ErrorType NetClient::Connect(const char *serverHost, unsigned short serverPort, 
     ENetAddress address{};
 
     if (!client) {
-        E_CHECKMSG(OpenSocket(), "Failed to open socket");
+        E_ERROR_RETURN(OpenSocket(), "Failed to open socket");
     }
     if (server) {
         Disconnect();
@@ -110,10 +110,10 @@ ErrorType NetClient::SendRaw(const void *data, size_t size)
     // TODO(dlb): Don't always use reliable flag.. figure out what actually needs to be reliable (e.g. chat)
     ENetPacket *packet = enet_packet_create(data, size, ENET_PACKET_FLAG_RELIABLE);
     if (!packet) {
-        E_CHECKMSG(ErrorType::PacketCreateFailed, "Failed to create packet.");
+        E_ERROR_RETURN(ErrorType::PacketCreateFailed, "Failed to create packet.");
     }
     if (enet_peer_send(server, 0, packet) < 0) {
-        E_CHECKMSG(ErrorType::PeerSendFailed, "Failed to send connection request.");
+        E_ERROR_RETURN(ErrorType::PeerSendFailed, "Failed to send connection request.");
     }
     return ErrorType::Success;
 }
@@ -129,7 +129,7 @@ ErrorType NetClient::SendMsg(NetMessage &message)
     memset(rawPacket.data, 0, rawPacket.dataLength);
     size_t bytes = message.Serialize(rawPacket);
     //E_INFO("[SEND][%21s][%5u b] %16s ", rawPacket.dataLength, netMsg.TypeString());
-    E_CHECKMSG(SendRaw(rawPacket.data, bytes), "Failed to send packet");
+    E_ERROR_RETURN(SendRaw(rawPacket.data, bytes), "Failed to send packet");
     return ErrorType::Success;
 }
 
@@ -595,24 +595,31 @@ void NetClient::ProcessMsg(ENetPacket &packet)
             }
 
             for (size_t i = 0; i < worldSnapshot.npcCount; i++) {
-                const NpcSnapshot &enemySnapshot = worldSnapshot.npcs[i];
-                if (enemySnapshot.flags & NpcSnapshot::Flags_Despawn) {
-                    serverWorld->RemoveNpc(enemySnapshot.id);
+                const NpcSnapshot &npcSnapshot = worldSnapshot.npcs[i];
+                if (npcSnapshot.flags & NpcSnapshot::Flags_Despawn) {
+                    serverWorld->RemoveNpc(npcSnapshot.id);
                     continue;
                 }
 
                 bool spawned = false;
-                NPC *npc = serverWorld->FindNpc(enemySnapshot.id);
+                NPC *npc = serverWorld->FindNpc(npcSnapshot.id);
                 if (!npc) {
-                    npc = serverWorld->SpawnEnemy(enemySnapshot.id, {0, 0});
+                    DLB_ASSERT(npcSnapshot.id);
+                    DLB_ASSERT(npcSnapshot.type);
+                    E_ERROR(serverWorld->SpawnNpc(npcSnapshot.id, npcSnapshot.type, npcSnapshot.position, &npc), "Failed to spawn replicated npc");
                     if (!npc) {
                         continue;
                     }
                     spawned = true;
                 }
 
-                const bool posChanged = enemySnapshot.flags & NpcSnapshot::Flags_Position;
-                const bool dirChanged = enemySnapshot.flags & NpcSnapshot::Flags_Direction;
+                if (npcSnapshot.flags & NpcSnapshot::Flags_Name && npcSnapshot.nameLength) {
+                    npc->nameLength = MIN(npcSnapshot.nameLength, ENTITY_NAME_LENGTH_MAX);
+                    strncpy(npc->name, npcSnapshot.name, npc->nameLength);
+                }
+
+                const bool posChanged = npcSnapshot.flags & NpcSnapshot::Flags_Position;
+                const bool dirChanged = npcSnapshot.flags & NpcSnapshot::Flags_Direction;
 
                 if (posChanged || dirChanged) {
                     const Vector3Snapshot *prevState{};
@@ -628,7 +635,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                         //    enemySnapshot.position.x,
                         //    enemySnapshot.position.y,
                         //    enemySnapshot.position.z);
-                        state.v = enemySnapshot.position;
+                        state.v = npcSnapshot.position;
                     } else {
                         if (prevState) {
                             state.v = prevState->v;
@@ -639,7 +646,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                     }
 
                     if (dirChanged) {
-                        state.direction = enemySnapshot.direction;
+                        state.direction = npcSnapshot.direction;
                         //E_DEBUG("Snapshot: dir %d", (char)state.direction);
                     } else {
                         if (prevState) {
@@ -653,26 +660,26 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                 }
 
                 // TODO: Pos/dir are history based, but these are instantaneous.. hmm.. is that okay?
-                if (enemySnapshot.flags & NpcSnapshot::Flags_Scale) {
+                if (npcSnapshot.flags & NpcSnapshot::Flags_Scale) {
                     //E_DEBUG("Snapshot: scale %f", (char)enemySnapshot.direction);
-                    npc->sprite.scale = enemySnapshot.scale;
+                    npc->sprite.scale = npcSnapshot.scale;
                 }
-                if (enemySnapshot.flags & NpcSnapshot::Flags_Health) {
+                if (npcSnapshot.flags & NpcSnapshot::Flags_Health) {
                     //E_DEBUG("Snapshot: health %f", enemySnapshot.hitPoints);
                     if (!spawned) {
-                        if (npc->combat.hitPoints && !enemySnapshot.hitPoints) {
+                        if (npc->combat.hitPoints && !npcSnapshot.hitPoints) {
                             // Died
                             npc->combat.diedAt = worldSnapshot.recvAt;
                             ParticleEffectParams gooParams{};
-                            gooParams.particleCountMin = 20;
+                            gooParams.particleCountMin = 50 * (int)ceilf(CL_NPC_CORPSE_LIFETIME);
                             gooParams.particleCountMax = gooParams.particleCountMin;
-                            gooParams.durationMin = 2.0f;
+                            gooParams.durationMin = CL_NPC_CORPSE_LIFETIME;
                             gooParams.durationMax = gooParams.durationMin;
                             serverWorld->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Goo, npc->WorldCenter(), gooParams);
                             Catalog::g_sounds.Play(Catalog::SoundID::Squish2, 0.5f + dlb_rand32f_variance(0.1f), true);
-                        } else if (npc->combat.hitPoints > enemySnapshot.hitPoints) {
+                        } else if (npc->combat.hitPoints > npcSnapshot.hitPoints) {
                             // Took damage
-                            float dmg = npc->combat.hitPoints - enemySnapshot.hitPoints;
+                            float dmg = npc->combat.hitPoints - npcSnapshot.hitPoints;
 
                             ParticleEffectParams gooParams{};
                             gooParams.particleCountMin = 5;
@@ -703,15 +710,15 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                             Catalog::g_sounds.Play(Catalog::SoundID::Slime_Stab1, 1.0f + dlb_rand32f_variance(0.4f));
                         }
                     }
-                    npc->combat.hitPoints = enemySnapshot.hitPoints;
+                    npc->combat.hitPoints = npcSnapshot.hitPoints;
                 }
-                if (enemySnapshot.flags & NpcSnapshot::Flags_HealthMax) {
+                if (npcSnapshot.flags & NpcSnapshot::Flags_HealthMax) {
                     //E_DEBUG("Snapshot: healthMax %f", enemySnapshot.hitPointsMax);
-                    npc->combat.hitPointsMax = enemySnapshot.hitPointsMax;
+                    npc->combat.hitPointsMax = npcSnapshot.hitPointsMax;
                 }
-                if (enemySnapshot.flags & NpcSnapshot::Flags_Level) {
+                if (npcSnapshot.flags & NpcSnapshot::Flags_Level) {
                     //E_DEBUG("Snapshot: level %u", enemySnapshot.level);
-                    npc->combat.level = enemySnapshot.level;
+                    npc->combat.level = npcSnapshot.level;
                 }
             }
 
