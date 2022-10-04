@@ -575,8 +575,8 @@ void GameClient::PlayMode_DrawScreen(double frameDt, PlayerControllerState &inpu
         nPatchInfo.right = 18;
         nPatchInfo.bottom = 18;
         Rectangle dstRect{ 600, 400, measure.x + 100, measure.y + 100 };
-        DrawTextureNPatch(g_nPatchTex, nPatchInfo, dstRect, { measure.x / 2, measure.y / 2 }, 0, WHITE);
-        DrawTextEx(g_fonts.fontSmall, "Space", { 0, 0 }, (float)g_fonts.fontSmall.baseSize, 1.0f, BLACK);
+        DrawTextureNPatch(g_nPatchTex, nPatchInfo, dstRect, { measure.x / 2, measure.y / 2 }, 0,WHITE);
+        DrawTextEx(g_fonts.fontSmall, "Space", { 0, 0 }, (float)g_fonts.fontSmall.baseSize, 1.0f, WHITE);
         rlDrawRenderBatchActive();
     }
 
