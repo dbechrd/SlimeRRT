@@ -860,12 +860,6 @@ size_t World::DrawMap(const Spycam &spycam)
             const Tile *tile = map.TileAtWorld(xx, yy);
             if (tile) {
                 tileset_draw_tile(map.tilesetId, tile->type, { xx, yy }, WHITE);
-                if (tile->object.type) {
-                    // TODO: Refactor this out into some animation frame / state thing, e.g.
-                    // tile->object.getEffectiveType();
-                    ObjectType effectiveType = tile->object.EffectiveType();
-                    tileset_draw_tile(TilesetID::TS_Objects, effectiveType, { xx, yy }, WHITE);
-                }
 
                 //uint8_t r = tile->base;
                 //uint8_t g = tile->baseNoise;
@@ -920,6 +914,21 @@ size_t World::DrawMap(const Spycam &spycam)
             }
 #endif
             tilesDrawn++;
+        }
+    }
+
+    for (float y = -1; y < tilesH + 2; y += zoomMipLevel) {
+        for (float x = -1; x < tilesW + 2; x += zoomMipLevel) {
+            float xx = cx + x * TILE_W;
+            float yy = cy + y * TILE_W;
+            xx = floorf(xx / TILE_W) * TILE_W;
+            yy = floorf(yy / TILE_W) * TILE_W;
+
+            const Tile *tile = map.TileAtWorld(xx, yy);
+            if (tile && tile->object.type) {
+                ObjectType effectiveType = tile->object.EffectiveType();
+                tileset_draw_tile(TilesetID::TS_Objects, effectiveType, { xx, yy }, WHITE);
+            }
         }
     }
 

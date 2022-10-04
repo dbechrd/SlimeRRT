@@ -20,7 +20,6 @@ void Slime::Init(NPC &npc)
     //npc.combat.droppedDeathLoot = false;
     npc.sprite.scale = 1.0f;
 
-    // TODO: Look this up by npc.type in Draw() instead
     if (!g_clock.server) {
         const Spritesheet &spritesheet = Catalog::g_spritesheets.FindById(Catalog::SpritesheetID::Slime);
         const SpriteDef *spriteDef = spritesheet.FindSprite("green_slime");

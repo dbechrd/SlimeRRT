@@ -190,6 +190,7 @@ thread_local Shader g_sdfShader{};
 thread_local uint8_t g_inputMsecHax{};
 thread_local bool g_clientSmoothReconcile = true;
 thread_local float g_clientPlayerRecconcileSmoothFactor = CL_PLAYER_POS_SMOOTH_FACTOR;
+thread_local Texture g_nPatchTex{};
 
 void DrawTextFont(Font font, const char *text, float posX, float posY, float offsetX, float offsetY, int fontSize, const Color &color);
 const char *SafeTextFormat(const char *text, ...);

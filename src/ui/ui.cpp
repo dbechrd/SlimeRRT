@@ -2190,8 +2190,6 @@ void UI::Inventory(const Texture &invItems, Player& player, NetClient &netClient
 
 void UI::Dialog(World &world)
 {
-    //return;
-
     Player *player = world.LocalPlayer();
     if (!player) {
         return;
