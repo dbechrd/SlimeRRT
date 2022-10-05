@@ -1,9 +1,10 @@
 #include "args.h"
+#include "error.h"
 #include "helpers.h"
 #include <cstring>
 #include <cstdio>
 
-Args::Args(int argc, char *argv[])
+ErrorType Args::Parse(int argc, char *argv[])
 {
     for (int i = 0; i < argc; i++) {
         //printf("args[%d] = '%s'\n", i, argv[i]);
@@ -14,4 +15,5 @@ Args::Args(int argc, char *argv[])
             // TODO: Check if next arg is a port
         }
     }
+    return ErrorType::Success;
 }

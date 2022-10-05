@@ -103,9 +103,9 @@ bool NPC::Cull(const Rectangle &cullRect) const
 
 void NPC::Draw(World &world)
 {
+    UNUSED(world);
     DLB_ASSERT(!despawnedAt);
 
-    const Vector3 worldPos = body.WorldPosition();
     const Vector3 groundPos = body.GroundPosition3();
 
     // Usually 1.0, fades to zero after death

@@ -1,7 +1,6 @@
 #pragma once
+#include "helpers.h"
 #include "dlb_types.h"
-
-typedef uint8_t PlayerInvSlot;
 
 struct PlayerControllerState {
     // Global keys
@@ -11,14 +10,14 @@ struct PlayerControllerState {
     bool dbgToggleVsync   {};
 
     // Networked input
-    bool          walkNorth    {};
-    bool          walkEast     {};
-    bool          walkSouth    {};
-    bool          walkWest     {};
-    bool          run          {};
-    bool          primaryPress {};
-    bool          primaryHold  {};
-    PlayerInvSlot selectSlot   {};
+    bool   walkNorth    {};
+    bool   walkEast     {};
+    bool   walkSouth    {};
+    bool   walkWest     {};
+    bool   run          {};
+    bool   primaryPress {};
+    bool   primaryHold  {};
+    SlotId selectSlot   {};
 
     // Non-networked input
     bool toggleInventory      {};
@@ -52,18 +51,18 @@ struct PlayerControllerState {
 };
 
 struct InputSample {
-    uint32_t      seq        {};  // monotonic input sequence number
-    uint32_t      ownerId    {};  // player who generated this input
-    //uint32_t      clientTick {};  // client tick when input was detected
-    float         dt         {};  // duration of command in secs (https://developer.valvesoftware.com/wiki/Latency_Compensating_Methods_in_Client/Server_In-game_Protocol_Design_and_Optimization)
-    bool          walkNorth  {};
-    bool          walkEast   {};
-    bool          walkSouth  {};
-    bool          walkWest   {};
-    bool          run        {};
-    bool          primary    {};
-    PlayerInvSlot selectSlot {};  // user requesting to change active slot
-    bool          skipFx     {};  // once the input has been processed once, don't trigger FX (particles, sounds, etc.)
+    uint32_t  seq        {};  // monotonic input sequence number
+    uint32_t  ownerId    {};  // player who generated this input
+    //uint32_t  clientTick {};  // client tick when input was detected
+    float     dt         {};  // duration of command in secs (https://developer.valvesoftware.com/wiki/Latency_Compensating_Methods_in_Client/Server_In-game_Protocol_Design_and_Optimization)
+    bool      walkNorth  {};
+    bool      walkEast   {};
+    bool      walkSouth  {};
+    bool      walkWest   {};
+    bool      run        {};
+    bool      primary    {};
+    SlotId    selectSlot {};  // user requesting to change active slot
+    bool      skipFx     {};  // once the input has been processed once, don't trigger FX (particles, sounds, etc.)
 
     void FromController(uint32_t playerId, uint32_t inputSeq, double frameDt, const PlayerControllerState &controllerState)
     {

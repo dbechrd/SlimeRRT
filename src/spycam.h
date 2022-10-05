@@ -32,7 +32,7 @@ struct Spycam {
     }
 
     Vector2 cameraGoal {};
-    float   cameraSpeed = CAMERA_SPEED_DEFAULT;
+    float   cameraSpeed = CAMERA_SPEED_DEFAULT
     bool    freeRoam {};
 
 private:
@@ -43,4 +43,4 @@ private:
     float     smoothing    = 0.2f;
 };
 
-thread_local Spycam g_spycam{};
+thread_local static Spycam g_spycam{};

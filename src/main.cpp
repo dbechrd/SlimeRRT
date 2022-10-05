@@ -13,7 +13,7 @@
 DLB_ASSERT_HANDLER(handle_assert)
 {
     const char *LOG_SRC = "DLB_ASSERT";
-    E_ERROR(ErrorType::AssertFailed, "  %s", expr);
+    E__LOG(LOG_NONE + LOG_ERROR, "[DLB_ASSERT failed] %s\n  %s:%u\n  ", expr, filename, line);
     __debugbreak();
     exit(EXIT_FAILURE);
 }
@@ -43,7 +43,7 @@ int YourAllocHook(int nAllocType, void *pvData, size_t nSize, int nBlockUse, lon
     }
 
     _CrtSetAllocHook(0);
-    printf("[%s:%4d]{%6d}[%s][%s] %p (%zu bytes)\n", szFileName, nLine, lRequest, allocType, blockUse, pvData, nSize);
+    printf("[%s:%4d]{%6d}[%s][%s] %p (%zu bytes)\n", szFileName, nLine, (int)lRequest, allocType, blockUse, pvData, nSize);
     _CrtSetAllocHook(YourAllocHook);
 
     return true;
@@ -84,7 +84,8 @@ int main(int argc, char *argv[])
     run_tests();
 #endif
 
-    Args args{ argc, argv };
+    static Args args{};
+    args.Parse(argc, argv);
     //args.standalone = true;
 
     int enet_code = enet_initialize();
@@ -100,7 +101,7 @@ int main(int argc, char *argv[])
 #ifdef _DEBUG
         InitConsole(2873, 1, 3847 - 2873, 1048 - 1);  // Dock right side of right monitor
 #endif
-        gameServer = new GameServer(args);
+        gameServer = new GameServer(&args);
 
         // TODO: Make CLI not be an entire client/player. Makes no sense for the CLI to show up in the world LUL.
         //const char *title = "[SLIMY SERVER]";
@@ -111,7 +112,7 @@ int main(int argc, char *argv[])
         InitConsole(1913, 1, 2887 - 1913, 1048 - 1);  // Dock left side of right monitor
 #endif
 
-        GameClient *game = new GameClient(args);
+        GameClient *game = new GameClient(&args);
         game->Run();
         args.serverQuit = true;
         delete game;
@@ -158,6 +159,8 @@ int main(int argc, char *argv[])
 #include "chat.cpp"
 #include "controller.cpp"
 #include "draw_command.cpp"
+#include "entities/npc.cpp"
+#include "entities/slime.cpp"
 #include "error.cpp"
 #include "fx/blood.cpp"
 #include "fx/gem.cpp"
@@ -171,10 +174,7 @@ int main(int argc, char *argv[])
 #include "healthbar.cpp"
 #include "helpers.cpp"
 #include "item_system.cpp"
-#include "item_world.cpp"
 #include "loot_table.cpp"
-#include "entities/npc.cpp"
-#include "entities/slime.cpp"
 #include "net_client.cpp"
 #include "net_message.cpp"
 #include "net_server.cpp"
@@ -195,4 +195,5 @@ int main(int argc, char *argv[])
 #include "ui/ui.cpp"
 #include "world.cpp"
 #include "world_event.cpp"
+#include "world_item.cpp"
 #include "../test/tests.cpp"

@@ -4,12 +4,12 @@
 #include "catalog/items.h"
 #include "direction.h"
 #include "item_system.h"
-#include "item_world.h"
 #include "particles.h"
 #include "player.h"
 #include "entities/entities.h"
 #include "spycam.h"
 #include "tilemap.h"
+#include "world_item.h"
 #include "world_snapshot.h"
 #include "dlb_rand.h"
 #include <vector>

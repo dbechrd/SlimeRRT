@@ -12,7 +12,6 @@ ErrorType NetServer::SaveUserDB(const char *filename)
 {
     flatbuffers::FlatBufferBuilder fbb;
 
-    char buf[1024]{};
     auto uaGuest = DB::CreateUser(fbb, fbb.CreateString("guest"),   fbb.CreateString("guest"));
     auto uaDandy = DB::CreateUser(fbb, fbb.CreateString("dandy"),   fbb.CreateString("asdf"));
     auto uaOwl   = DB::CreateUser(fbb, fbb.CreateString("owl"),     fbb.CreateString("awesome"));
@@ -38,7 +37,7 @@ ErrorType NetServer::LoadUserDB(const char *filename)
 
     flatbuffers::Verifier verifier(fbs_users.data, fbs_users.length);
     if (!DB::VerifyUserDBBuffer(verifier)) {
-        E_ERROR_RETURN(ErrorType::PancakeVerifyFailed, "Uh oh, data verification failed\n");
+        E_ERROR_RETURN(ErrorType::PancakeVerifyFailed, "Uh oh, data verification failed\n", 0);
     }
 
     const DB::UserDB *userDB = DB::GetUserDB(fbs_users.data);
@@ -59,7 +58,7 @@ NetServer::NetServer(void)
 
 NetServer::~NetServer(void)
 {
-    E_DEBUG("Killing NetServer");
+    E_DEBUG("Killing NetServer", 0);
     CloseSocket();
     //free(rawPacket.data);
     UnloadFileData(fbs_users.data);
@@ -96,10 +95,10 @@ ErrorType NetServer::SendRaw(const SV_Client &client, const void *data, size_t s
     // TODO(dlb): Don't always use reliable flag.. figure out what actually needs to be reliable (e.g. chat)
     ENetPacket *packet = enet_packet_create(data, size, ENET_PACKET_FLAG_RELIABLE);
     if (!packet) {
-        E_ERROR_RETURN(ErrorType::PacketCreateFailed, "Failed to create packet.");
+        E_ERROR_RETURN(ErrorType::PacketCreateFailed, "Failed to create packet.", 0);
     }
     if (enet_peer_send(client.peer, 0, packet) < 0) {
-        E_ERROR_RETURN(ErrorType::PeerSendFailed, "Failed to send connection request.");
+        E_ERROR_RETURN(ErrorType::PeerSendFailed, "Failed to send connection request.", 0);
     }
     return ErrorType::Success;
 }
@@ -114,7 +113,7 @@ ErrorType NetServer::BroadcastRaw(const void *data, size_t size)
     // TODO(dlb): Don't always use reliable flag.. figure out what actually needs to be reliable (e.g. chat)
     ENetPacket *packet = enet_packet_create(data, size, ENET_PACKET_FLAG_RELIABLE);
     if (!packet) {
-        E_ERROR_RETURN(ErrorType::PacketCreateFailed, "Failed to create packet.");
+        E_ERROR_RETURN(ErrorType::PacketCreateFailed, "Failed to create packet.", 0);
     }
 
     // Broadcast netMsg to all connected clients
@@ -147,15 +146,17 @@ ErrorType NetServer::SendMsg(const SV_Client &client, NetMessage &message)
 
     //E_INFO("[SEND][%21s][%5u b] %16s ", SafeTextFormatIP(client.peer->address), rawPacket.dataLength, netMsg.TypeString());
     if (message.type != NetMessage::Type::WorldSnapshot) {
+#if 0
         const char *subType = "";
         switch (message.type) {
             case NetMessage::Type::GlobalEvent: subType = message.data.globalEvent.TypeString(); break;
             case NetMessage::Type::NearbyEvent: subType = message.data.nearbyEvent.TypeString(); break;
         }
-        //E_DEBUG("[NetServer] Send %s %s (%zu b)", message.TypeString(), subType, bytes);
+        E_DEBUG("[NetServer] Send %s %s (%zu b)", message.TypeString(), subType, bytes);
+#endif
     }
 
-    E_ERROR_RETURN(SendRaw(client, rawPacket, bytes), "Failed to send packet");
+    E_ERROR_RETURN(SendRaw(client, rawPacket, bytes), "Failed to send packet", 0);
     return ErrorType::Success;
 }
 
@@ -201,7 +202,7 @@ ErrorType NetServer::SendWelcomeBasket(SV_Client &client)
             memcpy(welcome.players[i].name, serverWorld->playerInfos[i].name, welcome.players[i].nameLength);
             welcome.playerCount++;
         }
-        E_ERROR_RETURN(SendMsg(client, netMsg), "Failed to send welcome basket");
+        E_ERROR_RETURN(SendMsg(client, netMsg), "Failed to send welcome basket", 0);
     }
 
     const PlayerInfo *playerInfo = serverWorld->FindPlayerInfo(client.playerId);
@@ -209,7 +210,7 @@ ErrorType NetServer::SendWelcomeBasket(SV_Client &client)
         TraceLog(LOG_ERROR, "Failed to find player info. playerId: %u", client.playerId);
     }
 
-    E_ERROR_RETURN(BroadcastPlayerJoin(*playerInfo), "Failed to broadcast player join notification");
+    E_ERROR_RETURN(BroadcastPlayerJoin(*playerInfo), "Failed to broadcast player join notification", 0);
 
     const char *message = SafeTextFormat("%.*s joined the game.", playerInfo->nameLength, playerInfo->name);
     size_t messageLength = strlen(message);
@@ -217,7 +218,7 @@ ErrorType NetServer::SendWelcomeBasket(SV_Client &client)
     chatMsg.source = NetMessage_ChatMessage::Source::Server;
     chatMsg.messageLength = (uint32_t)MIN(messageLength, CHATMSG_LENGTH_MAX);
     memcpy(chatMsg.message, message, chatMsg.messageLength);
-    E_ERROR_RETURN(BroadcastChatMessage(chatMsg), "Failed to broadcast player join chat msg");
+    E_ERROR_RETURN(BroadcastChatMessage(chatMsg), "Failed to broadcast player join chat msg", 0);
 
     SendNearbyChunks(client);
     SendWorldSnapshot(client);
@@ -278,7 +279,7 @@ ErrorType NetServer::SendChatMessage(const SV_Client &client, const char *messag
     memset(&netMsg, 0, sizeof(netMsg));
     netMsg.type = NetMessage::Type::ChatMessage;
     netMsg.data.chatMsg = chatMsg;
-    E_ERROR_RETURN(SendMsg(client, netMsg), "Failed to send chat msg");
+    E_ERROR_RETURN(SendMsg(client, netMsg), "Failed to send chat msg", 0);
     return ErrorType::Success;
 }
 
@@ -291,7 +292,7 @@ ErrorType NetServer::SendWorldChunk(const SV_Client &client, const Chunk &chunk)
     netMsg.type = NetMessage::Type::WorldChunk;
     NetMessage_WorldChunk &worldChunk = netMsg.data.worldChunk;
     worldChunk.chunk = chunk;
-    E_ERROR_RETURN(SendMsg(client, netMsg), "Failed to send world chunk");
+    E_ERROR_RETURN(SendMsg(client, netMsg), "Failed to send world chunk", 0);
     return ErrorType::Success;
 }
 
@@ -337,7 +338,7 @@ ErrorType NetServer::BroadcastTileUpdate(float worldX, float worldY, const Tile 
             }
         }
         return false;
-    }), "Failed to broadcast tile update");
+    }), "Failed to broadcast tile update", 0);
 
     return ErrorType::Success;
 }
@@ -554,7 +555,7 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
     worldSnapshot.itemCount = 0;
     uint32_t skippedItemCount = 0;
     //for (size_t i = 0; i < serverWorld->itemSystem.itemsCount && worldSnapshot.itemCount < ARRAY_SIZE(worldSnapshot.items); i++) {
-    for (const ItemWorld &item : serverWorld->itemSystem.worldItems) {
+    for (const WorldItem &item : serverWorld->itemSystem.worldItems) {
         if (!item.euid) {
             continue;
         }
@@ -620,7 +621,7 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
         E_WARN("Snapshot full, skipped %u world items", skippedItemCount);
     }
 
-    E_ERROR_RETURN(SendMsg(client, netMsg), "Failed to send world snapshot");
+    E_ERROR_RETURN(SendMsg(client, netMsg), "Failed to send world snapshot", 0);
     client.lastSnapshotSentAt = g_clock.now;
     return ErrorType::Success;
 }
@@ -764,7 +765,7 @@ ErrorType NetServer::SendEnemyState(const SV_Client &client, const Slime &enemy,
     return SendMsg(client, netMsg);
 }
 
-ErrorType NetServer::SendItemState(const SV_Client &client, const ItemWorld &item, bool nearby, bool spawned)
+ErrorType NetServer::SendItemState(const SV_Client &client, const WorldItem &item, bool nearby, bool spawned)
 {
     assert(!"Not yet implemented");
     return ErrorType::PeerSendFailed;
@@ -1127,14 +1128,14 @@ void NetServer::ProcessMsg(SV_Client &client, ENetPacket &packet)
             player->body.Teleport(serverWorld->GetWorldSpawn());
 
             // TODO: Load selected slot from save file
-            player->inventory.selectedSlot = PlayerInvSlot_Hotbar_0;
+            player->inventory.selectedSlot = PlayerInventory::SlotId_Hotbar_0;
 
             // TODO: Load inventory from save file
             ItemUID longSword = g_item_db.SV_Spawn(ItemType_Weapon_Long_Sword);
             ItemUID dagger = g_item_db.SV_Spawn(ItemType_Weapon_Dagger);
             ItemUID blackBook = g_item_db.SV_Spawn(ItemType_Book_BlackSkull);
             ItemUID silverCoin = g_item_db.SV_Spawn(ItemType_Currency_Silver);
-            player->inventory.slots[PlayerInvSlot_Hotbar_0].stack = { longSword, 1 };
+            player->inventory.slots[PlayerInventory::SlotId_Hotbar_0].stack = { longSword, 1 };
             player->inventory.slots[0].stack = { dagger, 1 };
             player->inventory.slots[1].stack = { blackBook, 3 };
             player->inventory.slots[10].stack = { silverCoin, 10 };
@@ -1208,7 +1209,7 @@ void NetServer::ProcessMsg(SV_Client &client, ENetPacket &packet)
                 ItemStack dropStack = player->inventory.SlotDrop(slotDrop.slotId, slotDrop.count);
                 if (dropStack.uid && dropStack.count) {
                     E_DEBUG("[SRV] SpawnItem itemUid: %u, count: %u", dropStack.uid, dropStack.count);
-                    ItemWorld *item = serverWorld->itemSystem.SpawnItem(player->body.WorldPosition(), dropStack.uid, dropStack.count);
+                    WorldItem *item = serverWorld->itemSystem.SpawnItem(player->body.WorldPosition(), dropStack.uid, dropStack.count);
                     if (item) {
                         item->droppedByPlayerId = player->id;
                     }
@@ -1227,19 +1228,19 @@ void NetServer::ProcessMsg(SV_Client &client, ENetPacket &packet)
                         case ObjectType_Rock01: {
                             // TODO: Move this out to e.g. tile->object.Interact() or something..
                             if (!tile->object.HasFlag(ObjectFlag_Stone_Overturned)) {
-                                E_DEBUG("[SRV] TileInteract: Rock attempting to roll loot.");
+                                E_DEBUG("[SRV] TileInteract: Rock attempting to roll loot.", 0);
                                 // TODO(v1): Make LootTableID::LT_Rock01
                                 // TODO(v2): Look up loot table id based on where the player is
                                 // TODO(v3): Account for player's magic find bonus
                                 serverWorld->lootSystem.SV_RollDrops(LootTableID::LT_Slime, [&](ItemStack dropStack) {
                                     serverWorld->itemSystem.SpawnItem(
-                                        { tileInteract.tileX, tileInteract.tileY }, dropStack.uid, dropStack.count
+                                        { tileInteract.tileX, tileInteract.tileY, 0 }, dropStack.uid, dropStack.count
                                     );
                                 });
                                 tile->object.SetFlag(ObjectFlag_Stone_Overturned);
                                 BroadcastTileUpdate(tileInteract.tileX, tileInteract.tileY, *tile);
                             } else {
-                                E_DEBUG("[SRV] TileInteract: Rock already overturned.");
+                                E_DEBUG("[SRV] TileInteract: Rock already overturned.", 0);
                             }
                             break;
                         }
@@ -1292,7 +1293,7 @@ ErrorType NetServer::RemoveClient(ENetPeer *peer)
     if (client) {
         const PlayerInfo *playerInfo = serverWorld->FindPlayerInfo(client->playerId);
         if (playerInfo && playerInfo->id) {
-            E_ERROR_RETURN(BroadcastPlayerLeave(playerInfo->id), "Failed to broadcast player leave notification");
+            E_ERROR_RETURN(BroadcastPlayerLeave(playerInfo->id), "Failed to broadcast player leave notification", 0);
 
             const char *message = SafeTextFormat("%.*s left the game.", playerInfo->nameLength, playerInfo->name);
             size_t messageLength = strlen(message);
@@ -1300,7 +1301,7 @@ ErrorType NetServer::RemoveClient(ENetPeer *peer)
             chatMsg.source = NetMessage_ChatMessage::Source::Server;
             chatMsg.messageLength = (uint32_t)MIN(messageLength, CHATMSG_LENGTH_MAX);
             memcpy(chatMsg.message, message, chatMsg.messageLength);
-            E_ERROR_RETURN(BroadcastChatMessage(chatMsg), "Failed to broadcast player leave chat msg");
+            E_ERROR_RETURN(BroadcastChatMessage(chatMsg), "Failed to broadcast player leave chat msg", 0);
 
             serverWorld->RemovePlayer(client->playerId);
             serverWorld->RemovePlayerInfo(client->playerId);
@@ -1329,7 +1330,7 @@ ErrorType NetServer::Listen(void)
     int svc = enet_host_service(server, &event, 1);
     while (1) {
         if (svc < 0) {
-            E_ERROR(ErrorType::ENetServiceError, "Unknown network error");
+            E_ERROR(ErrorType::ENetServiceError, "Unknown network error", 0);
             break;
         } else if (!svc) {
             break;  // No more events
@@ -1376,7 +1377,7 @@ void NetServer::CloseSocket(void)
 {
     if (!server) return;
     // Notify all clients that the server is stopping
-    for (int i = 0; i < server->peerCount; i++) {
+    for (int i = 0; i < (int)server->peerCount; i++) {
         enet_peer_disconnect(&server->peers[i], 0);
     }
     enet_host_service(server, nullptr, 0);

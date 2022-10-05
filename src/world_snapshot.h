@@ -89,7 +89,7 @@ struct NpcSnapshot {
     uint8_t   level        {};  // spawn, level up
 
     static const char *FlagStr(uint32_t flags) {
-        thread_local char buf[33]{};
+        thread_local static char buf[33]{};
         buf[0] = flags & Flags_Despawn   ? 'D' : '-';
         buf[1] = flags & Flags_Name      ? 'N' : '-';
         buf[2] = flags & Flags_Position  ? 'P' : '-';

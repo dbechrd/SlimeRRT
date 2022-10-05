@@ -1,8 +1,8 @@
 #include "draw_command.h"
-#include "item_world.h"
+#include "entities/entities.h"
 #include "particles.h"
 #include "player.h"
-#include "entities/entities.h"
+#include "world_item.h"
 #include <cassert>
 #include <cstdlib>
 #include <cstring>

@@ -4,14 +4,8 @@
 #include "maths.h"
 #include "net_message.h"
 #include "raylib/raylib.h"
-#include <cassert>
 #include <float.h>
 #include <stdlib.h>
-
-Tilemap::~Tilemap(void)
-{
-    UnloadTexture(minimap);
-}
 
 void Tilemap::GenerateMinimap(Vector2 worldPos)
 {
@@ -20,9 +14,9 @@ void Tilemap::GenerateMinimap(Vector2 worldPos)
         return;
     }
 
-    thread_local int pixelCount{};
-    thread_local Image minimapImg{};
-    thread_local Color tileColors[TileType_Count]{};
+    thread_local static int pixelCount{};
+    thread_local static Image minimapImg{};
+    thread_local static Color tileColors[TileType_Count]{};
 
     if (!minimap.width) {
         minimapImg.width = CHUNK_W * 8;
@@ -30,9 +24,9 @@ void Tilemap::GenerateMinimap(Vector2 worldPos)
         minimapImg.mipmaps = 1;
         minimapImg.format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
         pixelCount = minimapImg.width * minimapImg.height;
-        assert(sizeof(Color) == 4);
+        DLB_ASSERT(sizeof(Color) == 4);
         minimapImg.data = calloc(pixelCount, sizeof(Color));
-        assert(minimapImg.data);
+        DLB_ASSERT(minimapImg.data);
 
         tileColors[(int)TileType_Void] = BLACK;
         tileColors[(int)TileType_Grass] = GREEN;
@@ -58,18 +52,18 @@ void Tilemap::GenerateMinimap(Vector2 worldPos)
             auto chunkIter = chunksIndex.find(chunkHash);
             if (chunkIter != chunksIndex.end()) {
                 size_t chunkIdx = chunkIter->second;
-                assert(chunkIdx < chunks.size());
+                DLB_ASSERT(chunkIdx < chunks.size());
                 Chunk &chunk = chunks[chunkIdx];
                 for (int tileY = 0; tileY < CHUNK_W; tileY++) {
                     for (int tileX = 0; tileX < CHUNK_W; tileX++) {
                         Tile &tile = chunk.tiles[tileY * CHUNK_W + tileX];
-                        assert((int)tile.type >= 0);
-                        assert((int)tile.type < (int)TileType_Count);
+                        DLB_ASSERT((int)tile.type >= 0);
+                        DLB_ASSERT((int)tile.type < (int)TileType_Count);
                         int pixelY = ((chunkY - originChunkY + 4) * CHUNK_W + tileY);
                         int pixelX = ((chunkX - originChunkX + 4) * CHUNK_W + tileX);
                         int pixelIdx = pixelY * minimapImg.width + pixelX;
-                        assert(pixelIdx >= 0);
-                        assert(pixelIdx < pixelCount);
+                        DLB_ASSERT(pixelIdx >= 0);
+                        DLB_ASSERT(pixelIdx < pixelCount);
                         minimapPixels[pixelIdx] = tileColors[(int)tile.type];
                     }
                 }
@@ -164,7 +158,7 @@ Chunk &Tilemap::FindOrGenChunk(World &world, int16_t chunkX, int16_t chunkY)
     auto chunkIter = chunksIndex.find(chunkHash);
     if (chunkIter != chunksIndex.end()) {
         size_t chunkIdx = chunkIter->second;
-        assert(chunkIdx < chunks.size());
+        DLB_ASSERT(chunkIdx < chunks.size());
         Chunk &chunk = chunks[chunkIdx];
         return chunk;
     }
@@ -193,7 +187,7 @@ Chunk &Tilemap::FindOrGenChunk(World &world, int16_t chunkX, int16_t chunkY)
     for (int tileY = 0; tileY < CHUNK_H; tileY++) {
         for (int tileX = 0; tileX < CHUNK_W; tileX++) {
             int tileIdx = tileY * CHUNK_W + tileX;
-            assert(tileIdx < ARRAY_SIZE(chunk.tiles));
+            DLB_ASSERT(tileIdx < (int)ARRAY_SIZE(chunk.tiles));
 
             // World coords, in pixels
             float x = (float)((chunk.x * CHUNK_W + tileX) * TILE_W);
@@ -324,12 +318,19 @@ Chunk &Tilemap::FindOrGenChunk(World &world, int16_t chunkX, int16_t chunkY)
 
 #undef NOISE_BETWEEN
 
-    assert(tileCount == ARRAY_SIZE(chunk.tiles));
+    DLB_ASSERT(tileCount == ARRAY_SIZE(chunk.tiles));
 
     // TODO: Update minimap when player moves or chunk changes, without re-generating
     // whole thing; and only the chunk is within the cull rect of the minimap.
     //GenerateMinimap();
     return chunk;
+}
+
+MapSystem::~MapSystem(void)
+{
+    for (Tilemap &map : maps) {
+        UnloadTexture(map.minimap);
+    }
 }
 
 Tilemap &MapSystem::Alloc()

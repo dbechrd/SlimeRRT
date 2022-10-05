@@ -91,7 +91,7 @@ extern "C" {
  #endif
 // @raysan5: Actually, only HWND handler needs to be defined
 // Including windows.h could suppose symbols re-definition issues (i.e Rectangle type)
-#include <windows.h>
+#include <Windows.h>
  //typedef void *PVOID;
  //typedef PVOID HANDLE;
  //typedef HANDLE HWND;

@@ -118,8 +118,8 @@ size_t NetMessage::Process(BitStream::Mode mode, uint8_t *buf, size_t len)
                     stream.Process(sample.walkWest);
                     stream.Process(sample.run);
                     stream.Process(sample.primary);
-                    DLB_ASSERT(PlayerInvSlot_Count > 0);
-                    stream.Process(sample.selectSlot, 8, 0, PlayerInvSlot_Count - 1);
+                    DLB_ASSERT(PlayerInventory::SlotId_Count > 0);
+                    stream.Process(sample.selectSlot, 8, 0, PlayerInventory::SlotId_Count - 1);
                 }
                 //E_DEBUG("%s sample: %u %f", mode == BitStream::Mode::Reader ? "READ" : "WRITE", sample.seq, sample.dt);
             }
@@ -198,7 +198,7 @@ size_t NetMessage::Process(BitStream::Mode mode, uint8_t *buf, size_t len)
                     //    E_DEBUG("Sending player inventory update for player %u\n", playerSnap.id);
                     //}
 
-                    stream.Process((uint8_t &)playerSnap.inventory.selectedSlot, 8, 0, PlayerInvSlot_Count - 1);
+                    stream.Process((uint8_t &)playerSnap.inventory.selectedSlot, 8, 0, PlayerInventory::SlotId_Count - 1);
 
                     const size_t slotCount = ARRAY_SIZE(playerSnap.inventory.slots);
                     bool slotMap[slotCount]{};
@@ -228,15 +228,14 @@ size_t NetMessage::Process(BitStream::Mode mode, uint8_t *buf, size_t len)
                                 continue;
                             }
 
-                            const size_t affixCount = ARRAY_SIZE(item.affixes);
-                            bool affixMap[affixCount]{};
-                            for (int affix = 0; affix < affixCount; affix++) {
+                            bool affixMap[ARRAY_SIZE(item.affixes)]{};
+                            for (int affix = 0; affix < (int)ARRAY_SIZE(item.affixes); affix++) {
                                 affixMap[affix] = item.affixes[affix].type != ItemAffix_Empty;
                                 stream.Process(affixMap[affix]);
                             }
                             stream.Align();
 
-                            for (int affix = 0; affix < affixCount; affix++) {
+                            for (int affix = 0; affix < (int)ARRAY_SIZE(item.affixes); affix++) {
                                 if (affixMap[affix]) {
                                     stream.Process(item.affixes[affix].type, 4, 0, ItemAffix_Count);
                                     stream.Process(item.affixes[affix].value.min);
@@ -336,7 +335,7 @@ size_t NetMessage::Process(BitStream::Mode mode, uint8_t *buf, size_t len)
                     stream.Align();
                     break;
                 } default: {
-                    TraceLog(LOG_ERROR, "Unexpected message");
+                    E_WARN("Unexpected globalEvent type %d", globalEvent.type);
                 }
             }
 
@@ -373,11 +372,11 @@ size_t NetMessage::Process(BitStream::Mode mode, uint8_t *buf, size_t len)
                         }
                     }
 #else
-                    TraceLog(LOG_ERROR, "Unexpected message");
+                    E_WARN("NearyEvent::PlayerState deprecated", 0);
 #endif
                     break;
                 } case NetMessage_NearbyEvent::Type::PlayerEquip: {
-                    TraceLog(LOG_ERROR, "Unexpected message");
+                    E_WARN("NearyEvent::PlayerEquip deprecated", 0);
                     break;
                 } case NetMessage_NearbyEvent::Type::EnemyState: {
 #if 0
@@ -404,7 +403,7 @@ size_t NetMessage::Process(BitStream::Mode mode, uint8_t *buf, size_t len)
                         }
                     }
 #else
-                    TraceLog(LOG_ERROR, "Unexpected message");
+                    E_WARN("NearyEvent::EnemyState deprecated", 0);
 #endif
                     break;
                 } case NetMessage_NearbyEvent::Type::ItemState: {
@@ -424,30 +423,30 @@ size_t NetMessage::Process(BitStream::Mode mode, uint8_t *buf, size_t len)
                         }
                     }
 #else
-                    TraceLog(LOG_ERROR, "Unexpected message");
+                    E_WARN("NearyEvent::ItemState deprecated", 0);
 #endif
                     break;
                 } default: {
-                    TraceLog(LOG_ERROR, "Unexpected message");
+                    E_WARN("Unrecognized NearyEvent::Type %d", nearbyEvent.type);
                 }
             }
 
             break;
         } case NetMessage::Type::SlotClick: {
             NetMessage_SlotClick &slotClick = data.slotClick;
-            stream.Process((uint8_t &)slotClick.slotId, 8, 0, PlayerInvSlot_Count - 1);
+            stream.Process((uint8_t &)slotClick.slotId, 8, 0, PlayerInventory::SlotId_Count - 1);
             stream.Align();
             stream.Process(slotClick.doubleClick);
             break;
         } case NetMessage::Type::SlotScroll: {
             NetMessage_SlotScroll &slotScroll = data.slotScroll;
-            stream.Process((uint8_t &)slotScroll.slotId, 8, 0, PlayerInvSlot_Count - 1);
+            stream.Process((uint8_t &)slotScroll.slotId, 8, 0, PlayerInventory::SlotId_Count - 1);
             stream.Align();
             stream.Process(slotScroll.scrollY);
             break;
         } case NetMessage::Type::SlotDrop: {
             NetMessage_SlotDrop &slotDrop = data.slotDrop;
-            stream.Process((uint8_t &)slotDrop.slotId, 8, 0, PlayerInvSlot_Count - 1);
+            stream.Process((uint8_t &)slotDrop.slotId, 8, 0, PlayerInventory::SlotId_Count - 1);
             stream.Align();
             stream.Process(slotDrop.count);
             break;
@@ -458,7 +457,7 @@ size_t NetMessage::Process(BitStream::Mode mode, uint8_t *buf, size_t len)
             stream.Align();
             break;
         } default: {
-            DLB_ASSERT(!"Unrecognized NetMessageType");
+            E_WARN("Unrecognized NetMessageType %d", type);
         }
     }
 
@@ -467,7 +466,7 @@ size_t NetMessage::Process(BitStream::Mode mode, uint8_t *buf, size_t len)
 
 #if _DEBUG && 0
     if (itemClass == NetMessage::Type::WorldSnapshot) {
-        thread_local FILE *sendLog = fopen("send.log", "w");
+        thread_local static FILE *sendLog = fopen("send.log", "w");
         fprintf(sendLog, "Snapshot #%u: ", data.worldSnapshot.tick);
         for (size_t i = 0; i < bytesProcessed; i++) {
             fprintf(sendLog, "%02hhx", *((uint8_t *)buffer.data + i));

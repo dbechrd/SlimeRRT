@@ -8,12 +8,13 @@ struct World;
 //    Particle,
 //    Player,
 //    Enemy,
-//    ItemWorld,
+//    WorldItem,
 //    Count,
 //};
 
-struct Drawable {
-    virtual float Depth() const = 0;
+class Drawable {
+public:
+    virtual float Depth(void) const = 0;
     virtual bool Cull(const Rectangle& cullRect) const = 0;
     virtual void Draw(World &world) = 0;
 };

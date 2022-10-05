@@ -21,5 +21,5 @@ namespace Catalog {
         Spritesheet byId[(size_t)SpritesheetID::Count];
     };
 
-    thread_local Spritesheets g_spritesheets{};
+    thread_local static Spritesheets g_spritesheets{};
 }

@@ -460,7 +460,7 @@ ErrorType Scanner::ParseAnimation(SpriteAnim &animation)
                 animation.frames[i] = -1;
                 break;
             default:
-                E_ERROR_RETURN(err, "Failed to parse spriteanim frame");
+                E_ERROR_RETURN(err, "Failed to parse spriteanim frame", 0);
         }
     }
 
@@ -510,27 +510,27 @@ ErrorType Scanner::ParseSpritesheet(Spritesheet &spritesheet)
         switch (c) {
             ALPHA {
                 Token tok{};
-                E_ERROR_RETURN(ParseIdentifier(&tok), "Failed to parse token");
+                E_ERROR_RETURN(ParseIdentifier(&tok), "Failed to parse token", 0);
                 switch (tok.type) {
                     case Token::Type::Spritesheet: {
-                        E_ERROR_RETURN(ParseHeader(spritesheet), "Failed to parse header");
+                        E_ERROR_RETURN(ParseHeader(spritesheet), "Failed to parse header", 0);
                         break;
                     }
                     case Token::Type::Frame: {
                         SpriteFrame &frame = spritesheet.frames.emplace_back();
-                        E_ERROR_RETURN(ParseFrame(frame), "Failed to parse frame");
+                        E_ERROR_RETURN(ParseFrame(frame), "Failed to parse frame", 0);
                         framesParsed++;
                         break;
                     }
                     case Token::Type::Animation: {
                         SpriteAnim &animation = spritesheet.animations.emplace_back();
-                        E_ERROR_RETURN(ParseAnimation(animation), "Failed to parse animation");
+                        E_ERROR_RETURN(ParseAnimation(animation), "Failed to parse animation", 0);
                         animationsParsed++;
                         break;
                     }
                     case Token::Type::Sprite: {
                         SpriteDef &sprite = spritesheet.sprites.emplace_back(&spritesheet);
-                        E_ERROR_RETURN(ParseSprite(sprite), "Failed to parse sprite");
+                        E_ERROR_RETURN(ParseSprite(sprite), "Failed to parse sprite", 0);
                         spritesParsed++;
                         break;
                     }
@@ -550,6 +550,7 @@ ErrorType Scanner::ParseSpritesheet(Spritesheet &spritesheet)
         c = PeekChar();
     }
 
+    E_DEBUG("Successfully parsed %d frames, %d animations, %d sprites", framesParsed, animationsParsed, spritesParsed);
     return ErrorType::Success;
 }
 

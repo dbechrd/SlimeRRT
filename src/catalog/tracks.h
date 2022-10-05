@@ -39,5 +39,5 @@ namespace Catalog {
         Music MissingOggTrack(void);
     };
 
-    thread_local Tracks g_tracks{};
+    thread_local static Tracks g_tracks{};
 }

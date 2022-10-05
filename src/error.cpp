@@ -7,7 +7,7 @@
 #include <thread>
 #include <mutex>
 
-thread_local FILE *logFile;
+thread_local static FILE *logFile;
 
 #define ESC "\033["
 #define RESET ESC "0m"
@@ -104,7 +104,7 @@ static void traceLogCallback(int logType, const char *text, va_list args)
 #if 1
     // Raylib CloseWindow() kills glfw then tries to log something.. which means the GLFW timer is invalid -.-
     // If there was ever a window, and now the window is gone (i.e. glfw dead), don't request a timestamp)
-    thread_local bool windowDetected = 0;
+    thread_local static bool windowDetected = 0;
     if (!windowDetected || IsWindowReady()) {
         time = glfwGetTime();
         windowDetected = IsWindowReady();

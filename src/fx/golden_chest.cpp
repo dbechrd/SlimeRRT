@@ -9,10 +9,10 @@ namespace FX {
         const ParticleEffect &effect = *particle.effect;
 
         // Spawn randomly during first 5% of duration
-        particle.spawnAt = effect.startedAt + effect.duration * dlb_rand32f_variance(0.05f);
+        particle.spawnAt = effect.startedAt + effect.duration * (double)dlb_rand32f_variance(0.05f);
 
         // Die randomly during last 15% of animation
-        particle.dieAt = effect.startedAt + effect.duration - (effect.duration * dlb_rand32f_variance(0.15f));
+        particle.dieAt = effect.startedAt + effect.duration - (effect.duration * (double)dlb_rand32f_variance(0.15f));
         assert(particle.dieAt > particle.spawnAt);
 
     #if 1
@@ -39,6 +39,6 @@ namespace FX {
     {
         UNUSED(particle);
         UNUSED(alpha);
-        assert(!!"foobar");
+        DLB_ASSERT(false);
     }
 }

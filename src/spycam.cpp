@@ -78,7 +78,7 @@ void Spycam::Update(const PlayerControllerState &input, double dt)
             zoom *= input.cameraZoomDelta > 0.0f ? 2.0f : 0.5f;
         }
 #else
-        thread_local bool zoomOut = false;
+        thread_local static bool zoomOut = false;
         if (input.cameraZoomOut) zoomOut = !zoomOut;
         zoom = zoomOut ? 0.5f : 1.0f;
 #endif

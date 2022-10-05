@@ -13,8 +13,8 @@ struct BitStream {
 
     BitStream(Mode mode, void *buffer, size_t bufferLength);
 
-    bool Reading() const { return mode == Mode::Reader; };
-    bool Writing() const { return mode == Mode::Writer; };
+    bool Reading() const { return mode == Mode::Reader; }
+    bool Writing() const { return mode == Mode::Writer; }
 
     // Align read/write cursor to nearest byte boundary
     void Align();

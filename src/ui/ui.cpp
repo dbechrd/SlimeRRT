@@ -65,7 +65,7 @@ bool UI::QuitRequested()
 
 void UI::TileHoverOutline(Tilemap &map)
 {
-    assert(spycam);
+    DLB_ASSERT(spycam);
 
     const Tile *mouseTile = map.TileAtWorld(mouseWorld.x, mouseWorld.y);
     if (!mouseTile) {
@@ -88,7 +88,7 @@ void UI::TileHoverOutline(Tilemap &map)
 
 void UI::WorldGrid()
 {
-    assert(spycam);
+    DLB_ASSERT(spycam);
 
     const Rectangle &camRect = spycam->GetRect();
     for (float y = 0; y <= camRect.height; y++) {
@@ -117,9 +117,7 @@ void UI::WorldGrid()
 
 void UI::Minimap(const Font &font, World &world)
 {
-    assert(spycam);
-
-    const Rectangle &camRect = spycam->GetRect();
+    DLB_ASSERT(spycam);
 
     // Render minimap
     const int minimapMargin = 6;
@@ -144,37 +142,45 @@ void UI::Minimap(const Font &font, World &world)
         EndScissorMode();
     }
 
-#if 0
+#if 1
+    const Rectangle &camRect = spycam->GetRect();
+
     // TODO: Fix relative positioning of the map markers now that the map scrolls
 
     // Draw slimes on map
-    for (size_t i = 0; i < ARRAY_SIZE(world.enemies); i++) {
-        const Slime &s = world.enemies[i];
-        if (s.type) {
-            float x = (s.body.WorldPosition().x / camRect.width) * minimapW + minimapX;
-            float y = (s.body.WorldPosition().y / camRect.height) * minimapH + minimapY;
+    for (int i = 0; i < (int)ARRAY_SIZE(world.npcs.slimes); i++) {
+        const NPC &npc = world.npcs.slimes[i];
+        if (npc.type) {
+            float x = (npc.body.WorldPosition().x / camRect.width) * (float)(minimapW + minimapX);
+            float y = (npc.body.WorldPosition().y / camRect.height) * (float)(minimapH + minimapY);
             DrawCircle((int)x, (int)y, 2.0f, Color{ 0, 170, 80, 255 });
         }
     }
 
     // Draw players on map
-    for (size_t i = 0; i < ARRAY_SIZE(world.players); i++) {
-        const Player &p = world.players[i];
-        if (p.type) {
-            float x = (p.body.WorldPosition().x / camRect.width) * minimapW + minimapX;
-            float y = (p.body.WorldPosition().y / camRect.height) * minimapH + minimapY;
-            const Color playerColor{ 220, 90, 20, 255 };
-            DrawCircle((int)x, (int)y, 2.0f, playerColor);
-            const char *pName = SafeTextFormat("%.*s", p.nameLength, p.name);
-            int nameWidth = MeasureText(pName, font.baseSize);
-            DrawTextFont(font, pName, x - (float)(nameWidth / 2), y - font.baseSize - 4, 0, 0, font.baseSize, YELLOW);
+    for (int i = 0; i < (int)ARRAY_SIZE(world.players); i++) {
+        const Player &player = world.players[i];
+        if (player.id) {
+            world.FindPlayerInfo(player.id);
+            const PlayerInfo *playerInfo = world.FindPlayerInfo(player.id);
+            if (playerInfo) {
+                float x = (player.body.WorldPosition().x / camRect.width) * (float)(minimapW + minimapX);
+                float y = (player.body.WorldPosition().y / camRect.height) * (float)(minimapH + minimapY);
+                const Color playerColor{ 220, 90, 20, 255 };
+                DrawCircle((int)x, (int)y, 2.0f, playerColor);
+                const char *pName = SafeTextFormat("%.*s", playerInfo->nameLength, playerInfo->name);
+                int nameWidth = MeasureText(pName, font.baseSize);
+                DrawTextFont(font, pName, x - (float)(nameWidth / 2), y - (float)font.baseSize - 4, 0, 0, font.baseSize, YELLOW);
+            } else {
+                E_ERROR(ErrorType::NotFound, "Missing player info for player id %u", player.id);
+            }
         }
     }
 #endif
     rlDrawRenderBatchActive();
 }
 
-void UI::Menubar(const NetClient &netClient)
+void UI::Menubar(void)
 {
     if (input->dbgImgui) showMenubar = !showMenubar;
     if (!showMenubar) return;
@@ -220,13 +226,13 @@ void UI::MenuTitle(const char *text, const ImVec4 &color)
 
 void UI::SliderFloatLeft(const char *label, float *v, float min, float max)
 {
-    assert(label[0] == '#');
-    assert(label[1] == '#');
+    DLB_ASSERT(label[0] == '#');
+    DLB_ASSERT(label[1] == '#');
     ImGui::Text(label + 2);
     ImGui::SameLine();
     float sliderMargin = 20.0f;
-    float cursorX = ImGui::GetCursorPosX();
-    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + sliderMargin);
+    //float cursorX = ImGui::GetCursorPosX();
+    //ImGui::SetCursorPosX(ImGui::GetCursorPosX() + sliderMargin);
     float sliderWidth = ImGui::GetContentRegionAvail().x - sliderMargin * 2.0f;
     ImGui::PushItemWidth(sliderWidth);
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 14.0f));
@@ -237,13 +243,13 @@ void UI::SliderFloatLeft(const char *label, float *v, float min, float max)
 
 void UI::SliderIntLeft(const char *label, int *v, int min, int max)
 {
-    assert(label[0] == '#');
-    assert(label[1] == '#');
+    DLB_ASSERT(label[0] == '#');
+    DLB_ASSERT(label[1] == '#');
     ImGui::Text(label + 2);
     ImGui::SameLine();
     float sliderMargin = 20.0f;
-    float cursorX = ImGui::GetCursorPosX();
-    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + sliderMargin);
+    //float cursorX = ImGui::GetCursorPosX();
+    //ImGui::SetCursorPosX(ImGui::GetCursorPosX() + sliderMargin);
     float sliderWidth = ImGui::GetContentRegionAvail().x - sliderMargin * 2.0f;
     ImGui::PushItemWidth(sliderWidth);
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 14.0f));
@@ -279,7 +285,7 @@ void UI::ParticleConfig(World &world)
         ImGuiWindowFlags_NoSavedSettings
     );
 
-    thread_local ParticleEffectParams params{};
+    thread_local static ParticleEffectParams params{};
     UI::MenuTitle("Particle Effect");
     SliderIntLeft(  "##particleCountMin ", &params.particleCountMin, 1, 256);
     SliderIntLeft(  "##particleCountMax ", &params.particleCountMax, 1, 256);
@@ -338,7 +344,7 @@ void UI::Netstat(NetClient &netClient, double renderAt)
 
     const size_t snapshotCount = netClient.worldHistory.Count();
     if (snapshotCount) {
-        assert(snapshotCount <= CL_WORLD_HISTORY);
+        DLB_ASSERT(snapshotCount <= CL_WORLD_HISTORY);
         float times[CL_WORLD_HISTORY]{};
         for (size_t i = 0; i < snapshotCount; i++) {
             times[i] = (float)(netClient.worldHistory.At(i).recvAt - renderAt);
@@ -416,7 +422,8 @@ int UI::ItemCompareWithSortSpecs(const void *lhs, const void *rhs)
                 delta = (aDamage > bDamage);
                 break;
             }
-            default: assert(!"unknown column id"); break;
+            default:
+                E_WARN("Unknown column id", 0);
         }
         if (delta > 0)
             return (sort_spec->SortDirection == ImGuiSortDirection_Ascending) ? +1 : -1;
@@ -428,6 +435,8 @@ int UI::ItemCompareWithSortSpecs(const void *lhs, const void *rhs)
 
 void UI::ItemProtoEditor(World &world)
 {
+    UNUSED(world);
+
     if (!showItemProtoEditor) {
         return;
     }
@@ -553,7 +562,7 @@ void UI::ItemProtoEditor(World &world)
 
 void UI::HUD(const Font &font, World &world, const DebugStats &debugStats)
 {
-    assert(spycam);
+    DLB_ASSERT(spycam);
 
     Player *player = world.FindPlayer(world.playerId);
     if (!player) {
@@ -577,7 +586,7 @@ void UI::HUD(const Font &font, World &world, const DebugStats &debugStats)
     const float margin = 6.0f;   // margin
     const float pad = 4.0f;      // pad
     const float hudWidth = 280.0f;
-    const float hudHeight = linesOfText * (font.baseSize + pad) + pad;
+    const float hudHeight = (float)linesOfText * ((float)font.baseSize + pad) + pad;
 
     hudCursorY += margin;
 
@@ -636,11 +645,11 @@ void UI::HUD(const Font &font, World &world, const DebugStats &debugStats)
         //PUSH_TEXT(text, GRAY);
     }
 
-    thread_local uint64_t bytesSentStart = 0;
-    thread_local uint64_t bytesRecvStart = 0;
-    thread_local double bandwidthTimerStartedAt = 0;
-    thread_local float kbpsOut = 0.0f;
-    thread_local float kbpsIn = 0.0f;
+    thread_local static uint64_t bytesSentStart = 0;
+    thread_local static uint64_t bytesRecvStart = 0;
+    thread_local static double bandwidthTimerStartedAt = 0;
+    thread_local static float kbpsOut = 0.0f;
+    thread_local static float kbpsIn = 0.0f;
 
     if (debugStats.rtt) {
         if (!bandwidthTimerStartedAt) {
@@ -727,7 +736,6 @@ void UI::HUD(const Font &font, World &world, const DebugStats &debugStats)
     ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 4.0f); styleVars++;
     ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.0f); styleVars++;
     int styleCols = 0;
-    auto bgWindow = BLACK;
     //ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32_BLACK); styleCols++;
     ImGui::PushStyleColor(ImGuiCol_Border, ImColor(0, 0, 0, 255).Value); styleCols++;
     ImGui::PushStyleColor(ImGuiCol_WindowBg, ImColor(128, 128, 0, 255).Value); styleCols++;
@@ -823,14 +831,13 @@ void UI::QuickHUD(const Font &font, const Player &player, const Tilemap &tilemap
 {
     const char *text = 0;
 
-    int linesOfText = 1;
+    //int linesOfText = 1;
     const float margin = 6.0f;   // margin
     const float pad = 4.0f;      // pad
-    const float hudWidth = 240.0f;
-    const float hudHeight = linesOfText * (font.baseSize + pad) + pad;
+    //const float hudWidth = 240.0f;
+    //const float hudHeight = linesOfText * (font.baseSize + pad) + pad;
 
     float hudCursorY = margin;
-
     hudCursorY += pad;
 
     const Spritesheet &gildedSpritesheet = Catalog::g_spritesheets.FindById(Catalog::SpritesheetID::Coin_Gilded);
@@ -842,7 +849,7 @@ void UI::QuickHUD(const Font &font, const Player &player, const Tilemap &tilemap
     frameRect.height = (float)gildedSpriteDef->spritesheet->frames[3].height;
     DrawTextureRec(gildedSpriteDef->spritesheet->texture, frameRect, { margin + pad, hudCursorY }, WHITE);
 
-    text = SafeTextFormat("%d", player.inventory.slots[PlayerInvSlot_Coin_Copper].stack.count);
+    text = SafeTextFormat("%d", player.inventory.slots[PlayerInventory::SlotId_Coin_Copper].stack.count);
     DrawTextFont(font, text, margin + pad + frameRect.width + pad, hudCursorY, 0, 0, font.baseSize, WHITE);
     hudCursorY += font.baseSize + pad;
 
@@ -893,7 +900,7 @@ void UI::Chat(const Font &font, int fontSize, World &world, NetClient &netClient
     rlDrawRenderBatchActive();
 
     // Render chat input box, if open
-    thread_local char chatInputText[CHATMSG_LENGTH_MAX]{};
+    thread_local static char chatInputText[CHATMSG_LENGTH_MAX]{};
 
     ImVec2 chatInputPos{
         margin,
@@ -901,7 +908,7 @@ void UI::Chat(const Font &font, int fontSize, World &world, NetClient &netClient
     };
     ImGui::SetNextWindowPos(chatInputPos);
 
-    thread_local bool fixSlash = false;
+    thread_local static bool fixSlash = false;
     if (!ImGui::IsPopupOpen(chatPopupId) && (input->openChatTextbox || input->openChatTextboxSlash)) {
         ImGui::OpenPopup(chatPopupId);
         if (input->openChatTextboxSlash) {
@@ -1015,12 +1022,12 @@ int UI::OldRaylibMenu(const Font &font, const char **items, size_t itemCount)
         Vector2 size;
         Vector2 offset;  // offset itemX from center line and itemY from xpBarTop
     } menuItems[UI_MENU_ITEMS_MAX]{};
-    assert(itemCount < ARRAY_SIZE(menuItems));
+    DLB_ASSERT(itemCount < ARRAY_SIZE(menuItems));
 
     Vector2 cursor{};
     cursor.y = menuPad.y;
     menuSize.y += menuPad.y;
-    for (int i = 0; i < itemCount; i++) {
+    for (int i = 0; i < (int)itemCount; i++) {
         menuItems[i].text = items[i];
         menuItems[i].size = MeasureTextEx(font, menuItems[i].text, (float)font.baseSize, font.baseSize/10.0f);
         menuItems[i].offset.x = -menuItems[i].size.x / 2.0f;
@@ -1038,8 +1045,8 @@ int UI::OldRaylibMenu(const Font &font, const char **items, size_t itemCount)
     Rectangle menuRect{ menuPos.x, menuPos.y, menuSize.x, menuSize.y };
     DrawRectangleRec(menuRect, { 130, 170, 240, 255 }); // Fade(BLACK, 0.7f));
     DrawRectangleLinesEx(menuRect, 2.0f, BLACK);
-    const float menuCenterX = menuPos.x + menuSize.x / 2.0f;
-    for (int i = 0; i < itemCount; i++) {
+    //const float menuCenterX = menuPos.x + menuSize.x / 2.0f;
+    for (int i = 0; i < (int)itemCount; i++) {
         Vector2 itemPos{};
         //itemPos.x = menuCenterX + menuItems[i].offset.x;
         itemPos.x = menuPos.x + menuPad.x;
@@ -1133,12 +1140,12 @@ bool UI::MenuButton(const char *label, const ImVec2 &size)
 }
 
 void UI::MenuMultiplayer(GameClient &game) {
-    thread_local const char *message = 0;
-    thread_local bool msgIsError = false;
-    thread_local bool connecting = false;
-    thread_local size_t connectingIdx = 0;
-    thread_local double connectingIdxLastUpdate = 0;
-    thread_local bool reset = false;
+    thread_local static const char *message = 0;
+    thread_local static bool msgIsError = false;
+    thread_local static bool connecting = false;
+    thread_local static size_t connectingIdx = 0;
+    thread_local static double connectingIdxLastUpdate = 0;
+    thread_local static bool reset = false;
 
     if (game.netClient.IsDisconnected()) {
         if (connecting) {
@@ -1158,7 +1165,7 @@ void UI::MenuMultiplayer(GameClient &game) {
             const DB::ServerDB *serverDB = game.netClient.server_db.flat;
             auto servers = serverDB->servers();
 
-            // Display user's saved servers
+            // Display user'npc saved servers
             ErrorType err = ErrorType::Success;
             int deleteServerIdx = -1;
             ImGui::PushFont(g_fonts.imFontHack48);
@@ -1251,11 +1258,11 @@ void UI::MenuMultiplayer(GameClient &game) {
 void UI::MenuMultiplayerNew(NetClient &netClient) {
     DLB_ASSERT(editingServerIdx != SERVER_IDX_NONE);
 
-    thread_local const char *message = 0;
-    thread_local bool showPassword = false;
+    thread_local static const char *message = 0;
+    thread_local static bool showPassword = false;
     bool formValid = true;
 
-    thread_local struct {
+    thread_local static struct {
         char desc[SERV_DESC_LENGTH_MAX];
         char host[HOSTNAME_LENGTH_MAX];
         uint16_t port;
@@ -1266,7 +1273,7 @@ void UI::MenuMultiplayerNew(NetClient &netClient) {
     if (!form.port) {
         if (editingServerIdx == SERVER_IDX_NEW) {
             form.port = SV_DEFAULT_PORT;
-        } else if(editingServerIdx < netClient.server_db.Size()) {
+        } else if(editingServerIdx < (int)netClient.server_db.Size()) {
             const DB::Server &server = *netClient.server_db.flat->servers()->Get(editingServerIdx);
             strncpy(form.desc, server.desc()->c_str(), sizeof(form.desc));
             strncpy(form.host, server.host()->c_str(), sizeof(form.host));
@@ -1274,7 +1281,7 @@ void UI::MenuMultiplayerNew(NetClient &netClient) {
             strncpy(form.user, server.user()->c_str(), sizeof(form.user));
             strncpy(form.pass, server.pass()->c_str(), sizeof(form.pass));
         } else {
-            DLB_ASSERT(!"Invalid server index");
+            E_ERROR(ErrorType::OutOfBounds, "Invalid server list index", 0);
         }
     }
 
@@ -1318,7 +1325,7 @@ void UI::MenuMultiplayerNew(NetClient &netClient) {
     ImGui::PopStyleVar(styleVars);
 
     message = 0;
-    thread_local char buf[64]{};
+    thread_local static char buf[64]{};
     size_t hostnameLen = strnlen(CSTR0(form.host));
     size_t usernameLen = strnlen(CSTR0(form.user));
     size_t passwordLen = strnlen(CSTR0(form.pass));
@@ -1424,7 +1431,7 @@ void UI::MainMenu(bool &escape, GameClient &game)
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 0.0f)); styleVars++;
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(16.0f, 8.0f)); styleVars++;
     ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2(0.0f, 0.5f)); styleVars++;
-    ImGui::PushStyleColor(ImGuiCol_Button, { 0 }); colorVars++;
+    ImGui::PushStyleColor(ImGuiCol_Button, {}); colorVars++;
     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, { 0, 0.5f, 0, 1 }); colorVars++;
     ImGui::PushStyleColor(ImGuiCol_ButtonActive, { 0, 0.3f, 0, 1 }); colorVars++;
 
@@ -1437,8 +1444,6 @@ void UI::MainMenu(bool &escape, GameClient &game)
         //ImGuiWindowFlags_NoBackground |
         ImGuiWindowFlags_NoSavedSettings
     );
-
-    const char *hoverLabel = 0;
 
     // Breadcrumbs
     ImGui::PushFont(g_fonts.imFontHack16);
@@ -1467,8 +1472,8 @@ void UI::MainMenu(bool &escape, GameClient &game)
                 { Menu_Audio       , "Audio"        , "Audio Settings"  },
                 { Menu_Quit        , "Quit"         , "Quit"            },
             };
-            int pressedIdx = -1;
-            for (int i = 0; i < ARRAY_SIZE(menus); i++) {
+
+            for (int i = 0; i < (int)ARRAY_SIZE(menus); i++) {
                 if (UI::MenuButton(menus[i].name)) {
                     if (menus[i].id == Menu_Quit) {
                         quitRequested = true;
@@ -1481,16 +1486,15 @@ void UI::MainMenu(bool &escape, GameClient &game)
             ImGui::PopFont();
             break;
         } case Menu_Singleplayer: {
-            thread_local const char *message = 0;
-            thread_local bool loading = false;
-            thread_local size_t loadingIdx = 0;
-            thread_local double loadingIdxLastUpdate = 0;
+            thread_local static const char *message = 0;
+            thread_local static size_t loadingIdx = 0;
+            thread_local static double loadingIdxLastUpdate = 0;
 
             if (game.netClient.IsDisconnected()) {
                 ImGui::PushFont(g_fonts.imFontHack48);
                 if (UI::MenuButton("Dandyland")) {
                     game.localServer = new GameServer(game.args);
-                    if (game.netClient.Connect(game.args.host, game.args.port, game.args.user, game.args.pass) != ErrorType::Success) {
+                    if (game.netClient.Connect(game.args->host, game.args->port, game.args->user, game.args->pass) != ErrorType::Success) {
                         TraceLog(LOG_ERROR, "Failed to connect to local server");
                     }
                 }
@@ -1503,7 +1507,6 @@ void UI::MainMenu(bool &escape, GameClient &game)
                     "Loading...",
                 };
                 message = text[loadingIdx];
-                loading = true;
                 if (g_clock.now - loadingIdxLastUpdate > 0.25) {
                     loadingIdx = (loadingIdx + 1) % ARRAY_SIZE(text);
                     loadingIdxLastUpdate = g_clock.now;
@@ -1524,7 +1527,6 @@ void UI::MainMenu(bool &escape, GameClient &game)
 
             if (game.netClient.IsConnected() || disconnectRequested) {
                 message = 0;
-                loading = false;
                 loadingIdx = 0;
             }
 
@@ -1581,7 +1583,7 @@ void UI::MainMenu(bool &escape, GameClient &game)
     } else if (UI::hoverLabel != UI::prevHoverLabel) {
         Catalog::g_sounds.Play(Catalog::SoundID::Click1, (UI::hoverLabel ? 1.0f : 0.97f) + dlb_rand32f_variance(0.01f), true);
         UI::prevHoverLabel = UI::hoverLabel;
-        /*thread_local double lastPlayed = 0;
+        /*thread_local static double lastPlayed = 0;
         if (lastPlayed < g_clock.now) {
             UI::prevHoverLabel = UI::hoverLabel;
             Catalog::g_sounds.Play(Catalog::SoundID::Click1, 1.0f, true);
@@ -1612,7 +1614,7 @@ void UI::InGameMenu(bool &escape, bool connectedToServer)
     ImGui::SetNextWindowPos(menuCenter, 0, ImVec2(0.5f, 0.5f));
     ImGui::SetNextWindowSize(ImVec2(600, 400));
 
-    thread_local MenuID currentMenu = Menu_Main;
+    thread_local static MenuID currentMenu = Menu_Main;
 
     bool menuOpen = ImGui::BeginPopupModal(menuId, 0,
         //ImGuiWindowFlags_NoTitleBar |
@@ -1670,7 +1672,7 @@ void UI::InGameMenu(bool &escape, bool connectedToServer)
 
                 ImGui::SameLine();
                 ImGui::SetCursorPosX(ImGui::GetContentRegionMax().x - 100);
-                thread_local bool audioAdvanced = false;
+                thread_local static bool audioAdvanced = false;
                 if (ImGui::Button(audioAdvanced ? "Show Less" : "Show More", ImVec2(100, 0))) {
                     audioAdvanced = !audioAdvanced;
                 }
@@ -1744,8 +1746,8 @@ void UI::InventoryItemTooltip(ItemStack &invStack, int slot, Player &player, Net
 
     const double minimumVacuumDelay = 0.02f;
     const double defaultVacumDelay = 0.3f;
-    thread_local double lastVacuum = 0;
-    thread_local double vacuumDelay = defaultVacumDelay;
+    thread_local static double lastVacuum = 0;
+    thread_local static double vacuumDelay = defaultVacumDelay;
 
     if (!ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
         vacuumDelay = defaultVacumDelay;
@@ -1793,7 +1795,7 @@ void UI::InventoryItemTooltip(ItemStack &invStack, int slot, Player &player, Net
                     }
                 }
             }
-            //// Drop item(s) from cursor stack into hovered slot or onto ground
+            //// Drop item(npc) from cursor stack into hovered slot or onto ground
             //if (cursorStack.count) {
             //    DLB_ASSERT(cursorStack.uid);
             //    uint32_t dropCount = IsKeyDown(KEY_LEFT_CONTROL) ? cursorStack.count : 1;
@@ -1853,7 +1855,7 @@ void UI::InventoryItemTooltip(ItemStack &invStack, int slot, Player &player, Net
             ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, { 0, 2 });
             ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 0, 4 });
             ImGui::BeginTooltip();
-            //ImGui::SetTooltip("%u %s\n%s\nDamage: %.2f\nValue: %.2f", invStack.count, invName, itemClass, item.damage, item.value);
+            //ImGui::SetTooltip("%u %npc\n%npc\nDamage: %.2f\nValue: %.2f", invStack.count, invName, itemClass, item.damage, item.value);
 
             // Name (count)
             CenterNextItem(invName);
@@ -2004,7 +2006,7 @@ void UI::Inventory(const Texture &invItems, Player& player, NetClient &netClient
     int hoveredSlot = -1;
 
     ImGui::PushID("inv_hotbar");
-    for (int hotbarSlot = PlayerInvSlot_Hotbar_0; hotbarSlot <= PlayerInvSlot_Hotbar_9; hotbarSlot++) {
+    for (int hotbarSlot = PlayerInventory::SlotId_Hotbar_0; hotbarSlot <= PlayerInventory::SlotId_Hotbar_9; hotbarSlot++) {
         ImGui::PushID(hotbarSlot);
         if (hotbarSlot == player.inventory.selectedSlot) {
             ImGui::PushStyleColor(ImGuiCol_Button, ImColor(170, 170, 0, 255).Value);
@@ -2013,7 +2015,7 @@ void UI::Inventory(const Texture &invItems, Player& player, NetClient &netClient
         if (hotbarSlot == player.inventory.selectedSlot) {
             ImGui::PopStyleColor();
         }
-        if (hotbarSlot < PlayerInvSlot_Hotbar_9) {
+        if (hotbarSlot < PlayerInventory::SlotId_Hotbar_9) {
             ImGui::SameLine();
         }
         ImGui::PopID();
@@ -2025,7 +2027,7 @@ void UI::Inventory(const Texture &invItems, Player& player, NetClient &netClient
     ImGui::PopID();
 
     if (inventoryActive) {
-        thread_local bool ignoreEmpty = false;
+        thread_local static bool ignoreEmpty = false;
         if (ImGui::Button("Sort")) player.inventory.Sort(ignoreEmpty);
         ImGui::SameLine();
         if (ImGui::Button("Sort & Combine")) player.inventory.SortAndCombine(ignoreEmpty);
@@ -2081,7 +2083,7 @@ void UI::Inventory(const Texture &invItems, Player& player, NetClient &netClient
 
     ItemStack &cursorStack = player.inventory.CursorSlot().stack;
     if (cursorStack.count) {
-        // Drop item(s) from cursor stack onto ground
+        // Drop item(npc) from cursor stack onto ground
         if (hoveredSlot < 0 && IsKeyPressed(KEY_Q)) {
             DLB_ASSERT(cursorStack.uid);
             uint32_t dropCount = IsKeyDown(KEY_LEFT_SHIFT) ? cursorStack.count : 1;
@@ -2089,7 +2091,7 @@ void UI::Inventory(const Texture &invItems, Player& player, NetClient &netClient
                 if (hoveredSlot >= 0) {
                     netClient.SendSlotScroll(hoveredSlot, dropCount);
                 } else {
-                    netClient.SendSlotDrop(PlayerInvSlot_Cursor, dropCount);
+                    netClient.SendSlotDrop(PlayerInventory::SlotId_Cursor, dropCount);
                 }
             }
         }
@@ -2124,7 +2126,7 @@ void UI::Inventory(const Texture &invItems, Player& player, NetClient &netClient
            32.0f
         };
 #else
-        // NOTE: This is because there's a fair time gap between EndDrawing() (which calls glfwPollInput
+        // NOTE: This is because there'npc a fair time gap between EndDrawing() (which calls glfwPollInput
         // internally) and this code running (e.g. networking happens) during which the mouse can still be
         // moving. Perhaps it makes sense to always just re-query mouse position rather than using the
         // Raylib CORE.input cache for any UI stuff?
@@ -2170,7 +2172,6 @@ void UI::Inventory(const Texture &invItems, Player& player, NetClient &netClient
         if (cursorItem.Proto().stackLimit > 1) {
             char countBuf[16]{};
             snprintf(countBuf, sizeof(countBuf), "%d", cursorStack.count);
-            const int fontSize = (int)ImGui::GetFontSize();
 #if CL_CURSOR_ITEM_TEXT_BOTTOM_LEFT
             drawList->AddText({ dstRect.x - 4, dstRect.y + dstRect.height - 6 }, IM_COL32_WHITE, countBuf);
 #else
@@ -2220,7 +2221,7 @@ void UI::Dialog(World &world)
 
     ImGui::PushFont(g_fonts.imFontHack16);
 
-    thread_local float spacing = 5.0f;
+    thread_local static float spacing = 5.0f;
     int styleVars = 0;
     int colVars = 0;
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 3.0f                 ); styleVars++;
@@ -2251,7 +2252,7 @@ void UI::Dialog(World &world)
     ImGui::Text("I am ");
     ImGui::SameLine();
     ImGui::TextColored({ 0.8f, 0.1f, 0.1f, 1.0f }, "Alkor, the Alchemist");
-    thread_local bool alkor = false;
+    thread_local static bool alkor = false;
     if (ImGui::IsItemClicked()) {
         alkor = !alkor;
     }
@@ -2309,7 +2310,7 @@ void UI::ParticleText(Vector2 pos, const char *text)
 
     ImGui::PushFont(g_fonts.imFontHack16);
 
-    thread_local float spacing = 5.0f;
+    thread_local static float spacing = 5.0f;
     int styleVars = 0;
     int colVars = 0;
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 3.0f); styleVars++;

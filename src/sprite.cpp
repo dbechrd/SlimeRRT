@@ -11,7 +11,7 @@ const SpriteAnim &sprite_anim(const Sprite &sprite)
 
     const Spritesheet *sheet = sprite.spriteDef->spritesheet;
     const int animationIdx = sprite.spriteDef->animations[(int)sprite.direction];
-    assert(animationIdx >= 0 && animationIdx < sheet->animations.size());
+    assert(animationIdx >= 0 && animationIdx < (int)sheet->animations.size());
     const SpriteAnim &anim = sheet->animations[animationIdx];
     return anim;
 }
@@ -19,7 +19,7 @@ const SpriteAnim &sprite_anim(const Sprite &sprite)
 const SpriteFrame &sprite_frame(const Sprite &sprite)
 {
     if (!sprite.spriteDef) {
-        thread_local SpriteFrame frame{};
+        thread_local static SpriteFrame frame{};
         frame.x = 0;
         frame.y = 0;
         frame.width = 16;
@@ -37,7 +37,7 @@ const SpriteFrame &sprite_frame(const Sprite &sprite)
     const int frameIdx = animation.frames[sprite.animFrameIdx];
     const Spritesheet *sheet = sprite.spriteDef->spritesheet;
     assert(frameIdx >= 0);
-    assert(frameIdx < sheet->frames.size());
+    assert(frameIdx < (int)sheet->frames.size());
 
     const SpriteFrame &frame = sheet->frames[frameIdx];
     return frame;

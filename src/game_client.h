@@ -9,11 +9,11 @@ struct ImFont;
 struct World;
 
 struct GameClient {
-    Args       &args;
+    Args       *args;
     GameServer *localServer {};
     NetClient  netClient    {};
 
-    GameClient(Args &args) : args(args) {};
+    GameClient(Args *args) : args(args) {}
     ErrorType Run(void);
 
 private:

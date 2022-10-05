@@ -14,14 +14,14 @@ namespace FX {
         offset.z = sinf(angleRad);
 
         // Spawn during first 50% of duration
-        particle.spawnAt = effect.startedAt + (angleRad / PI) * (effect.duration * 0.5f);
+        particle.spawnAt = effect.startedAt + (double)(angleRad / PI) * (effect.duration * 0.5);
 
         // Die randomly during last 15% of animation
-        particle.dieAt = particle.spawnAt + (effect.duration * 0.4f);
+        particle.dieAt = particle.spawnAt + (effect.duration * 0.4);
         assert(particle.dieAt > particle.spawnAt);
 
         const int colorArc = dlb_rand32i_range(0, 5);
-        offset = v3_scale(offset, METERS_TO_PIXELS(3.0f) + colorArc * METERS_TO_PIXELS(0.16f));
+        offset = v3_scale(offset, METERS_TO_PIXELS(3.0f) + (float)colorArc * METERS_TO_PIXELS(0.16f));
         particle.body.Teleport(offset);
         //particle.body.velocity = offset;
         particle.body.drag = 0.5f;

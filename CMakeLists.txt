@@ -5,7 +5,7 @@ project(SlimeGame VERSION 0.1.0)
 #enable_testing()
 
 set(CMAKE_C_STANDARD 99)
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 
 #option (FORCE_COLORED_OUTPUT "Always produce ANSI-colored output (GNU/Clang only)." TRUE)
 #if (${FORCE_COLORED_OUTPUT})
@@ -41,6 +41,15 @@ elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
         -Werror
         -Wpedantic
 
+        # Warnings I might want to turn back on and fix some day
+        -Wno-non-virtual-dtor
+        -Wno-switch-enum
+        -Wno-switch
+        -Wno-implicit-fallthrough
+        -Wno-exit-time-destructors
+        -Wno-unused-macros
+        -Wno-delete-non-abstract-non-virtual-dtor # I have _NO_ fucking clue what this means
+
         # Disable warnings
         -Wno-format-security
         -Wno-deprecated-declarations
@@ -48,7 +57,28 @@ elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
         -Wno-cast-align
         -Wno-zero-as-null-pointer-constant
         -Wno-global-constructors
-        -Wno-missing-prorotypes
+        -Wno-missing-prototypes
+        -Wno-covered-switch-default
+        -Wno-implicit-int-conversion
+        -Wno-implicit-int-float-conversion
+        -Wno-cast-qual
+        -Wno-shorten-64-to-32
+        -Wno-reserved-identifier
+        -Wno-float-equal
+        -Wno-shadow-field-in-constructor
+        -Wno-float-conversion
+        -Wno-documentation-unknown-command
+        -Wno-newline-eof
+        -Wno-extra-semi-stmt
+        -Wno-shadow
+        -Wno-sign-conversion
+        -Wno-documentation
+        -Wno-undef
+        -Wno-missing-noreturn
+        -Wno-format-nonliteral
+        -Wno-double-promotion
+        -Wno-malformed-warning-check
+        #-Wno-gnu-zero-variadic-macro-arguments
         # Disable warnings about C++98 incompatibility. We're using C++20...
         #-Wno-c++98-compat
         -Wno-c++98-compat-pedantic

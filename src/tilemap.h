@@ -94,11 +94,11 @@ struct Chunk {
     Tile    tiles [CHUNK_W * CHUNK_W]{};  // 32x32 tiles per chunk
 
     inline ChunkHash Hash(void) const {
-        return ((uint16_t)x << 16) | (uint16_t)y;
-    };
+        return ((uint32_t)x << 16) | (uint32_t)y;
+    }
     static inline ChunkHash Hash(int16_t x, int16_t y) {
-        return ((uint16_t)x << 16) | (uint16_t)y;
-    };
+        return ((uint32_t)x << 16) | (uint32_t)y;
+    }
 };
 
 struct Tilemap {
@@ -107,7 +107,6 @@ struct Tilemap {
     std::vector<Chunk> chunks    {};  // TODO: RingBuffer, this set will grow indefinitely
     std::unordered_map<ChunkHash, size_t> chunksIndex{};  // [x << 16 | y] -> idx into chunks array
 
-    ~Tilemap                ();
     void GenerateMinimap    (Vector2 worldPos);
     int16_t CalcChunk       (float world) const;
     int16_t CalcChunkTile   (float world) const;
@@ -117,10 +116,11 @@ struct Tilemap {
 };
 
 struct MapSystem {
+    ~MapSystem(void);
     Tilemap &Alloc();
 
 private:
     std::vector<Tilemap> maps {};
 };
 
-thread_local Noise g_noise{};
+thread_local static Noise g_noise{};

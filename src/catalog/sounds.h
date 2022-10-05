@@ -46,6 +46,6 @@ namespace Catalog {
         Sound MissingOggSound(void);
     };
 
-    thread_local MasterMixer g_mixer{};
-    thread_local Sounds g_sounds{};
+    thread_local static MasterMixer g_mixer{};
+    thread_local static Sounds g_sounds{};
 }

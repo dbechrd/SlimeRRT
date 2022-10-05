@@ -110,7 +110,7 @@ extern "C" {
 ** included as <GL/glcorearb.h>.
 **
 ** glcorearb.h includes only APIs in the latest OpenGL core profile
-** implementation together with APIs in newer ARB extensions which 
+** implementation together with APIs in newer ARB extensions which
 ** can be supported by the core profile. It does not, and never will
 ** include functionality removed from the core profile, such as
 ** fixed-function vertex and fragment processing.
@@ -598,7 +598,7 @@ extern "C" {
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN 1
 #endif
-#include <windows.h>
+#include <Windows.h>
 
 static HMODULE libgl;
 typedef PROC(__stdcall* GL3WglGetProcAddr)(LPCSTR);
@@ -609,7 +609,10 @@ static int open_libgl(void)
     libgl = LoadLibraryA("opengl32.dll");
     if (!libgl)
         return GL3W_ERROR_LIBRARY_OPEN;
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wcast-function-type"
     wgl_get_proc_address = (GL3WglGetProcAddr)GetProcAddress(libgl, "wglGetProcAddress");
+#pragma clang diagnostic pop
     return GL3W_OK;
 }
 

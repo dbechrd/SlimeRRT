@@ -289,6 +289,7 @@ struct NetMessage {
     size_t Deserialize(const uint8_t *buf, size_t len);
 
 private:
+    const char *LOG_SRC = "NetMessage";
     static ENetBuffer tempBuffer;
     size_t Process(BitStream::Mode mode, uint8_t *buf, size_t len);
 };

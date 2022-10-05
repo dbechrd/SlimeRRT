@@ -8,11 +8,10 @@
 #include "shadow.h"
 #include "sprite.h"
 #include "spritesheet.h"
-#include <cassert>
 
 void Player::Init()
 {
-    assert(!sprite.scale);
+    DLB_ASSERT(!sprite.scale);
     printf("Init player\n");
 
     body.speed = SV_PLAYER_MOVE_SPEED;
@@ -30,7 +29,7 @@ void Player::Init()
     }
 
     // TODO: Load selected slot from save file / server
-    inventory.selectedSlot = PlayerInvSlot_Hotbar_0;
+    inventory.selectedSlot = PlayerInventory::SlotId_Hotbar_0;
 
     // TODO: Load stats from save file / server
     //stats.coinsCollected = 33;
@@ -67,7 +66,7 @@ Vector3 Player::GetAttachPoint(AttachPoint attachPoint) const
             attach = v3_add(WorldCenter(), { 0.0f, 0.0f, -16.0f });
             break;
         } default: {
-            assert(!"That's not a valid attachment point identifier");
+            E_WARN("Unexpected AttachPoint %d", attachPoint);
             break;
         }
     }
@@ -123,7 +122,7 @@ bool Player::Move(Vector2 offset)
         return false;
 
     // Don't allow player to move if they're not touching the ground (currently no jump/fall, so just assert)
-    //assert(body.position.z == 0.0f);
+    //DLB_ASSERT(body.position.z == 0.0f);
 
     body.Move(offset);
     UpdateDirection(offset);
@@ -162,10 +161,8 @@ bool Player::Attack(void)
 
 void Player::Update(InputSample &input, Tilemap &map)
 {
-    thread_local ActionState lastAction = ActionState::None;
-
-    assert(id);
-    assert(input.ownerId == id);
+    DLB_ASSERT(id);
+    DLB_ASSERT(input.ownerId == id);
 
     // TODO: Do client-side prediction of inventory (probably requires tracking input.seq of last time a slot
     // changed and only syncing the server state if the input.seq >= client-side recorded seq #). This will
@@ -183,7 +180,7 @@ void Player::Update(InputSample &input, Tilemap &map)
         float speed = body.speed;
 
         {
-            ItemUID speedSlotUid = inventory.slots[PlayerInvSlot_Hotbar_9].stack.uid;
+            ItemUID speedSlotUid = inventory.slots[PlayerInventory::SlotId_Hotbar_9].stack.uid;
             if (speedSlotUid) {
                 const Item &speedSlotItem = g_item_db.Find(speedSlotUid);
                 ItemAffix afxMoveSpeedFlat = speedSlotItem.FindAffix(ItemAffix_MoveSpeedFlat);
@@ -272,7 +269,7 @@ void Player::Update(InputSample &input, Tilemap &map)
 
             const bool moved = Move(moveBuffer);
             if (moved) {
-                thread_local double lastFootstep = 0;
+                thread_local static double lastFootstep = 0;
                 double timeSinceLastFootstep = g_clock.now - lastFootstep;
                 float distanceMoved = v2_length(moveBuffer);
                 if (!input.skipFx && timeSinceLastFootstep > 1.0f / distanceMoved) {
@@ -314,7 +311,7 @@ void Player::Update(InputSample &input, Tilemap &map)
     if (sprite.spriteDef) {
         // TODO: Less hard-coded way to look up player sprite based on selected item type
         const Spritesheet *sheet = sprite.spriteDef->spritesheet;
-        assert(sheet->sprites.size() == 5);
+        DLB_ASSERT(sheet->sprites.size() == 5);
 
         ItemStack selectedStack = GetSelectedStack();
         if (selectedStack.uid) {
@@ -368,7 +365,6 @@ void Player::Update(InputSample &input, Tilemap &map)
 
     // Skip sounds/particles etc. next time this input is used (e.g. during reconciliation)
     input.skipFx = true;
-    lastAction = actionState;
 }
 
 float Player::Depth(void) const
@@ -387,13 +383,13 @@ void Player::DrawSwimOverlay(const World &world) const
     Vector2 groundPos = body.GroundPosition();
     const Tile *tileLeft = world.map.TileAtWorld(groundPos.x - 15.0f, groundPos.y);
     const Tile *tileRight = world.map.TileAtWorld(groundPos.x + 15.0f, groundPos.y);
-    if (tileLeft && tileLeft->type == TileType_Water ||
-        tileRight && tileRight->type == TileType_Water) {
+    if ((tileLeft && tileLeft->type == TileType_Water) ||
+        (tileRight && tileRight->type == TileType_Water)) {
         auto tilesetId = world.map.tilesetId;
         Tileset &tileset = g_tilesets[(size_t)tilesetId];
         Rectangle tileRect = tileset_tile_rect(tilesetId, TileType_Water);
-        assert(tileRect.width == TILE_W);
-        assert(tileRect.height == TILE_W);
+        DLB_ASSERT(tileRect.width == TILE_W);
+        DLB_ASSERT(tileRect.height == TILE_W);
 
         Vector3 gut3d = GetAttachPoint(Player::AttachPoint::Gut);
         Vector2 gut2d = { gut3d.x, gut3d.y - gut3d.z + 10.0f };
@@ -447,6 +443,8 @@ void Player::DrawSwimOverlay(const World &world) const
 
         const Tile *playerGutTile = world.map.TileAtWorld(gut2d.x, gut2d.y);
         if (playerGutTile && playerGutTile->type == TileType_Water) {
+#if 0
+            // TODO: Bubbles when swimming??
             Rectangle bubblesDstTopMid{
                 gut2d.x - 20.0f,
                 gut2d.y,
@@ -457,11 +455,14 @@ void Player::DrawSwimOverlay(const World &world) const
             Rectangle bubblesSrcTop = tileRect;
             bubblesSrcTop.y += offsetY;
             bubblesSrcTop.height -= offsetY;
+#endif
 
             //DrawCircleV({ minXWater, playerGut2D.y }, 2.0f, PINK);
             //DrawCircleV({ maxXWater, playerGut2D.y }, 2.0f, PINK);
 
-            const float radiusDelta = (moveState != Player::MoveState::Idle) ? (sinf((float)g_clock.now * 8) * 3) : 0.0f;
+            const float radiusDelta = (moveState != Player::MoveState::Idle)
+                ? (sinf((float)g_clock.now * 8) * 3)
+                : 0.0f;
             const float radius = 20.0f + radiusDelta;
             DrawEllipse((int)gut2d.x, (int)gut2d.y, radius, radius * 0.5f, Fade(SKYBLUE, 0.4f));
         }

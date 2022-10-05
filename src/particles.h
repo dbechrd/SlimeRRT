@@ -18,9 +18,9 @@ struct Particle : Drawable {
     bool            alive   {};  // currently alive
     double          dieAt   {};  // time to die
 
-    float Depth(void) const;
-    bool  Cull(const Rectangle& cullRect) const;
-    void  Draw(World &world);
+    float Depth(void) const override;
+    bool  Cull(const Rectangle& cullRect) const override;
+    void  Draw(World &world) override;
 };
 
 //-----------------------------------------------------------------------------

@@ -57,10 +57,11 @@ bool Slime::TryCombine(NPC &npc, NPC &other)
     return false;
 
     if (npc.type != NPC::Type_Slime || other.type != NPC::Type_Slime) {
-        DLB_ASSERT("you can only combine slimes");
+        E_WARN("you can only combine slimes", 0);
+        return false;
     }
 
-    assert(other.id > npc.id);
+    DLB_ASSERT(other.id > npc.id);
 
     // The bigger slime should absorb the smaller one
     NPC *a = nullptr;
@@ -144,8 +145,7 @@ void Slime::Update(NPC &npc, World &world, double dt)
 
     // Allow enemy to move toward nearest player
     const float distToNearestPlayer = v2_length(toNearestPlayer);
-    const float distToAttackTrack = SV_SLIME_ATTACK_TRACK;
-    if (distToNearestPlayer <= SV_SLIME_ATTACK_TRACK) {
+    if (distToNearestPlayer <= (float)SV_SLIME_ATTACK_TRACK) {
         Vector2 slimeToPlayer = v2_sub(nearestPlayer->body.GroundPosition(), npc.body.GroundPosition());
         const float moveDist = MIN(distToNearestPlayer, METERS_TO_PIXELS(npc.body.speed) * npc.sprite.scale);
         // 5% -1.0, 95% +1.0f

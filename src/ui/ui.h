@@ -37,7 +37,7 @@ struct UI {
 
     // Screen UI
     static void Minimap(const Font &font, World &world);
-    static void Menubar(const NetClient &netClient);
+    static void Menubar();
     static void ShowDemoWindow(void);
     static void ParticleConfig(World &world);
     static void Netstat(NetClient &netClient, double renderAt);
@@ -89,7 +89,7 @@ private:
     public:
         MenuStack(void) { menus[0] = { Menu_Main, "Main Menu", "Slime Game" }; count = 1; }
         bool Push(MenuID id, const char *name, const char *title) {
-            if (count < ARRAY_SIZE(menus)) {
+            if (count < (int)ARRAY_SIZE(menus)) {
                 menus[count++] = { id, name, title };
                 return true;
             }
@@ -107,7 +107,7 @@ private:
         }
         const Menu &Get(int index) {
             if (index < 0 || index >= count) {
-                DLB_ASSERT(!"Out of bounds");
+                E_ERROR(ErrorType::OutOfBounds, "Menu index out of bounds", 0);
                 index = 0;
             }
             return menus[index];
@@ -129,6 +129,7 @@ private:
         }
         int Count(void) { return count; }
     private:
+        const char *LOG_SRC = "MenuStack";
         Menu   menus       [8]{};   // menu stack data
         int    count       {};      // current size of menu stack
         MenuID beginID     {};      // id of menu active at frame start

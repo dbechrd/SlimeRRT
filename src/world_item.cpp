@@ -1,25 +1,45 @@
-#include "item_world.h"
+#include "world_item.h"
 #include "shadow.h"
 
-Vector3 ItemWorld::WorldCenter(void) const
+Vector3 WorldItem::WorldCenter(void) const
 {
     const Vector3 worldC = v3_add(body.WorldPosition(), sprite_center(sprite));
     return worldC;
 }
 
-Vector3 ItemWorld::WorldTopCenter(void) const
+Vector3 WorldItem::WorldTopCenter(void) const
 {
     const Vector3 worldTopC = v3_add(body.WorldPosition(), sprite_top_center(sprite));
     return worldTopC;
 }
 
-float ItemWorld::Depth(void) const
+void WorldItem::Update(double dt)
+{
+    UNUSED(dt);
+    DLB_ASSERT(stack.uid);
+    DLB_ASSERT(stack.count);
+
+    const Item &item = g_item_db.Find(stack.uid);
+
+    if (item.uid != namedStack.uid || stack.count != namedStack.count) {
+        const char *itemName = item.Name(stack.count > 1);
+        if (stack.count > 1) {
+            snprintf(name, sizeof(name), "%s (%u)", itemName, stack.count);
+        } else {
+            snprintf(name, sizeof(name), "%s", itemName);
+        }
+        namedStack.uid = stack.uid;
+        namedStack.count = stack.count;
+    }
+}
+
+float WorldItem::Depth(void) const
 {
     const float depth = body.GroundPosition().y;
     return depth;
 }
 
-bool ItemWorld::Cull(const Rectangle& cullRect) const
+bool WorldItem::Cull(const Rectangle& cullRect) const
 {
     bool cull = false;
 
@@ -38,28 +58,12 @@ bool ItemWorld::Cull(const Rectangle& cullRect) const
     return cull;
 }
 
-void ItemWorld::Update(double dt)
+void WorldItem::Draw(World &world)
 {
+    UNUSED(world);
     DLB_ASSERT(stack.uid);
     DLB_ASSERT(stack.count);
-    const Item &item = g_item_db.Find(stack.uid);
 
-    if (item.uid != namedStack.uid || stack.count != namedStack.count) {
-        const char *itemName = item.Name(stack.count > 1);
-        if (stack.count > 1) {
-            snprintf(name, sizeof(name), "%s (%u)", itemName, stack.count);
-        } else {
-            snprintf(name, sizeof(name), "%s", itemName);
-        }
-        namedStack.uid = stack.uid;
-        namedStack.count = stack.count;
-    }
-}
-
-void ItemWorld::Draw(World &world)
-{
-    DLB_ASSERT(stack.uid);
-    DLB_ASSERT(stack.count);
     const Item &item = g_item_db.Find(stack.uid);
 
     const Vector3 worldPos = body.WorldPosition();

@@ -31,9 +31,9 @@ struct NetClient {
     ErrorType OpenSocket          (void);
     ErrorType Connect             (const char *serverHost, unsigned short serverPort, const char *user, const char *password);
     ErrorType SendChatMessage     (const char *message, size_t messageLength);
-    ErrorType SendSlotClick       (int slot, bool doubleClicked);
-    ErrorType SendSlotScroll      (int slot, int scrollY);
-    ErrorType SendSlotDrop        (int slot, uint32_t count);
+    ErrorType SendSlotClick       (SlotId slot, bool doubleClicked);
+    ErrorType SendSlotScroll      (SlotId slot, int scrollY);
+    ErrorType SendSlotDrop        (SlotId slot, uint32_t count);
     ErrorType SendTileInteract    (float worldX, float worldY);
     ErrorType SendPlayerInput     (void);
     void      PredictPlayer       (void);
@@ -62,14 +62,14 @@ struct NetClient {
             // Read file
             file.data = LoadFileData(filename, &file.length);
             if (!file.data || !file.length) {
-                E_ERROR_RETURN(ErrorType::FileReadFailed, "Failed to read ServerDB file");
+                E_ERROR_RETURN(ErrorType::FileReadFailed, "Failed to read ServerDB file", 0);
             }
             this->filename = filename;
 
             // Verify fb
             flatbuffers::Verifier verifier(file.data, file.length);
             if (!DB::VerifyServerDBBuffer(verifier)) {
-                E_ERROR_RETURN(ErrorType::PancakeVerifyFailed, "Failed to verify ServerDB\n");
+                E_ERROR_RETURN(ErrorType::PancakeVerifyFailed, "Failed to verify ServerDB\n", 0);
             }
 
             // Read fb
@@ -98,11 +98,11 @@ struct NetClient {
 
             // Write file
             if (!SaveFileData(filename, fbb.GetBufferPointer(), fbb.GetSize())) {
-                E_ERROR_RETURN(ErrorType::FileWriteFailed, "Failed to save ServerDB");
+                E_ERROR_RETURN(ErrorType::FileWriteFailed, "Failed to save ServerDB", 0);
             }
 
             // Reload new fb from file
-            E_ERROR_RETURN(Load(filename), "Failed to load ServerDB");
+            E_ERROR_RETURN(Load(filename), "Failed to load ServerDB", 0);
             return ErrorType::Success;
         }
 
@@ -148,7 +148,7 @@ struct NetClient {
         }
 
     private:
-        const char *LOG_SRC = "ServerDB";
+        const char    *LOG_SRC = "ServerDB";
         const char    *filename {};  // name of last loaded file
         DB::ServerDBT *native   {};  // mutable native data structure
     } server_db{};

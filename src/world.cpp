@@ -44,7 +44,7 @@ ErrorType World::AddPlayerInfo(const char *name, uint32_t nameLength, PlayerInfo
         return ErrorType::UserAccountInUse;
     }
 
-    for (int i = 0; i < ARRAY_SIZE(playerInfos); i++) {
+    for (int i = 0; i < (int)ARRAY_SIZE(playerInfos); i++) {
         PlayerInfo &playerInfo = playerInfos[i];
         if (!playerInfo.nameLength) {
             // We found a free slot
@@ -178,7 +178,7 @@ void World::RemovePlayer(uint32_t id)
 ErrorType World::SpawnSam(NPC **result)
 {
     NPC *sam = 0;
-    E_ERROR_RETURN(SpawnNpc(0, NPC::Type_Slime, {0, 0}, &sam), "Failed to spawn Sam");
+    E_ERROR_RETURN(SpawnNpc(0, NPC::Type_Slime, { 0, 0, 0 }, &sam), "Failed to spawn Sam", 0);
 
     DLB_ASSERT(sam);
     sam->SetName(CSTR("Sam"));
@@ -212,7 +212,7 @@ ErrorType World::SpawnNpc(uint32_t id, NPC::Type type, Vector3 worldPos, NPC **r
             if (npc.id == id) {
                 // TODO: Is this really an error? Just replace the duplicate with the new state, right?
                 // Not sure if/when this would ever happen and not be a bug though...
-                E_ERROR_RETURN(ErrorType::AllocFailed_Duplicate, "This npc id is already in use!");
+                E_ERROR_RETURN(ErrorType::AllocFailed_Duplicate, "This npc id is already in use!", 0);
             }
         }
     }
@@ -256,11 +256,11 @@ ErrorType World::SpawnNpc(uint32_t id, NPC::Type type, Vector3 worldPos, NPC **r
 
     // Client falls back on stealing less ideal slots if their NPC list is full
     if (!newNpc) {
-        E_WARN("Replacing oldest dead npc with new npc");
+        E_WARN("Replacing oldest dead npc with new npc", 0);
         newNpc = oldestDeadNpc;
     }
     if (!newNpc) {
-        E_WARN("Replacing oldest alive npc with new npc");
+        E_WARN("Replacing oldest alive npc with new npc", 0);
         newNpc = oldestAliveNpc;
     }
     DLB_ASSERT(newNpc);
@@ -270,7 +270,7 @@ ErrorType World::SpawnNpc(uint32_t id, NPC::Type type, Vector3 worldPos, NPC **r
     if (id) {
         npc.id = id;
     } else {
-        thread_local uint32_t nextId = 0;
+        thread_local static uint32_t nextId = 0;
         nextId = MAX(1, nextId + 1); // Prevent ID zero from being used on overflow
         npc.id = nextId;
     }
@@ -346,6 +346,8 @@ void World::SV_Simulate(double dt)
 
 void World::SV_SimPlayers(double dt)
 {
+    UNUSED(dt);
+
     for (Player &player : players) {
         if (!player.id) {
             continue;
@@ -492,7 +494,7 @@ void World::SV_SimNpcs(double dt)
 
 void World::SV_SimItems(double dt)
 {
-    for (ItemWorld &item : itemSystem.worldItems) {
+    for (WorldItem &item : itemSystem.worldItems) {
         if (!item.euid || item.pickedUpAt || g_clock.now < item.spawnedAt + SV_ITEM_PICKUP_DELAY) {
             continue;
         }
@@ -670,7 +672,7 @@ void World::CL_Interpolate(double renderAt)
             //npc.Update(*this, g_clock.now - renderAt);
         }
     }
-    for (ItemWorld &item : itemSystem.worldItems) {
+    for (WorldItem &item : itemSystem.worldItems) {
         if (!item.euid) {
             continue;
         }
@@ -702,7 +704,7 @@ void World::CL_Extrapolate(double dt)
             npc.Update(*this, dt);
         }
     }
-    for (ItemWorld &item : itemSystem.worldItems) {
+    for (WorldItem &item : itemSystem.worldItems) {
         if (!item.euid || item.pickedUpAt || g_clock.now < item.spawnedAt + SV_ITEM_PICKUP_DELAY) {
             continue;
         }

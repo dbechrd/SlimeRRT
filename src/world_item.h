@@ -6,7 +6,7 @@
 
 typedef uint32_t EntityUID;
 
-struct ItemWorld : Drawable {
+struct WorldItem : Drawable {
     EntityUID euid              {};
     ItemStack stack             {};
     Body3D    body              {};
@@ -14,14 +14,13 @@ struct ItemWorld : Drawable {
     double    spawnedAt         {};
     double    pickedUpAt        {};
     uint32_t  droppedByPlayerId {};
-    ItemWorld *next             {};
 
     Vector3 WorldCenter    (void) const;
     Vector3 WorldTopCenter (void) const;
-    float   Depth          (void) const;
-    bool    Cull           (const Rectangle& cullRect) const;
     void    Update         (double dt);
-    void    Draw           (World &world);
+    float   Depth          (void) const override;
+    bool    Cull           (const Rectangle& cullRect) const override;
+    void    Draw           (World &world) override;
 
 private:
     ItemStack namedStack {};

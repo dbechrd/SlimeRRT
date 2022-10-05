@@ -1,4 +1,5 @@
 #pragma once
+#include "error.h"
 #include "helpers.h"
 #include <atomic>
 
@@ -10,5 +11,5 @@ struct Args {
     const char       *pass       { SV_SINGLEPLAYER_PASS };
     std::atomic<bool> serverQuit { false };
 
-    Args(int argc, char *argv[]);
+    ErrorType Parse(int argc, char *argv[]);
 };

@@ -6,7 +6,6 @@
 #include "draw_command.h"
 #include "dlb_rand.h"
 #include "chat.h"
-#include <cassert>
 #include <cstdlib>
 #include <cstring>
 
@@ -42,7 +41,7 @@ Particle *ParticleSystem::Alloc(void)
     Particle *particle = particlesFree;
     if (!particle) {
         // TODO: Delete oldest particles instead of dropping newest ones?
-        //assert(!"Particle pool is full");
+        //DLB_ASSERT(!"Particle pool is full");
         //TraceLog(LOG_ERROR, "Particle pool is full; discarding particle.\n");
         return 0;
     }
@@ -54,15 +53,15 @@ Particle *ParticleSystem::Alloc(void)
 
 ParticleEffect *ParticleSystem::GenerateEffect(Catalog::ParticleEffectID type, Vector3 origin, const ParticleEffectParams &par)
 {
-    assert((size_t)type > 0);
-    assert((size_t)type < (size_t)Catalog::ParticleEffectID::Count);
-    assert(par.particleCountMin > 0);
-    assert(par.particleCountMax >= par.particleCountMax);
-    assert(par.durationMin > 0.0f);
-    assert(par.durationMax >= par.durationMin);
+    DLB_ASSERT((size_t)type > 0);
+    DLB_ASSERT((size_t)type < (size_t)Catalog::ParticleEffectID::Count);
+    DLB_ASSERT(par.particleCountMin > 0);
+    DLB_ASSERT(par.particleCountMax >= par.particleCountMax);
+    DLB_ASSERT(par.durationMin > 0.0f);
+    DLB_ASSERT(par.durationMax >= par.durationMin);
 
     const Catalog::ParticleEffectDef &pfx = Catalog::g_particleFx.FindById(type);
-    assert(pfx.init);
+    DLB_ASSERT(pfx.init);
     if (!pfx.init) {
         return 0;
     }
@@ -70,7 +69,7 @@ ParticleEffect *ParticleSystem::GenerateEffect(Catalog::ParticleEffectID type, V
     // Allocate effect
     ParticleEffect *effect = effectsFree;
     if (!effect) {
-        //assert(!"Particle effect pool is full");
+        //DLB_ASSERT(!"Particle effect pool is full");
         //TraceLog(LOG_ERROR, "Particle effect pool is full; discarding particle effect.\n");
         return 0;
     }
@@ -78,8 +77,8 @@ ParticleEffect *ParticleSystem::GenerateEffect(Catalog::ParticleEffectID type, V
     effectsActiveCount++;
 
     // Sanity checks to ensure previous effect was freed properly and/or free list is returning valid pointers
-    assert(effect->id == Catalog::ParticleEffectID::Empty);
-    assert(effect->particlesLeft == 0);
+    DLB_ASSERT(effect->id == Catalog::ParticleEffectID::Empty);
+    DLB_ASSERT(effect->particlesLeft == 0);
 
     effect->id = type;
     effect->origin = origin;
@@ -100,7 +99,7 @@ ParticleEffect *ParticleSystem::GenerateEffect(Catalog::ParticleEffectID type, V
         }
 
         particle->effect = effect;
-        assert(pfx.init);
+        DLB_ASSERT(pfx.init);
         pfx.init(*particle);
         effect->particlesLeft++;
 
@@ -127,8 +126,8 @@ Particle *ParticleSystem::ParticlePool(void)
 
 void ParticleSystem::Update(double dt)
 {
-    assert(particlesActiveCount <= MAX_PARTICLES);
-    assert(effectsActiveCount <= MAX_EFFECTS);
+    DLB_ASSERT(particlesActiveCount <= MAX_PARTICLES);
+    DLB_ASSERT(effectsActiveCount <= MAX_EFFECTS);
 
     size_t effectsCounted = 0;
     for (size_t i = 0; effectsCounted < effectsActiveCount; i++) {
@@ -160,7 +159,7 @@ void ParticleSystem::Update(double dt)
             }
             particle.body.Update(dt);
             sprite_update(particle.sprite, dt);
-            assert(Catalog::g_particleFx.FindById(effect.id).update);
+            DLB_ASSERT(Catalog::g_particleFx.FindById(effect.id).update);
             Catalog::g_particleFx.FindById(effect.id).update(particle, alpha);
 
             const ParticleEffect_ParticleCallback &afterUpdate = effect.particleCallbacks[(size_t)ParticleEffect_ParticleEvent::AfterUpdate];
@@ -210,7 +209,7 @@ void ParticleSystem::Update(double dt)
 
 void ParticleSystem::PushAll(DrawList &drawList)
 {
-    assert(particlesActiveCount <= MAX_PARTICLES);
+    DLB_ASSERT(particlesActiveCount <= MAX_PARTICLES);
 
     for (size_t i = 0; i < MAX_PARTICLES; i++) {
         Particle &particle = particles[i];
@@ -244,6 +243,7 @@ bool Particle::Cull(const Rectangle &cullRect) const
 
 void Particle::Draw(World &world)
 {
+    UNUSED(world);
     const ParticleEffect_ParticleCallback &draw = effect->particleCallbacks[(size_t)ParticleEffect_ParticleEvent::Draw];
     if (draw.callback) {
         draw.callback(*this, draw.userData);
@@ -262,21 +262,22 @@ void Particle::Draw(World &world)
 
 void ParticlesFollowPlayerGut(ParticleEffect &effect, void *userData)
 {
-    assert(userData);
+    DLB_ASSERT(userData);
     Player *player = (Player *)userData;
     effect.origin = player->GetAttachPoint(Player::AttachPoint::Gut);
 }
 
 void ParticleDrawText(Particle &particle, void *userData)
 {
-    assert(userData);
+    DLB_ASSERT(userData);
     const char *text = (const char *)userData;
     UI::ParticleText(particle.body.VisualPosition(), text);
 }
 
 void ParticleFreeText(ParticleEffect &effect, void *userData)
 {
-    assert(userData);
+    UNUSED(effect);
+    DLB_ASSERT(userData);
     char *text = (char *)userData;
     free(text);
 }

@@ -14,33 +14,33 @@
 // Server sends InventoryUpdate event
 // Server broadcasts ItemPickup event
 
-ItemWorld *ItemSystem::SpawnItem(Vector3 pos, ItemUID itemUid, uint32_t count, EntityUID euid)
+WorldItem *ItemSystem::SpawnItem(Vector3 pos, ItemUID itemUid, uint32_t count, EntityUID euid)
 {
     DLB_ASSERT(itemUid);
     DLB_ASSERT(count);
 
     if (!count) {
-        E_WARN("Not spawning item stack with count 0.");
+        E_WARN("Not spawning item stack with count 0.", 0);
         return 0;
     }
 
     if (worldItems.size() == SV_MAX_ITEMS) {
         // TODO: Delete oldest item instead of discarding the new one
-        E_WARN("Item pool is full; discarding item.");
+        E_WARN("Item pool is full; discarding item.", 0);
         return 0;
     }
-    ItemWorld worldItem{};
+    WorldItem worldItem{};
 
     if (euid) {
-        ItemWorld *existingItemWithId = Find(euid);
+        WorldItem *existingItemWithId = Find(euid);
         if (existingItemWithId) {
-            E_WARN("Trying to spawn a world item that already exists in the world.");
+            E_WARN("Trying to spawn a world item that already exists in the world.", 0);
             return 0;
         }
         worldItem.euid = euid;
     } else {
         // TODO: Make euid (entity uid) a global thing for world items, npcs, enemies, rocks, etc?
-        thread_local uint32_t nextEuid = 0;
+        thread_local static uint32_t nextEuid = 0;
         nextEuid++;
         worldItem.euid = MAX(1, nextEuid); // Prevent ID zero from being used on overflow
     }
@@ -78,7 +78,7 @@ ItemWorld *ItemSystem::SpawnItem(Vector3 pos, ItemUID itemUid, uint32_t count, E
     return &worldItems.emplace_back(worldItem);
 }
 
-ItemWorld *ItemSystem::Find(EntityUID euid)
+WorldItem *ItemSystem::Find(EntityUID euid)
 {
     if (!euid) {
         return 0;
@@ -133,7 +133,7 @@ ErrorType ItemSystem::Remove(EntityUID euid)
 
 void ItemSystem::Update(double dt)
 {
-    for (ItemWorld &item : worldItems) {
+    for (WorldItem &item : worldItems) {
         if (!item.stack.count) {
             continue;
         }
@@ -152,7 +152,7 @@ void ItemSystem::DespawnDeadEntities(double pickupDespawnDelay)
 {
     size_t i = 0;
     while (i < worldItems.size()) {
-        ItemWorld &item = worldItems[i];
+        WorldItem &item = worldItems[i];
 
         // NOTE: Server adds extra pickupDespawnDelay to ensure all clients receive a snapshot
         // containing the pickup flag before despawning the item. This may not be necessary
@@ -172,7 +172,7 @@ void ItemSystem::DespawnDeadEntities(double pickupDespawnDelay)
 
 void ItemSystem::PushAll(DrawList &drawList)
 {
-    for (ItemWorld &item : worldItems) {
+    for (WorldItem &item : worldItems) {
         if (item.stack.count) {
             DLB_ASSERT(item.stack.uid);
             drawList.Push(item);

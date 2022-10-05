@@ -38,7 +38,7 @@ void LootSystem::AddDropToTable(LootTableID lootTableId, ItemClass itemClass, ui
 {
     LootTable &lootTable = lootTableRegistry[(size_t)lootTableId];
     LootDrop *drop = 0;
-    for (int i = 0; i < ARRAY_SIZE(lootTable.drops); i++) {
+    for (int i = 0; i < (int)ARRAY_SIZE(lootTable.drops); i++) {
         if (lootTable.drops[i].maxCount == 0) {
             drop = &lootTable.drops[i];
             break;
@@ -59,7 +59,7 @@ void LootSystem::Validate(void)
     for (int tableId = 1; tableId < (int)LootTableID::Count; tableId++) {
         LootTable &table = lootTableRegistry[(size_t)tableId];
         float pctTotal = 0;
-        for (int i = 0; i < ARRAY_SIZE(table.drops); i++) {
+        for (int i = 0; i < (int)ARRAY_SIZE(table.drops); i++) {
             LootDrop &drop = table.drops[i];
             if (drop.maxCount) {
                 pctTotal += drop.pctChance;
@@ -79,16 +79,18 @@ void LootSystem::Validate(void)
 void LootSystem::MonteCarlo(LootTableID lootTableId, int iterations)
 {
     for (int i = 0; i < iterations; i++) {
-        SV_RollDrops(lootTableId, [&](ItemStack dropStack) {});
+        SV_RollDrops(lootTableId, [&](ItemStack dropStack) {
+            UNUSED(dropStack);
+        });
     }
 
     printf("Roll results:\n");
     LootTable &table = lootTableRegistry[(size_t)lootTableId];
-    for (int i = 0; i < ARRAY_SIZE(table.drops); i++) {
+    for (int i = 0; i < (int)ARRAY_SIZE(table.drops); i++) {
         LootDrop &drop = table.drops[i];
         if (drop.maxCount) {
             const int rolls = rollsPerClass[(int)drop.itemClass];
-            const float actualPct = rolls / ((float)table.maxDrops * iterations);
+            const float actualPct = (float)rolls / ((float)table.maxDrops * (float)iterations);
             float error = fabsf(drop.pctChance - actualPct);
             printf("  %-10s [%.03f] %5d rolls [%.03f %%] %.03f error\n",
                 ItemClassToString(drop.itemClass),
@@ -106,7 +108,7 @@ uint32_t LootSystem::RollCoins(LootTableID lootTableId, int monster_lvl)
 {
     LootTable &table = lootTableRegistry[(size_t)lootTableId];
     uint32_t coins = 0;
-    for (int i = 0; i < ARRAY_SIZE(table.drops); i++) {
+    for (int i = 0; i < (int)ARRAY_SIZE(table.drops); i++) {
         LootDrop &drop = table.drops[i];
         if (drop.itemClass == ItemClass_Currency) {
             coins += dlb_rand32u_range(drop.minCount, drop.maxCount) * monster_lvl;
@@ -130,7 +132,7 @@ void LootSystem::SV_RollDrops(LootTableID lootTableId, std::function<void(ItemSt
         // Check which item it matches in the drop table by keeping a running tally of chances, which
         // have to add up to 1.0 for this to work.
         float pctChance = 0;
-        for (int i = 0; i < ARRAY_SIZE(table.drops); i++) {
+        for (int i = 0; i < (int)ARRAY_SIZE(table.drops); i++) {
             LootDrop &drop = table.drops[i];
             pctChance += drop.pctChance;
             if (rollResult < pctChance) {

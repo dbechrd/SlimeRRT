@@ -4,21 +4,21 @@
 #include "server_cli.h"
 #include "dlb_types.h"
 
-using namespace std::chrono_literals;
-
 const char *ServerCLI::LOG_SRC = "ServerCLI";
 
 ErrorType ServerCLI::Run(const char *serverHost, unsigned short serverPort)
 {
     std::thread serverThread;
 
+#if 0
     const char *title = "Attack the slimes!";
     if (args.standalone) {
         title = "[Open to LAN] Attack the slimes!";
     }
+#endif
 
-    E_ERROR_RETURN(netClient.OpenSocket(), "Failed to open client socket");
-    E_ERROR_RETURN(netClient.Connect(serverHost, serverPort, "admin", "abc"), "Failed to connect client");
+    E_ERROR_RETURN(netClient.OpenSocket(), "Failed to open client socket", 0);
+    E_ERROR_RETURN(netClient.Connect(serverHost, serverPort, "admin", "abc"), "Failed to connect client", 0);
 
 #if 0
     // TODO(dlb): Does the server CLI need to know about the world? Would be cool..

@@ -54,7 +54,7 @@ void HealthBar::Draw(const Vector2 &topCenter, const char *name, const Combat &c
     hpRect.width = hpRectMeasure.x;
     hpRect.height = hpRectMeasure.y;
     hpRect.x = x - hpRect.width / 2.0f;
-    hpRect.y = y - fontSize;
+    hpRect.y = y - (float)fontSize;
 
     Rectangle nameRect{};
     if (nameText) {
@@ -62,9 +62,9 @@ void HealthBar::Draw(const Vector2 &topCenter, const char *name, const Combat &c
         nameRect.width = nameRectMeasure.x;
         nameRect.height = nameRectMeasure.y;
         nameRect.x = x - nameRect.width / 2.0f;
-        nameRect.y = y - fontSize;
+        nameRect.y = y - (float)fontSize;
         if (showHp) {
-            nameRect.y -= 4.0f + fontSize;
+            nameRect.y -= 4.0f + (float)fontSize;
         }
     } else {
         nameRect.x = FLT_MAX;
@@ -103,6 +103,8 @@ void HealthBar::Draw(const Vector2 &topCenter, const char *name, const Combat &c
 
 void HealthBar::Dialog(const Vector2 &topCenter, const char *text)
 {
+    UNUSED(topCenter);
+    UNUSED(text);
     //const int fontSize = s_font.baseSize;
     //assert(fontSize);
 

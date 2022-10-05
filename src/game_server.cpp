@@ -3,9 +3,9 @@
 
 const char *GameServer::LOG_SRC = "GameServer";
 
-GameServer::GameServer(const Args &args)
+GameServer::GameServer(const Args *args)
 {
-    serverThread = new std::thread([this, &args] {
+    serverThread = new std::thread([this, args] {
         Run(args);
     });
 }
@@ -18,7 +18,7 @@ GameServer::~GameServer()
     delete serverThread;
 }
 
-ErrorType GameServer::Run(const Args &args)
+ErrorType GameServer::Run(const Args *args)
 {
     g_clock.server = true;
     error_init("server.log");
@@ -46,10 +46,10 @@ ErrorType GameServer::Run(const Args &args)
 
     netServer.serverWorld = world;
 
-    E_ERROR_RETURN(netServer.OpenSocket(args.port), "Failed to open socket");
+    E_ERROR_RETURN(netServer.OpenSocket(args->port), "Failed to open socket", 0);
 
-    while (!args.serverQuit) {
-        E_ERROR_RETURN(netServer.Listen(), "Failed to listen on socket");
+    while (!args->serverQuit) {
+        E_ERROR_RETURN(netServer.Listen(), "Failed to listen on socket", 0);
 
         const double now = glfwGetTime();
         const double dt = now - g_clock.nowPrev;
@@ -92,7 +92,7 @@ ErrorType GameServer::Run(const Args &args)
 
                 Player *player = world->FindPlayer(client.playerId);
                 if (!player) {
-                    E_DEBUG("Player not found, cannot simulate");
+                    E_DEBUG("Player not found, cannot simulate", 0);
                     continue;
                 }
                 assert(client.playerId == player->id);
@@ -102,7 +102,7 @@ ErrorType GameServer::Run(const Args &args)
                     float dtAccum = 0;
                     uint32_t oldestInputSeqToProcess = client.lastInputAck;
                     int inputHistoryLen = (int)client.inputHistory.Count();
-                    for (int i = inputHistoryLen - 1; i >= 0 && dtAccum < SV_INPUT_HISTORY_DT_MAX; i--) {
+                    for (int i = inputHistoryLen - 1; i >= 0 && dtAccum < (float)SV_INPUT_HISTORY_DT_MAX; i--) {
                         InputSample input = client.inputHistory.At(i);
                         if (input.seq <= client.lastInputAck) {
                             continue;
@@ -124,7 +124,7 @@ ErrorType GameServer::Run(const Args &args)
                 {
                     float processedDt = 0;
                     size_t inputHistoryLen = client.inputHistory.Count();
-                    for (size_t i = 0; i < inputHistoryLen && processedDt < SV_TICK_DT; i++) {
+                    for (size_t i = 0; i < inputHistoryLen && processedDt < (float)SV_TICK_DT; i++) {
                         InputSample input = client.inputHistory.At(i);
                         if (input.seq <= client.lastInputAck) {
                             //E_WARN("Ignoring old input #%u from %u\n", sample.seq, sample.ownerId);
@@ -139,12 +139,12 @@ ErrorType GameServer::Run(const Args &args)
 
                         processedDt += input.dt;
 
-                        if (processedDt <= SV_TICK_DT) {
+                        if (processedDt <= (float)SV_TICK_DT) {
                             // Consume whole input
                             client.lastInputAck = input.seq;
                         } else {
                             // Consume partial input at end of tick if we ran out of time
-                            client.inputOverflow = (float)(processedDt - SV_TICK_DT);
+                            client.inputOverflow = (processedDt - (float)SV_TICK_DT);
                             input.dt -= client.inputOverflow;
                         }
 
@@ -163,7 +163,7 @@ ErrorType GameServer::Run(const Args &args)
                     E_DEBUG("Sending snapshot for tick %u / input seq #%u, to player %u\n", world->tick, client.lastInputAck, client.playerId);
     #endif
                     // Send snapshot
-                    E_ERROR_RETURN(netServer.SendWorldSnapshot(client), "Failed to send world snapshot");
+                    E_ERROR_RETURN(netServer.SendWorldSnapshot(client), "Failed to send world snapshot", 0);
                 } else {
                     //E_DEBUG("Skipping shapshot for %u", client.playerId);
                 }
@@ -180,7 +180,7 @@ ErrorType GameServer::Run(const Args &args)
     }
 
     delete world;
-    if (args.standalone) {
+    if (args->standalone) {
         glfwTerminate();
     }
 

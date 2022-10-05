@@ -29,8 +29,8 @@ void DrawTextFont(Font font, const char *text, float posX, float posY, float off
     if (font.texture.id != 0) {
         Vector2 position = { posX, posY };
         Vector2 shadowPosition = position;
-        shadowPosition.x += shadowOffset;
-        shadowPosition.y += shadowOffset;
+        shadowPosition.x += (float)shadowOffset;
+        shadowPosition.y += (float)shadowOffset;
 
         int defaultFontSize = 10;   // Default Font chars height in pixel
         if (fontSize < defaultFontSize) fontSize = defaultFontSize;
@@ -58,8 +58,8 @@ const char *SafeTextFormat(const char *text, ...)
 #endif
 
     // We create an array of buffers so strings don't expire until MAX_TEXTFORMAT_BUFFERS invocations
-    thread_local char buffers[MAX_TEXTFORMAT_BUFFERS][MAX_TEXT_BUFFER_LENGTH] = { 0 };
-    thread_local int index = 0;
+    thread_local static char buffers[MAX_TEXTFORMAT_BUFFERS][MAX_TEXT_BUFFER_LENGTH] = {};
+    thread_local static int index = 0;
 
     char *currentBuffer = buffers[index];
     memset(currentBuffer, 0, MAX_TEXT_BUFFER_LENGTH);
@@ -104,11 +104,11 @@ const char *SafeTextFormatIP(ENetAddress &address)
 
 const char *SafeTextFormatTimestamp()
 {
-    thread_local char timestampStr[TIMESTAMP_LENGTH];
+    thread_local static char timestampStr[TIMESTAMP_LENGTH];
     time_t t = time(NULL);
     struct tm tm = *localtime(&t);
     int len = snprintf(timestampStr, sizeof(timestampStr), "%02d:%02d:%02d", tm.tm_hour, tm.tm_min, tm.tm_sec);
-    assert(len < sizeof(timestampStr));
+    assert(len < (int)sizeof(timestampStr));
     return timestampStr;
 }
 

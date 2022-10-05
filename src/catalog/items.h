@@ -128,10 +128,10 @@ struct ItemAffixProto {
     ItemAffixProto() = default;
 
     ItemAffixProto(ItemAffixType type, FloatRange minRange, FloatRange maxRange) :
-        type(type), minRange(minRange), maxRange(maxRange) {};
+        type(type), minRange(minRange), maxRange(maxRange) {}
 
     ItemAffixProto(ItemAffixType type, FloatRange range) :
-        type(type), minRange(range), maxRange(range) {};
+        type(type), minRange(range), maxRange(range) {}
 
     // Returns true if all affixes have scalar values, i.e. every roll would produce an identical item
     bool IsScalar(void) const {
@@ -423,6 +423,7 @@ const char *ItemClassToString(ItemClass itemClass)
 
 ItemClass ItemClassFromString(const char *str, size_t length)
 {
+    // TODO: Make an enum in flatbuffer schema and use bsearch here
     static std::unordered_map<u32, ItemClass> itemClassByName{};
     if (!itemClassByName.size()) {
         itemClassByName[dlb_murmur3(CSTR("Empty"   ))] = ItemClass_Empty;
@@ -522,7 +523,7 @@ private:
     ItemProto protos[ItemType_Count]{};
 };
 
-thread_local ItemCatalog g_item_catalog{};
+thread_local static ItemCatalog g_item_catalog{};
 
 struct Item {
     ItemUID  uid        {};
@@ -544,36 +545,36 @@ struct Item {
 
     void Roll() {
         const ItemProto &proto = g_item_catalog.FindProto(type);
-        for (int i = 0; i < ARRAY_SIZE(affixes) && i < ARRAY_SIZE(proto.affixProtos); i++) {
+        for (size_t i = 0; i < ARRAY_SIZE(affixes) && i < ARRAY_SIZE(proto.affixProtos); i++) {
             affixes[i] = proto.affixProtos[i].Roll();
         }
     }
 
-    ItemAffix FindAffix(ItemAffixType type) const {
+    ItemAffix FindAffix(ItemAffixType affixType) const {
         for (size_t i = 0; i < ITEM_AFFIX_MAX_COUNT; i++) {
-            if (affixes[i].type == type) {
+            if (affixes[i].type == affixType) {
                 return affixes[i];
             }
         }
         return ItemAffix{};
     }
 
-    bool SetAffix(ItemAffixType type, float min, float max) {
+    bool SetAffix(ItemAffixType affixType, float min, float max) {
         ItemAffix *affix = 0;
         for (size_t i = 0; i < ITEM_AFFIX_MAX_COUNT; i++) {
-            if (affixes[i].type == type || affixes[i].type == ItemAffix_Empty) {
+            if (affixes[i].type == affixType || affixes[i].type == ItemAffix_Empty) {
                 affix = &affixes[i];
                 break;
             }
         }
         if (affix) {
-            *affix = ItemAffix::make(type, min, max);
+            *affix = ItemAffix::make(affixType, min, max);
         }
         return affix;
     }
 
-    bool SetAffix(ItemAffixType type, float value) {
-        return SetAffix(type, value, value);
+    bool SetAffix(ItemAffixType affixType, float value) {
+        return SetAffix(affixType, value, value);
     }
 
     const char *Name(bool plural = false) const {
@@ -644,7 +645,7 @@ private:
     std::unordered_map<ItemUID, uint32_t> byUid{};  // map of item.uid -> items[] index
 };
 
-thread_local ItemDatabase g_item_db{};
+thread_local static ItemDatabase g_item_db{};
 
 // TODO: Rename to ItemStack after done refactoring
 struct ItemStack {

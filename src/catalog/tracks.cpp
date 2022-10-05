@@ -96,7 +96,7 @@ namespace Catalog {
 
     Music Tracks::MissingOggTrack(void)
     {
-        thread_local Music missingOgg = {};
+        thread_local static Music missingOgg = {};
         if (!missingOgg.frameCount) {
             size_t missingOggSize = 0;
             const unsigned char *missingOggData = Catalog::g_sounds.MissingOggData(missingOggSize);

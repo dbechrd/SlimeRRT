@@ -5153,7 +5153,7 @@ typedef struct timespec {
         sin.sin6_addr = address->host;
         sin.sin6_scope_id = address->sin6_scope_id;
 
-        err = getnameinfo((struct sockaddr *) &sin, sizeof(sin), name, nameLength, NULL, 0, NI_NAMEREQD);
+        err = getnameinfo((struct sockaddr *) &sin, sizeof(sin), name, (DWORD)nameLength, NULL, 0, NI_NAMEREQD);
         if (!err) {
             if (name != NULL && nameLength > 0 && !memchr(name, '\0', nameLength)) {
                 return -1;
@@ -5777,9 +5777,9 @@ typedef struct timespec {
         int i;
 
         for (i = 0; i < 4; ++i) {
-            const char *next = name + 1;
+            char *next = (char *)(void *)name + 1;
             if (*name != '0') {
-                long val = strtol(name, (char **) &next, 10);
+                long val = strtol(name, (char **)&next, 10);
                 if (val < 0 || val > 255 || next == name || next - name > 3) {
                     return -1;
                 }
@@ -5869,7 +5869,7 @@ typedef struct timespec {
 
         address->host           = sin.sin6_addr;
         address->port           = ENET_NET_TO_HOST_16(sin.sin6_port);
-        address->sin6_scope_id  = sin.sin6_scope_id;
+        address->sin6_scope_id  = (enet_uint16)sin.sin6_scope_id;
 
         return 0;
     }
@@ -5888,7 +5888,7 @@ typedef struct timespec {
         switch (option) {
             case ENET_SOCKOPT_NONBLOCK: {
                 u_long nonBlocking = (u_long) value;
-                result = ioctlsocket(socket, FIONBIO, &nonBlocking);
+                result = ioctlsocket(socket, (long)FIONBIO, &nonBlocking);
                 break;
             }
 
@@ -5924,6 +5924,7 @@ typedef struct timespec {
                 result = setsockopt(socket, IPPROTO_IPV6, IPV6_V6ONLY, (char *)&value, sizeof(int));
                 break;
 
+            case ENET_SOCKOPT_ERROR:
             default:
                 break;
         }
@@ -5939,6 +5940,15 @@ typedef struct timespec {
                 result = getsockopt(socket, SOL_SOCKET, SO_ERROR, (char *)value, &len);
                 break;
 
+            case ENET_SOCKOPT_NONBLOCK:
+            case ENET_SOCKOPT_BROADCAST:
+            case ENET_SOCKOPT_RCVBUF:
+            case ENET_SOCKOPT_SNDBUF:
+            case ENET_SOCKOPT_REUSEADDR:
+            case ENET_SOCKOPT_RCVTIMEO:
+            case ENET_SOCKOPT_SNDTIMEO:
+            case ENET_SOCKOPT_NODELAY:
+            case ENET_SOCKOPT_IPV6_V6ONLY:
             default:
                 break;
         }

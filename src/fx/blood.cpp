@@ -19,8 +19,8 @@ namespace FX {
         const float spawnDelay = dlb_rand32f_range(par.spawnDelayMin, par.spawnDelayMax);
         const float lifetime = dlb_rand32f_range(par.lifespanMin, par.lifespanMax);
 
-        particle.spawnAt = effect.startedAt + spawnDelay;
-        particle.dieAt = particle.spawnAt + lifetime;
+        particle.spawnAt = effect.startedAt + (double)spawnDelay;
+        particle.dieAt = particle.spawnAt + (double)lifetime;
         assert(particle.spawnAt >= effect.startedAt);
         assert(particle.dieAt > particle.spawnAt);
 
@@ -45,6 +45,7 @@ namespace FX {
     void blood_update(Particle &particle, float alpha)
     {
         const float radius = 5.0f;
+        UNUSED(radius);
         // radius * 1.0 -> 0.2
         //particle.sprite.scale = radius * (1.0f - alpha);
         // 1.0 -> 0.0

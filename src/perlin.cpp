@@ -21,7 +21,7 @@
 	t = vec[i] + N;\
 	b0 = ((int)t) & BM;\
 	b1 = (b0+1) & BM;\
-	r0 = t - (int)t;\
+	r0 = t - t;\
 	r1 = r0 - 1.0f;
 
 Perlin::Perlin(int octaves, float freq, float amp, int seed)
@@ -67,7 +67,6 @@ void Perlin::init(void)
 float Perlin::perlin_noise_2D(float vec[2])
 {
     int terms = mOctaves;
-    float freq = mFrequency;
     float result = 0.0f;
     float amp = mAmplitude;
 

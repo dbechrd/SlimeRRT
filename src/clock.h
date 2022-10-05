@@ -15,12 +15,12 @@ struct Clock {
     double daylightPerc {};  // how bright the daylight currently is
 
     const char *timeOfDayStr() {
-        thread_local char buf[16]{};
+        thread_local static char buf[16]{};
         const double hours = 1.0 + timeOfDay * 24.0;
         const double mins = fmod(hours, 1.0) * 60.0;
         const int hh = (int)fmod(hours, 12.0);
         const int mm = (int)mins;
-        size_t len = snprintf(buf, sizeof(buf), "%02d:%02d %s", hh, mm, hours < 12 ? "am" : "pm");
+        int len = snprintf(buf, sizeof(buf), "%02d:%02d %s", hh, mm, hours < 12 ? "am" : "pm");
         if (len > 10) {
             assert(len);
         }
@@ -46,10 +46,10 @@ struct Clock {
 
         // Daylight
         const double midnightLightPerc = 0.2;
-        daylightPerc = 1.0 + (0.5 * (1.0 - midnightLightPerc)) * (sin(2 * PI * dayClockScaled - 0.5 * PI) - 1.0);
+        daylightPerc = 1.0 + (0.5 * (1.0 - midnightLightPerc)) * (sin(2 * (double)PI * dayClockScaled - 0.5 * (double)PI) - 1.0);
 
         return frameDt;
     }
 };
 
-thread_local Clock g_clock{};
+thread_local static Clock g_clock{};

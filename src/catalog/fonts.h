@@ -14,4 +14,4 @@ struct Fonts {
     Font fontSdf72{};
 };
 
-thread_local Fonts g_fonts{};
+thread_local static Fonts g_fonts{};

@@ -6,12 +6,11 @@
 #include <thread>
 
 struct ServerCLI{
-    ServerCLI(Args args) : args(args) {};
+    ErrorType ParseArgs(int argc, char *argv[]) { return args.Parse(argc, argv); }
     ErrorType Run(const char *hostname, unsigned short port);
 
 private:
     static const char *LOG_SRC;
-    Args      &args;
-    World     *world     {};
+    Args       args      {};
     NetClient  netClient {};
 };

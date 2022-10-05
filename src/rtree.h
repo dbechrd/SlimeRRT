@@ -124,10 +124,10 @@ namespace RTree {
     class RTree {
     public:
         // **MUST** start with AABB
-        template<typename T>
+        template<typename U>
         struct Entry {
             AABB bounds {};
-            T    udata  {};
+            U    udata  {};
         };
 
         //struct Node;
@@ -140,7 +140,7 @@ namespace RTree {
         //};
 
         // **MUST** start with AABB
-        template<typename T>
+        template<typename U>
         struct Node {
             AABB     bounds {};
             NodeType type   {};
@@ -148,9 +148,9 @@ namespace RTree {
             union {
                 AABB *aabbs[RTREE_MAX_ENTRIES];
                 Node *children[RTREE_MAX_ENTRIES];
-                Entry<T> *entries[RTREE_MAX_ENTRIES];
+                Entry<U> *entries[RTREE_MAX_ENTRIES];
             };
-            Node<T> *parent{};
+            Node<U> *parent{};
         };
 
         RTree()
@@ -159,21 +159,21 @@ namespace RTree {
             root->type = NodeType::Leaf;
         }
 
-        template<typename T>
-        void Search(const AABB &aabb, std::vector<T> &matches, CompareMode compareMode) const
+        template<typename U>
+        void Search(const AABB &aabb, std::vector<U> &matches, CompareMode compareMode) const
         {
             SearchNode(*root, aabb, matches, compareMode);
         }
 
-        template<typename T>
-        void Insert(const AABB &aabb, T udata)
+        template<typename U>
+        void Insert(const AABB &aabb, U udata)
         {
-            Entry<T> *entry = entries.Alloc();
+            Entry<U> *entry = entries.Alloc();
             entry->bounds = aabb;
             entry->udata = udata;
 
-            Node<T> *leaf = ChooseLeaf(*entry);
-            Node<T> *newLeaf = 0;
+            Node<U> *leaf = ChooseLeaf(*entry);
+            Node<U> *newLeaf = 0;
             if (leaf->count < RTREE_MAX_ENTRIES) {
                 leaf->entries[leaf->count] = entry;
                 leaf->count++;
@@ -184,11 +184,11 @@ namespace RTree {
             AdjustTree(leaf, newLeaf);
         }
 
-        template<typename T>
-        bool Delete(const AABB &aabb, T udata)
+        template<typename U>
+        bool Delete(const AABB &aabb, U udata)
         {
             // TODO: Could return entry index as well.. perhaps a pointless optimization?
-            Node<T> *leaf = FindLeaf(*root, aabb, udata);
+            Node<U> *leaf = FindLeaf(*root, aabb, udata);
             if (!leaf) {
                 return false;  // Entry not found
             }
@@ -240,8 +240,8 @@ namespace RTree {
         ChunkAllocator<Node<T>, 16>  nodes   {};
         ChunkAllocator<Entry<T>, 16> entries {};
 
-        template<typename T>
-        void SearchNode(const Node<T> &node, const AABB &aabb, std::vector<T> &matches, CompareMode compareMode) const
+        template<typename U>
+        void SearchNode(const Node<U> &node, const AABB &aabb, std::vector<U> &matches, CompareMode compareMode) const
         {
             for (size_t i = 0; i < node.count; i++) {
                 bool passCompare = false;
@@ -576,14 +576,14 @@ namespace RTree {
 
         }
 
-        template<typename T>
-        Node<T> *FindLeaf(Node<T> &node, const AABB &aabb, T udata)
+        template<typename U>
+        Node<U> *FindLeaf(Node<U> &node, const AABB &aabb, U udata)
         {
             switch (node.type) {
                 case NodeType::Directory: {
                     for (size_t i = 0; i < node.count; i++) {
                         if (aabb.intersects(node.entries[i]->bounds)) {
-                            Node<T> *result = FindLeaf(*node.children[i], aabb, udata);
+                            Node<U> *result = FindLeaf(*node.children[i], aabb, udata);
                             if (result) {
                                 return result;
                             }
@@ -610,7 +610,7 @@ namespace RTree {
         }
 
         void DrawNode(const Node<T> &node, int level) const {
-            thread_local Color colors[] = {
+            thread_local static Color colors[] = {
                 Color{ 255,   0,   0, 255 },
                 Color{   0, 255,   0, 255 },
                 Color{   0,   0, 255, 255 },

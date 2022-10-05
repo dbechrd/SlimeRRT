@@ -31,7 +31,7 @@ const char *GameClient::LOG_SRC = "GameClient";
 // TODO: Move this somewhere less stupid (e.g. a library of particle updaters)
 inline void RainbowParticlesDamagePlayer(Particle &particle, void *userData)
 {
-    assert(userData);
+    DLB_ASSERT(userData);
 
     Player *player = (Player *)userData;
     const Vector3 particleWorld = v3_add(particle.effect->origin, particle.body.WorldPosition());
@@ -44,9 +44,9 @@ inline void RainbowParticlesDamagePlayer(Particle &particle, void *userData)
 
 void GameClient::LoadingScreen(const char *text)
 {
-    assert(checkboardTexture.id);
-    assert(screenSize.x);
-    assert(g_fonts.fontBig.texture.id);
+    DLB_ASSERT(checkboardTexture.id);
+    DLB_ASSERT(screenSize.x);
+    DLB_ASSERT(g_fonts.fontBig.texture.id);
 
     BeginDrawing();
     DrawTexture(checkboardTexture, 0, 0, WHITE);
@@ -86,9 +86,9 @@ void GameClient::Init(void)
     //const char *fontName = "data/font/Hack-Bold.ttf";
     //const char *fontName = "data/font/PressStart2P-vaV7.ttf";
     g_fonts.fontSmall = LoadFontEx(fontName, 16, 0, 0);
-    assert(g_fonts.fontSmall.texture.id);
+    DLB_ASSERT(g_fonts.fontSmall.texture.id);
     g_fonts.fontBig = LoadFontEx(fontName, 72, 0, 0);
-    assert(g_fonts.fontBig.texture.id);
+    DLB_ASSERT(g_fonts.fontBig.texture.id);
 
     Image checkerboardImage = GenImageChecked((int)screenSize.x, (int)screenSize.y, 32, 32, LIGHTGRAY, GRAY);
     checkboardTexture = LoadTextureFromImage(checkerboardImage);
@@ -105,7 +105,7 @@ void GameClient::Init(void)
     // Setup Platform/Renderer backends
     LoadingScreen("Loading Renderer...");
     GLFWwindow *glfwWindow = glfwGetCurrentContext();
-    assert(glfwWindow);
+    DLB_ASSERT(glfwWindow);
     ImGui_ImplGlfw_InitForOpenGL(glfwWindow, true);
     ImGui_ImplOpenGL3_Init("#version 130");
 
@@ -231,7 +231,7 @@ void GameClient::PlayMode_PollController(PlayerControllerState &input)
 
 ErrorType GameClient::PlayMode_Network()
 {
-    E_ERROR_RETURN(netClient.Receive(), "Failed to receive packets");
+    E_ERROR_RETURN(netClient.Receive(), "Failed to receive packets", 0);
 
     if (UI::DisconnectRequested(netClient.IsDisconnected())) {
         netClient.Disconnect();
@@ -239,10 +239,10 @@ ErrorType GameClient::PlayMode_Network()
 
     // If I disconnect from local server for any reason, clean up the thread
     if (localServer && netClient.IsDisconnected()) {
-        args.serverQuit = true;
+        args->serverQuit = true;
         delete localServer;
         localServer = 0;
-        args.serverQuit = false;
+        args->serverQuit = false;
     }
 
     return ErrorType::Success;
@@ -263,7 +263,7 @@ void GameClient::PlayMode_HandleInput(PlayerControllerState &input)
             SetWindowSize((int)screenSize.x, (int)screenSize.y);
         }
         if (input.toggleFullscreen) {
-            thread_local Vector2 restoreSize = screenSize;
+            thread_local static Vector2 restoreSize = screenSize;
             if (IsWindowFullscreen()) {
                 ToggleFullscreen();
                 SetWindowSize((int)restoreSize.x, (int)restoreSize.y);
@@ -278,8 +278,8 @@ void GameClient::PlayMode_HandleInput(PlayerControllerState &input)
             }
         }
         // Weird line artifact appears, even with AlignPixel shader, if resolution has an odd number :(
-        assert((int)screenSize.x % 2 == 0);
-        assert((int)screenSize.y % 2 == 0);
+        DLB_ASSERT((int)screenSize.x % 2 == 0);
+        DLB_ASSERT((int)screenSize.y % 2 == 0);
         //printf("w: %f h: %f\n", screenSize.x, screenSize.y);
 #if CL_PIXEL_FIXER
         SetShaderValue(pixelFixer, pixelFixerScreenSizeUniformLoc, &screenSize, SHADER_UNIFORM_VEC2);
@@ -298,7 +298,7 @@ void GameClient::PlayMode_HandleInput(PlayerControllerState &input)
         int len = snprintf(screenshotName, sizeof(screenshotName),
             "screenshots/%d-%02d-%02d_%02d-%02d-%02d_screenshot.png",
             tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
-        assert(len < sizeof(screenshotName));
+        DLB_ASSERT(len < (int)sizeof(screenshotName));
         TakeScreenshot(screenshotName);
     }
 
@@ -405,7 +405,7 @@ void GameClient::PlayMode_UpdateCamera(double frameDt, PlayerControllerState &in
 {
     if (!g_spycam.freeRoam) {
         Player *player = netClient.serverWorld->FindPlayer(netClient.serverWorld->playerId);
-        assert(player);
+        DLB_ASSERT(player);
         Vector2 wtc = player->WorldTopCenter2D();
         g_spycam.cameraGoal = { wtc.x, wtc.y };
     }
@@ -458,7 +458,7 @@ void GameClient::PlayMode_DrawWorld(PlayerControllerState &input)
     std::vector<size_t> matches{};
     tree.Search(searchAABB, matches, RTree::CompareMode::Overlap);
 #else
-    thread_local std::vector<void *> matches;
+    thread_local static std::vector<void *> matches;
     matches.clear();
     for (size_t i = 0; i < rects.size(); i++) {
         if (CheckCollisionRecs(rects[i], searchRect)) {
@@ -503,7 +503,7 @@ void GameClient::PlayMode_DrawWorld(PlayerControllerState &input)
 
 void GameClient::PlayMode_DrawScreen(double frameDt, PlayerControllerState &input)
 {
-    assert(netClient.serverWorld);
+    DLB_ASSERT(netClient.serverWorld);
 
     // Handle mouse hover/click on important things
     {
@@ -585,14 +585,14 @@ void GameClient::PlayMode_DrawScreen(double frameDt, PlayerControllerState &inpu
         nPatchInfo.right = 18;
         nPatchInfo.bottom = 18;
         Rectangle dstRect{ 350, 150, 48, 48 };
-        dstRect.width = GetMouseX() - dstRect.x;
-        dstRect.height = GetMouseY() - dstRect.y;
+        dstRect.width = (float)GetMouseX() - dstRect.x;
+        dstRect.height = (float)GetMouseY() - dstRect.y;
         DrawTextureNPatch(g_nPatchTex, nPatchInfo, dstRect, { measure.x / 2, measure.y / 2 }, 0,WHITE);
         DrawTextEx(g_fonts.fontSmall, "Space", { 0, 0 }, (float)g_fonts.fontSmall.baseSize, 1.0f, WHITE);
         rlDrawRenderBatchActive();
     }
 
-    UI::Menubar(netClient);
+    UI::Menubar();
     UI::ShowDemoWindow();
     UI::Netstat(netClient, renderAt);
     UI::ItemProtoEditor(*netClient.serverWorld);
@@ -609,7 +609,7 @@ ErrorType GameClient::Run(void)
         // Time is of the essence
         const double frameDt = g_clock.update(glfwGetTime());
 
-        E_ERROR_RETURN(PlayMode_Network(), "Failed to do message processing");
+        E_ERROR_RETURN(PlayMode_Network(), "Failed to do message processing", 0);
 
         PlayMode_Audio(frameDt);
 

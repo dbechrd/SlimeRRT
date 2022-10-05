@@ -16,26 +16,6 @@ struct Tilemap;
 #define PLAYER_INV_COLS 10
 #define PLAYER_INV_REG_COUNT (PLAYER_INV_ROWS * PLAYER_INV_COLS)
 
-typedef uint8_t PlayerInvSlot;
-
-enum : PlayerInvSlot {
-    PlayerInvSlot_Coin_Copper = PLAYER_INV_REG_COUNT,
-    PlayerInvSlot_Coin_Silver,
-    PlayerInvSlot_Coin_Gilded,
-    PlayerInvSlot_Hotbar_0,
-    PlayerInvSlot_Hotbar_1,
-    PlayerInvSlot_Hotbar_2,
-    PlayerInvSlot_Hotbar_3,
-    PlayerInvSlot_Hotbar_4,
-    PlayerInvSlot_Hotbar_5,
-    PlayerInvSlot_Hotbar_6,
-    PlayerInvSlot_Hotbar_7,
-    PlayerInvSlot_Hotbar_8,
-    PlayerInvSlot_Hotbar_9,
-    PlayerInvSlot_Cursor,
-    PlayerInvSlot_Count
-};
-
 typedef bool (*ItemFilterFn)(Item item);
 
 bool ItemFilter_ItemClass_Weapon(Item item)
@@ -58,22 +38,41 @@ bool ItemFilter_ItemType_Currency_Gilded(Item item)
     return item.type == ItemType_Currency_Gilded;
 };
 
-struct InventorySlot {
-    ItemFilterFn filter {};
-    ItemStack stack  {};
-};
-
 struct PlayerInventory {
-    PlayerInvSlot selectedSlot {};  // NOTE: for hotbar, needs rework
-    InventorySlot slots        [PlayerInvSlot_Count]{};
-    bool          dirty        {true};  // Used server-side to determine whether client needs a new inv snapshot
-    bool          skipUpdate   {};  // HACK: Simulate inv action to see if it's valid client-side without actually performing it
+    typedef uint8_t SlotId;
+    enum : SlotId {
+        SlotId_Coin_Copper = PLAYER_INV_REG_COUNT,
+        SlotId_Coin_Silver,
+        SlotId_Coin_Gilded,
+        SlotId_Hotbar_0,
+        SlotId_Hotbar_1,
+        SlotId_Hotbar_2,
+        SlotId_Hotbar_3,
+        SlotId_Hotbar_4,
+        SlotId_Hotbar_5,
+        SlotId_Hotbar_6,
+        SlotId_Hotbar_7,
+        SlotId_Hotbar_8,
+        SlotId_Hotbar_9,
+        SlotId_Cursor,
+        SlotId_Count
+    };
+
+    struct Slot {
+        ItemFilterFn filter{};
+        ItemStack stack{};
+    };
+
+    SlotId selectedSlot {};  // NOTE: for hotbar, needs rework
+    Slot   slots        [SlotId_Count]{};
+    bool   dirty        {true};  // Used server-side to determine whether client needs a new inv snapshot
+    bool   skipUpdate   {};  // HACK: Simulate inv action to see if it's valid client-side without actually performing it
 
     void TexRect(const Texture &invItems, ItemType itemId, Vector2 &min, Vector2 &max)
     {
         const int texIdx = (int)itemId;
         const int texItemsWide = invItems.width / ITEM_W;
-        const int texItemsHigh = invItems.height / ITEM_H;
+        //const int texItemsHigh = invItems.height / ITEM_H;
         const float u0 = (float)((texIdx % texItemsWide) * ITEM_W);
         const float v0 = (float)((texIdx / texItemsWide) * ITEM_H);
         min = Vector2{ (u0) / invItems.width, (v0) / invItems.height };
@@ -87,11 +86,11 @@ struct PlayerInventory {
             return false;
         }
 
-        InventorySlot srcSlot{};
+        Slot srcSlot{};
         srcSlot.stack = srcStack;
 
-        for (int slotIdx = 0; slotIdx < PlayerInvSlot_Count; slotIdx++) {
-            InventorySlot &dstSlot = GetInvSlot(slotIdx);
+        for (SlotId slotId = 0; slotId < SlotId_Count; slotId++) {
+            Slot &dstSlot = GetInvSlot(slotId);
             TransferSlot(srcSlot, dstSlot);
             if (!srcStack.count) {
                 break;
@@ -103,22 +102,22 @@ struct PlayerInventory {
         return pickup;
     }
 
-    InventorySlot &CursorSlot()
+    Slot &CursorSlot()
     {
-        InventorySlot &cursor = slots[PlayerInvSlot_Cursor];
+        Slot &cursor = slots[SlotId_Cursor];
         return cursor;
     }
 
-    InventorySlot &GetInvSlot(int slotIdx)
+    Slot &GetInvSlot(SlotId slotId)
     {
-        assert(slotIdx >= 0);
-        assert(slotIdx < PlayerInvSlot_Count);
-        InventorySlot &slot = slots[slotIdx];
+        DLB_ASSERT(slotId >= 0);
+        DLB_ASSERT(slotId < SlotId_Count);
+        Slot &slot = slots[slotId];
         return slot;
     }
 
     // TODO: Check slot filter
-    void SwapSlots(InventorySlot &a, InventorySlot &b)
+    void SwapSlots(Slot &a, Slot &b)
     {
         if (!skipUpdate) {
             ItemStack tmp = a.stack;
@@ -130,7 +129,7 @@ struct PlayerInventory {
 
     // Attempt to transfer some amount of items from one slot to another
     // TODO: Check slot filter
-    bool TransferSlot(InventorySlot &src, InventorySlot &dst, uint32_t transferLimit = 0, bool skipFull = false, bool *dstFull = 0)
+    bool TransferSlot(Slot &src, Slot &dst, uint32_t transferLimit = 0, bool skipFull = false, bool *dstFull = 0)
     {
         // Nothing to transfer
         if (!src.stack.count) {
@@ -175,10 +174,10 @@ struct PlayerInventory {
         return transfer > 0;
     }
 
-    bool SlotClick(int slotIdx, bool doubleClicked)
+    bool SlotClick(SlotId slotId, bool doubleClicked)
     {
-        InventorySlot &cursor = CursorSlot();
-        InventorySlot &slot = GetInvSlot(slotIdx);
+        Slot &cursor = CursorSlot();
+        Slot &slot = GetInvSlot(slotId);
 
         bool success = false;
         if (doubleClicked) {
@@ -191,12 +190,12 @@ struct PlayerInventory {
 
             // Pick up as many items as possible from all slots that match the cursor's current item
             bool dstFull = false;
-            for (int slotIdx = PlayerInvSlot_Count - 1; slotIdx >= 0 && !dstFull; slotIdx--) {
-                if (slotIdx == PlayerInvSlot_Cursor)
+            for (SlotId otherSlotId = SlotId_Count - 1; !dstFull; otherSlotId--) {
+                if (otherSlotId == SlotId_Cursor)
                     continue;
 
-                InventorySlot &slot = GetInvSlot(slotIdx);
-                success |= TransferSlot(slot, cursor, 0, true, &dstFull);
+                Slot &otherSlot = GetInvSlot(otherSlotId);
+                success |= TransferSlot(otherSlot, cursor, 0, true, &dstFull);
             }
         } else if (slot.stack.uid == cursor.stack.uid) {
             // Place as many items as possible into clicked slot
@@ -209,15 +208,15 @@ struct PlayerInventory {
         return success;
     }
 
-    bool SlotScroll(int slotIdx, int scroll)
+    bool SlotScroll(SlotId slotId, int scroll)
     {
         const int transfer = scroll;
         if (!transfer) {
             return false;
         }
 
-        InventorySlot &cursor = CursorSlot();
-        InventorySlot &slot = GetInvSlot(slotIdx);
+        Slot &cursor = CursorSlot();
+        Slot &slot = GetInvSlot(slotId);
         bool success = false;
         if (transfer > 0) {
             success = TransferSlot(cursor, slot, (uint32_t)transfer, false);
@@ -227,14 +226,14 @@ struct PlayerInventory {
         return success;
     }
 
-    ItemStack SlotDrop(int slotIdx, uint32_t count)
+    ItemStack SlotDrop(SlotId slotId, uint32_t count)
     {
-        InventorySlot dropSlot{};
-        TransferSlot(GetInvSlot(slotIdx), dropSlot, count, false);
+        Slot dropSlot{};
+        TransferSlot(GetInvSlot(slotId), dropSlot, count, false);
         return dropSlot.stack;
     }
 
-    static int Compare(InventorySlot &a, InventorySlot &b, bool ignoreEmpty = false)
+    static int Compare(Slot &a, Slot &b, bool ignoreEmpty = false)
     {
         if (a.stack.uid == b.stack.uid) {
             return 0;
@@ -250,10 +249,10 @@ struct PlayerInventory {
     void Sort(bool ignoreEmpty = false)
     {
         for (int slotIdxA = 0; slotIdxA < PLAYER_INV_REG_COUNT; slotIdxA++) {
-            InventorySlot &slotA = GetInvSlot(slotIdxA);
+            Slot &slotA = GetInvSlot(slotIdxA);
 
             for (int slotIdxB = slotIdxA + 1; slotIdxB < PLAYER_INV_REG_COUNT; slotIdxB++) {
-                InventorySlot &slotB = GetInvSlot(slotIdxB);
+                Slot &slotB = GetInvSlot(slotIdxB);
 
                 if (Compare(slotA, slotB, ignoreEmpty) > 0) {
                     SwapSlots(slotA, slotB);
@@ -265,11 +264,11 @@ struct PlayerInventory {
     void Combine(bool ignoreEmpty = false)
     {
         for (int slotIdxA = 0; slotIdxA < PLAYER_INV_REG_COUNT; slotIdxA++) {
-            InventorySlot &slotA = GetInvSlot(slotIdxA);
+            Slot &slotA = GetInvSlot(slotIdxA);
             if (ignoreEmpty && !slotA.stack.count) continue;
 
             for (int slotIdxB = slotIdxA + 1; slotIdxB < PLAYER_INV_REG_COUNT; slotIdxB++) {
-                InventorySlot &slotB = GetInvSlot(slotIdxB);
+                Slot &slotB = GetInvSlot(slotIdxB);
                 if (ignoreEmpty && !slotB.stack.count) continue;
 
                 TransferSlot(slotB, slotA);
@@ -344,11 +343,13 @@ struct Player : Drawable {
     ItemStack GetSelectedStack (void) const;
     void      Update           (InputSample &input, Tilemap &map);
 
-    float Depth (void) const;
-    bool  Cull  (const Rectangle& cullRect) const;
-    void  Draw  (World &world);
+    float Depth (void) const override;
+    bool  Cull  (const Rectangle& cullRect) const override;
+    void  Draw  (World &world) override;
 
 private:
+    const char *LOG_SRC = "Player";
+
     void UpdateDirection (Vector2 offset);
     bool Move            (Vector2 offset);
     bool Attack          (void);

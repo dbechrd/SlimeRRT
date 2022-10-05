@@ -22,15 +22,15 @@ ErrorType NetClient::SaveDefaultServerDB(const char *filename)
     tpjGuest.port = SV_DEFAULT_PORT;
     tpjGuest.user = "guest";
     tpjGuest.pass = "guest";
-    E_ERROR_RETURN(server_db.Add(tpjGuest), "Failed to add default server to ServerDB");
-    E_ERROR_RETURN(server_db.Save(filename), "Failed to save default ServerDB");
+    E_ERROR_RETURN(server_db.Add(tpjGuest), "Failed to add default server to ServerDB", 0);
+    E_ERROR_RETURN(server_db.Save(filename), "Failed to save default ServerDB", 0);
     return ErrorType::Success;
 }
 
 ErrorType NetClient::Load(void)
 {
     if (server_db.Load("db/servers.dat") == ErrorType::FileReadFailed) {
-        E_ERROR_RETURN(SaveDefaultServerDB("db/servers.dat"), "Failed to save default server DB");
+        E_ERROR_RETURN(SaveDefaultServerDB("db/servers.dat"), "Failed to save default server DB", 0);
     };
 
     //rawPacket.dataLength = PACKET_SIZE_MAX;
@@ -53,7 +53,7 @@ ErrorType NetClient::OpenSocket(void)
     }
     client = enet_host_create(nullptr, 1, 1, 0, 0);
     if (!client) {
-        E_ERROR_RETURN(ErrorType::HostCreateFailed, "Failed to create host.");
+        E_ERROR_RETURN(ErrorType::HostCreateFailed, "Failed to create host.", 0);
     }
     // TODO(dlb)[cleanup]: This probably isn't providing any additional value on top of if (!client) check
     assert(client->socket);
@@ -69,7 +69,7 @@ ErrorType NetClient::Connect(const char *serverHost, unsigned short serverPort, 
     ENetAddress address{};
 
     if (!client) {
-        E_ERROR_RETURN(OpenSocket(), "Failed to open socket");
+        E_ERROR_RETURN(OpenSocket(), "Failed to open socket", 0);
     }
     if (server) {
         Disconnect();
@@ -107,17 +107,17 @@ ErrorType NetClient::SendRaw(const uint8_t *buf, size_t len)
     assert(len <= PACKET_SIZE_MAX);
 
     if (!server || server->state != ENET_PEER_STATE_CONNECTED) {
-        E_WARN("Not connected to server. Data not sent.");
+        E_WARN("Not connected to server. Data not sent.", 0);
         return ErrorType::NotConnected;
     }
 
     // TODO(dlb): Don't always use reliable flag.. figure out what actually needs to be reliable (e.g. chat)
     ENetPacket *packet = enet_packet_create(buf, len, ENET_PACKET_FLAG_RELIABLE);
     if (!packet) {
-        E_ERROR_RETURN(ErrorType::PacketCreateFailed, "Failed to create packet.");
+        E_ERROR_RETURN(ErrorType::PacketCreateFailed, "Failed to create packet.", 0);
     }
     if (enet_peer_send(server, 0, packet) < 0) {
-        E_ERROR_RETURN(ErrorType::PeerSendFailed, "Failed to send connection request.");
+        E_ERROR_RETURN(ErrorType::PeerSendFailed, "Failed to send connection request.", 0);
     }
     return ErrorType::Success;
 }
@@ -125,7 +125,7 @@ ErrorType NetClient::SendRaw(const uint8_t *buf, size_t len)
 ErrorType NetClient::SendMsg(NetMessage &message)
 {
     if (!server || server->state != ENET_PEER_STATE_CONNECTED) {
-        E_WARN("Not connected to server. NetMessage not sent.");
+        E_WARN("Not connected to server. NetMessage not sent.", 0);
         return ErrorType::NotConnected;
     }
 
@@ -133,7 +133,7 @@ ErrorType NetClient::SendMsg(NetMessage &message)
     memset(rawPacket, 0, sizeof(rawPacket));
     size_t bytes = message.Serialize(CSTR0(rawPacket));
     //E_INFO("[SEND][%21s][%5u b] %16s ", rawPacket.dataLength, netMsg.TypeString());
-    E_ERROR_RETURN(SendRaw(rawPacket, bytes), "Failed to send packet");
+    E_ERROR_RETURN(SendRaw(rawPacket, bytes), "Failed to send packet", 0);
     return ErrorType::Success;
 }
 
@@ -178,10 +178,10 @@ ErrorType NetClient::SendChatMessage(const char *message, size_t messageLength)
     return result;
 }
 
-ErrorType NetClient::SendSlotClick(int slot, bool doubleClicked)
+ErrorType NetClient::SendSlotClick(SlotId slot, bool doubleClicked)
 {
     assert(slot >= 0);
-    assert(slot < PlayerInvSlot_Count);
+    assert(slot < PlayerInventory::SlotId_Count);
 
     memset(&tempMsg, 0, sizeof(tempMsg));
     tempMsg.type = NetMessage::Type::SlotClick;
@@ -191,10 +191,10 @@ ErrorType NetClient::SendSlotClick(int slot, bool doubleClicked)
     return result;
 }
 
-ErrorType NetClient::SendSlotScroll(int slot, int scrollY)
+ErrorType NetClient::SendSlotScroll(SlotId slot, int scrollY)
 {
     assert(slot >= 0);
-    assert(slot < PlayerInvSlot_Count);
+    assert(slot < PlayerInventory::SlotId_Count);
     assert(scrollY);
 
     memset(&tempMsg, 0, sizeof(tempMsg));
@@ -206,10 +206,10 @@ ErrorType NetClient::SendSlotScroll(int slot, int scrollY)
 }
 
 
-ErrorType NetClient::SendSlotDrop(int slot, uint32_t count)
+ErrorType NetClient::SendSlotDrop(SlotId slot, uint32_t count)
 {
     assert(slot >= 0);
-    assert(slot < PlayerInvSlot_Count);
+    assert(slot < PlayerInventory::SlotId_Count);
     assert(count);
 
     memset(&tempMsg, 0, sizeof(tempMsg));
@@ -274,7 +274,7 @@ void NetClient::ReconcilePlayer(void)
     assert(player);
     if (!player) {
         // playerId is invalid??
-        E_WARN("Can't reconcile player; no player found");
+        E_WARN("Can't reconcile player; no player found", 0);
         return;
     }
 
@@ -289,7 +289,7 @@ void NetClient::ReconcilePlayer(void)
     assert(playerSnapshot);
     if (!playerSnapshot) {
         // Server sent us a snapshot that doesn't contain our own player??
-        E_WARN("Can't reconcile player; no snapshot");
+        E_WARN("Can't reconcile player; no snapshot", 0);
         return;
     }
 
@@ -519,7 +519,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                             state.direction = prevState->direction;
                             //E_DEBUG("Snapshot: dir %d (fallback prev)", (char)state.direction);
                         } else {
-                            E_WARN("Received position update but previous position is not available.");
+                            E_WARN("Received position update but previous position is not available.", 0);
                             state.direction = player->sprite.direction;
                         }
                     }
@@ -609,7 +609,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                 if (!npc) {
                     DLB_ASSERT(npcSnapshot.id);
                     DLB_ASSERT(npcSnapshot.type);
-                    E_ERROR(serverWorld->SpawnNpc(npcSnapshot.id, npcSnapshot.type, npcSnapshot.position, &npc), "Failed to spawn replicated npc");
+                    E_ERROR(serverWorld->SpawnNpc(npcSnapshot.id, npcSnapshot.type, npcSnapshot.position, &npc), "Failed to spawn replicated npc", 0);
                     if (!npc) {
                         continue;
                     }
@@ -643,7 +643,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                         if (prevState) {
                             state.v = prevState->v;
                         } else {
-                            E_WARN("Received direction update but prevPosition is not known.");
+                            E_WARN("Received direction update but prevPosition is not known.", 0);
                             state.v = npc->body.WorldPosition();
                         }
                     }
@@ -656,7 +656,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                             state.direction = prevState->direction;
                             //E_DEBUG("Snapshot: dir %d (fallback prev)", (char)state.direction);
                         } else {
-                            E_WARN("Received position update but prevState.direction is not available.");
+                            E_WARN("Received position update but prevState.direction is not available.", 0);
                             state.direction = npc->sprite.direction;
                         }
                     }
@@ -733,7 +733,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                 }
 
                 bool spawned = false;
-                ItemWorld *item = serverWorld->itemSystem.Find(itemSnapshot.id);
+                WorldItem *item = serverWorld->itemSystem.Find(itemSnapshot.id);
                 if (!item) {
 #if CL_DEBUG_WORLD_ITEMS
                     E_DEBUG("Trying to spawn item: uid %u, count %u, id %u",
@@ -774,7 +774,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                         if (prevState) {
                             state.v = prevState->v;
                         } else {
-                            E_WARN("Received direction update but prevPosition is not known.");
+                            E_WARN("Received direction update but prevPosition is not known.", 0);
                             state.v = item->body.WorldPosition();
                         }
                     }
@@ -811,7 +811,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                     break;
                 } case NetMessage_GlobalEvent::Type::PlayerLeave: {
                     const NetMessage_GlobalEvent::PlayerLeave &leaveEvent = globalEvent.data.playerLeave;
-                    serverWorld->RemovePlayerInfo(globalEvent.data.playerLeave.playerId);
+                    serverWorld->RemovePlayerInfo(leaveEvent.playerId);
                     break;
                 }
             }
@@ -821,10 +821,10 @@ void NetClient::ProcessMsg(ENetPacket &packet)
 
             switch (nearbyEvent.type) {
                 case NetMessage_NearbyEvent::Type::PlayerState: {
-                    assert(!"Deprecated");
+                    E_WARN("NearbyEvent::PlayerState deprecated", 0);
                     break;
                 } case NetMessage_NearbyEvent::Type::EnemyState: {
-                    assert(!"Deprecated");
+                    E_WARN("NearbyEvent::EnemyState deprecated", 0);
                     break;
                 }
             }
@@ -881,7 +881,7 @@ ErrorType NetClient::Receive(void)
         //    //E_ASSERT(ErrorType::PeerConnectFailed, "Failed to connect to server %s:%hu.", hostname, port);
         //}
 
-        thread_local const char *prevState = 0;
+        thread_local static const char *prevState = 0;
         const char *curState = ServerStateString();
         if (curState != prevState) {
             E_INFO("%s", curState);
@@ -891,9 +891,7 @@ ErrorType NetClient::Receive(void)
         if (svc > 0) {
             switch (event.type) {
                 case ENET_EVENT_TYPE_CONNECT: {
-                    E_INFO("Connected to server %x:%hu.",
-                        event.peer->address.host,
-                        event.peer->address.port);
+                    E_INFO("Connected to server on port %hu.", event.peer->address.port);
 
                     assert(!serverWorld);
                     serverWorld = new World;
@@ -912,23 +910,19 @@ ErrorType NetClient::Receive(void)
                     //E_INFO("RECV\n  %s said %s", senderStr, packet.rawBytes);
                     break;
                 } case ENET_EVENT_TYPE_DISCONNECT: {
-                    E_INFO("Disconnected from server %x:%u.",
-                        event.peer->address.host,
-                        event.peer->address.port);
+                    E_INFO("Disconnected from server %hu.", event.peer->address.port);
 
                     Disconnect();
                     //serverWorld->chatHistory.PushMessage(CSTR("Sam"), CSTR("Disconnected from server."));
                     break;
                 } case ENET_EVENT_TYPE_DISCONNECT_TIMEOUT: {
-                    E_WARN("Connection timed out for server %x:%hu.",
-                        event.peer->address.host,
-                        event.peer->address.port);
+                    E_WARN("Connection timed out for server on port %hu.", event.peer->address.port);
 
                     Disconnect();
                     //serverWorld->chatHistory.PushMessage(CSTR("Sam"), CSTR("Your connection to the server timed out. :("));
                     break;
                 } default: {
-                    assert(!"unhandled event itemClass");
+                    E_WARN("Unhandled ENET_EVENT_TYPE %d", event.type);
                 }
             }
         }

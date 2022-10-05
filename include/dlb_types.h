@@ -141,12 +141,13 @@ typedef DLB_ASSERT_HANDLER(dlb_assert_handler_def);
 extern dlb_assert_handler_def *dlb_assert_handler;
 
 #define DLB_ASSERT(expr) \
-    if (expr) { } \
-    else { \
-        if (dlb_assert_handler) { \
-            (*dlb_assert_handler)(#expr, __FILE__, __LINE__); \
+    do { \
+        if (!(expr)) { \
+            if (dlb_assert_handler) { \
+                (*dlb_assert_handler)(#expr, __FILE__, __LINE__); \
+            } \
+            __debugbreak(); \
+            exit(-1); \
         } \
-        __debugbreak(); \
-        exit(-1); \
-    }
+    } while(0)
 //------------------------------------------------------------------------------

@@ -2,8 +2,8 @@
 #include "chat.h"
 #include "error.h"
 #include "fbs.h"
-#include "item_world.h"
 #include "tilemap.h"
+#include "world_item.h"
 #include "dlb_murmur3.h"
 #include <cstdint>
 #include <unordered_map>
@@ -65,7 +65,7 @@ private:
     ErrorType BroadcastPlayerLeave (uint32_t playerId);
     ErrorType SendPlayerState      (const SV_Client &client, const Player &otherPlayer, bool nearby, bool spawned);
     ErrorType SendNPCState         (const SV_Client &client, const NPC &npc, bool nearby, bool spawned);
-    ErrorType SendItemState        (const SV_Client &client, const ItemWorld &item, bool nearby, bool spawned);
+    ErrorType SendItemState        (const SV_Client &client, const WorldItem &item, bool nearby, bool spawned);
     ErrorType BroadcastTileUpdate  (float worldX, float worldY, const Tile &tile);
 
     bool IsValidInput (const SV_Client &client, const InputSample &sample);
