@@ -709,10 +709,10 @@ ErrorType NetServer::SendNearbyEvents(const SV_Client &client)
 ErrorType NetServer::SendPlayerState(const SV_Client &client, const Player &otherPlayer, bool nearby, bool spawned)
 {
     NetMessage netMsg{};
-    netMsg.itemClass = NetMessage::Type::NearbyEvent;
+    netMsg.type = NetMessage::Type::NearbyEvent;
 
     NetMessage_NearbyEvent &nearbyEvent = netMsg.data.nearbyEvent;
-    nearbyEvent.itemClass = NetMessage_NearbyEvent::Type::PlayerState;
+    nearbyEvent.type = NetMessage_NearbyEvent::Type::PlayerState;
 
     NetMessage_NearbyEvent::PlayerState &state = netMsg.data.nearbyEvent.data.playerState;
     state.type = otherPlayer.type;
@@ -738,10 +738,10 @@ ErrorType NetServer::SendPlayerState(const SV_Client &client, const Player &othe
 ErrorType NetServer::SendEnemyState(const SV_Client &client, const Slime &enemy, bool nearby, bool spawned)
 {
     NetMessage netMsg{};
-    netMsg.itemClass = NetMessage::Type::NearbyEvent;
+    netMsg.type = NetMessage::Type::NearbyEvent;
 
     NetMessage_NearbyEvent &nearbyEvent = netMsg.data.nearbyEvent;
-    nearbyEvent.itemClass = NetMessage_NearbyEvent::Type::EnemyState;
+    nearbyEvent.type = NetMessage_NearbyEvent::Type::EnemyState;
 
     NetMessage_NearbyEvent::EnemyState &state = netMsg.data.nearbyEvent.data.enemyState;
     state.type = enemy.type;
@@ -1249,7 +1249,7 @@ void NetServer::ProcessMsg(SV_Client &client, ENetPacket &packet)
             }
             break;
         } default: {
-            E_INFO("Unexpected netMsg itemClass: %s", netMsg.TypeString());
+            E_INFO("Unexpected netMsg type: %s", netMsg.TypeString());
             break;
         }
     }
@@ -1328,7 +1328,13 @@ ErrorType NetServer::Listen(void)
     ENetEvent event{};
     // TODO(dlb): How long should this wait between calls?
     int svc = enet_host_service(server, &event, 1);
-    while (svc > 0) {
+    while (1) {
+        if (svc < 0) {
+            E_ERROR(ErrorType::ENetServiceError, "Unknown network error");
+            break;
+        } else if (!svc) {
+            break;  // No more events
+        }
         switch (event.type) {
             case ENET_EVENT_TYPE_CONNECT: {
                 E_INFO("A new client connected from %x:%u.", SafeTextFormatIP(event.peer->address));
@@ -1357,7 +1363,7 @@ ErrorType NetServer::Listen(void)
                 RemoveClient(event.peer);
                 break;
             } default: {
-                E_WARN("Unhandled event itemClass: %d", event.type);
+                E_WARN("Unhandled event type: %d", event.type);
                 break;
             }
         }

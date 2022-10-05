@@ -183,6 +183,8 @@ void GameClient::Init(void)
     Catalog::g_spritesheets.Load();
     LoadingScreen("Loading Tilesets...");
     tileset_init();
+    LoadingScreen("Loading Network...");
+    netClient.Load();
 
 #if CL_DEMO_VIEW_RTREE
     const int RECT_COUNT = 100;

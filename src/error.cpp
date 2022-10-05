@@ -83,12 +83,18 @@ static void traceLogCallback(int logType, const char *text, va_list args)
     const char *escCode = "";
     const char *logLevel = "";
     switch (logType) {
-        case LOG_TRACE   : escCode = STY_BOLD   FG_MAGENTA ; logLevel = "TRACE"; break;
-        case LOG_DEBUG   : escCode = STY_BOLD   FG_CYAN    ; logLevel = "DEBUG"; break;
-        case LOG_INFO    : escCode = STY_DIM    FG_WHITE   ; logLevel = "INFO";  break;
-        case LOG_WARNING : escCode = STY_BOLD   FG_YELLOW  ; logLevel = "WARN";  break;
-        case LOG_ERROR   : escCode = STY_BOLD   FG_RED     ; logLevel = "ERROR"; break;
-        case LOG_FATAL   : escCode = STY_ITALIC FG_RED     ; logLevel = "FATAL"; break;
+        case LOG_TRACE   : escCode = STY_BOLD   FG_MAGENTA ; logLevel = "RL_TRACE"; break;
+        case LOG_DEBUG   : escCode = STY_BOLD   FG_CYAN    ; logLevel = "RL_DEBUG"; break;
+        case LOG_INFO    : escCode = STY_DIM    FG_WHITE   ; logLevel = "RL_INFO "; break;
+        case LOG_WARNING : escCode = STY_BOLD   FG_YELLOW  ; logLevel = "RL_WARN "; break;
+        case LOG_ERROR   : escCode = STY_BOLD   FG_RED     ; logLevel = "RL_ERROR"; break;
+        case LOG_FATAL   : escCode = STY_ITALIC FG_RED     ; logLevel = "RL_FATAL"; break;
+        case LOG_NONE + LOG_TRACE   : escCode = STY_BOLD   FG_MAGENTA ; logLevel = "TRACE"; break;
+        case LOG_NONE + LOG_DEBUG   : escCode = STY_BOLD   FG_CYAN    ; logLevel = "DEBUG"; break;
+        case LOG_NONE + LOG_INFO    : escCode = STY_DIM    FG_WHITE   ; logLevel = "INFO "; break;
+        case LOG_NONE + LOG_WARNING : escCode = STY_BOLD   FG_YELLOW  ; logLevel = "WARN "; break;
+        case LOG_NONE + LOG_ERROR   : escCode = STY_BOLD   FG_RED     ; logLevel = "ERROR"; break;
+        case LOG_NONE + LOG_FATAL   : escCode = STY_ITALIC FG_RED     ; logLevel = "FATAL"; break;
     }
 
     thread_local std::mutex mutex;
@@ -108,13 +114,13 @@ static void traceLogCallback(int logType, const char *text, va_list args)
 #endif
 
     if (logFile) {
-        fprintf(logFile, "[%6.3fs|%s| ", time, logLevel);
+        fprintf(logFile, "[%6.3fs|%-8s| ", time, logLevel);
         vfprintf(logFile, text, args);
         fputs("\n", logFile);
         fflush(logFile);
     }
 
-    fprintf(stdout, "%s[%6.3fs|%s|", escCode, time, logLevel);
+    fprintf(stdout, "%s[%6.3fs|%-8s|", escCode, time, logLevel);
     vfprintf(stdout, text, args);
     fputs("\n" RESET, stdout);
     fflush(stdout);

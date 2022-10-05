@@ -260,7 +260,7 @@ namespace RTree {
                             matches.push_back(node.entries[i]->udata);
                             break;
                         default:
-                            assert(!"Unexpected variant itemClass");
+                            assert(!"Unexpected variant type");
                             break;
                     }
                 }

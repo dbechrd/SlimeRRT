@@ -106,7 +106,7 @@ struct ItemSnapshot {
    enum Flags : uint32_t {
         Flags_None       = 0,
         Flags_Despawn    = 1 << 0,  // picked up / stale
-        Flags_ItemUid    = 1 << 1,  // itemClass of item
+        Flags_ItemUid    = 1 << 1,  // uid of item
         Flags_StackCount = 1 << 2,  // size of item stack (if 0, item is picked up entirely)
         Flags_Position   = 1 << 3,  // world position
         Flags_Spawn =

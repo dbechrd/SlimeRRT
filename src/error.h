@@ -13,6 +13,7 @@ enum class ErrorType {
     FileWriteFailed,
     FileReadFailed,
     ENetInitFailed,
+    ENetServiceError,
     HostCreateFailed,
     PacketCreateFailed,
     PeerConnectFailed,
@@ -38,23 +39,23 @@ void error_free();
 
 #define E__LOG(level, format, ...) \
     do { \
-        TraceLog(level, "%11s] %s" format, LOG_SRC, g_clock.server \
-            ? "                                        [S] " \
+        TraceLog(level, "%-11s] %s" format, LOG_SRC, g_clock.server \
+            ? "[S] " \
             : "[C] ", __VA_ARGS__); \
         fflush(stdout); \
     } while(0)
 
 // Standard log msg level helpers
-#define E_TRACE(format, ...) E__LOG(LOG_TRACE, format, __VA_ARGS__)
-#define E_DEBUG(format, ...) E__LOG(LOG_DEBUG, format, __VA_ARGS__)
-#define E_INFO(format, ...) E__LOG(LOG_INFO, format, __VA_ARGS__)
-#define E_WARN(format, ...) E__LOG(LOG_WARNING, format, __VA_ARGS__)
+#define E_TRACE(format, ...) E__LOG(LOG_NONE + LOG_TRACE, format, __VA_ARGS__)
+#define E_DEBUG(format, ...) E__LOG(LOG_NONE + LOG_DEBUG, format, __VA_ARGS__)
+#define E_INFO(format, ...) E__LOG(LOG_NONE + LOG_INFO, format, __VA_ARGS__)
+#define E_WARN(format, ...) E__LOG(LOG_NONE + LOG_WARNING, format, __VA_ARGS__)
 
 // Log debug msg if expr is true/not null
 #define E_DEBUG_TRUE(expr, format, ...) \
     do { \
         if (expr) { \
-            E__LOG(LOG_DEBUG, format, __VA_ARGS__); \
+            E__LOG(LOG_NONE + LOG_DEBUG, format, __VA_ARGS__); \
         } \
     } while(0)
 
@@ -67,7 +68,7 @@ void error_free();
     do { \
         ErrorType e_error = (expr); \
         if (e_error != ErrorType::Success) { \
-            E__LOG(LOG_ERROR, "%s (%d)\n  %s:%d\n  " format, #expr, (int)e_error, __FILE__, __LINE__, __VA_ARGS__); \
+            E__LOG(LOG_NONE + LOG_ERROR, "%s (%d)\n  %s:%d\n  " format, #expr, (int)e_error, __FILE__, __LINE__, __VA_ARGS__); \
         } \
     } while(0)
 

@@ -25,14 +25,16 @@ ErrorType NetClient::SaveDefaultServerDB(const char *filename)
     return ErrorType::Success;
 }
 
-NetClient::NetClient(void)
+ErrorType NetClient::Load(void)
 {
     if (server_db.Load("db/servers.dat") == ErrorType::FileReadFailed) {
-        SaveDefaultServerDB("db/servers.dat");
+        E_ERROR_RETURN(SaveDefaultServerDB("db/servers.dat"), "Failed to save default server DB");
     };
 
     rawPacket.dataLength = PACKET_SIZE_MAX;
     rawPacket.data = calloc(rawPacket.dataLength, sizeof(uint8_t));
+
+    return ErrorType::Success;
 }
 
 NetClient::~NetClient(void)

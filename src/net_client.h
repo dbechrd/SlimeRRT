@@ -26,8 +26,8 @@ struct NetClient {
     RingBuffer<InputSample,   CL_INPUT_HISTORY> inputHistory {};
     RingBuffer<WorldSnapshot, CL_WORLD_HISTORY> worldHistory {};
 
-    NetClient                     (void);
-    ~NetClient                    (void);
+    ErrorType Load                (void);
+              ~NetClient          (void);
     ErrorType OpenSocket          (void);
     ErrorType Connect             (const char *serverHost, unsigned short serverPort, const char *user, const char *password);
     ErrorType SendChatMessage     (const char *message, size_t messageLength);
