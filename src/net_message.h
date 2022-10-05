@@ -285,10 +285,10 @@ struct NetMessage {
         NetMessage_TileInteract    tileInteract;
     } data{};
 
-    size_t Serialize(ENetBuffer &buffer);
-    size_t Deserialize(const ENetBuffer &buffer);
+    size_t Serialize(uint8_t *buf, size_t len);
+    size_t Deserialize(const uint8_t *buf, size_t len);
 
 private:
     static ENetBuffer tempBuffer;
-    size_t Process(BitStream::Mode mode, ENetBuffer &buffer);
+    size_t Process(BitStream::Mode mode, uint8_t *buf, size_t len);
 };

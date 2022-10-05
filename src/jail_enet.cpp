@@ -4,7 +4,7 @@
 #include "jail_windows_h.h"
 
 // -- winsock2.h flags --
-#define _WINSOCK_DEPRECATED_NO_WARNINGS
+//#define _WINSOCK_DEPRECATED_NO_WARNINGS
 #pragma warning(push)
 #pragma warning(disable:4100)
 #pragma warning(disable:4245)

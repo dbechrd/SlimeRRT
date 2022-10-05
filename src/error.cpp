@@ -97,7 +97,7 @@ static void traceLogCallback(int logType, const char *text, va_list args)
         case LOG_NONE + LOG_FATAL   : escCode = STY_ITALIC FG_RED     ; logLevel = "FATAL"; break;
     }
 
-    thread_local std::mutex mutex;
+    static std::mutex mutex;
     std::lock_guard<std::mutex> lock(mutex);
 
     double time = 0;

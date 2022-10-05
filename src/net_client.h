@@ -155,11 +155,11 @@ struct NetClient {
 
 private:
     const char *LOG_SRC = "NetClient";
+    static uint8_t rawPacket[PACKET_SIZE_MAX];
     NetMessage tempMsg {};
-    ENetBuffer rawPacket {};
 
     ErrorType   SaveDefaultServerDB (const char *filename);
-    ErrorType   SendRaw             (const void *data, size_t size);
+    ErrorType   SendRaw             (const uint8_t *buf, size_t len);
     ErrorType   SendMsg             (NetMessage &message);
     ErrorType   Auth                (void);
     void        ProcessMsg          (ENetPacket &packet);

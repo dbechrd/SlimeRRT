@@ -1,4 +1,5 @@
 #pragma once
+#include "helpers.h"
 #include "tileset.h"
 #include "math.h"
 #include "object.h"
@@ -8,7 +9,6 @@
 #include <unordered_map>
 
 struct World;
-typedef uint32_t ChunkHash;
 
 struct Noise {
     void Seed(int64_t seed) {

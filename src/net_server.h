@@ -3,6 +3,7 @@
 #include "error.h"
 #include "fbs.h"
 #include "item_world.h"
+#include "tilemap.h"
 #include "dlb_murmur3.h"
 #include <cstdint>
 #include <unordered_map>
@@ -46,9 +47,9 @@ struct NetServer {
     void      CloseSocket       (void);
 
 private:
-    static const char *LOG_SRC;
+    const char *LOG_SRC = "NetServer";
+    static uint8_t rawPacket[PACKET_SIZE_MAX];
     NetMessage netMsg {};
-    ENetBuffer rawPacket {};
     FBS_Buffer fbs_users {};
 
     ErrorType SaveUserDB(const char *filename);

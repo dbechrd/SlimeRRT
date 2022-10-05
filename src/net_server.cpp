@@ -6,7 +6,7 @@
 #include "raylib/raylib.h"
 #include "dlb_types.h"
 
-const char *NetServer::LOG_SRC = "NetServer";
+uint8_t NetServer::rawPacket[PACKET_SIZE_MAX];
 
 ErrorType NetServer::SaveUserDB(const char *filename)
 {
@@ -53,15 +53,15 @@ NetServer::NetServer(void)
     SaveUserDB("db/users.dat");
     LoadUserDB("db/users.dat");
 
-    rawPacket.dataLength = PACKET_SIZE_MAX;
-    rawPacket.data = calloc(rawPacket.dataLength, sizeof(uint8_t));
+    //rawPacket.dataLength = PACKET_SIZE_MAX;
+    //rawPacket.data = calloc(rawPacket.dataLength, sizeof(uint8_t));
 }
 
 NetServer::~NetServer(void)
 {
     E_DEBUG("Killing NetServer");
     CloseSocket();
-    free(rawPacket.data);
+    //free(rawPacket.data);
     UnloadFileData(fbs_users.data);
 }
 
@@ -142,8 +142,8 @@ ErrorType NetServer::SendMsg(const SV_Client &client, NetMessage &message)
     }
 
     message.connectionToken = client.connectionToken;
-    memset(rawPacket.data, 0, rawPacket.dataLength);
-    size_t bytes = message.Serialize(rawPacket);
+    memset(rawPacket, 0, sizeof(rawPacket));
+    size_t bytes = message.Serialize(CSTR0(rawPacket));
 
     //E_INFO("[SEND][%21s][%5u b] %16s ", SafeTextFormatIP(client.peer->address), rawPacket.dataLength, netMsg.TypeString());
     if (message.type != NetMessage::Type::WorldSnapshot) {
@@ -155,7 +155,7 @@ ErrorType NetServer::SendMsg(const SV_Client &client, NetMessage &message)
         //E_DEBUG("[NetServer] Send %s %s (%zu b)", message.TypeString(), subType, bytes);
     }
 
-    E_ERROR_RETURN(SendRaw(client, rawPacket.data, bytes), "Failed to send packet");
+    E_ERROR_RETURN(SendRaw(client, rawPacket, bytes), "Failed to send packet");
     return ErrorType::Success;
 }
 
@@ -1060,9 +1060,8 @@ void NetServer::ProcessMsg(SV_Client &client, ENetPacket &packet)
 {
     assert(serverWorld);
 
-    ENetBuffer packetBuffer{ packet.dataLength, packet.data };
     memset(&netMsg, 0, sizeof(netMsg));
-    netMsg.Deserialize(packetBuffer);
+    netMsg.Deserialize(packet.data, packet.dataLength);
 
     if (netMsg.type != NetMessage::Type::Identify &&
         netMsg.connectionToken != client.connectionToken)

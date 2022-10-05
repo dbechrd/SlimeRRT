@@ -183,6 +183,14 @@
 #define CHAT_MAX_MSG_COUNT      20
 #define CHAT_BG_ALPHA           0.5f
 
+// Type alises
+typedef uint32_t ChunkHash;
+typedef uint8_t  ItemSlot;
+typedef uint8_t  ItemClass;
+typedef uint16_t ItemType;
+typedef uint8_t  ItemAffixType;
+typedef uint32_t ItemUID;
+
 //------------------------------------------------------------------------------
 // Helper functions
 //------------------------------------------------------------------------------

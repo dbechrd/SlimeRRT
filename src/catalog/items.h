@@ -1,18 +1,12 @@
 #pragma once
-
+#include "../helpers.h"
 #include "csv.h"
 #include "imgui/imgui.h"
-#include <dlb_murmur3.h>
-#include <dlb_rand.h>
-#include <raylib/raylib.h>
+#include "raylib/raylib.h"
+#include "dlb_murmur3.h"
+#include "dlb_rand.h"
 #include <array>
 #include <unordered_map>
-
-typedef uint8_t  ItemSlot;
-typedef uint8_t  ItemClass;
-typedef uint16_t ItemType;
-typedef uint8_t  ItemAffixType;
-typedef uint32_t ItemUID;
 
 #define ITEM_AFFIX_MAX_COUNT 16
 #define ITEM_NAME_MAX_LENGTH 64

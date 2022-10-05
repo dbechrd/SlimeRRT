@@ -26,10 +26,11 @@ void net_message_test_snapshot()
     npc.hitPoints = 140.0f;
     npc.hitPointsMax = 150.0f;
 
-    ENetBuffer rawPacket{ PACKET_SIZE_MAX, calloc(PACKET_SIZE_MAX, sizeof(uint8_t)) };
-    msgWritten.Serialize(rawPacket);
+    size_t len = PACKET_SIZE_MAX;
+    uint8_t *buf = (uint8_t *)calloc(len, sizeof(*buf));
+    msgWritten.Serialize(buf, len);
     NetMessage baseMsgRead{};
-    baseMsgRead.Deserialize(rawPacket);
+    baseMsgRead.Deserialize(buf, len);
 
     assert(baseMsgRead.connectionToken = msgWritten.connectionToken);
     assert(baseMsgRead.type == msgWritten.type);
@@ -54,7 +55,7 @@ void net_message_test_snapshot()
     assert(npcRead.hitPointsMax == npc.hitPointsMax);
 
     delete &msgWritten;
-    free(rawPacket.data);
+    free(buf);
 }
 
 void net_message_test_chat()
@@ -66,10 +67,11 @@ void net_message_test_chat()
     memcpy(msgWritten.data.chatMsg.message, CSTR("This is a test message"));
     msgWritten.data.chatMsg.messageLength = (uint32_t)strlen(msgWritten.data.chatMsg.message);
 
-    ENetBuffer rawPacket{ PACKET_SIZE_MAX, calloc(PACKET_SIZE_MAX, sizeof(uint8_t)) };
-    msgWritten.Serialize(rawPacket);
+    size_t len = PACKET_SIZE_MAX;
+    uint8_t *buf = (uint8_t *)calloc(len, sizeof(*buf));
+    msgWritten.Serialize(buf, len);
     NetMessage baseMsgRead{};
-    baseMsgRead.Deserialize(rawPacket);
+    baseMsgRead.Deserialize(buf, len);
 
     assert(baseMsgRead.type == NetMessage::Type::ChatMessage);
     NetMessage_ChatMessage &msgRead = baseMsgRead.data.chatMsg;
@@ -80,7 +82,7 @@ void net_message_test_chat()
     assert(msgRead.messageLength == msgWritten.data.chatMsg.messageLength);
     assert(!strncmp(msgRead.message, msgWritten.data.chatMsg.message, msgRead.messageLength));
     delete &msgWritten;
-    free(rawPacket.data);
+    free(buf);
 }
 
 void net_message_test()

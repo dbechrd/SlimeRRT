@@ -44,9 +44,14 @@ elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
         # Disable warnings
         -Wno-format-security
         -Wno-deprecated-declarations
-        # Disable warnings about C++98 incompatibility. We're using C++17 features...
+        -Wno-old-style-cast
+        -Wno-cast-align
+        -Wno-zero-as-null-pointer-constant
+        -Wno-global-constructors
+        -Wno-missing-prorotypes
+        # Disable warnings about C++98 incompatibility. We're using C++20...
         #-Wno-c++98-compat
-        #-Wno-c++98-compat-pedantic
+        -Wno-c++98-compat-pedantic
     )
 elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
     #add_compile_options (-fdiagnostics-color=always)

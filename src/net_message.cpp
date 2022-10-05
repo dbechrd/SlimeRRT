@@ -3,14 +3,13 @@
 #include "helpers.h"
 #include "net_message.h"
 #include "tilemap.h"
-#include <cassert>
 
-size_t NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer)
+size_t NetMessage::Process(BitStream::Mode mode, uint8_t *buf, size_t len)
 {
-    assert(buffer.data);
-    assert(buffer.dataLength);
+    DLB_ASSERT(buf);
+    DLB_ASSERT(len);
 
-    BitStream stream(mode, buffer.data, buffer.dataLength);
+    BitStream stream(mode, (void *)buf, len);
 
     stream.Process(connectionToken);
 
@@ -119,7 +118,7 @@ size_t NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer)
                     stream.Process(sample.walkWest);
                     stream.Process(sample.run);
                     stream.Process(sample.primary);
-                    assert(PlayerInvSlot_Count > 0);
+                    DLB_ASSERT(PlayerInvSlot_Count > 0);
                     stream.Process(sample.selectSlot, 8, 0, PlayerInvSlot_Count - 1);
                 }
                 //E_DEBUG("%s sample: %u %f", mode == BitStream::Mode::Reader ? "READ" : "WRITE", sample.seq, sample.dt);
@@ -459,7 +458,7 @@ size_t NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer)
             stream.Align();
             break;
         } default: {
-            assert(!"Unrecognized NetMessageType");
+            DLB_ASSERT(!"Unrecognized NetMessageType");
         }
     }
 
@@ -481,20 +480,20 @@ size_t NetMessage::Process(BitStream::Mode mode, ENetBuffer &buffer)
     return bytesProcessed;
 }
 
-size_t NetMessage::Serialize(ENetBuffer &buffer)
+size_t NetMessage::Serialize(uint8_t *buf, size_t len)
 {
-    assert(buffer.data);
-    assert(buffer.dataLength);
-    size_t bytesProcessed = Process(BitStream::Mode::Writer, buffer);
-    assert(bytesProcessed);
+    DLB_ASSERT(buf);
+    DLB_ASSERT(len);
+    size_t bytesProcessed = Process(BitStream::Mode::Writer, buf, len);
+    DLB_ASSERT(bytesProcessed);
     return bytesProcessed;
 }
 
-size_t NetMessage::Deserialize(const ENetBuffer &buffer)
+size_t NetMessage::Deserialize(const uint8_t *buf, size_t len)
 {
-    assert(buffer.data);
-    assert(buffer.dataLength);
-    size_t bytesProcessed = Process(BitStream::Mode::Reader, (ENetBuffer &)buffer);
-    assert(bytesProcessed);
+    DLB_ASSERT(buf);
+    DLB_ASSERT(len);
+    size_t bytesProcessed = Process(BitStream::Mode::Reader, (uint8_t *)buf, len);
+    DLB_ASSERT(bytesProcessed);
     return bytesProcessed;
 }

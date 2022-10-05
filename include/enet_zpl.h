@@ -226,9 +226,9 @@ extern "C" {
     typedef uint64_t enet_uint64;   /**< unsigned 64-bit type */
 
     typedef enet_uint32 ENetVersion;
-    typedef struct _ENetPacket ENetPacket;
+    typedef struct implEnetPacket ENetPacket;
 
-    typedef struct _ENetCallbacks {
+    typedef struct implEnetCallbacks {
         void *(ENET_CALLBACK *malloc) (size_t size);
         void (ENET_CALLBACK *free) (void *memory);
         void (ENET_CALLBACK *no_memory) (void);
@@ -249,14 +249,14 @@ extern "C" {
 // !
 // =======================================================================//
 
-    typedef struct _ENetListNode {
-        struct _ENetListNode *next;
-        struct _ENetListNode *previous;
+    typedef struct implEnetListNode {
+        struct implEnetListNode *next;
+        struct implEnetListNode *previous;
     } ENetListNode;
 
     typedef ENetListNode *ENetListIterator;
 
-    typedef struct _ENetList {
+    typedef struct implEnetList {
         ENetListNode sentinel;
     } ENetList;
 
@@ -294,7 +294,7 @@ extern "C" {
         ENET_PROTOCOL_MAXIMUM_FRAGMENT_COUNT  = 1024 * 1024
     };
 
-    typedef enum _ENetProtocolCommand {
+    typedef enum implEnetProtocolCommand {
         ENET_PROTOCOL_COMMAND_NONE                     = 0,
         ENET_PROTOCOL_COMMAND_ACKNOWLEDGE              = 1,
         ENET_PROTOCOL_COMMAND_CONNECT                  = 2,
@@ -313,7 +313,7 @@ extern "C" {
         ENET_PROTOCOL_COMMAND_MASK                     = 0x0F
     } ENetProtocolCommand;
 
-    typedef enum _ENetProtocolFlag {
+    typedef enum implEnetProtocolFlag {
         ENET_PROTOCOL_COMMAND_FLAG_ACKNOWLEDGE = (1 << 7),
         ENET_PROTOCOL_COMMAND_FLAG_UNSEQUENCED = (1 << 6),
 
@@ -334,24 +334,24 @@ extern "C" {
     #define ENET_PACKED
     #endif
 
-    typedef struct _ENetProtocolHeader {
+    typedef struct implEnetProtocolHeader {
         enet_uint16 peerID;
         enet_uint16 sentTime;
     } ENET_PACKED ENetProtocolHeader;
 
-    typedef struct _ENetProtocolCommandHeader {
+    typedef struct implEnetProtocolCommandHeader {
         enet_uint8  command;
         enet_uint8  channelID;
         enet_uint16 reliableSequenceNumber;
     } ENET_PACKED ENetProtocolCommandHeader;
 
-    typedef struct _ENetProtocolAcknowledge {
+    typedef struct implEnetProtocolAcknowledge {
         ENetProtocolCommandHeader header;
         enet_uint16               receivedReliableSequenceNumber;
         enet_uint16               receivedSentTime;
     } ENET_PACKED ENetProtocolAcknowledge;
 
-    typedef struct _ENetProtocolConnect {
+    typedef struct implEnetProtocolConnect {
         ENetProtocolCommandHeader header;
         enet_uint16               outgoingPeerID;
         enet_uint8                incomingSessionID;
@@ -368,7 +368,7 @@ extern "C" {
         enet_uint32               data;
     } ENET_PACKED ENetProtocolConnect;
 
-    typedef struct _ENetProtocolVerifyConnect {
+    typedef struct implEnetProtocolVerifyConnect {
         ENetProtocolCommandHeader header;
         enet_uint16               outgoingPeerID;
         enet_uint8                incomingSessionID;
@@ -384,46 +384,46 @@ extern "C" {
         enet_uint32               connectID;
     } ENET_PACKED ENetProtocolVerifyConnect;
 
-    typedef struct _ENetProtocolBandwidthLimit {
+    typedef struct implEnetProtocolBandwidthLimit {
         ENetProtocolCommandHeader header;
         enet_uint32               incomingBandwidth;
         enet_uint32               outgoingBandwidth;
     } ENET_PACKED ENetProtocolBandwidthLimit;
 
-    typedef struct _ENetProtocolThrottleConfigure {
+    typedef struct implEnetProtocolThrottleConfigure {
         ENetProtocolCommandHeader header;
         enet_uint32               packetThrottleInterval;
         enet_uint32               packetThrottleAcceleration;
         enet_uint32               packetThrottleDeceleration;
     } ENET_PACKED ENetProtocolThrottleConfigure;
 
-    typedef struct _ENetProtocolDisconnect {
+    typedef struct implEnetProtocolDisconnect {
         ENetProtocolCommandHeader header;
         enet_uint32               data;
     } ENET_PACKED ENetProtocolDisconnect;
 
-    typedef struct _ENetProtocolPing {
+    typedef struct implEnetProtocolPing {
         ENetProtocolCommandHeader header;
     } ENET_PACKED ENetProtocolPing;
 
-    typedef struct _ENetProtocolSendReliable {
+    typedef struct implEnetProtocolSendReliable {
         ENetProtocolCommandHeader header;
         enet_uint16               dataLength;
     } ENET_PACKED ENetProtocolSendReliable;
 
-    typedef struct _ENetProtocolSendUnreliable {
+    typedef struct implEnetProtocolSendUnreliable {
         ENetProtocolCommandHeader header;
         enet_uint16               unreliableSequenceNumber;
         enet_uint16               dataLength;
     } ENET_PACKED ENetProtocolSendUnreliable;
 
-    typedef struct _ENetProtocolSendUnsequenced {
+    typedef struct implEnetProtocolSendUnsequenced {
         ENetProtocolCommandHeader header;
         enet_uint16               unsequencedGroup;
         enet_uint16               dataLength;
     } ENET_PACKED ENetProtocolSendUnsequenced;
 
-    typedef struct _ENetProtocolSendFragment {
+    typedef struct implEnetProtocolSendFragment {
         ENetProtocolCommandHeader header;
         enet_uint16               startSequenceNumber;
         enet_uint16               dataLength;
@@ -433,7 +433,7 @@ extern "C" {
         enet_uint32               fragmentOffset;
     } ENET_PACKED ENetProtocolSendFragment;
 
-    typedef union _ENetProtocol {
+    typedef union implEnetProtocol {
         ENetProtocolCommandHeader     header;
         ENetProtocolAcknowledge       acknowledge;
         ENetProtocolConnect           connect;
@@ -458,19 +458,19 @@ extern "C" {
 // !
 // =======================================================================//
 
-    typedef enum _ENetSocketType {
+    typedef enum implEnetSocketType {
         ENET_SOCKET_TYPE_STREAM   = 1,
         ENET_SOCKET_TYPE_DATAGRAM = 2
     } ENetSocketType;
 
-    typedef enum _ENetSocketWait {
+    typedef enum implEnetSocketWait {
         ENET_SOCKET_WAIT_NONE      = 0,
         ENET_SOCKET_WAIT_SEND      = (1 << 0),
         ENET_SOCKET_WAIT_RECEIVE   = (1 << 1),
         ENET_SOCKET_WAIT_INTERRUPT = (1 << 2)
     } ENetSocketWait;
 
-    typedef enum _ENetSocketOption {
+    typedef enum implEnetSocketOption {
         ENET_SOCKOPT_NONBLOCK  = 1,
         ENET_SOCKOPT_BROADCAST = 2,
         ENET_SOCKOPT_RCVBUF    = 3,
@@ -483,7 +483,7 @@ extern "C" {
         ENET_SOCKOPT_IPV6_V6ONLY = 10,
     } ENetSocketOption;
 
-    typedef enum _ENetSocketShutdown {
+    typedef enum implEnetSocketShutdown {
         ENET_SOCKET_SHUTDOWN_READ       = 0,
         ENET_SOCKET_SHUTDOWN_WRITE      = 1,
         ENET_SOCKET_SHUTDOWN_READ_WRITE = 2
@@ -499,7 +499,7 @@ extern "C" {
      * but not for enet_host_create.  Once a server responds to a broadcast, the
      * address is updated from ENET_HOST_BROADCAST to the server's actual IP address.
      */
-    typedef struct _ENetAddress {
+    typedef struct implEnetAddress {
         struct in6_addr host;
         enet_uint16 port;
         enet_uint16 sin6_scope_id;
@@ -516,7 +516,7 @@ extern "C" {
      *
      * @sa ENetPacket
      */
-    typedef enum _ENetPacketFlag {
+    typedef enum implEnetPacketFlag {
         ENET_PACKET_FLAG_RELIABLE            = (1 << 0), /** packet must be received by the target peer and resend attempts should be made until the packet is delivered */
         ENET_PACKET_FLAG_UNSEQUENCED         = (1 << 1), /** packet will not be sequenced with other packets not supported for reliable packets */
         ENET_PACKET_FLAG_NO_ALLOCATE         = (1 << 2), /** packet will not allocate data, and user must supply it instead */
@@ -542,22 +542,22 @@ extern "C" {
      *    ENET_PACKET_FLAG_SENT - whether the packet has been sent from all queues it has been entered into
      * @sa ENetPacketFlag
      */
-    typedef struct _ENetPacket {
+    typedef struct implEnetPacket {
         size_t                 referenceCount; /**< internal use only */
         enet_uint32            flags;          /**< bitwise-or of ENetPacketFlag constants */
-        enet_uint8 *           data;           /**< allocated data for packet */
+        const enet_uint8 *     data;           /**< allocated data for packet */
         size_t                 dataLength;     /**< length of data */
         ENetPacketFreeCallback freeCallback;   /**< function to be called when the packet is no longer in use */
         void *                 userData;       /**< application private data, may be freely modified */
     } ENetPacket;
 
-    typedef struct _ENetAcknowledgement {
+    typedef struct implEnetAcknowledgement {
         ENetListNode acknowledgementList;
         enet_uint32  sentTime;
         ENetProtocol command;
     } ENetAcknowledgement;
 
-    typedef struct _ENetOutgoingCommand {
+    typedef struct implEnetOutgoingCommand {
         ENetListNode outgoingCommandList;
         enet_uint16  reliableSequenceNumber;
         enet_uint16  unreliableSequenceNumber;
@@ -571,7 +571,7 @@ extern "C" {
         ENetPacket * packet;
     } ENetOutgoingCommand;
 
-    typedef struct _ENetIncomingCommand {
+    typedef struct implEnetIncomingCommand {
         ENetListNode incomingCommandList;
         enet_uint16  reliableSequenceNumber;
         enet_uint16  unreliableSequenceNumber;
@@ -582,7 +582,7 @@ extern "C" {
         ENetPacket * packet;
     } ENetIncomingCommand;
 
-    typedef enum _ENetPeerState {
+    typedef enum implEnetPeerState {
         ENET_PEER_STATE_DISCONNECTED             = 0,
         ENET_PEER_STATE_CONNECTING               = 1,
         ENET_PEER_STATE_ACKNOWLEDGING_CONNECT    = 2,
@@ -625,7 +625,7 @@ extern "C" {
         ENET_PEER_FREE_RELIABLE_WINDOWS        = 8
     };
 
-    typedef struct _ENetChannel {
+    typedef struct implEnetChannel {
         enet_uint16 outgoingReliableSequenceNumber;
         enet_uint16 outgoingUnreliableSequenceNumber;
         enet_uint16 usedReliableWindows;
@@ -641,9 +641,9 @@ extern "C" {
      *
      * No fields should be modified unless otherwise specified.
      */
-    typedef struct _ENetPeer {
+    typedef struct implEnetPeer {
         ENetListNode      dispatchList;
-        struct _ENetHost *host;
+        struct implEnetHost *host;
         enet_uint16       outgoingPeerID;
         enet_uint16       incomingPeerID;
         enet_uint32       connectID;
@@ -709,7 +709,7 @@ extern "C" {
     } ENetPeer;
 
     /** An ENet packet compressor for compressing UDP packets before socket sends or receives. */
-    typedef struct _ENetCompressor {
+    typedef struct implEnetCompressor {
         /** Context data for the compressor. Must be non-NULL. */
         void *context;
 
@@ -727,7 +727,7 @@ extern "C" {
     typedef enet_uint32 (ENET_CALLBACK * ENetChecksumCallback)(const ENetBuffer *buffers, size_t bufferCount);
 
     /** Callback for intercepting received raw UDP packets. Should return 1 to intercept, 0 to ignore, or -1 to propagate an error. */
-    typedef int (ENET_CALLBACK * ENetInterceptCallback)(struct _ENetHost *host, void *event);
+    typedef int (ENET_CALLBACK * ENetInterceptCallback)(struct implEnetHost *host, void *event);
 
     /** An ENet host for communicating with peers.
      *
@@ -744,7 +744,7 @@ extern "C" {
      *  @sa enet_host_bandwidth_limit()
      *  @sa enet_host_bandwidth_throttle()
      */
-    typedef struct _ENetHost {
+    typedef struct implEnetHost {
         ENetSocket            socket;
         ENetAddress           address;           /**< Internet address of the host */
         enet_uint32           incomingBandwidth; /**< downstream bandwidth of the host */
@@ -786,7 +786,7 @@ extern "C" {
     /**
      * An ENet event type, as specified in @ref ENetEvent.
      */
-    typedef enum _ENetEventType {
+    typedef enum implEnetEventType {
         /** no event occurred within the specified time limit */
         ENET_EVENT_TYPE_NONE       = 0,
 
@@ -823,7 +823,7 @@ extern "C" {
      *
      * @sa enet_host_service
      */
-    typedef struct _ENetEvent {
+    typedef struct implEnetEvent {
         ENetEventType type;      /**< type of the event */
         ENetPeer *    peer;      /**< peer that generated a connect, disconnect or receive event */
         enet_uint8    channelID; /**< channel on the peer that generated the event, if appropriate */
@@ -960,7 +960,7 @@ extern "C" {
     ENET_API ENetPeerState enet_peer_get_state(ENetPeer *);
 
     ENET_API void * enet_peer_get_data(ENetPeer *);
-    ENET_API void   enet_peer_set_data(ENetPeer *, const void *);
+    ENET_API void   enet_peer_set_data(ENetPeer *, void *);
 
     ENET_API void *      enet_packet_get_data(ENetPacket *);
     ENET_API enet_uint32 enet_packet_get_length(ENetPacket *);
@@ -1033,8 +1033,8 @@ extern "C" {
 #endif
 #endif
 
-#include <winsock2.h>
-#include <ws2tcpip.h>
+#include <WinSock2.h>
+#include <WS2tcpip.h>
 #include <mmsystem.h>
 
 #include <intrin.h>
@@ -1382,7 +1382,7 @@ typedef struct timespec {
                 return NULL;
             }
 
-            packet->data = (enet_uint8 *)data;
+            packet->data = (const enet_uint8 *)data;
         }
         else {
             packet = (ENetPacket *)enet_malloc(sizeof (ENetPacket) + dataLength);
@@ -1393,7 +1393,7 @@ typedef struct timespec {
             packet->data = (enet_uint8 *)packet + sizeof(ENetPacket);
 
             if (data != NULL) {
-                memcpy(packet->data, data, dataLength);
+                memcpy((void *)packet->data, data, dataLength);
             }
         }
 
@@ -1414,7 +1414,7 @@ typedef struct timespec {
                 return NULL;
             }
 
-            packet->data = (enet_uint8 *)data;
+            packet->data = (const enet_uint8 *)data;
         }
         else {
             packet = (ENetPacket *)enet_malloc(sizeof (ENetPacket) + dataLength + dataOffset);
@@ -1425,7 +1425,7 @@ typedef struct timespec {
             packet->data = (enet_uint8 *)packet + sizeof(ENetPacket);
 
             if (data != NULL) {
-                memcpy(packet->data + dataOffset, data, dataLength);
+                memcpy((void *)(packet->data + dataOffset), data, dataLength);
             }
         }
 
@@ -1461,8 +1461,8 @@ typedef struct timespec {
     static int initializedCRC32 = 0;
     static enet_uint32 crcTable[256];
 
-    static enet_uint32 reflect_crc(int val, int bits) {
-        int result = 0, bit;
+    static enet_uint32 reflect_crc(enet_uint32 val, enet_uint32 bits) {
+        enet_uint32 result = 0, bit;
 
         for (bit = 0; bit < bits; bit++) {
             if (val & 1) { result |= 1 << (bits - 1 - bit); }
@@ -1473,11 +1473,11 @@ typedef struct timespec {
     }
 
     static void initialize_crc32(void) {
-        int byte;
+        enet_uint32 byte;
 
         for (byte = 0; byte < 256; ++byte) {
             enet_uint32 crc = reflect_crc(byte, 8) << 24;
-            int offset;
+            enet_uint32 offset;
 
             for (offset = 0; offset < 8; ++offset) {
                 if (crc & 0x80000000) {
@@ -1606,7 +1606,12 @@ typedef struct timespec {
 
                     return 1;
 
-                default:
+                case ENET_PEER_STATE_DISCONNECTED:
+                case ENET_PEER_STATE_CONNECTING:
+                case ENET_PEER_STATE_ACKNOWLEDGING_CONNECT:
+                case ENET_PEER_STATE_DISCONNECT_LATER:
+                case ENET_PEER_STATE_DISCONNECTING:
+                case ENET_PEER_STATE_ACKNOWLEDGING_DISCONNECT:
                     break;
             }
         }
@@ -1895,14 +1900,14 @@ typedef struct timespec {
             windowSize = ENET_PROTOCOL_MAXIMUM_WINDOW_SIZE;
         }
 
-        verifyCommand.header.command                            = ENET_PROTOCOL_COMMAND_VERIFY_CONNECT | ENET_PROTOCOL_COMMAND_FLAG_ACKNOWLEDGE;
+        verifyCommand.header.command                            = (enet_uint8)ENET_PROTOCOL_COMMAND_VERIFY_CONNECT | (enet_uint8)ENET_PROTOCOL_COMMAND_FLAG_ACKNOWLEDGE;
         verifyCommand.header.channelID                          = 0xFF;
         verifyCommand.verifyConnect.outgoingPeerID              = ENET_HOST_TO_NET_16(peer->incomingPeerID);
         verifyCommand.verifyConnect.incomingSessionID           = incomingSessionID;
         verifyCommand.verifyConnect.outgoingSessionID           = outgoingSessionID;
         verifyCommand.verifyConnect.mtu                         = ENET_HOST_TO_NET_32(peer->mtu);
         verifyCommand.verifyConnect.windowSize                  = ENET_HOST_TO_NET_32(windowSize);
-        verifyCommand.verifyConnect.channelCount                = ENET_HOST_TO_NET_32(channelCount);
+        verifyCommand.verifyConnect.channelCount                = ENET_HOST_TO_NET_32((enet_uint32)channelCount);
         verifyCommand.verifyConnect.incomingBandwidth           = ENET_HOST_TO_NET_32(host->incomingBandwidth);
         verifyCommand.verifyConnect.outgoingBandwidth           = ENET_HOST_TO_NET_32(host->outgoingBandwidth);
         verifyCommand.verifyConnect.packetThrottleInterval      = ENET_HOST_TO_NET_32(peer->packetThrottleInterval);
@@ -1963,7 +1968,7 @@ typedef struct timespec {
         unsequencedGroup &= 0xFFFF;
 
         if (unsequencedGroup - index != peer->incomingUnsequencedGroup) {
-            peer->incomingUnsequencedGroup = unsequencedGroup - index;
+            peer->incomingUnsequencedGroup = enet_uint16(unsequencedGroup - index);
             memset(peer->unsequencedWindow, 0, sizeof(peer->unsequencedWindow));
         } else if (peer->unsequencedWindow[index / 32] & (1 << (index % 32))) {
             return 0;
@@ -2020,7 +2025,7 @@ typedef struct timespec {
 
         channel = &peer->channels[command->header.channelID];
         startSequenceNumber = ENET_NET_TO_HOST_16(command->sendFragment.startSequenceNumber);
-        startWindow         = startSequenceNumber / ENET_PEER_RELIABLE_WINDOW_SIZE;
+        startWindow         = (enet_uint16)(startSequenceNumber / ENET_PEER_RELIABLE_WINDOW_SIZE);
         currentWindow       = channel->incomingReliableSequenceNumber / ENET_PEER_RELIABLE_WINDOW_SIZE;
 
         if (startSequenceNumber < channel->incomingReliableSequenceNumber) {
@@ -2079,7 +2084,7 @@ typedef struct timespec {
 
         if (startCommand == NULL) {
             ENetProtocol hostCommand = *command;
-            hostCommand.header.reliableSequenceNumber = startSequenceNumber;
+            hostCommand.header.reliableSequenceNumber = (enet_uint16)startSequenceNumber;
             startCommand = enet_peer_queue_incoming_command(peer, &hostCommand, NULL, totalLength, ENET_PACKET_FLAG_RELIABLE, fragmentCount);
             if (startCommand == NULL) {
                 return -1;
@@ -2091,10 +2096,10 @@ typedef struct timespec {
             startCommand->fragments[fragmentNumber / 32] |= (1 << (fragmentNumber % 32));
 
             if ((size_t)fragmentOffset + fragmentLength > startCommand->packet->dataLength) {
-                fragmentLength = startCommand->packet->dataLength - fragmentOffset;
+                fragmentLength = (enet_uint32)(startCommand->packet->dataLength - fragmentOffset);
             }
 
-            memcpy(startCommand->packet->data + fragmentOffset, (enet_uint8 *) command + sizeof(ENetProtocolSendFragment), fragmentLength);
+            memcpy((void *)(startCommand->packet->data + fragmentOffset), (const enet_uint8 *)command + sizeof(ENetProtocolSendFragment), fragmentLength);
 
             if (startCommand->fragmentsRemaining <= 0) {
                 enet_peer_dispatch_incoming_reliable_commands(peer, channel);
@@ -2125,7 +2130,7 @@ typedef struct timespec {
         reliableSequenceNumber = command->header.reliableSequenceNumber;
         startSequenceNumber    = ENET_NET_TO_HOST_16(command->sendFragment.startSequenceNumber);
 
-        reliableWindow = reliableSequenceNumber / ENET_PEER_RELIABLE_WINDOW_SIZE;
+        reliableWindow = (enet_uint16)(reliableSequenceNumber / ENET_PEER_RELIABLE_WINDOW_SIZE);
         currentWindow  = channel->incomingReliableSequenceNumber / ENET_PEER_RELIABLE_WINDOW_SIZE;
 
         if (reliableSequenceNumber < channel->incomingReliableSequenceNumber) {
@@ -2207,10 +2212,10 @@ typedef struct timespec {
             startCommand->fragments[fragmentNumber / 32] |= (1 << (fragmentNumber % 32));
 
             if ((size_t)fragmentOffset + fragmentLength > startCommand->packet->dataLength) {
-                fragmentLength = startCommand->packet->dataLength - fragmentOffset;
+                fragmentLength = (enet_uint32)(startCommand->packet->dataLength - fragmentOffset);
             }
 
-            memcpy(startCommand->packet->data + fragmentOffset, (enet_uint8 *) command + sizeof(ENetProtocolSendFragment), fragmentLength);
+            memcpy((void *)(startCommand->packet->data + fragmentOffset), (const enet_uint8 *)command + sizeof(ENetProtocolSendFragment), fragmentLength);
 
             if (startCommand->fragmentsRemaining <= 0) {
                 enet_peer_dispatch_incoming_unreliable_commands(peer, channel);
@@ -2311,7 +2316,8 @@ typedef struct timespec {
     }
 
     static int enet_protocol_handle_acknowledge(ENetHost *host, ENetEvent *event, ENetPeer *peer, const ENetProtocol *command) {
-        enet_uint32 roundTripTime, receivedSentTime, receivedReliableSequenceNumber;
+        enet_uint32 roundTripTime, receivedSentTime;
+        enet_uint16 receivedReliableSequenceNumber;
         ENetProtocolCommand commandNumber;
 
         if (peer->state == ENET_PEER_STATE_DISCONNECTED || peer->state == ENET_PEER_STATE_ZOMBIE) {
@@ -2390,7 +2396,13 @@ typedef struct timespec {
                 }
                 break;
 
-            default:
+            case ENET_PEER_STATE_DISCONNECTED:
+            case ENET_PEER_STATE_CONNECTING:
+            case ENET_PEER_STATE_CONNECTION_PENDING:
+            case ENET_PEER_STATE_CONNECTION_SUCCEEDED:
+            case ENET_PEER_STATE_CONNECTED:
+            case ENET_PEER_STATE_ACKNOWLEDGING_DISCONNECT:
+            case ENET_PEER_STATE_ZOMBIE:
                 break;
         }
 
@@ -2681,7 +2693,11 @@ typedef struct timespec {
                         }
                         break;
 
-                    default:
+                    case ENET_PEER_STATE_CONNECTING:
+                    case ENET_PEER_STATE_CONNECTION_PENDING:
+                    case ENET_PEER_STATE_CONNECTION_SUCCEEDED:
+                    case ENET_PEER_STATE_CONNECTED:
+                    case ENET_PEER_STATE_DISCONNECT_LATER:
                         enet_peer_queue_acknowledgement(peer, command, sentTime);
                         break;
                 }
@@ -2721,9 +2737,9 @@ typedef struct timespec {
             }
 
             host->receivedData       = host->packetData[0];
-            host->receivedDataLength = receivedLength;
+            host->receivedDataLength = (size_t)receivedLength;
 
-            host->totalReceivedData += receivedLength;
+            host->totalReceivedData += (enet_uint32)receivedLength;
             host->totalReceivedPackets++;
 
             if (host->intercept != NULL) {
@@ -2789,7 +2805,7 @@ typedef struct timespec {
             command->header.channelID = acknowledgement->command.header.channelID;
             command->header.reliableSequenceNumber = reliableSequenceNumber;
             command->acknowledge.receivedReliableSequenceNumber = reliableSequenceNumber;
-            command->acknowledge.receivedSentTime = ENET_HOST_TO_NET_16(acknowledgement->sentTime);
+            command->acknowledge.receivedSentTime = ENET_HOST_TO_NET_16((enet_uint16)acknowledgement->sentTime);
 
             if ((acknowledgement->command.header.command & ENET_PROTOCOL_COMMAND_MASK) == ENET_PROTOCOL_COMMAND_DISCONNECT) {
                 enet_protocol_dispatch_state(host, peer, ENET_PEER_STATE_ZOMBIE);
@@ -2802,8 +2818,8 @@ typedef struct timespec {
             ++buffer;
         }
 
-        host->commandCount = command - host->commands;
-        host->bufferCount  = buffer - host->buffers;
+        host->commandCount = (size_t)(command - host->commands);
+        host->bufferCount  = (size_t)(buffer - host->buffers);
     } /* enet_protocol_send_acknowledgements */
 
     static void enet_protocol_send_unreliable_outgoing_commands(ENetHost *host, ENetPeer *peer) {
@@ -2873,7 +2889,7 @@ typedef struct timespec {
             if (outgoingCommand->packet != NULL) {
                 ++buffer;
 
-                buffer->data       = outgoingCommand->packet->data + outgoingCommand->fragmentOffset;
+                buffer->data       = (void *)(outgoingCommand->packet->data + outgoingCommand->fragmentOffset);
                 buffer->dataLength = outgoingCommand->fragmentLength;
 
                 host->packetSize += buffer->dataLength;
@@ -2887,8 +2903,8 @@ typedef struct timespec {
             ++buffer;
         }
 
-        host->commandCount = command - host->commands;
-        host->bufferCount  = buffer - host->buffers;
+        host->commandCount = (size_t)(command - host->commands);
+        host->bufferCount  = (size_t)(buffer - host->buffers);
 
         if (peer->state == ENET_PEER_STATE_DISCONNECT_LATER &&
           enet_list_empty(&peer->outgoingReliableCommands) &&
@@ -3046,7 +3062,7 @@ typedef struct timespec {
 
             if (outgoingCommand->packet != NULL) {
                 ++buffer;
-                buffer->data       = outgoingCommand->packet->data + outgoingCommand->fragmentOffset;
+                buffer->data       = (void *)(outgoingCommand->packet->data + outgoingCommand->fragmentOffset);
                 buffer->dataLength = outgoingCommand->fragmentLength;
                 host->packetSize += outgoingCommand->fragmentLength;
                 peer->reliableDataInTransit += outgoingCommand->fragmentLength;
@@ -3059,8 +3075,8 @@ typedef struct timespec {
             ++buffer;
         }
 
-        host->commandCount = command - host->commands;
-        host->bufferCount  = buffer - host->buffers;
+        host->commandCount = (size_t)(command - host->commands);
+        host->bufferCount  = (size_t)(buffer - host->buffers);
 
         return canPing;
     } /* enet_protocol_send_reliable_outgoing_commands */
@@ -3197,8 +3213,8 @@ typedef struct timespec {
                     return -1;
                 }
 
-                host->totalSentData += sentLength;
-                currentPeer->totalDataSent += sentLength;
+                host->totalSentData += (enet_uint32)sentLength;
+                currentPeer->totalDataSent += (enet_uint32)sentLength;
                 host->totalSentPackets++;
             }
 
@@ -3408,7 +3424,7 @@ typedef struct timespec {
         peer->packetThrottleAcceleration = acceleration;
         peer->packetThrottleDeceleration = deceleration;
 
-        command.header.command   = ENET_PROTOCOL_COMMAND_THROTTLE_CONFIGURE | ENET_PROTOCOL_COMMAND_FLAG_ACKNOWLEDGE;
+        command.header.command   = (enet_uint8)ENET_PROTOCOL_COMMAND_THROTTLE_CONFIGURE | (enet_uint8)ENET_PROTOCOL_COMMAND_FLAG_ACKNOWLEDGE;
         command.header.channelID = 0xFF;
 
         command.throttleConfigure.packetThrottleInterval     = ENET_HOST_TO_NET_32(interval);
@@ -3446,7 +3462,7 @@ typedef struct timespec {
 
     /* Extended functionality for easier binding in other programming languages */
     enet_uint32 enet_host_get_peers_count(ENetHost *host) {
-        return host->connectedPeers;
+        return (enet_uint32)host->connectedPeers;
     }
 
     enet_uint32 enet_host_get_packets_sent(ENetHost *host) {
@@ -3472,7 +3488,7 @@ typedef struct timespec {
      */
     enet_uint32 enet_host_get_received_data(ENetHost *host, /*out*/ enet_uint8** data) {
         *data = host->receivedData;
-        return host->receivedDataLength;
+        return (enet_uint32)host->receivedDataLength;
     }
 
     enet_uint32 enet_host_get_mtu(ENetHost *host) {
@@ -3484,7 +3500,7 @@ typedef struct timespec {
     }
 
     enet_uint32 enet_peer_get_ip(ENetPeer *peer, char *ip, size_t ipLength) {
-        return enet_address_get_host_ip(&peer->address, ip, ipLength);
+        return (enet_uint32)enet_address_get_host_ip(&peer->address, ip, ipLength);
     }
 
     enet_uint16 enet_peer_get_port(ENetPeer *peer) {
@@ -3519,8 +3535,8 @@ typedef struct timespec {
         return (void *) peer->data;
     }
 
-    void enet_peer_set_data(ENetPeer *peer, const void *data) {
-        peer->data = (enet_uint32 *) data;
+    void enet_peer_set_data(ENetPeer *peer, void *data) {
+        peer->data = (enet_uint32 *)data;
     }
 
     void * enet_packet_get_data(ENetPacket *packet) {
@@ -3528,7 +3544,7 @@ typedef struct timespec {
     }
 
     enet_uint32 enet_packet_get_length(ENetPacket *packet) {
-        return packet->dataLength;
+        return (enet_uint32)packet->dataLength;
     }
 
     void enet_packet_set_free_callback(ENetPacket *packet, void *callback) {
@@ -3557,7 +3573,8 @@ typedef struct timespec {
         }
 
         if (packet->dataLength > fragmentLength) {
-            enet_uint32 fragmentCount = (packet->dataLength + fragmentLength - 1) / fragmentLength, fragmentNumber, fragmentOffset;
+            enet_uint32 fragmentCount = (enet_uint32)((packet->dataLength + fragmentLength - 1) / fragmentLength);
+            enet_uint32 fragmentNumber, fragmentOffset;
             enet_uint8 commandNumber;
             enet_uint16 startSequenceNumber;
             ENetList fragments;
@@ -3574,7 +3591,7 @@ typedef struct timespec {
                 commandNumber       = ENET_PROTOCOL_COMMAND_SEND_UNRELIABLE_FRAGMENT;
                 startSequenceNumber = ENET_HOST_TO_NET_16(channel->outgoingUnreliableSequenceNumber + 1);
             } else {
-                commandNumber       = ENET_PROTOCOL_COMMAND_SEND_FRAGMENT | ENET_PROTOCOL_COMMAND_FLAG_ACKNOWLEDGE;
+                commandNumber       = (enet_uint8)ENET_PROTOCOL_COMMAND_SEND_FRAGMENT | (enet_uint8)ENET_PROTOCOL_COMMAND_FLAG_ACKNOWLEDGE;
                 startSequenceNumber = ENET_HOST_TO_NET_16(channel->outgoingReliableSequenceNumber + 1);
             }
 
@@ -3598,17 +3615,17 @@ typedef struct timespec {
                 }
 
                 fragment->fragmentOffset           = fragmentOffset;
-                fragment->fragmentLength           = fragmentLength;
+                fragment->fragmentLength           = (enet_uint16)fragmentLength;
                 fragment->packet                   = packet;
                 fragment->command.header.command   = commandNumber;
                 fragment->command.header.channelID = channelID;
 
                 fragment->command.sendFragment.startSequenceNumber = startSequenceNumber;
 
-                fragment->command.sendFragment.dataLength     = ENET_HOST_TO_NET_16(fragmentLength);
+                fragment->command.sendFragment.dataLength     = ENET_HOST_TO_NET_16((enet_uint16)fragmentLength);
                 fragment->command.sendFragment.fragmentCount  = ENET_HOST_TO_NET_32(fragmentCount);
                 fragment->command.sendFragment.fragmentNumber = ENET_HOST_TO_NET_32(fragmentNumber);
-                fragment->command.sendFragment.totalLength    = ENET_HOST_TO_NET_32(packet->dataLength);
+                fragment->command.sendFragment.totalLength    = ENET_HOST_TO_NET_32((enet_uint32)packet->dataLength);
                 fragment->command.sendFragment.fragmentOffset = ENET_NET_TO_HOST_32(fragmentOffset);
 
                 enet_list_insert(enet_list_end(&fragments), fragment);
@@ -3627,19 +3644,19 @@ typedef struct timespec {
         command.header.channelID = channelID;
 
         if ((packet->flags & (ENET_PACKET_FLAG_RELIABLE | ENET_PACKET_FLAG_UNSEQUENCED)) == ENET_PACKET_FLAG_UNSEQUENCED) {
-            command.header.command = ENET_PROTOCOL_COMMAND_SEND_UNSEQUENCED | ENET_PROTOCOL_COMMAND_FLAG_UNSEQUENCED;
-            command.sendUnsequenced.dataLength = ENET_HOST_TO_NET_16(packet->dataLength);
+            command.header.command = (enet_uint8)ENET_PROTOCOL_COMMAND_SEND_UNSEQUENCED | (enet_uint8)ENET_PROTOCOL_COMMAND_FLAG_UNSEQUENCED;
+            command.sendUnsequenced.dataLength = ENET_HOST_TO_NET_16((uint16_t)packet->dataLength);
         }
         else if (packet->flags & ENET_PACKET_FLAG_RELIABLE || channel->outgoingUnreliableSequenceNumber >= 0xFFFF) {
-            command.header.command = ENET_PROTOCOL_COMMAND_SEND_RELIABLE | ENET_PROTOCOL_COMMAND_FLAG_ACKNOWLEDGE;
-            command.sendReliable.dataLength = ENET_HOST_TO_NET_16(packet->dataLength);
+            command.header.command = (enet_uint8)ENET_PROTOCOL_COMMAND_SEND_RELIABLE | (enet_uint8)ENET_PROTOCOL_COMMAND_FLAG_ACKNOWLEDGE;
+            command.sendReliable.dataLength = ENET_HOST_TO_NET_16((uint16_t)packet->dataLength);
         }
         else {
             command.header.command = ENET_PROTOCOL_COMMAND_SEND_UNRELIABLE;
-            command.sendUnreliable.dataLength = ENET_HOST_TO_NET_16(packet->dataLength);
+            command.sendUnreliable.dataLength = ENET_HOST_TO_NET_16((uint16_t)packet->dataLength);
         }
 
-        if (enet_peer_queue_outgoing_command(peer, &command, packet, 0, packet->dataLength) == NULL) {
+        if (enet_peer_queue_outgoing_command(peer, &command, packet, 0, (enet_uint16)packet->dataLength) == NULL) {
             return -1;
         }
 
@@ -3853,7 +3870,7 @@ typedef struct timespec {
             return;
         }
 
-        command.header.command   = ENET_PROTOCOL_COMMAND_PING | ENET_PROTOCOL_COMMAND_FLAG_ACKNOWLEDGE;
+        command.header.command   = (enet_uint8)ENET_PROTOCOL_COMMAND_PING | (enet_uint8)ENET_PROTOCOL_COMMAND_FLAG_ACKNOWLEDGE;
         command.header.channelID = 0xFF;
 
         enet_peer_queue_outgoing_command(peer, &command, NULL, 0, 0);
@@ -3912,7 +3929,7 @@ typedef struct timespec {
         if (peer->state != ENET_PEER_STATE_ZOMBIE && peer->state != ENET_PEER_STATE_DISCONNECTING) {
             enet_peer_reset_queues(peer);
 
-            command.header.command   = ENET_PROTOCOL_COMMAND_DISCONNECT | ENET_PROTOCOL_COMMAND_FLAG_UNSEQUENCED;
+            command.header.command   = (enet_uint8)ENET_PROTOCOL_COMMAND_DISCONNECT | (enet_uint8)ENET_PROTOCOL_COMMAND_FLAG_UNSEQUENCED;
             command.header.channelID = 0xFF;
             command.disconnect.data  = ENET_HOST_TO_NET_32(data);
 
@@ -4216,7 +4233,7 @@ typedef struct timespec {
 
         if ((command->header.command & ENET_PROTOCOL_COMMAND_MASK) != ENET_PROTOCOL_COMMAND_SEND_UNSEQUENCED) {
             reliableSequenceNumber = command->header.reliableSequenceNumber;
-            reliableWindow         = reliableSequenceNumber / ENET_PEER_RELIABLE_WINDOW_SIZE;
+            reliableWindow         = (enet_uint16)(reliableSequenceNumber / ENET_PEER_RELIABLE_WINDOW_SIZE);
             currentWindow = channel->incomingReliableSequenceNumber / ENET_PEER_RELIABLE_WINDOW_SIZE;
 
             if (reliableSequenceNumber < channel->incomingReliableSequenceNumber) {
@@ -4495,7 +4512,7 @@ typedef struct timespec {
 
         for (currentPeer = host->peers; currentPeer < &host->peers[host->peerCount]; ++currentPeer) {
             currentPeer->host = host;
-            currentPeer->incomingPeerID    = currentPeer - host->peers;
+            currentPeer->incomingPeerID    = (enet_uint16)(currentPeer - host->peers);
             currentPeer->outgoingSessionID = currentPeer->incomingSessionID = 0xFF;
             currentPeer->data = NULL;
 
@@ -4601,14 +4618,14 @@ typedef struct timespec {
             memset(channel->reliableWindows, 0, sizeof(channel->reliableWindows));
         }
 
-        command.header.command                     = ENET_PROTOCOL_COMMAND_CONNECT | ENET_PROTOCOL_COMMAND_FLAG_ACKNOWLEDGE;
+        command.header.command                     = (enet_uint8)ENET_PROTOCOL_COMMAND_CONNECT | (enet_uint8)ENET_PROTOCOL_COMMAND_FLAG_ACKNOWLEDGE;
         command.header.channelID                   = 0xFF;
         command.connect.outgoingPeerID             = ENET_HOST_TO_NET_16(currentPeer->incomingPeerID);
         command.connect.incomingSessionID          = currentPeer->incomingSessionID;
         command.connect.outgoingSessionID          = currentPeer->outgoingSessionID;
         command.connect.mtu                        = ENET_HOST_TO_NET_32(currentPeer->mtu);
         command.connect.windowSize                 = ENET_HOST_TO_NET_32(currentPeer->windowSize);
-        command.connect.channelCount               = ENET_HOST_TO_NET_32(channelCount);
+        command.connect.channelCount               = ENET_HOST_TO_NET_32((enet_uint32)channelCount);
         command.connect.incomingBandwidth          = ENET_HOST_TO_NET_32(host->incomingBandwidth);
         command.connect.outgoingBandwidth          = ENET_HOST_TO_NET_32(host->outgoingBandwidth);
         command.connect.packetThrottleInterval     = ENET_HOST_TO_NET_32(currentPeer->packetThrottleInterval);
@@ -4732,8 +4749,8 @@ typedef struct timespec {
         enet_uint32 timeCurrent       = enet_time_get();
         enet_uint32 elapsedTime       = timeCurrent - host->bandwidthThrottleEpoch;
         enet_uint32 peersRemaining    = (enet_uint32) host->connectedPeers;
-        enet_uint32 dataTotal         = ~0;
-        enet_uint32 bandwidth         = ~0;
+        enet_uint32 dataTotal         = ~0u;
+        enet_uint32 bandwidth         = ~0u;
         enet_uint32 throttle          = 0;
         enet_uint32 bandwidthLimit    = 0;
 
@@ -4879,7 +4896,7 @@ typedef struct timespec {
                     continue;
                 }
 
-                command.header.command   = ENET_PROTOCOL_COMMAND_BANDWIDTH_LIMIT | ENET_PROTOCOL_COMMAND_FLAG_ACKNOWLEDGE;
+                command.header.command   = (enet_uint8)ENET_PROTOCOL_COMMAND_BANDWIDTH_LIMIT | (enet_uint8)ENET_PROTOCOL_COMMAND_FLAG_ACKNOWLEDGE;
                 command.header.channelID = 0xFF;
                 command.bandwidthLimit.outgoingBandwidth = ENET_HOST_TO_NET_32(host->outgoingBandwidth);
 
@@ -4921,6 +4938,7 @@ typedef struct timespec {
         }
 
         int clock_gettime(int X, struct timespec *tv) {
+            (void)X;
             LARGE_INTEGER t;
             FILETIME f;
             double microseconds;
@@ -4997,7 +5015,7 @@ typedef struct timespec {
 
         static const uint64_t ns_in_s = 1000 * 1000 * 1000;
         static const uint64_t ns_in_ms = 1000 * 1000;
-        uint64_t current_time_ns = ts.tv_nsec + (uint64_t)ts.tv_sec * ns_in_s;
+        uint64_t current_time_ns = (uint64_t)ts.tv_nsec + (uint64_t)ts.tv_sec * ns_in_s;
 
         // Most of the time we just want to atomically read the start time. We
         // could just use a single CAS instruction instead of this if, but it
@@ -5006,7 +5024,7 @@ typedef struct timespec {
         // Note that statics are auto-initialized to zero, and starting a thread
         // implies a memory barrier. So we know that whatever thread calls this,
         // it correctly sees the start_time_ns as 0 initially.
-        uint64_t offset_ns = ENET_ATOMIC_READ(&start_time_ns);
+        uint64_t offset_ns = (uint64_t)ENET_ATOMIC_READ(&start_time_ns);
         if (offset_ns == 0) {
             // We still need to CAS, since two different threads can get here
             // at the same time.
@@ -5016,7 +5034,7 @@ typedef struct timespec {
             // Set the value of the start_time_ns, such that the first timestamp
             // is at 1ms. This ensures 0 remains a special value.
             uint64_t want_value = current_time_ns - 1 * ns_in_ms;
-            uint64_t old_value = ENET_ATOMIC_CAS(&start_time_ns, 0, want_value);
+            uint64_t old_value = (uint64_t)ENET_ATOMIC_CAS(&start_time_ns, 0, want_value);
             offset_ns = old_value == 0 ? want_value : old_value;
         }
 

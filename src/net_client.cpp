@@ -12,6 +12,8 @@
 #include <ctime>
 #include <memory>
 
+uint8_t NetClient::rawPacket[PACKET_SIZE_MAX];
+
 ErrorType NetClient::SaveDefaultServerDB(const char *filename)
 {
     DB::ServerT tpjGuest{};
@@ -31,8 +33,8 @@ ErrorType NetClient::Load(void)
         E_ERROR_RETURN(SaveDefaultServerDB("db/servers.dat"), "Failed to save default server DB");
     };
 
-    rawPacket.dataLength = PACKET_SIZE_MAX;
-    rawPacket.data = calloc(rawPacket.dataLength, sizeof(uint8_t));
+    //rawPacket.dataLength = PACKET_SIZE_MAX;
+    //rawPacket.data = calloc(rawPacket.dataLength, sizeof(uint8_t));
 
     return ErrorType::Success;
 }
@@ -40,7 +42,7 @@ ErrorType NetClient::Load(void)
 NetClient::~NetClient(void)
 {
     CloseSocket();
-    free(rawPacket.data);
+    //free(rawPacket.data);
 }
 
 ErrorType NetClient::OpenSocket(void)
@@ -98,11 +100,11 @@ ErrorType NetClient::Connect(const char *serverHost, unsigned short serverPort, 
 }
 #pragma warning(pop)
 
-ErrorType NetClient::SendRaw(const void *data, size_t size)
+ErrorType NetClient::SendRaw(const uint8_t *buf, size_t len)
 {
-    assert(data);
-    assert(size);
-    assert(size <= PACKET_SIZE_MAX);
+    assert(buf);
+    assert(len);
+    assert(len <= PACKET_SIZE_MAX);
 
     if (!server || server->state != ENET_PEER_STATE_CONNECTED) {
         E_WARN("Not connected to server. Data not sent.");
@@ -110,7 +112,7 @@ ErrorType NetClient::SendRaw(const void *data, size_t size)
     }
 
     // TODO(dlb): Don't always use reliable flag.. figure out what actually needs to be reliable (e.g. chat)
-    ENetPacket *packet = enet_packet_create(data, size, ENET_PACKET_FLAG_RELIABLE);
+    ENetPacket *packet = enet_packet_create(buf, len, ENET_PACKET_FLAG_RELIABLE);
     if (!packet) {
         E_ERROR_RETURN(ErrorType::PacketCreateFailed, "Failed to create packet.");
     }
@@ -128,10 +130,10 @@ ErrorType NetClient::SendMsg(NetMessage &message)
     }
 
     message.connectionToken = connectionToken;
-    memset(rawPacket.data, 0, rawPacket.dataLength);
-    size_t bytes = message.Serialize(rawPacket);
+    memset(rawPacket, 0, sizeof(rawPacket));
+    size_t bytes = message.Serialize(CSTR0(rawPacket));
     //E_INFO("[SEND][%21s][%5u b] %16s ", rawPacket.dataLength, netMsg.TypeString());
-    E_ERROR_RETURN(SendRaw(rawPacket.data, bytes), "Failed to send packet");
+    E_ERROR_RETURN(SendRaw(rawPacket, bytes), "Failed to send packet");
     return ErrorType::Success;
 }
 
@@ -384,9 +386,8 @@ void NetClient::ReconcilePlayer(void)
 
 void NetClient::ProcessMsg(ENetPacket &packet)
 {
-    ENetBuffer packetBuffer{ packet.dataLength, packet.data };
     memset(&tempMsg, 0, sizeof(tempMsg));
-    tempMsg.Deserialize(packetBuffer);
+    tempMsg.Deserialize(packet.data, packet.dataLength);
 
     if (connectionToken && tempMsg.connectionToken != connectionToken) {
         // Received a netMsg from a stale connection; discard it

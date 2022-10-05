@@ -59,6 +59,10 @@ void GameClient::LoadingScreen(const char *text)
 
 void GameClient::Init(void)
 {
+    // NOTE: There could be other, bigger monitors
+    const int monitorWidth = GetMonitorWidth(0);
+    const int monitorHeight = GetMonitorHeight(0);
+    //InitWindow(monitorWidth, monitorHeight, "Attack the slimes!");
     InitWindow(1600, 900, "Attack the slimes!");
     // NOTE: I could avoid the flicker if Raylib would let me pass it as a flag into InitWindow -_-
     //SetWindowState(FLAG_WINDOW_HIDDEN);
@@ -66,10 +70,17 @@ void GameClient::Init(void)
     SetExitKey(0);  // Disable default Escape exit key, we'll handle escape ourselves
     screenSize = { (float)GetRenderWidth(), (float)GetRenderHeight() };
 
+    SetWindowPosition(
+        monitorWidth / 2 - (int)screenSize.x / 2,
+        monitorHeight / 2 - (int)screenSize.y / 2
+    );
+
     //const int targetFPS = 60;
     //SetTargetFPS(targetFPS);
     SetWindowState(FLAG_VSYNC_HINT);
     SetWindowState(FLAG_WINDOW_RESIZABLE);
+    //SetWindowState(FLAG_FULLSCREEN_MODE);
+    //SetWindowPosition(
 
     const char *fontName = "C:/Windows/Fonts/consolab.ttf";
     //const char *fontName = "data/font/Hack-Bold.ttf";
@@ -79,10 +90,7 @@ void GameClient::Init(void)
     g_fonts.fontBig = LoadFontEx(fontName, 72, 0, 0);
     assert(g_fonts.fontBig.texture.id);
 
-    // NOTE: There could be other, bigger monitors
-    const int monitorWidth = GetMonitorWidth(0);
-    const int monitorHeight = GetMonitorHeight(0);
-    Image checkerboardImage = GenImageChecked(monitorWidth, monitorHeight, 32, 32, LIGHTGRAY, GRAY);
+    Image checkerboardImage = GenImageChecked((int)screenSize.x, (int)screenSize.y, 32, 32, LIGHTGRAY, GRAY);
     checkboardTexture = LoadTextureFromImage(checkerboardImage);
     UnloadImage(checkerboardImage);
 
