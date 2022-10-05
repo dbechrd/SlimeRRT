@@ -75,7 +75,7 @@ void HealthBar::Draw(const Vector2 &topCenter, const char *name, const Combat &c
     bgRect.x = MIN(hpRect.x, nameRect.x) - pad.x;
     bgRect.y = hpRect.y - pad.y;
     bgRect.width  = MAX(hpRect.width, nameRect.width) + pad.x * 2.0f;
-    bgRect.height = hpRect.height + pad.y * 2.0f;
+    bgRect.height = MAX(hpRect.height, nameRect.height) + pad.y * 2.0f;
 
     // Draw background
     DrawRectangleRec(bgRect, Fade(BLACK, 0.5f));

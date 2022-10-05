@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.1.0)
+cmake_minimum_required(VERSION 3.8.0)
 project(SlimeGame VERSION 0.1.0)
 
 #include(CTest)
@@ -21,6 +21,10 @@ add_executable(${PROJECT_NAME}
     src/jail_enet.cpp
     src/jail_imgui.cpp
     src/jail_win32_console.cpp
+)
+
+set_target_properties(${PROJECT_NAME} PROPERTIES
+    VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
 )
 
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")

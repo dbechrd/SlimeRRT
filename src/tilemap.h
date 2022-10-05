@@ -94,10 +94,10 @@ struct Chunk {
     Tile    tiles [CHUNK_W * CHUNK_W]{};  // 32x32 tiles per chunk
 
     inline ChunkHash Hash(void) const {
-        return ((uint32_t)x << 16) | (uint32_t)y;
+        return (ChunkHash)(((uint16_t)x << 16) | (uint16_t)y);
     }
     static inline ChunkHash Hash(int16_t x, int16_t y) {
-        return ((uint32_t)x << 16) | (uint32_t)y;
+        return (ChunkHash)(((uint16_t)x << 16) | (uint16_t)y);
     }
 };
 
