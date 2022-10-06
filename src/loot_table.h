@@ -8,7 +8,7 @@ enum class LootTableID {
     LT_Empty,
     LT_Sam,
     LT_Slime,
-    //LT_2,
+    LT_LooseRock,
     //LT_3,
     //LT_4,
     //LT_5,
