@@ -17,7 +17,7 @@ Spycam  *UI::spycam;
 bool UI::showMenubar = false;
 bool UI::showDemoWindow = false;
 bool UI::showParticleConfig = false;
-bool UI::showNetstatWindow = false;
+bool UI::showNetstatWindow = true;
 bool UI::showItemProtoEditor = false;
 
 bool UI::disconnectRequested = false;
@@ -330,9 +330,9 @@ void UI::Netstat(NetClient &netClient, double renderAt)
 
     ImGui::SetNextWindowSize(ImVec2(380, 400), ImGuiCond_FirstUseEver);
     ImGui::SetNextWindowPos(ImVec2(360, 100), ImGuiCond_FirstUseEver);
-    auto rayDarkBlue = DARKGRAY;
-    ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(rayDarkBlue.r, rayDarkBlue.g, rayDarkBlue.b, rayDarkBlue.a));
-    ImGui::PushStyleColor(ImGuiCol_Border, IM_COL32_BLACK);
+    int styleCols = 0;
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(0, 0, 0, 0.6f * 255.0f)); styleCols++;
+    ImGui::PushStyleColor(ImGuiCol_Border, IM_COL32_BLACK); styleCols++;
     ImGui::Begin("Network##netstat", &showNetstatWindow,
         0
         //ImGuiWindowFlags_NoTitleBar
@@ -340,18 +340,6 @@ void UI::Netstat(NetClient &netClient, double renderAt)
         //ImGuiWindowFlags_NoResize |
         //ImGuiWindowFlags_NoCollapse
     );
-    ImGui::PopStyleColor(2);
-
-    const size_t snapshotCount = netClient.worldHistory.Count();
-    if (snapshotCount) {
-        DLB_ASSERT(snapshotCount <= CL_WORLD_HISTORY);
-        float times[CL_WORLD_HISTORY]{};
-        for (size_t i = 0; i < snapshotCount; i++) {
-            times[i] = (float)(netClient.worldHistory.At(i).recvAt - renderAt);
-        }
-        ImGui::Text("Times:");
-        ImGui::PlotHistogram("times", times, (int)snapshotCount, 0, 0, -2.0f, 2.0f, ImVec2(300.0f, 50.0f));
-    }
 
 #if CL_DEBUG_SPEEDHAX
     int msecHax = g_inputMsecHax;
@@ -379,6 +367,38 @@ void UI::Netstat(NetClient &netClient, double renderAt)
         }
     }
 
+    ImGui::NewLine();
+
+    const size_t snapshotCount = netClient.worldHistory.Count();
+    if (snapshotCount) {
+        DLB_ASSERT(snapshotCount <= CL_WORLD_HISTORY);
+
+        float times[CL_WORLD_HISTORY]{};
+        for (size_t i = 0; i < snapshotCount; i++) {
+            times[i] = (float)(netClient.worldHistory.At(i).recvAt - renderAt);
+        }
+        ImGui::Text("Times:");
+        ImGui::PlotHistogram("times", times, (int)snapshotCount, 0, 0, -2.0f, 2.0f, ImVec2(300.0f, 50.0f));
+
+        ImGui::NewLine();
+
+        if (ImGui::CollapsingHeader("Snapshots")) {
+            for (int i = 0; i < (int)snapshotCount; i++) {
+                const WorldSnapshot &snap = netClient.worldHistory.At(i);
+                ImGui::PushID(i);
+                if (ImGui::TreeNode("SnapshotNode", "[%zu] Tick #%u", i, snap.tick)) {
+                    ImGui::Text("Players (%u)", snap.playerCount);
+                    ImGui::Text("NPCs    (%u)", snap.npcCount);
+                    ImGui::Text("Items   (%u)", snap.itemCount);
+                    ImGui::TreePop();
+                    ImGui::Separator();
+                }
+                ImGui::PopID();
+            }
+        }
+    }
+
+    ImGui::PopStyleColor(styleCols);
     ImGui::End();
 }
 
