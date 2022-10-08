@@ -352,6 +352,6 @@ private:
 
     void UpdateDirection (Vector2 offset);
     bool Move            (Vector2 offset);
-    bool Attack          (void);
+    bool Attack          (InputSample &input);
     void DrawSwimOverlay (const World &world) const;
 };

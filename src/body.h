@@ -5,9 +5,10 @@
 #include "raylib/raylib.h"
 
 struct Vector3Snapshot {
-    double    recvAt    {};
-    Vector3   v         {};
-    Direction direction {};
+    double    recvAt     {};  // client time when we received this snapshot
+    double    serverTime {};  // approx. server time when we received this snapshot
+    Vector3   v          {};  // position
+    Direction direction  {};  // facing direction
 };
 
 struct Body3D {

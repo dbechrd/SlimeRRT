@@ -612,7 +612,7 @@ void UI::HUD(const Font &font, World &world, const DebugStats &debugStats)
         linesOfText += 3;
     }
     if (debugStats.rtt) {
-        linesOfText += 6;
+        linesOfText += 7;
     }
     const float margin = 6.0f;   // margin
     const float pad = 4.0f;      // pad
@@ -654,7 +654,9 @@ void UI::HUD(const Font &font, World &world, const DebugStats &debugStats)
     PUSH_TEXT(text, LIGHTGRAY);
 
     if (debugStats.tick) {
-        text = SafeTextFormat("g_clock.now   %.03f", g_clock.now);
+        text = SafeTextFormat("client.now   %.03f", g_clock.now);
+        PUSH_TEXT(text, GRAY);
+        text = SafeTextFormat("server.now   %.03f", g_clock.serverNow);
         PUSH_TEXT(text, GRAY);
         text = SafeTextFormat("timeOfDay     %s (%.03f)", g_clock.timeOfDayStr(), g_clock.timeOfDay);
         PUSH_TEXT(text, GRAY);

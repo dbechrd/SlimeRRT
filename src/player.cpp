@@ -133,13 +133,31 @@ bool Player::Move(Vector2 offset)
     return true;
 }
 
-bool Player::Attack(void)
+bool Player::Attack(InputSample &input)
 {
-    if (actionState == ActionState::None) {
+    if (input.skipFx) {
+        return false;
+    }
+
+    const double attackAlpha = (g_clock.now - combat.attackStartedAt) / combat.attackDuration;
+    if (actionState == ActionState::AttackBegin && attackAlpha > 0.0) {
+        actionState = ActionState::AttackSustain;
+    }
+    if (actionState == ActionState::AttackSustain && attackAlpha > 0.5) {
+        actionState = ActionState::AttackRecover;
+    }
+    if (actionState == ActionState::AttackRecover && attackAlpha > 1.0) {
+        combat.attackStartedAt = 0;
+        combat.attackDuration = 0;
+        actionState = ActionState::None;
+    }
+
+    if (input.primary && actionState == ActionState::None) {
+        E_DEBUG("seq %u attack", input.seq);
         actionState = ActionState::AttackBegin;
         body.Move({});  // update lastMoved to stop idle animation
         combat.attackStartedAt = g_clock.now;
-        combat.attackDuration = 0.2;
+        combat.attackDuration = 0.3;
 
         ItemStack selectedStack = GetSelectedStack();
         if (selectedStack.uid) {
@@ -214,10 +232,8 @@ void Player::Update(InputSample &input, Tilemap &map)
         Vector2 moveOffset = v2_scale(v2_normalize(move), METERS_TO_PIXELS(speed) * input.dt);
         moveBuffer = v2_add(moveBuffer, moveOffset);
 
-        if (input.primary && Attack()) {
-            if (!input.skipFx) {
-                Catalog::g_sounds.Play(Catalog::SoundID::Whoosh, 1.0f + dlb_rand32f_variance(0.1f));
-            }
+        if (Attack(input)) {
+            Catalog::g_sounds.Play(Catalog::SoundID::Whoosh, 1.0f + dlb_rand32f_variance(0.1f));
         }
 
         if (!v2_is_zero(moveBuffer)) {
@@ -292,19 +308,6 @@ void Player::Update(InputSample &input, Tilemap &map)
 #endif
             moveBuffer = {};
         }
-    }
-
-    const double attackAlpha = (g_clock.now - combat.attackStartedAt) / combat.attackDuration;
-    if (actionState == ActionState::AttackBegin && attackAlpha > 0.0) {
-        actionState = ActionState::AttackSustain;
-    }
-    if (actionState == ActionState::AttackSustain && attackAlpha > 0.5) {
-        actionState = ActionState::AttackRecover;
-    }
-    if (actionState == ActionState::AttackRecover && attackAlpha > 1.0) {
-        combat.attackStartedAt = 0;
-        combat.attackDuration = 0;
-        actionState = ActionState::None;
     }
 
     if (sprite.spriteDef) {

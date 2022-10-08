@@ -253,6 +253,7 @@ ErrorType NetClient::SendPlayerInput(void)
     //putchar('\n');
     //fflush(stdout);
     tempMsg.data.input.sampleCount = sampleCount;
+    lastInputSentAt = g_clock.now;
     return SendMsg(tempMsg);
 }
 
@@ -293,18 +294,16 @@ void NetClient::ReconcilePlayer(void)
         return;
     }
 
-    // Client presumably hasn't moved; skip reconciliation
     const Vector3 localPos = player->body.WorldPosition();
-    const Vector3 serverPos = playerSnapshot->position;
-    if (v3_distance_sq(localPos, serverPos) < SQUARED(CL_MAX_PLAYER_POS_DESYNC_DIST)) {
-        //return;
-    }
+    //const Vector3 serverPos = playerSnapshot->position;
+    // Client presumably hasn't moved; skip reconciliation
+    //if (v3_distance_sq(localPos, serverPos) < SQUARED(CL_MAX_PLAYER_POS_DESYNC_DIST)) {
+    //    return;
+    //}
 
     // Roll back local player to server snapshot location
     if (playerSnapshot->flags & PlayerSnapshot::Flags_Position) {
         player->body.Teleport(playerSnapshot->position);
-        //E_DEBUG("Teleporting player to %0.2f %0.2f", playerSnapshot->position.x,
-        //    playerSnapshot->position.y);
 
         if (inputHistory.Count()) {
             const InputSample &oldestInput = inputHistory.At(0);
@@ -313,18 +312,11 @@ void NetClient::ReconcilePlayer(void)
                     latestSnapshot.lastInputAck, latestSnapshot.tick, oldestInput.seq);
             }
         }
-#if CL_DEBUG_PLAYER_RECONCILIATION
-        printf("Reconcile player position (tick #%u ack'd input #%u):\n"
-            "Teleport: %f %f %f\n", latestSnapshot.tick, latestSnapshot.lastInputAck,
-            playerSnapshot->position.x,
-            playerSnapshot->position.y,
-            playerSnapshot->position.z);
-#endif
+
         if (g_cl_client_prediction) {
             // Predict player for each input not yet handled by the server
             for (size_t i = 0; i < inputHistory.Count(); i++) {
-                const InputSample &origInput = inputHistory.At(i);
-                InputSample input = origInput;
+                InputSample &input = inputHistory.At(i);
                 // NOTE: Old input's ownerId might not match if the player recently reconnected to a
                 // server and received a new playerId. Intentionally ignore those.
                 if (input.ownerId == player->id && input.seq > latestSnapshot.lastInputAck) {
@@ -340,17 +332,6 @@ void NetClient::ReconcilePlayer(void)
                 }
             }
         }
-#if CL_DEBUG_PLAYER_RECONCILIATION
-        const Vector3 after = player->body.WorldPosition();
-        putchar('\n');
-        printf(
-            "Pos: %f\n"
-            "     %f\n",
-            localPos.x,
-            after.x
-        );
-        printf("\n");
-#endif
     }
 
     // NOTE(dlb): This isn't really necessary, but prevents a _tiny_ amount of stutter vs. when it's
@@ -363,20 +344,6 @@ void NetClient::ReconcilePlayer(void)
         Vector3 smoothNewPos = v3_add(oldPos, smoothDelta);
         player->body.Teleport(smoothNewPos);
     }
-
-    // TODO(dlb): This seems redundant. Doesn't it already happen in ProcessMsg??
-    //if (playerSnapshot->flags & PlayerSnapshot::Flags_Direction) {
-    //    player->sprite.direction = playerSnapshot->direction;
-    //}
-    //if (playerSnapshot->flags & PlayerSnapshot::Flags_Speed) {
-    //    player->body.speed = playerSnapshot->speed;
-    //}
-    //if (playerSnapshot->flags & PlayerSnapshot::Flags_Health) {
-    //    player->combat.hitPoints = playerSnapshot->hitPoints;
-    //}
-    //if (playerSnapshot->flags & PlayerSnapshot::Flags_HealthMax) {
-    //    player->combat.hitPointsMax = playerSnapshot->hitPointsMax;
-    //}
 }
 
 void NetClient::ProcessMsg(ENetPacket &packet)
@@ -456,8 +423,12 @@ void NetClient::ProcessMsg(ENetPacket &packet)
             const WorldSnapshot &netSnapshot = tempMsg.data.worldSnapshot;
             WorldSnapshot &worldSnapshot = worldHistory.Alloc();
             worldSnapshot = netSnapshot;
-            //worldSnapshot.recvAt = g_clock.now;
-            worldSnapshot.recvAt = worldSnapshot.clock;
+            worldSnapshot.recvAt = g_clock.now;
+
+            const double rtt = server->roundTripTime / 1000.0;
+            worldSnapshot.rtt = rtt;
+
+            const double snapTime = worldSnapshot.clock; //g_clock.now; // - rtt;
 
             for (size_t i = 0; i < worldSnapshot.playerCount; i++) {
                 const PlayerSnapshot &playerSnapshot = worldSnapshot.players[i];
@@ -490,7 +461,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                     }
 
                     Vector3Snapshot &state = player->body.positionHistory.Alloc();
-                    state.recvAt = worldSnapshot.recvAt;
+                    state.serverTime = snapTime;
 
                     if (posChanged) {
                         //E_DEBUG("Snapshot: pos %f %f %f",
@@ -627,7 +598,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                     }
 
                     Vector3Snapshot &state = npc->body.positionHistory.Alloc();
-                    state.recvAt = worldSnapshot.recvAt;
+                    state.serverTime = snapTime;
 
                     if (posChanged) {
                         //E_DEBUG("Snapshot: pos %f %f %f",
@@ -758,7 +729,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                     }
 
                     Vector3Snapshot &state = item->body.positionHistory.Alloc();
-                    state.recvAt = worldSnapshot.recvAt;
+                    state.serverTime = snapTime;
 
                     if (posChanged) {
                         //E_DEBUG("Snapshot: pos %f %f %f",

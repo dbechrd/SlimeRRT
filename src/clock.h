@@ -10,7 +10,7 @@ struct Clock {
     double nowPrev      {};  // previous now time
     double accum        {};  // time accumulator, for fixed-step updates (only server-side atm)
 
-    double serverNow    {};  // time on server, as of last snapshot (to keep daylight in sync w/ server)
+    double serverNow    {};  // approximate time on server, sync'd each time we receive a snapshot
     double timeOfDay    {};  // 0 = start of day, 1 = end of day
     double daylightPerc {};  // how bright the daylight currently is
 

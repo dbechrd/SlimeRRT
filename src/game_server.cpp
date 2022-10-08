@@ -54,7 +54,7 @@ ErrorType GameServer::Run(const Args *args)
         const double now = glfwGetTime();
         const double dt = now - g_clock.nowPrev;
         g_clock.nowPrev = now;
-        g_clock.accum += MIN(SV_TICK_DT_MAX, dt);  // Limit accumulator
+        g_clock.accum += MIN(SV_TICK_DT_ACCUM_MAX, dt);  // Limit accumulator
 
         //printf("clock: %f now: %f tickDt: %f dtAccum: %f\n", g_clock.now, now, tickDt, dtAccum);
         assert(dt > 0);
@@ -124,49 +124,18 @@ ErrorType GameServer::Run(const Args *args)
 
                 // Process up to 1 tick's timespan worth of queued input
                 {
-                    float processedDt = 0;
                     size_t inputHistoryLen = client.inputHistory.Count();
-                    for (size_t i = 0; i < inputHistoryLen && processedDt < (float)SV_TICK_DT; i++) {
+                    for (size_t i = 0; i < inputHistoryLen; i++) {
                         InputSample input = client.inputHistory.At(i);
                         if (input.seq <= client.lastInputAck) {
                             //E_WARN("Ignoring old input #%u from %u\n", input.seq, input.ownerId);
                             continue;
                         }
 
-#if 1
-                        if (client.inputOverflow) {
-                            // Consume partial input from previous tick
-                            //if (input.walkEast) {
-                            //    E_DEBUG("tick %u seq %u dt %.3f adding overflow %.3f", world->tick, input.seq, input.dt, client.inputOverflow);
-                            //}
-                            input.dt = client.inputOverflow;
-                            client.inputOverflow = 0;
-                        }
-
-                        float origDt = input.dt;
-                        processedDt += input.dt;
-                        if (processedDt <= (float)SV_TICK_DT) {
-                            // Consume whole input
-                            //if (input.walkEast) {
-                            //    E_DEBUG("tick %u consume seq %u dt %.3f", world->tick, input.seq, input.dt);
-                            //}
-                            client.lastInputAck = input.seq;
-                        } else {
-                            // Consume partial input at end of tick if we ran out of time
-                            client.inputOverflow = (processedDt - (float)SV_TICK_DT);
-                            input.dt -= client.inputOverflow;
-                            //if (input.walkEast) {
-                            //    E_DEBUG("tick %u partial seq %u dt %.3f", world->tick, input.seq, input.dt);
-                            //}
-                        }
-#else
-                        // NOTE: This is vulnerable to trivial speed hax by fudging dt
-                        if (input.walkEast) {
-                            E_DEBUG("tick %u consume seq %u dt %.3f", world->tick, input.seq, input.dt);
-                        }
+                        // This is good enough for now to prevent speed hax. If a vanilla client can't
+                        // manage to send us at least one input sample per server tick, fuck 'em.
+                        input.dt = MIN(input.dt, (float)CL_INPUT_SEND_RATE_LIMIT_DT);
                         client.lastInputAck = input.seq;
-#endif
-
                         player->Update(input, world->map);
                     }
 

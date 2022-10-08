@@ -126,7 +126,7 @@ void NPC::Draw(World &world)
     // DEBUG: Draw stale visual marker if no snapshot received in a while
     if (body.positionHistory.Count()) {
         auto &lastPos = body.positionHistory.Last();
-        if (g_clock.now - lastPos.recvAt > CL_NPC_STALE_LIFETIME) {
+        if (g_clock.now - lastPos.serverTime > CL_NPC_STALE_LIFETIME) {
             Vector2 vizPos = body.VisualPosition();
             const int radius = 7;
             DrawRectangle((int)vizPos.x - 1, (int)vizPos.y - 1, radius + 2, radius + 2, BLACK);

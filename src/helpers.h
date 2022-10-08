@@ -86,13 +86,13 @@
                                     SV_MAX_NPC_TOWNFOLK )
 #define SV_MAX_ITEMS                256 //4096
 #define SV_WORLD_ITEM_LIFETIME      120 //600 // despawn items after 10 minutes
-#define SV_TICK_RATE                50
+#define SV_TICK_RATE                20
 #define SV_TICK_DT                  (1.0 / SV_TICK_RATE)
-#define SV_TICK_DT_MAX              (1.5 * SV_TICK_DT)
+#define SV_TICK_DT_ACCUM_MAX        (1.5 * SV_TICK_DT)
 #define SV_TIME_SECONDS_IN_DAY      600.0
 #define SV_TIME_WHEN_GAME_STARTS    (SV_TIME_SECONDS_IN_DAY * (1.0 / 24.0) * (11.0 - 1.0))  // start the game at 11 am
 #define SV_INPUT_HISTORY            SV_TICK_RATE
-#define SV_INPUT_HISTORY_DT_MAX     0.1  //(5.0 * SV_TICK_DT)  // discard buffered inputs that exceed a sane dt accumulation
+#define SV_INPUT_HISTORY_DT_MAX     1.0  //(5.0 * SV_TICK_DT)  // discard buffered inputs that exceed a sane dt accumulation
 #define SV_WORLD_HISTORY            SV_TICK_RATE
 #define SV_TILE_UPDATE_DIST         METERS_TO_PIXELS(20.0f)
 // NOTE: max diagonal distance at 1080p is 1100 + radius units. 1200px allows for a ~50px wide entity
@@ -115,6 +115,7 @@
 #define SV_ITEM_REPICKUP_DELAY      2.0                      // how long after an item is dropped by a player before it can be picked up by the same player
 #define SV_STALE_RADIUS             50.0f                    // unknown.. was this supposed to be used for something?
 #define SV_PLAYER_MOVE_SPEED        3.0f                     // how fast player walks, in meters
+#define SV_PLAYER_ATTACK_COOLDOWN   0.5                      // how often the player can attack
 #define SV_PLAYER_CORPSE_LIFETIME   8.0                      // how long to wait after a player dies to despawn their corpse
 #define SV_NPC_DESPAWN_LIFETIME     1.0                      // how long to keep manually despawned enemies around give give nearby clients time to be notified
 #define CL_NPC_CORPSE_LIFETIME      1.0                      // how long to wait after an NPC dies to despawn their corpse
@@ -140,8 +141,8 @@
 #define CL_FRAME_DT_MAX               (2.0 * SV_TICK_DT)
 #define CL_INPUT_SEND_RATE_LIMIT      60 // max # of input packets to sender to server per second
 #define CL_INPUT_SEND_RATE_LIMIT_DT   (1.0 / CL_INPUT_SEND_RATE_LIMIT)
-#define CL_INPUT_SAMPLES_MAX          (SV_TICK_RATE) // send up to 1 second of samples per packet
-#define CL_INPUT_HISTORY              (SV_TICK_RATE) // how many samples to keep around client side
+#define CL_INPUT_HISTORY              (256) // how many samples to keep around client side
+#define CL_INPUT_SAMPLES_MAX          (CL_INPUT_HISTORY) // send up to 1 second of samples per packet
 #define CL_WORLD_HISTORY              (SV_TICK_RATE / 2 + 1)  // >= 500 ms of data
 #define CL_CHAT_HISTORY               256
 #define CL_FARAWAY_BUFFER_RADIUS      (SV_STALE_RADIUS * 2.0f)
@@ -149,7 +150,6 @@
 #define CL_NPC_FARAWAY_THRESHOLD      (SV_NPC_NEARBY_THRESHOLD + CL_FARAWAY_BUFFER_RADIUS)
 #define CL_INVENTORY_UPDATE_SLOTS_MAX 256
 #define CL_MAX_PLAYER_POS_DESYNC_DIST METERS_TO_PIXELS(0.01)  // less than 1 pixel delta allowed
-#define CL_PLAYER_POS_SMOOTH_FACTOR   0.5f
 #define CL_DAY_NIGHT_CYCLE            0
 
 //#define PACKET_SIZE_MAX         1024
@@ -196,10 +196,10 @@ typedef uint8_t  SlotId;
 //------------------------------------------------------------------------------
 thread_local static Shader  g_sdfShader                  {};
 thread_local static uint8_t g_inputMsecHax               {};
-thread_local static bool    g_cl_client_prediction       = false;
-thread_local static bool    g_cl_smooth_reconcile        = false;
-thread_local static float   g_cl_smooth_reconcile_factor = CL_PLAYER_POS_SMOOTH_FACTOR;
-thread_local static bool    g_cl_show_snapshot_shadow    = true;
+thread_local static bool    g_cl_client_prediction       = true;
+thread_local static bool    g_cl_smooth_reconcile        = true;
+thread_local static float   g_cl_smooth_reconcile_factor = 0.3f;
+thread_local static bool    g_cl_show_snapshot_shadow    = false;
 thread_local static Texture g_nPatchTex                  {};
 
 void DrawTextFont(Font font, const char *text, float posX, float posY, float offsetX, float offsetY, int fontSize, const Color &color);

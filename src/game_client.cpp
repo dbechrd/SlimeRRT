@@ -349,55 +349,47 @@ void GameClient::PlayMode_Update(double frameDt, PlayerControllerState &input)
     Player *player = netClient.serverWorld->FindPlayer(netClient.serverWorld->playerId);
 
     renderAt = 0;
-#if 0
-    while (tickAccum > tickDt) {
-#endif
-        if (netClient.worldHistory.Count()) {
-            const WorldSnapshot &worldSnapshot = netClient.worldHistory.Last();
-            //printf("worldTick: %u, lastSnapshot: %u, delta: %u\n", world->tick, worldSnapshot.tick, worldSnapshot.tick - world->tick);
-            netClient.serverWorld->tick = worldSnapshot.tick;
-            g_clock.serverNow = worldSnapshot.clock;
+    if (netClient.worldHistory.Count()) {
+        const WorldSnapshot &worldSnapshot = netClient.worldHistory.Last();
+        //g_clock.serverNow = worldSnapshot.clock + worldSnapshot.rtt + (g_clock.now - worldSnapshot.recvAt);
+        //g_clock.serverNow = worldSnapshot.clock + (g_clock.now - worldSnapshot.recvAt);
 
-            //while (tickAccum > tickDt) {
-            netClient.inputSeq = MAX(1, netClient.inputSeq + 1);
-            InputSample &sample = netClient.inputHistory.Alloc();
-            sample.FromController(player->id, netClient.inputSeq, frameDt, input);
+        //printf("worldTick: %u, lastSnapshot: %u, delta: %u\n", world->tick, worldSnapshot.tick, worldSnapshot.tick - world->tick);
+        netClient.serverWorld->tick = worldSnapshot.tick;
 
-            // Update world state from worldSnapshot and re-apply sample with sample.tick > snapshot.tick
-            netClient.ReconcilePlayer();
+        netClient.serverWorld->particleSystem.Update(frameDt);
+        netClient.serverWorld->itemSystem.Update(frameDt);
 
-            //netClient.serverWorld->particleSystem.Update(frameDt);
-            //netClient.serverWorld->itemSystem.Update(frameDt);
+        netClient.inputSeq = MAX(1, netClient.inputSeq + 1);
+        InputSample &sample = netClient.inputHistory.Alloc();
+        sample.FromController(player->id, netClient.inputSeq, frameDt, input);
 
-            //    tickAccum -= tickDt;
-            //}
-
-            // Send queued inputs to server ASAP (ideally, every frame), while respecting a sane rate limit
-            if (g_clock.now - netClient.lastInputSentAt > CL_INPUT_SEND_RATE_LIMIT_DT) {
-                netClient.SendPlayerInput();
-                netClient.lastInputSentAt = g_clock.now;
-            }
-
-            netClient.serverWorld->CL_DespawnStaleEntities();
-
-            // Interpolate all of the other entities in the world
-            //printf("RTT: %u RTTv: %u LRT: %u LRTv: %u HRTv %u\n",
-            //    netClient.server->roundTripTime,
-            //    netClient.server->roundTripTimeVariance,
-            //    netClient.server->lastRoundTripTime,
-            //    netClient.server->lastRoundTripTimeVariance,
-            //    netClient.server->highestRoundTripTimeVariance
-            //);
-            //renderAt = g_clock.now - (1.0 / SNAPSHOT_SEND_RATE) - (1.0 / (netClient.server->lastRoundTripTime + netClient.server->lastRoundTripTimeVariance));
-            renderAt = g_clock.now - (1.0 / (SNAPSHOT_SEND_RATE * 1.5));
-            netClient.serverWorld->CL_Interpolate(renderAt);
-            //netClient.serverWorld->CL_Extrapolate(g_clock.now - renderAt);
-            netClient.serverWorld->CL_Animate(frameDt);
+        // Send queued inputs to server ASAP (ideally, every frame), while respecting a sane rate limit
+        if (g_clock.now - netClient.lastInputSentAt > CL_INPUT_SEND_RATE_LIMIT_DT) {
+            netClient.SendPlayerInput();
         }
-#if 0
-        tickAccum -= tickDt;
+
+        // Update world state from worldSnapshot and re-apply sample with sample.tick > snapshot.tick
+        netClient.ReconcilePlayer();
+
+        netClient.serverWorld->CL_DespawnStaleEntities();
+
+        // Interpolate all of the other entities in the world
+        //printf("RTT: %u RTTv: %u LRT: %u LRTv: %u HRTv %u\n",
+        //    netClient.server->roundTripTime,
+        //    netClient.server->roundTripTimeVariance,
+        //    netClient.server->lastRoundTripTime,
+        //    netClient.server->lastRoundTripTimeVariance,
+        //    netClient.server->highestRoundTripTimeVariance
+        //);
+        //renderAt = g_clock.now - (1.0 / SNAPSHOT_SEND_RATE) - (1.0 / (netClient.server->lastRoundTripTime + netClient.server->lastRoundTripTimeVariance));
+        //renderAt = g_clock.now - (1.0 / (SNAPSHOT_SEND_RATE * 1.5));
+        const double interpolationTime = 2.0 / SNAPSHOT_SEND_RATE;
+        renderAt = g_clock.now - interpolationTime;
+        netClient.serverWorld->CL_Interpolate(renderAt);
+        //netClient.serverWorld->CL_Extrapolate(g_clock.now - renderAt);
+        netClient.serverWorld->CL_Animate(frameDt);
     }
-#endif
 }
 
 void GameClient::PlayMode_UpdateCamera(double frameDt, PlayerControllerState &input)

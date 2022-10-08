@@ -3,7 +3,6 @@
 #include "helpers.h"
 #include "maths.h"
 #include "spritesheet.h"
-#include <cassert>
 #include <cmath>
 
 #define IDLE_THRESHOLD_SECONDS 60.0
@@ -237,15 +236,15 @@ bool Body3D::CL_Interpolate(double renderAt, Direction &direction)
 
     // Find first snapshot after renderAt time
     size_t right = 0;
-    while (right < historyLen && positionHistory.At(right).recvAt <= renderAt) {
+    while (right < historyLen && positionHistory.At(right).serverTime <= renderAt) {
         right++;
     }
 
     // renderAt is before any snapshots, show entity at oldest snapshot
     if (right == 0) {
         const Vector3Snapshot &oldest = positionHistory.At(0);
-        assert(renderAt < oldest.recvAt);
-        //printf("renderAt %f before oldest snapshot %f\n", renderAt, oldest.recvAt);
+        DLB_ASSERT(renderAt < oldest.serverTime);
+        //printf("renderAt %f before oldest snapshot %f\n", renderAt, oldest.serverTime);
 
         Teleport(oldest.v);
         direction = oldest.direction;
@@ -253,14 +252,14 @@ bool Body3D::CL_Interpolate(double renderAt, Direction &direction)
     } else if (right == historyLen) {
         // TODO: Extrapolate beyond latest snapshot if/when this happens? Should be mostly avoidable..
         const Vector3Snapshot &newest = positionHistory.At(historyLen - 1);
-        assert(renderAt >= newest.recvAt);
-        if (renderAt > newest.recvAt) {
-            //printf("renderAt %f after newest snapshot %f\n", renderAt, newest.recvAt);
+        DLB_ASSERT(renderAt >= newest.serverTime);
+        if (renderAt > newest.serverTime) {
+            //printf("renderAt %f after newest snapshot %f\n", renderAt, newest.serverTime);
         }
 
         // TODO: Send explicit despawn event from server
         // If we haven't seen an entity in 2 snapshots, chances are it's gone
-        if (renderAt > newest.recvAt + (1.0 / SNAPSHOT_SEND_RATE) * 2) {
+        if (renderAt > newest.serverTime + (1.0 / SNAPSHOT_SEND_RATE) * 2) {
             //printf("Despawning body due to inactivity\n");
             return false;
         }
@@ -269,19 +268,19 @@ bool Body3D::CL_Interpolate(double renderAt, Direction &direction)
         direction = newest.direction;
         // renderAt is between two snapshots
     } else {
-        assert(right > 0);
-        assert(right < historyLen);
+        DLB_ASSERT(right > 0);
+        DLB_ASSERT(right < historyLen);
         const Vector3Snapshot &a = positionHistory.At(right - 1);
         const Vector3Snapshot &b = positionHistory.At(right);
 
-        if (renderAt < a.recvAt) {
-            assert(renderAt);
+        if (renderAt < a.serverTime) {
+            DLB_ASSERT(renderAt);
         }
-        assert(renderAt >= a.recvAt);
-        assert(renderAt < b.recvAt);
+        DLB_ASSERT(renderAt >= a.serverTime);
+        DLB_ASSERT(renderAt < b.serverTime);
 
         // Linear interpolation: x = x0 + (x1 - x0) * alpha;
-        double alpha = (renderAt - a.recvAt) / (b.recvAt - a.recvAt);
+        double alpha = (renderAt - a.serverTime) / (b.serverTime - a.serverTime);
         const Vector3 interpPos = v3_add(a.v, v3_scale(v3_sub(b.v, a.v), (float)alpha));
         Teleport(interpPos);
         direction = b.direction;
