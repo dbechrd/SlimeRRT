@@ -139,7 +139,9 @@ void ItemSystem::Update(double dt)
         }
         DLB_ASSERT(item.stack.uid);
 
-        item.body.Update(dt);
+        if (g_clock.server) {
+            item.body.Update(dt);
+        }
         sprite_update(item.sprite, dt);
         // TODO: do we need animated sprites for world items?
         //sprite_update(item.sprite, dt);

@@ -428,7 +428,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
             const double rtt = server->roundTripTime / 1000.0;
             worldSnapshot.rtt = rtt;
 
-            const double snapTime = worldSnapshot.clock; //g_clock.now; // - rtt;
+            const double snapTime = g_clock.now; // - rtt;
 
             for (size_t i = 0; i < worldSnapshot.playerCount; i++) {
                 const PlayerSnapshot &playerSnapshot = worldSnapshot.players[i];

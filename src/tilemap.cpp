@@ -227,7 +227,8 @@ Chunk &Tilemap::FindOrGenChunk(World &world, int16_t chunkX, int16_t chunkY)
                     if (NOISE_BETWEEN(decoNoise, 0, 0.05)) {
                         // Meadow flowers
                         tileType = TileType_Flowers;
-                    } else if (NOISE_BETWEEN(decoNoise, 0.05, 0.051)) {
+                    //} else if (NOISE_BETWEEN(decoNoise, 0.05, 0.051)) {
+                    } else if (NOISE_BETWEEN(decoNoise, 0.05, 0.06)) {
                         // Meadow stones
                         tileObject.type = ObjectType_Rock01;
                         tileObject.SetFlag(ObjectFlag_Collide | ObjectFlag_Interact);

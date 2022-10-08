@@ -86,7 +86,7 @@
                                     SV_MAX_NPC_TOWNFOLK )
 #define SV_MAX_ITEMS                256 //4096
 #define SV_WORLD_ITEM_LIFETIME      120 //600 // despawn items after 10 minutes
-#define SV_TICK_RATE                20
+#define SV_TICK_RATE                60
 #define SV_TICK_DT                  (1.0 / SV_TICK_RATE)
 #define SV_TICK_DT_ACCUM_MAX        (1.5 * SV_TICK_DT)
 #define SV_TIME_SECONDS_IN_DAY      600.0
