@@ -366,9 +366,8 @@ void GameClient::PlayMode_Update(double frameDt, PlayerControllerState &input)
             // Update world state from worldSnapshot and re-apply sample with sample.tick > snapshot.tick
             netClient.ReconcilePlayer();
 
-            player->Update(sample, netClient.serverWorld->map);
-            netClient.serverWorld->particleSystem.Update(frameDt);
-            netClient.serverWorld->itemSystem.Update(frameDt);
+            //netClient.serverWorld->particleSystem.Update(frameDt);
+            //netClient.serverWorld->itemSystem.Update(frameDt);
 
             //    tickAccum -= tickDt;
             //}

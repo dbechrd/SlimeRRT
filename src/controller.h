@@ -46,6 +46,7 @@ struct PlayerControllerState {
     bool dbgKillRtreeRect {};
     bool dbgImgui         {};
     bool dbgJump          {};
+    bool dbgToggleNetUI   {};
 
     void Query(bool processMouse, bool processKeyboard, bool freeCamera);
 };

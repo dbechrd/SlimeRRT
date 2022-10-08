@@ -48,6 +48,9 @@ void UI::Update(const PlayerControllerState &input, Vector2 screenSize, Spycam *
     UI::screenSize = screenSize;
     UI::spycam = spycam;
     UI::hoverLabel = 0;
+    if (input.dbgToggleNetUI) {
+        UI::showNetstatWindow = !UI::showNetstatWindow;
+    }
 };
 
 bool UI::DisconnectRequested(bool disconnected)
@@ -349,9 +352,13 @@ void UI::Netstat(NetClient &netClient, double renderAt)
     g_inputMsecHax = (uint8_t)msecHax;
 #endif
 
+    ImGui::Text("Client-side prediction");
+    ImGui::SameLine();
+    ImGui::Checkbox("##g_cl_client_prediction", &g_cl_client_prediction);
+
     ImGui::Text("Show server shadow");
     ImGui::SameLine();
-    ImGui::Checkbox("##g_cl_smooth_reconcile_factor", &g_cl_show_snapshot_shadow);
+    ImGui::Checkbox("##g_cl_show_snapshot_shadow", &g_cl_show_snapshot_shadow);
 
     ImGui::Text("Smooth reconcile");
     ImGui::SameLine();

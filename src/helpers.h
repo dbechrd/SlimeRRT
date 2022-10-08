@@ -196,9 +196,10 @@ typedef uint8_t  SlotId;
 //------------------------------------------------------------------------------
 thread_local static Shader  g_sdfShader                  {};
 thread_local static uint8_t g_inputMsecHax               {};
-thread_local static bool    g_cl_smooth_reconcile        = true;
+thread_local static bool    g_cl_client_prediction       = false;
+thread_local static bool    g_cl_smooth_reconcile        = false;
 thread_local static float   g_cl_smooth_reconcile_factor = CL_PLAYER_POS_SMOOTH_FACTOR;
-thread_local static bool    g_cl_show_snapshot_shadow    = false;
+thread_local static bool    g_cl_show_snapshot_shadow    = true;
 thread_local static Texture g_nPatchTex                  {};
 
 void DrawTextFont(Font font, const char *text, float posX, float posY, float offsetX, float offsetY, int fontSize, const Color &color);

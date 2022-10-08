@@ -297,7 +297,7 @@ void NetClient::ReconcilePlayer(void)
     const Vector3 localPos = player->body.WorldPosition();
     const Vector3 serverPos = playerSnapshot->position;
     if (v3_distance_sq(localPos, serverPos) < SQUARED(CL_MAX_PLAYER_POS_DESYNC_DIST)) {
-        return;
+        //return;
     }
 
     // Roll back local player to server snapshot location
@@ -320,28 +320,24 @@ void NetClient::ReconcilePlayer(void)
             playerSnapshot->position.y,
             playerSnapshot->position.z);
 #endif
-        // Predict player for each input not yet handled by the server
-        bool applyOverflow = true;
-        for (size_t i = 0; i < inputHistory.Count(); i++) {
-            const InputSample &origInput = inputHistory.At(i);
-            InputSample input = origInput;
-            // NOTE: Old input's ownerId might not match if the player recently reconnected to a
-            // server and received a new playerId. Intentionally ignore those.
-            if (input.ownerId == player->id && input.seq > latestSnapshot.lastInputAck) {
-#if CL_DEBUG_PLAYER_RECONCILIATION
-                if (input.walkEast) putchar('>');
-                else if (input.walkWest) putchar('<');
-                else if (input.walkNorth) putchar('^');
-                else if (input.walkSouth) putchar('v');
-                else putchar('.');
-#endif
-                if (applyOverflow) {
-                    input.dt = latestSnapshot.inputOverflow;
-                    applyOverflow = false;
+        if (g_cl_client_prediction) {
+            // Predict player for each input not yet handled by the server
+            for (size_t i = 0; i < inputHistory.Count(); i++) {
+                const InputSample &origInput = inputHistory.At(i);
+                InputSample input = origInput;
+                // NOTE: Old input's ownerId might not match if the player recently reconnected to a
+                // server and received a new playerId. Intentionally ignore those.
+                if (input.ownerId == player->id && input.seq > latestSnapshot.lastInputAck) {
+    #if CL_DEBUG_PLAYER_RECONCILIATION
+                    if (input.walkEast) putchar('>');
+                    else if (input.walkWest) putchar('<');
+                    else if (input.walkNorth) putchar('^');
+                    else if (input.walkSouth) putchar('v');
+                    else putchar('.');
+    #endif
+                    //E_DEBUG("CLI SQ: %u OS: %f S: %f", input.seq, origInput.dt, input.dt);
+                    player->Update(input, serverWorld->map);
                 }
-
-                //E_DEBUG("CLI SQ: %u OS: %f S: %f", input.seq, origInput.dt, input.dt);
-                player->Update(input, serverWorld->map);
             }
         }
 #if CL_DEBUG_PLAYER_RECONCILIATION
@@ -350,7 +346,7 @@ void NetClient::ReconcilePlayer(void)
         printf(
             "Pos: %f\n"
             "     %f\n",
-            before.x,
+            localPos.x,
             after.x
         );
         printf("\n");
@@ -460,7 +456,8 @@ void NetClient::ProcessMsg(ENetPacket &packet)
             const WorldSnapshot &netSnapshot = tempMsg.data.worldSnapshot;
             WorldSnapshot &worldSnapshot = worldHistory.Alloc();
             worldSnapshot = netSnapshot;
-            worldSnapshot.recvAt = g_clock.now;
+            //worldSnapshot.recvAt = g_clock.now;
+            worldSnapshot.recvAt = worldSnapshot.clock;
 
             for (size_t i = 0; i < worldSnapshot.playerCount; i++) {
                 const PlayerSnapshot &playerSnapshot = worldSnapshot.players[i];

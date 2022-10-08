@@ -97,6 +97,7 @@ ErrorType GameServer::Run(const Args *args)
                 }
                 assert(client.playerId == player->id);
 
+#if 1
                 // Ignore inputs that are too far behind to ever get processed to avoid excessive input processing latency
                 {
                     float dtAccum = 0;
@@ -173,8 +174,31 @@ ErrorType GameServer::Run(const Args *args)
                     //    E_DEBUG("tick %u input overflow %.3f", world->tick, client.inputOverflow);
                     //}
                 }
+#else
+                size_t inputHistoryLen = client.inputHistory.Count();
+                for (size_t i = 0; i < inputHistoryLen; i++) {
+                    InputSample input = client.inputHistory.At(i);
+                    if (input.seq <= client.lastInputAck) {
+                        //E_WARN("Ignoring old input #%u from %u\n", input.seq, input.ownerId);
+                        continue;
+                    }
+                    player->Update(input, world->map);
+                    client.lastInputAck = input.seq;
+                    break;
+                }
+#endif
+            }
 
-                world->SV_Simulate(SV_TICK_DT);
+            // Run server tasks
+            world->SV_DespawnDeadEntities();
+            world->SV_Simulate(SV_TICK_DT);
+
+            // Send players world updates
+            for (size_t i = 0; i < SV_MAX_PLAYERS; i++) {
+                SV_Client &client = netServer.clients[i];
+                if (!client.playerId) {
+                    continue;
+                }
 
                 // Send nearby chunks to player if they haven't received them yet
                 netServer.SendNearbyChunks(client);
@@ -194,9 +218,6 @@ ErrorType GameServer::Run(const Args *args)
                 // Send nearby events
                 //E_ASSERT(netServer.SendNearbyEvents(client), "Failed to send nearby events. playerId: %u", client.playerId);
             }
-
-            // Run server tasks
-            world->SV_DespawnDeadEntities();
         }
     }
 
