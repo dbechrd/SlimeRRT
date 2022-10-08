@@ -36,6 +36,5 @@ namespace FX {
     {
         UNUSED(particle);
         UNUSED(alpha);
-        DLB_ASSERT(false);
     }
 }

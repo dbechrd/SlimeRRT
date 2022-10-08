@@ -201,10 +201,4 @@ void Slime::Update(NPC &npc, World &world, double dt)
             break;
         }
     }
-
-    if (npc.body.Jumped()) {
-        //Catalog::SoundID squish = dlb_rand32i_range(0, 1) ? Catalog::SoundID::Squish1 : Catalog::SoundID::Squish2;
-        Catalog::SoundID squish = Catalog::SoundID::Squish1;
-        Catalog::g_sounds.Play(squish, 1.0f + dlb_rand32f_variance(0.2f), true);
-    }
 }

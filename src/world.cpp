@@ -85,10 +85,12 @@ PlayerInfo *World::FindPlayerInfoByName(const char *name, size_t nameLength)
 
 void World::RemovePlayerInfo(uint32_t playerId)
 {
-    PlayerInfo *playerInfo = FindPlayerInfo(playerId);
-    if (!playerInfo) return;
+    RemovePlayer(playerId);
 
-    *playerInfo = {};
+    PlayerInfo *playerInfo = FindPlayerInfo(playerId);
+    if (playerInfo) {
+        *playerInfo = {};
+    }
 }
 
 Player *World::AddPlayer(uint32_t playerId)
@@ -586,72 +588,6 @@ void World::SV_DespawnDeadEntities(void)
     itemSystem.DespawnDeadEntities(1.0 / SNAPSHOT_SEND_RATE);
 }
 
-bool World::CL_InterpolateBody(Body3D &body, double renderAt, Direction &direction)
-{
-    auto positionHistory = body.positionHistory;
-    const size_t historyLen = positionHistory.Count();
-
-    // If no history, nothing to interpolate yet
-    if (historyLen == 0) {
-        //printf("No snapshot history to interpolate from\n");
-        return true;
-    }
-
-    // Find first snapshot after renderAt time
-    size_t right = 0;
-    while (right < historyLen && positionHistory.At(right).recvAt <= renderAt) {
-        right++;
-    }
-
-    // renderAt is before any snapshots, show entity at oldest snapshot
-    if (right == 0) {
-        const Vector3Snapshot &oldest = positionHistory.At(0);
-        assert(renderAt < oldest.recvAt);
-        //printf("renderAt %f before oldest snapshot %f\n", renderAt, oldest.recvAt);
-
-        body.Teleport(oldest.v);
-        direction = oldest.direction;
-    // renderAt is after all snapshots, show entity at newest snapshot
-    } else if (right == historyLen) {
-        // TODO: Extrapolate beyond latest snapshot if/when this happens? Should be mostly avoidable..
-        const Vector3Snapshot &newest = positionHistory.At(historyLen - 1);
-        assert(renderAt >= newest.recvAt);
-        if (renderAt > newest.recvAt) {
-            //printf("renderAt %f after newest snapshot %f\n", renderAt, newest.recvAt);
-        }
-
-        // TODO: Send explicitly despawn event from server
-        // If we haven't seen an entity in 2 snapshots, chances are it's gone
-        if (renderAt > newest.recvAt + (1.0 / SNAPSHOT_SEND_RATE) * 2) {
-            //printf("Despawning body due to inactivity\n");
-            return false;
-        }
-
-        body.Teleport(newest.v);
-        direction = newest.direction;
-        // renderAt is between two snapshots
-    } else {
-        assert(right > 0);
-        assert(right < historyLen);
-        const Vector3Snapshot &a = positionHistory.At(right - 1);
-        const Vector3Snapshot &b = positionHistory.At(right);
-
-        if (renderAt < a.recvAt) {
-            assert(renderAt);
-        }
-        assert(renderAt >= a.recvAt);
-        assert(renderAt < b.recvAt);
-
-        // Linear interpolation: body.x = x0 + (x1 - x0) * alpha;
-        double alpha = (renderAt - a.recvAt) / (b.recvAt - a.recvAt);
-        const Vector3 interpPos = v3_add(a.v, v3_scale(v3_sub(b.v, a.v), (float)alpha));
-        body.Teleport(interpPos);
-        direction = b.direction;
-    }
-
-    return true;
-}
-
 void World::CL_Interpolate(double renderAt)
 {
     // TODO: Probably would help to unify entities in some way so there's less duplication here
@@ -659,7 +595,7 @@ void World::CL_Interpolate(double renderAt)
         if (!player.id || player.id == playerId) {
             continue;
         }
-        CL_InterpolateBody(player.body, renderAt, player.sprite.direction);
+        player.body.CL_Interpolate(renderAt, player.sprite.direction);
     }
     for (int type = NPC::Type_None + 1; type < NPC::Type_Count; type++) {
         NpcList npcList = npcs.byType[type];
@@ -668,15 +604,21 @@ void World::CL_Interpolate(double renderAt)
             if (!npc.type) {
                 continue;
             }
-            CL_InterpolateBody(npc.body, renderAt, npc.sprite.direction);
+            npc.body.CL_Interpolate(renderAt, npc.sprite.direction);
             //npc.Update(*this, g_clock.now - renderAt);
+
+            if (npc.type == NPC::Type_Slime && npc.body.Jumped()) {
+                //Catalog::SoundID squish = dlb_rand32i_range(0, 1) ? Catalog::SoundID::Squish1 : Catalog::SoundID::Squish2;
+                Catalog::SoundID squish = Catalog::SoundID::Squish1;
+                Catalog::g_sounds.Play(squish, 1.0f + dlb_rand32f_variance(0.2f), true);
+            }
         }
     }
     for (WorldItem &item : itemSystem.worldItems) {
         if (!item.euid) {
             continue;
         }
-        CL_InterpolateBody(item.body, renderAt, item.sprite.direction);
+        item.body.CL_Interpolate(renderAt, item.sprite.direction);
     }
 }
 

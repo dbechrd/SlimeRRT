@@ -137,7 +137,7 @@ static void sprite_draw(const Sprite &sprite, Rectangle screenRect, Color color)
 
 void sprite_draw_body(const Sprite &sprite, const Body3D &body, const Color &color)
 {
-#if CL_DEBUG_SNAPSHOT_SHADOW
+    if (g_cl_show_snapshot_shadow) {
 #if 1
     Vector3 serverPos = body.WorldPositionServer();
     serverPos.x = floorf(serverPos.x);
@@ -161,7 +161,7 @@ void sprite_draw_body(const Sprite &sprite, const Body3D &body, const Color &col
         sprite_draw(sprite, serverRect, { gray, gray, gray, 255 });
     }
 #endif
-#endif
+    }
 
     Vector3 worldPos = body.WorldPosition();
     worldPos.x = floorf(worldPos.x);

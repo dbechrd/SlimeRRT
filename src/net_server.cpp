@@ -544,7 +544,7 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
 
                 worldSnapshot.npcs[worldSnapshot.npcCount] = state;
                 worldSnapshot.npcCount++;
-                E_DEBUG("SS NPC #%u %s", npc.id, NpcSnapshot::FlagStr(flags));
+                //E_DEBUG("SS NPC #%u %s", npc.id, NpcSnapshot::FlagStr(flags));
             }
         }
     }
@@ -1303,7 +1303,6 @@ ErrorType NetServer::RemoveClient(ENetPeer *peer)
             memcpy(chatMsg.message, message, chatMsg.messageLength);
             E_ERROR_RETURN(BroadcastChatMessage(chatMsg), "Failed to broadcast player leave chat msg", 0);
 
-            serverWorld->RemovePlayer(client->playerId);
             serverWorld->RemovePlayerInfo(client->playerId);
         }
         *client = {};

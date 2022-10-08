@@ -86,26 +86,24 @@ inline Vector2 Body3D::VisualPosition(void) const
 
 inline void Body3D::Teleport(Vector3 pos)
 {
-    destPosition.x = pos.x;
-    destPosition.y = pos.y;
-    destPosition.z = pos.z;
-
     positionPrev = position;
-    position = destPosition;
+    position = pos;
     lastMoved = g_clock.now;
 }
 
 inline void Body3D::Move(Vector2 offset)
 {
-    destPosition.x += offset.x;
-    destPosition.y += offset.y;
+    positionPrev = position;
+    position.x += offset.x;
+    position.y += offset.y;
+    lastMoved = g_clock.now;
 }
 
 inline void Body3D::Move3D(Vector3 offset)
 {
-    destPosition.x += offset.x;
-    destPosition.y += offset.y;
-    destPosition.z += offset.z;
+    positionPrev = position;
+    position = v3_add(position, offset);
+    lastMoved = g_clock.now;
 }
 
 inline bool Body3D::OnGround(void) const
@@ -153,7 +151,6 @@ inline void Body3D::ApplyForce(Vector3 force)
 void Body3D::Update(double dt)
 {
     positionPrev = position;
-    position = destPosition;
 
     DLB_ASSERT(isfinite(position.x));
     DLB_ASSERT(isfinite(position.y));
@@ -224,6 +221,87 @@ void Body3D::Update(double dt)
     bool prevIdle = idle;
     idle = timeSinceLastMove > IDLE_THRESHOLD_SECONDS;
     idleChanged = idle != prevIdle;
-    lastUpdated = g_clock.now;
-    destPosition = position;
+    //lastUpdated = g_clock.now;
+}
+
+bool Body3D::CL_Interpolate(double renderAt, Direction &direction)
+{
+    Vector3 startPos = WorldPosition();
+    const size_t historyLen = positionHistory.Count();
+
+    // If no history, nothing to interpolate yet
+    if (historyLen == 0) {
+        //printf("No snapshot history to interpolate from\n");
+        return true;
+    }
+
+    // Find first snapshot after renderAt time
+    size_t right = 0;
+    while (right < historyLen && positionHistory.At(right).recvAt <= renderAt) {
+        right++;
+    }
+
+    // renderAt is before any snapshots, show entity at oldest snapshot
+    if (right == 0) {
+        const Vector3Snapshot &oldest = positionHistory.At(0);
+        assert(renderAt < oldest.recvAt);
+        //printf("renderAt %f before oldest snapshot %f\n", renderAt, oldest.recvAt);
+
+        Teleport(oldest.v);
+        direction = oldest.direction;
+        // renderAt is after all snapshots, show entity at newest snapshot
+    } else if (right == historyLen) {
+        // TODO: Extrapolate beyond latest snapshot if/when this happens? Should be mostly avoidable..
+        const Vector3Snapshot &newest = positionHistory.At(historyLen - 1);
+        assert(renderAt >= newest.recvAt);
+        if (renderAt > newest.recvAt) {
+            //printf("renderAt %f after newest snapshot %f\n", renderAt, newest.recvAt);
+        }
+
+        // TODO: Send explicit despawn event from server
+        // If we haven't seen an entity in 2 snapshots, chances are it's gone
+        if (renderAt > newest.recvAt + (1.0 / SNAPSHOT_SEND_RATE) * 2) {
+            //printf("Despawning body due to inactivity\n");
+            return false;
+        }
+
+        Teleport(newest.v);
+        direction = newest.direction;
+        // renderAt is between two snapshots
+    } else {
+        assert(right > 0);
+        assert(right < historyLen);
+        const Vector3Snapshot &a = positionHistory.At(right - 1);
+        const Vector3Snapshot &b = positionHistory.At(right);
+
+        if (renderAt < a.recvAt) {
+            assert(renderAt);
+        }
+        assert(renderAt >= a.recvAt);
+        assert(renderAt < b.recvAt);
+
+        // Linear interpolation: x = x0 + (x1 - x0) * alpha;
+        double alpha = (renderAt - a.recvAt) / (b.recvAt - a.recvAt);
+        const Vector3 interpPos = v3_add(a.v, v3_scale(v3_sub(b.v, a.v), (float)alpha));
+        Teleport(interpPos);
+        direction = b.direction;
+    }
+
+    Vector3 endPos = WorldPosition();
+
+    if (!v3_equal(endPos, startPos, POSITION_EPSILON)) {
+        lastMoved = g_clock.now;
+    }
+    jumped = (positionPrev.z == 0.0f && position.z > 0.0f);
+    landed = (positionPrev.z > 0.0f && position.z == 0.0f);
+    // TODO: Can't detect this client-side atm, would need to either sync velocity or a bounced flag, probably pointless
+    //bounced = bounced && !v3_is_zero(velocity);
+
+    const double timeSinceLastMove = g_clock.now - lastMoved;
+    bool prevIdle = idle;
+    idle = timeSinceLastMove > IDLE_THRESHOLD_SECONDS;
+    idleChanged = idle != prevIdle;
+    //lastUpdated = g_clock.now;
+
+    return true;
 }

@@ -36,7 +36,6 @@
 #define CL_CURSOR_ITEM_TEXT_BOTTOM_LEFT  1
 #define CL_PIXEL_FIXER                   1
 #define CL_SMOOTH_PLAYER_RECONCILIATION  1
-#define CL_DEBUG_SNAPSHOT_SHADOW         (0 && _DEBUG)
 #define CL_DEBUG_ADVANCED_ITEM_TOOLTIPS  (1 && _DEBUG)
 #define CL_DEBUG_PLAYER_RECONCILIATION   (0 && _DEBUG)
 #define CL_DEBUG_REALLY_LONG_TIMEOUT     (0 && _DEBUG)
@@ -195,11 +194,12 @@ typedef uint8_t  SlotId;
 //------------------------------------------------------------------------------
 // Helper functions
 //------------------------------------------------------------------------------
-thread_local static Shader g_sdfShader{};
-thread_local static uint8_t g_inputMsecHax{};
-thread_local static bool g_clientSmoothReconcile = true;
-thread_local static float g_clientPlayerRecconcileSmoothFactor = CL_PLAYER_POS_SMOOTH_FACTOR;
-thread_local static Texture g_nPatchTex{};
+thread_local static Shader  g_sdfShader                  {};
+thread_local static uint8_t g_inputMsecHax               {};
+thread_local static bool    g_cl_smooth_reconcile        = true;
+thread_local static float   g_cl_smooth_reconcile_factor = CL_PLAYER_POS_SMOOTH_FACTOR;
+thread_local static bool    g_cl_show_snapshot_shadow    = false;
+thread_local static Texture g_nPatchTex                  {};
 
 void DrawTextFont(Font font, const char *text, float posX, float posY, float offsetX, float offsetY, int fontSize, const Color &color);
 const char *SafeTextFormat(const char *text, ...);

@@ -221,7 +221,6 @@ void Player::Update(InputSample &input, Tilemap &map)
         }
 
         if (!v2_is_zero(moveBuffer)) {
-
             const bool walkable = tile && tile->IsWalkable();
 
             Vector2 newPos = v2_add(pos, moveBuffer);
@@ -363,6 +362,19 @@ void Player::Update(InputSample &input, Tilemap &map)
     }
 #endif
 
+#if 0
+    if (g_clock.server || !input.skipFx) {
+        thread_local bool idle = false;
+        Vector3 worldPos = body.WorldPosition();
+        if (!body.TimeSinceLastMove()) {
+            E_DEBUG("%.3f %.3f %.3f %.3f %u", worldPos.x, worldPos.y, worldPos.z, input.dt, input.seq);
+            idle = false;
+        } else if (!idle) {
+            E_DEBUG("--------", 0);
+            idle = true;
+        }
+    }
+#endif
     // Skip sounds/particles etc. next time this input is used (e.g. during reconciliation)
     input.skipFx = true;
 }
@@ -475,13 +487,13 @@ void Player::Draw(World &world)
     PlayerInfo *playerInfo = world.FindPlayerInfo(id);
     if (!playerInfo) return;
 
+    Vector3 worldPos = body.WorldPosition();
+
     // Player shadow
     // TODO: Shadow size based on height from ground
     // https://yal.cc/top-down-bouncing-loot-effects/
     //const float shadowScale = 1.0f + slime->transform.position.z / 20.0f;
-    Vector3 worldPos = body.WorldPosition();
     Shadow::Draw(worldPos, 16.0f, -6.0f);
-
     sprite_draw_body(sprite, body, combat.hitPoints ? WHITE : GRAY);
 
     DrawSwimOverlay(world);

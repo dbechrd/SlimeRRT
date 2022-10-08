@@ -17,7 +17,7 @@ Spycam  *UI::spycam;
 bool UI::showMenubar = false;
 bool UI::showDemoWindow = false;
 bool UI::showParticleConfig = false;
-bool UI::showNetstatWindow = true;
+bool UI::showNetstatWindow = false;
 bool UI::showItemProtoEditor = false;
 
 bool UI::disconnectRequested = false;
@@ -349,13 +349,17 @@ void UI::Netstat(NetClient &netClient, double renderAt)
     g_inputMsecHax = (uint8_t)msecHax;
 #endif
 
+    ImGui::Text("Show server shadow");
+    ImGui::SameLine();
+    ImGui::Checkbox("##g_cl_smooth_reconcile_factor", &g_cl_show_snapshot_shadow);
+
     ImGui::Text("Smooth reconcile");
     ImGui::SameLine();
-    ImGui::Checkbox("##g_clientSmoothReconcile", &g_clientSmoothReconcile);
+    ImGui::Checkbox("##g_cl_smooth_reconcile", &g_cl_smooth_reconcile);
 
     ImGui::Text("Reconcile smooth factor");
     ImGui::SameLine();
-    ImGui::SliderFloat("##g_clientPlayerRecconcileSmoothFactor", &g_clientPlayerRecconcileSmoothFactor, 0.01f, 1.0f);
+    ImGui::SliderFloat("##g_cl_smooth_reconcile_factor", &g_cl_smooth_reconcile_factor, 0.01f, 1.0f);
 
     if (ImGui::Button("Force de-sync")) {
         Player *player = netClient.serverWorld->LocalPlayer();
@@ -375,7 +379,7 @@ void UI::Netstat(NetClient &netClient, double renderAt)
 
         float times[CL_WORLD_HISTORY]{};
         for (size_t i = 0; i < snapshotCount; i++) {
-            times[i] = (float)(netClient.worldHistory.At(i).recvAt - renderAt);
+            times[i] = (float)(renderAt - netClient.worldHistory.At(i).recvAt);
         }
         ImGui::Text("Times:");
         ImGui::PlotHistogram("times", times, (int)snapshotCount, 0, 0, -2.0f, 2.0f, ImVec2(300.0f, 50.0f));

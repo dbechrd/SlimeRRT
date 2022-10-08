@@ -41,13 +41,14 @@ struct Body3D {
     double TimeSinceLastMove(void) const;
     void ApplyForce(Vector3 force);
     void Update(double dt);
+    bool CL_Interpolate(double renderAt, Direction &direction);
 
 private:
     const char *LOG_SRC = "Body";
     Vector3 positionPrev {};
-    Vector3 destPosition {};  // buffer all non-sim move offsets (teleport, etc.)
+    //Vector3 destPosition {};  // buffer all non-sim move offsets (teleport, etc.)
     Vector3 position     {};
-    double  lastUpdated  {};
+    //double  lastUpdated  {};  // TODO(cleanup): Do we need this for something? I don't.. think.. so??
     double  lastMoved    {};
     bool    jumped       {};
     bool    landed       {};

@@ -320,7 +320,6 @@ void NetClient::ReconcilePlayer(void)
             playerSnapshot->position.y,
             playerSnapshot->position.z);
 #endif
-        //E_DEBUG("Reconcile");
         // Predict player for each input not yet handled by the server
         bool applyOverflow = true;
         for (size_t i = 0; i < inputHistory.Count(); i++) {
@@ -360,11 +359,11 @@ void NetClient::ReconcilePlayer(void)
 
     // NOTE(dlb): This isn't really necessary, but prevents a _tiny_ amount of stutter vs. when it's
     // turned off. I think it's fine for now..
-    if (g_clientSmoothReconcile) {
+    if (g_cl_smooth_reconcile) {
         Vector3 oldPos = localPos;
         Vector3 newPos = player->body.WorldPosition();
         Vector3 delta = v3_sub(newPos, oldPos);
-        Vector3 smoothDelta = v3_scale(delta, g_clientPlayerRecconcileSmoothFactor);
+        Vector3 smoothDelta = v3_scale(delta, g_cl_smooth_reconcile_factor);
         Vector3 smoothNewPos = v3_add(oldPos, smoothDelta);
         player->body.Teleport(smoothNewPos);
     }

@@ -316,7 +316,7 @@ void GameClient::PlayMode_HandleInput(PlayerControllerState &input)
     }
 
 #if CL_DEMO_VIEW_RTREE
-    if (input.dbgNextRtreeRect) {
+    if (sample.dbgNextRtreeRect) {
         if (next_rect_to_add < RECT_COUNT && (GetTime() - lastRectAddedAt > 0.1)) {
             AABB aabb{};
             aabb.min.x = rects[next_rect_to_add].x;
@@ -331,7 +331,7 @@ void GameClient::PlayMode_HandleInput(PlayerControllerState &input)
         lastRectAddedAt = 0;
     }
 
-    if (input.dbgKillRtreeRect) {
+    if (sample.dbgKillRtreeRect) {
         size_t lastIdx = next_rect_to_add - 1;
         AABB aabb{};
         aabb.min.x = rects[lastIdx].x;
@@ -360,13 +360,13 @@ void GameClient::PlayMode_Update(double frameDt, PlayerControllerState &input)
 
             //while (tickAccum > tickDt) {
             netClient.inputSeq = MAX(1, netClient.inputSeq + 1);
-            InputSample &inputSample = netClient.inputHistory.Alloc();
-            inputSample.FromController(player->id, netClient.inputSeq, frameDt, input);
+            InputSample &sample = netClient.inputHistory.Alloc();
+            sample.FromController(player->id, netClient.inputSeq, frameDt, input);
 
-            // Update world state from worldSnapshot and re-apply input with input.tick > snapshot.tick
+            // Update world state from worldSnapshot and re-apply sample with sample.tick > snapshot.tick
             netClient.ReconcilePlayer();
 
-            player->Update(inputSample, netClient.serverWorld->map);
+            player->Update(sample, netClient.serverWorld->map);
             netClient.serverWorld->particleSystem.Update(frameDt);
             netClient.serverWorld->itemSystem.Update(frameDt);
 

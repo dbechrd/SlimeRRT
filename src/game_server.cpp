@@ -105,7 +105,7 @@ ErrorType GameServer::Run(const Args *args)
                     for (int i = inputHistoryLen - 1; i >= 0 && dtAccum < (float)SV_INPUT_HISTORY_DT_MAX; i--) {
                         InputSample input = client.inputHistory.At(i);
                         if (input.seq <= client.lastInputAck) {
-                            continue;
+                            break;
                         }
 
                         oldestInputSeqToProcess = input.seq;
@@ -116,7 +116,8 @@ ErrorType GameServer::Run(const Args *args)
                         int last = oldestInputSeqToProcess - 1;
                         int count = (last - first) + 1;
                         E_WARN("SVR [tick: %u] discard old input: %u - %u (%u samples)", world->tick, first, last, count);
-                        client.lastInputAck = last;
+
+                        client.lastInputAck = oldestInputSeqToProcess - 1;
                     }
                 }
 
@@ -127,30 +128,50 @@ ErrorType GameServer::Run(const Args *args)
                     for (size_t i = 0; i < inputHistoryLen && processedDt < (float)SV_TICK_DT; i++) {
                         InputSample input = client.inputHistory.At(i);
                         if (input.seq <= client.lastInputAck) {
-                            //E_WARN("Ignoring old input #%u from %u\n", sample.seq, sample.ownerId);
+                            //E_WARN("Ignoring old input #%u from %u\n", input.seq, input.ownerId);
                             continue;
                         }
 
+#if 1
                         if (client.inputOverflow) {
                             // Consume partial input from previous tick
+                            //if (input.walkEast) {
+                            //    E_DEBUG("tick %u seq %u dt %.3f adding overflow %.3f", world->tick, input.seq, input.dt, client.inputOverflow);
+                            //}
                             input.dt = client.inputOverflow;
                             client.inputOverflow = 0;
                         }
 
+                        float origDt = input.dt;
                         processedDt += input.dt;
-
                         if (processedDt <= (float)SV_TICK_DT) {
                             // Consume whole input
+                            //if (input.walkEast) {
+                            //    E_DEBUG("tick %u consume seq %u dt %.3f", world->tick, input.seq, input.dt);
+                            //}
                             client.lastInputAck = input.seq;
                         } else {
                             // Consume partial input at end of tick if we ran out of time
                             client.inputOverflow = (processedDt - (float)SV_TICK_DT);
                             input.dt -= client.inputOverflow;
+                            //if (input.walkEast) {
+                            //    E_DEBUG("tick %u partial seq %u dt %.3f", world->tick, input.seq, input.dt);
+                            //}
                         }
+#else
+                        // NOTE: This is vulnerable to trivial speed hax by fudging dt
+                        if (input.walkEast) {
+                            E_DEBUG("tick %u consume seq %u dt %.3f", world->tick, input.seq, input.dt);
+                        }
+                        client.lastInputAck = input.seq;
+#endif
 
-                        //E_DEBUG("SVR SQ: %u OS: %f S: %f", input.seq, origInput.dt, input.dt);
                         player->Update(input, world->map);
                     }
+
+                    //if (client.inputOverflow) {
+                    //    E_DEBUG("tick %u input overflow %.3f", world->tick, client.inputOverflow);
+                    //}
                 }
 
                 world->SV_Simulate(SV_TICK_DT);

@@ -1,7 +1,6 @@
 #include "catalog/sounds.h"
 #include "helpers.h"
 #include "raylib/raylib.h"
-#include <cassert>
 
 namespace Catalog {
     const char *SoundIDString(SoundID id)
@@ -55,7 +54,7 @@ namespace Catalog {
 
     Sound Sounds::FindById(SoundID id)
     {
-        assert((size_t)id < ARRAY_SIZE(byId));
+        DLB_ASSERT((size_t)id < ARRAY_SIZE(byId));
         Sound sound = byId[(size_t)id];
         if (!sound.frameCount) {
             sound = MissingOggSound();
@@ -65,6 +64,8 @@ namespace Catalog {
 
     void Sounds::Play(SoundID id, float pitch, bool multi)
     {
+        DLB_ASSERT(!g_clock.server);
+
         Sound sound = FindById(id);
 
         //if (!multi && IsSoundPlaying(sound)) {
@@ -94,9 +95,9 @@ namespace Catalog {
             size_t missingOggSize = 0;
             const unsigned char *missingOggData = MissingOggData(missingOggSize);
             Wave missingOggWave = LoadWaveFromMemory(".ogg", missingOggData, (int)missingOggSize);
-            assert(missingOggWave.frameCount);
+            DLB_ASSERT(missingOggWave.frameCount);
             missingOggSound = LoadSoundFromWave(missingOggWave);
-            assert(missingOggSound.frameCount);
+            DLB_ASSERT(missingOggSound.frameCount);
             UnloadWave(missingOggWave);
         }
         return missingOggSound;
