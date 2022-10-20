@@ -98,6 +98,13 @@ private:
         void Begin(void) {
             prevBeginID = beginID;
             beginID = menuStack.Last().id;
+            beginCount = count;
+        }
+        bool WentBack(void) {
+            return count < beginCount;
+        }
+        bool WentForward(void) {
+            return count > beginCount;
         }
         bool Changed(void) {
             return Last().id != beginID;
@@ -132,6 +139,7 @@ private:
         const char *LOG_SRC = "MenuStack";
         Menu   menus       [8]{};   // menu stack data
         int    count       {};      // current size of menu stack
+        int    beginCount  {};      // size of menu stack at frame start
         MenuID beginID     {};      // id of menu active at frame start
         MenuID prevBeginID {};      // id of menu active at previous frame start
     };

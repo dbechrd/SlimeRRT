@@ -186,6 +186,7 @@ void GameClient::Init(void)
     Catalog::g_sounds.mixer.volumeLimit[(size_t)Catalog::SoundID::GemBounce] = 0.8f;
     Catalog::g_sounds.mixer.volumeLimit[(size_t)Catalog::SoundID::Whoosh] = 0.6f;
     Catalog::g_sounds.mixer.volumeLimit[(size_t)Catalog::SoundID::Footstep] = 0.8f;
+    Catalog::g_sounds.mixer.volumeLimit[(size_t)Catalog::SoundID::Click1] = 0.85f;
 
     LoadingScreen("Loading Spritesheets...");
     Catalog::g_spritesheets.Load();

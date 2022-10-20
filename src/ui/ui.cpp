@@ -236,12 +236,21 @@ void UI::SliderFloatLeft(const char *label, float *v, float min, float max)
     float sliderMargin = 20.0f;
     //float cursorX = ImGui::GetCursorPosX();
     //ImGui::SetCursorPosX(ImGui::GetCursorPosX() + sliderMargin);
-    float sliderWidth = ImGui::GetContentRegionAvail().x - sliderMargin * 2.0f;
+    float sliderWidth = 500.0f;
+    ImGui::Dummy(ImVec2(sliderMargin, 1.0f));
+    ImGui::SameLine();
+
+    int styleVars = 0;
+    const float rounding = 3.0f;
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, rounding); styleVars++;
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8.0f, 0.0f)); styleVars++;
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 14.0f)); styleVars++;
+    ImGui::PushStyleVar(ImGuiStyleVar_GrabMinSize, 20.0f); styleVars++;
+    ImGui::PushStyleVar(ImGuiStyleVar_GrabRounding, rounding); styleVars++;
     ImGui::PushItemWidth(sliderWidth);
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 14.0f));
-    ImGui::SliderFloat(label, v, min, max, "%.03f");
-    ImGui::PopStyleVar();
+    ImGui::SliderFloat(label, v, min, max, "%.02f", ImGuiSliderFlags_AlwaysClamp);
     ImGui::PopItemWidth();
+    ImGui::PopStyleVar(styleVars);
 }
 
 void UI::SliderIntLeft(const char *label, int *v, int min, int max)
@@ -366,7 +375,7 @@ void UI::Netstat(NetClient &netClient, double renderAt)
 
     ImGui::Text("Reconcile smooth factor");
     ImGui::SameLine();
-    ImGui::SliderFloat("##g_cl_smooth_reconcile_factor", &g_cl_smooth_reconcile_factor, 0.01f, 1.0f);
+    ImGui::SliderFloat("##g_cl_smooth_reconcile_factor", &g_cl_smooth_reconcile_factor, 0.01f, 1.0f, "%.02f", ImGuiSliderFlags_AlwaysClamp);
 
     if (ImGui::Button("Force de-sync")) {
         Player *player = netClient.serverWorld->LocalPlayer();
@@ -1113,11 +1122,11 @@ int UI::OldRaylibMenu(const Font &font, const char **items, size_t itemCount)
 
 bool UI::BreadcrumbButton(const char *label)
 {
-    ImGui::Button(label);
+    bool pressed = ImGui::Button(label);
     if (ImGui::IsItemHovered()) {
         UI::hoverLabel = label;
     }
-    bool pressed = ImGui::IsItemClicked(ImGuiMouseButton_Left);
+    //pressed = ImGui::IsItemClicked(ImGuiMouseButton_Left);
     return pressed;
 }
 
@@ -1145,31 +1154,14 @@ void UI::Breadcrumbs(void)
     }
 }
 
-bool UI::MenuBackButton(MenuID menu)
-{
-    ImGui::PushFont(g_fonts.imFontHack32);
-    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
-    ImGui::Button("< Back");
-    if (ImGui::IsItemHovered()) UI::hoverLabel = "< Back";
-    bool pressed = (ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
-                    ImGui::IsMouseHoveringRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax()));
-    if (pressed) {
-        //Catalog::g_sounds.Play(Catalog::SoundID::Squish2, 1.0f + dlb_rand32f_variance(0.1f));
-        menuStack.BackTo(menu);
-    }
-    ImGui::PopStyleColor(1);
-    ImGui::PopFont();
-    ImGui::SameLine();
-    return pressed;
-}
-
 bool UI::MenuButton(const char *label, const ImVec2 &size)
 {
-    ImGui::Button(label, size);
+    bool pressed = ImGui::Button(label, size);
     if (ImGui::IsItemHovered()) {
         UI::hoverLabel = label;
     }
-    return ImGui::IsItemClicked(ImGuiMouseButton_Left);
+    //pressed = ImGui::IsItemClicked(ImGuiMouseButton_Left);
+    return pressed;
 }
 
 void UI::MenuMultiplayer(GameClient &game) {
@@ -1571,7 +1563,7 @@ void UI::MainMenu(bool &escape, GameClient &game)
             UI::MenuMultiplayerNew(game.netClient);
             break;
         } case Menu_Audio: {
-            ImGui::PushFont(g_fonts.imFontHack48);
+            ImGui::PushFont(g_fonts.imFontHack32);
             SliderFloatLeft("##Master", &Catalog::g_mixer.masterVolume, 0.0f, 1.0f);
             SliderFloatLeft("##Music ", &Catalog::g_mixer.musicVolume, 0.0f, 1.0f);
             SliderFloatLeft("##Sfx   ", &Catalog::g_mixer.sfxVolume, 0.0f, 1.0f);
@@ -1607,24 +1599,23 @@ void UI::MainMenu(bool &escape, GameClient &game)
         }
     }
 
+    // HACK(dlb): Prevent playing duplicate sounds when coincidentally hovering something immediately after changing menus
+    thread_local static bool hoverChangedLastFrame = false;
     if (menuStack.Changed()) {
-        //Catalog::g_sounds.Play(
-        //    mainMenu > oldMenu ? Catalog::SoundID::Squish1 : Catalog::SoundID::Squish2,
-        //    1.0f + dlb_rand32f_variance(0.1f)*0
-        //);
         disconnectRequested = true;
+
+        if (menuStack.WentBack()) {
+            Catalog::g_sounds.Play(Catalog::SoundID::Click1, 1.0f + dlb_rand32f_variance(0.01f), true);
+        } else if(menuStack.WentForward()) {
+            Catalog::g_sounds.Play(Catalog::SoundID::Click1, 1.2f + dlb_rand32f_variance(0.01f), true);
+        }
     } else if (UI::hoverLabel != UI::prevHoverLabel) {
-        Catalog::g_sounds.Play(Catalog::SoundID::Click1, (UI::hoverLabel ? 1.0f : 0.97f) + dlb_rand32f_variance(0.01f), true);
         UI::prevHoverLabel = UI::hoverLabel;
-        /*thread_local static double lastPlayed = 0;
-        if (lastPlayed < g_clock.now) {
-            UI::prevHoverLabel = UI::hoverLabel;
-            Catalog::g_sounds.Play(Catalog::SoundID::Click1, 1.0f, true);
-            lastPlayed = g_clock.now;
-        } else if (label == prevHover && !ImGui::IsItemHovered()) {
-            prevHover = 0;
-        }*/
+        if (UI::hoverLabel && !hoverChangedLastFrame) {
+            Catalog::g_sounds.Play(Catalog::SoundID::Click1, 2.0f + dlb_rand32f_variance(0.01f), true);
+        }
     }
+    hoverChangedLastFrame = menuStack.Changed();
 
     ImGui::End();
     ImGui::PopStyleVar(styleVars);
