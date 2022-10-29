@@ -241,9 +241,11 @@ ErrorType World::SpawnNpc(uint32_t id, NPC::Type type, Vector3 worldPos, NPC **r
                 double staleTime = g_clock.now - npc.body.positionHistory.Last().recvAt;
                 if (npc.combat.diedAt && staleTime > oldestDeadTime) {
                     oldestDeadNpc = &npc;
+                    oldestDeadTime = staleTime;
                 }
                 if (!npc.combat.diedAt && staleTime > oldestAliveTime) {
                     oldestAliveNpc = &npc;
+                    oldestAliveTime = staleTime;
                 }
             } else {
                 E_ERROR(ErrorType::EnemyNotFound, "Npc has no position history id: %u", npc.id);
@@ -257,13 +259,15 @@ ErrorType World::SpawnNpc(uint32_t id, NPC::Type type, Vector3 worldPos, NPC **r
     }
 
     // Client falls back on stealing less ideal slots if their NPC list is full
-    if (!newNpc) {
+    if (!newNpc && oldestDeadNpc) {
         E_WARN("Replacing oldest dead npc with new npc", 0);
         newNpc = oldestDeadNpc;
+        *newNpc = {};
     }
-    if (!newNpc) {
+    if (!newNpc && oldestAliveNpc) {
         E_WARN("Replacing oldest alive npc with new npc", 0);
         newNpc = oldestAliveNpc;
+        *newNpc = {};
     }
     DLB_ASSERT(newNpc);
 
@@ -605,7 +609,6 @@ void World::CL_Interpolate(double renderAt)
                 continue;
             }
             npc.body.CL_Interpolate(renderAt, npc.sprite.direction);
-            //npc.Update(*this, g_clock.now - renderAt);
 
             if (npc.type == NPC::Type_Slime && npc.body.Jumped()) {
                 //Catalog::SoundID squish = dlb_rand32i_range(0, 1) ? Catalog::SoundID::Squish1 : Catalog::SoundID::Squish2;
@@ -716,14 +719,14 @@ void World::CL_DespawnStaleEntities(void)
             }
 
             // Remove npc corpse if it's been dead for awhile
-            if (npc.combat.diedAt) {
-                const double sinceDeath = npc.combat.diedAt ? (g_clock.now - npc.combat.diedAt) : 0;
-                if (sinceDeath > CL_NPC_CORPSE_LIFETIME) {
-                    E_DEBUG("Remove dead npc %u", npc.id);
-                    RemoveNpc(npc.id);
-                    continue;
-                }
-            }
+            //if (npc.combat.diedAt) {
+            //    const double sinceDeath = npc.combat.diedAt ? (g_clock.now - npc.combat.diedAt) : 0;
+            //    if (sinceDeath > CL_NPC_CORPSE_LIFETIME) {
+            //        E_DEBUG("Remove dead npc %u", npc.id);
+            //        RemoveNpc(npc.id);
+            //        continue;
+            //    }
+            //}
 
 #if 0
             if (npc.body.positionHistory.Count()) {

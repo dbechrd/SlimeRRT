@@ -181,7 +181,7 @@ void GameClient::Init(void)
     Catalog::g_sounds.Load();
     LoadingScreen("Loading Music...");
     Catalog::g_tracks.Load();
-    Catalog::g_mixer.masterVolume = 0.2f;
+    Catalog::g_mixer.masterVolume = 0.5f;
     Catalog::g_mixer.musicVolume = 0; //0.3f;
     Catalog::g_sounds.mixer.volumeLimit[(size_t)Catalog::SoundID::GemBounce] = 0.8f;
     Catalog::g_sounds.mixer.volumeLimit[(size_t)Catalog::SoundID::Whoosh] = 0.6f;

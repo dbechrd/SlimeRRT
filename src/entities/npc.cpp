@@ -110,7 +110,7 @@ void NPC::Draw(World &world)
 
     // Usually 1.0, fades to zero after death
     const float sinceDeath = combat.diedAt ? (float)((g_clock.now - combat.diedAt) / CL_NPC_CORPSE_LIFETIME) : 0;
-    const float deadAlpha = CLAMP(1.0f - sinceDeath, 0, 1);
+    const float deadAlpha = CLAMP(1.0f - sinceDeath, 0.5f, 1.0f);
 
     // Shadow size based on height from ground
     // https://yal.cc/top-down-bouncing-loot-effects/
@@ -130,7 +130,7 @@ void NPC::Draw(World &world)
             Vector2 vizPos = body.VisualPosition();
             const int radius = 7;
             DrawRectangle((int)vizPos.x - 1, (int)vizPos.y - 1, radius + 2, radius + 2, BLACK);
-            DrawRectangle((int)vizPos.x, (int)vizPos.y, radius, radius, ORANGE);
+            DrawRectangle((int)vizPos.x, (int)vizPos.y, radius, radius, RED);
         }
     }
 #endif

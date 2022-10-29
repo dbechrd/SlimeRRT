@@ -35,6 +35,7 @@ struct Combat {
     bool        droppedDeathLoot {};  // loot on death, proper loot roll
 
     inline float TakeDamage(float damage) {
+        DLB_ASSERT(damage > 0);
         if (diedAt || flags & Flag_TooBigToFail) {
             return 0;
         }

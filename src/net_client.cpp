@@ -498,8 +498,11 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                 // TODO: Pos/dir are history based, but these are instantaneous.. hmm.. is that okay?
                 if (playerSnapshot.flags & PlayerSnapshot::Flags_Health) {
                     //E_DEBUG("Snapshot: health %f", playerSnapshot.hitPoints);
-                    if (!spawned) {
-                        if (player->combat.hitPoints && !playerSnapshot.hitPoints) {
+                    const bool respawn = player->combat.diedAt && playerSnapshot.hitPoints;
+                    float hpDelta = player->combat.hitPoints - playerSnapshot.hitPoints;
+                    if (hpDelta > 0) {
+                        player->combat.TakeDamage(hpDelta);
+                        if (player->combat.diedAt) {
                             // Died
                             player->combat.diedAt = worldSnapshot.recvAt;
                             ParticleEffectParams bloodParams{};
@@ -509,10 +512,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                             bloodParams.durationMax = bloodParams.durationMin;
                             serverWorld->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Blood, player->WorldCenter(), bloodParams);
                             Catalog::g_sounds.Play(Catalog::SoundID::Eughh, 1.0f + dlb_rand32f_variance(0.1f));
-                        } else if (!player->combat.hitPoints && playerSnapshot.hitPoints) {
-                            // Respawn
-                            player->combat.diedAt = 0;
-                        } else if (player->combat.hitPoints > playerSnapshot.hitPoints) {
+                        } else {
                             // Took damage
                             Vector3 playerGut = player->GetAttachPoint(Player::AttachPoint::Gut);
                             ParticleEffectParams bloodParams{};
@@ -528,8 +528,11 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                                 };
                             }
                         }
+                    } else if (player->combat.diedAt && playerSnapshot.hitPoints) {
+                        // Respawn
+                        player->combat.hitPoints = playerSnapshot.hitPoints;
+                        player->combat.diedAt = 0;
                     }
-                    player->combat.hitPoints = playerSnapshot.hitPoints;
                 }
                 if (playerSnapshot.flags & PlayerSnapshot::Flags_HealthMax) {
                     //E_DEBUG("Snapshot: healthMax %f", playerSnapshot.hitPointsMax);
@@ -636,10 +639,11 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                 }
                 if (npcSnapshot.flags & NpcSnapshot::Flags_Health) {
                     //E_DEBUG("Snapshot: health %f", enemySnapshot.hitPoints);
-                    if (!spawned) {
-                        if (npc->combat.hitPoints && !npcSnapshot.hitPoints) {
+                    float hpDelta = npc->combat.hitPoints - npcSnapshot.hitPoints;
+                    if (hpDelta > 0) {
+                        npc->combat.TakeDamage(hpDelta);
+                        if (npc->combat.diedAt) {
                             // Died
-                            npc->combat.diedAt = worldSnapshot.recvAt;
                             ParticleEffectParams gooParams{};
                             gooParams.particleCountMin = 50 * (int)ceilf(CL_NPC_CORPSE_LIFETIME);
                             gooParams.particleCountMax = gooParams.particleCountMin;
@@ -647,10 +651,8 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                             gooParams.durationMax = gooParams.durationMin;
                             serverWorld->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Goo, npc->WorldCenter(), gooParams);
                             Catalog::g_sounds.Play(Catalog::SoundID::Squish2, 0.5f + dlb_rand32f_variance(0.1f), true);
-                        } else if (npc->combat.hitPoints > npcSnapshot.hitPoints) {
+                        } else {
                             // Took damage
-                            float dmg = npc->combat.hitPoints - npcSnapshot.hitPoints;
-
                             ParticleEffectParams gooParams{};
                             gooParams.particleCountMin = 5;
                             gooParams.particleCountMax = gooParams.particleCountMin;
@@ -659,14 +661,14 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                             serverWorld->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Goo, npc->WorldCenter(), gooParams);
 
                             ParticleEffectParams dmgParams{};
-                            dmgParams.particleCountMin = (int)MAX(1, floorf(log10f(dmg)));
+                            dmgParams.particleCountMin = (int)MAX(1, floorf(log10f(hpDelta)));
                             dmgParams.particleCountMax = dmgParams.particleCountMin;
                             dmgParams.durationMin = 3.0f;
                             dmgParams.durationMax = dmgParams.durationMin;
                             ParticleEffect *dmgFx = serverWorld->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Number, npc->WorldCenter(), dmgParams);
                             if (dmgFx) {
                                 char *text = (char *)calloc(1, 8);
-                                snprintf(text, 16, "%.f", dmg);
+                                snprintf(text, 16, "%.f", hpDelta);
                                 dmgFx->particleCallbacks[(size_t)ParticleEffect_ParticleEvent::Draw] = {
                                     ParticleDrawText,
                                     text
@@ -679,8 +681,11 @@ void NetClient::ProcessMsg(ENetPacket &packet)
 
                             Catalog::g_sounds.Play(Catalog::SoundID::Slime_Stab1, 1.0f + dlb_rand32f_variance(0.4f));
                         }
+                    } else if (npc->combat.diedAt && npcSnapshot.hitPoints) {
+                        // Respawn
+                        npc->combat.hitPoints = npcSnapshot.hitPoints;
+                        npc->combat.diedAt = 0;
                     }
-                    npc->combat.hitPoints = npcSnapshot.hitPoints;
                 }
                 if (npcSnapshot.flags & NpcSnapshot::Flags_HealthMax) {
                     //E_DEBUG("Snapshot: healthMax %f", enemySnapshot.hitPointsMax);

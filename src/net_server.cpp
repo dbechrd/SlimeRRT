@@ -513,7 +513,7 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
                     } else {
                         flags |= NpcSnapshot::Flags_Despawn;
                         #if SV_DEBUG_WORLD_NPCS
-                            E_DEBUG("Left vicinity of npc #%u", npc.uid);
+                            E_DEBUG("Left vicinity of npc #%u", npc.id);
                         #endif
                     }
                 }
