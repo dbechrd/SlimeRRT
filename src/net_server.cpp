@@ -471,24 +471,8 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
             const bool nearby = distSq <= SQUARED(SV_NPC_NEARBY_THRESHOLD);
             const auto prevState = client.npcHistory.find(npc.id);
             const bool clientAware = prevState != client.npcHistory.end();
-
-            if (clientAware) {
-                if (!nearby || npc.despawnedAt) {
-                    // Allow server to despawn enemies close to players (e.g. when the only nearby player
-                    // dies), without killing them (which would cause corpses, loot, animations, sfx, etc.)
-                    if (prevState->second.flags & NpcSnapshot::Flags_Despawn) {
-                        // "Despawn" notification already sent, fogetaboutit
-                        client.npcHistory.erase(npc.id);
-                        #if SV_DEBUG_WORLD_ENEMIES
-                            E_DEBUG("[dbg_enemy:%u] Already left vicinity of enemy. Erased history.", npc.id);
-                        #endif
-                    } else {
-                        flags |= NpcSnapshot::Flags_Despawn;
-                        #if SV_DEBUG_WORLD_ENEMIES
-                            E_DEBUG("[dbg_enemy:%u] Left vicinity of enemy. Sending despawn.", npc.id);
-                        #endif
-                    }
-                } else if (nearby) {
+            if (nearby) {
+                if (clientAware) {
                     // Send delta updates for puppets that the client already knows about
                     if (strncmp(prevState->second.name, npc.name, npc.nameLength)) {
                         // TODO: Make NameChangeEvent if it ever actually needs to be updated.. or shared string table
@@ -510,7 +494,70 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
                         flags |= NpcSnapshot::Flags_HealthMax;
                     }
                     if (flags) {
-                        #if SV_DEBUG_WORLD_ENEMIES
+                        #if SV_DEBUG_WORLD_NPCS
+                            E_DEBUG("Client aware of npc #%u, flags sent: %s", npc.id, NpcSnapshot::FlagStr(flags));
+                        #endif
+                    }
+                } else if (!npc.despawnedAt) {
+                    flags = NpcSnapshot::Flags_Spawn & ~NpcSnapshot::Flags_Name;
+                    #if SV_DEBUG_WORLD_NPCS
+                        E_DEBUG("Entered vicinity of npc #%u", npc.id);
+                    #endif
+                }
+                flags = NpcSnapshot::Flags_Spawn;
+            } else {
+                if (clientAware) {
+                    if (prevState->second.flags & NpcSnapshot::Flags_Despawn) {
+                        // "Despawn" notification already sent, fogetaboutit
+                        client.npcHistory.erase(npc.id);
+                    } else {
+                        flags |= NpcSnapshot::Flags_Despawn;
+                        #if SV_DEBUG_WORLD_NPCS
+                            E_DEBUG("Left vicinity of npc #%u", npc.uid);
+                        #endif
+                    }
+                }
+            }
+#if 0
+            if (clientAware) {
+                if (!nearby || npc.despawnedAt) {
+                    // Allow server to despawn enemies close to players (e.g. when the only nearby player
+                    // dies), without killing them (which would cause corpses, loot, animations, sfx, etc.)
+                    if (prevState->second.flags & NpcSnapshot::Flags_Despawn) {
+                        // "Despawn" notification already sent, fogetaboutit
+                        client.npcHistory.erase(npc.id);
+                        #if SV_DEBUG_WORLD_NPCS
+                            E_DEBUG("[dbg_enemy:%u] Already left vicinity of enemy. Erased history.", npc.id);
+                        #endif
+                    } else {
+                        flags |= NpcSnapshot::Flags_Despawn;
+                        #if SV_DEBUG_WORLD_NPCS
+                            E_DEBUG("[dbg_enemy:%u] Left vicinity of enemy. Sending despawn.", npc.id);
+                        #endif
+                    }
+                } else if (nearby) {
+                    // Send delta updates for puppets that the client already knows about
+                    if (strncmp(prevState->second.name, npc.name, npc.nameLength)) {
+                        // TODO: Make NameChangeEvent if it ever actually needs to be updated.. or shared string table
+                        flags |= NpcSnapshot::Flags_Name;
+                    }
+                    if (true) { //!v3_equal(npc.body.WorldPosition(), prevState->second.position, POSITION_EPSILON)) {
+                        flags |= NpcSnapshot::Flags_Position;
+                    }
+                    if (true) { //npc.sprite.direction != prevState->second.direction) {
+                        flags |= NpcSnapshot::Flags_Direction;
+                    }
+                    if (npc.sprite.scale != prevState->second.scale) {
+                        flags |= NpcSnapshot::Flags_Scale;
+                    }
+                    if (npc.combat.hitPoints != prevState->second.hitPoints) {
+                        flags |= NpcSnapshot::Flags_Health;
+                    }
+                    if (npc.combat.hitPointsMax != prevState->second.hitPointsMax) {
+                        flags |= NpcSnapshot::Flags_HealthMax;
+                    }
+                    if (flags) {
+                        #if SV_DEBUG_WORLD_NPCS
                             E_DEBUG("[dbg_enemy:%u] Client aware of enemy and delta sent", npc.id);
                         #endif
                     }
@@ -520,11 +567,11 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
             } else if (nearby && !npc.despawnedAt) {
                 // Spawn a new puppet
                 flags = NpcSnapshot::Flags_OnSpawn;
-                #if SV_DEBUG_WORLD_ENEMIES
+                #if SV_DEBUG_WORLD_NPCS
                     E_DEBUG("[dbg_enemy:%u] Entered vicinity of enemy. Sending spawn.", npc.id);
                 #endif
             }
-
+#endif
             if (flags) {
                 // TODO: Let Enemy serialize itself by storing a reference in the Snapshot, then
                 // having NetMessage::Process call a serialize method and forwarding the BitStream

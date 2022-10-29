@@ -44,7 +44,7 @@ struct World {
     Tilemap      & map            { mapSystem.Alloc() };
     ParticleSystem particleSystem {};
     ChatHistory    chatHistory    {};
-    bool           peaceful       { true };
+    bool           peaceful       { false };
     bool           pvp            { true };
 
     World  (void);

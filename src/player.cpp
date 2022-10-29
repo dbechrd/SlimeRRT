@@ -135,10 +135,6 @@ bool Player::Move(Vector2 offset)
 
 bool Player::Attack(InputSample &input)
 {
-    if (input.skipFx) {
-        return false;
-    }
-
     const double attackAlpha = (g_clock.now - combat.attackStartedAt) / combat.attackDuration;
     if (actionState == ActionState::AttackBegin && attackAlpha > 0.0) {
         actionState = ActionState::AttackSustain;
@@ -153,7 +149,6 @@ bool Player::Attack(InputSample &input)
     }
 
     if (input.primary && actionState == ActionState::None) {
-        E_DEBUG("seq %u attack", input.seq);
         actionState = ActionState::AttackBegin;
         body.Move({});  // update lastMoved to stop idle animation
         combat.attackStartedAt = g_clock.now;
@@ -232,7 +227,7 @@ void Player::Update(InputSample &input, Tilemap &map)
         Vector2 moveOffset = v2_scale(v2_normalize(move), METERS_TO_PIXELS(speed) * input.dt);
         moveBuffer = v2_add(moveBuffer, moveOffset);
 
-        if (Attack(input)) {
+        if (Attack(input) && !input.skipFx) {
             Catalog::g_sounds.Play(Catalog::SoundID::Whoosh, 1.0f + dlb_rand32f_variance(0.1f));
         }
 
@@ -396,6 +391,8 @@ bool Player::Cull(const Rectangle &cullRect) const
 void Player::DrawSwimOverlay(const World &world) const
 {
     Vector2 groundPos = body.GroundPosition();
+    DLB_ASSERT(isfinite(groundPos.x));
+    DLB_ASSERT(isfinite(groundPos.y));
     const Tile *tileLeft = world.map.TileAtWorld(groundPos.x - 15.0f, groundPos.y);
     const Tile *tileRight = world.map.TileAtWorld(groundPos.x + 15.0f, groundPos.y);
     if ((tileLeft && tileLeft->type == TileType_Water) ||

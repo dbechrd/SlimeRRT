@@ -59,7 +59,7 @@ struct NpcSnapshot {
         Flags_Health    = 1 << 5,  // current health, e.g. heal/damage
         Flags_HealthMax = 1 << 6,  // max health
         Flags_Level     = 1 << 7,  // current level
-        Flags_OnSpawn =
+        Flags_Spawn =
             Flags_Name      |
             Flags_Position  |
             Flags_Direction |

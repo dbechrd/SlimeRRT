@@ -117,7 +117,6 @@ ErrorType GameServer::Run(const Args *args)
                         int last = oldestInputSeqToProcess - 1;
                         int count = (last - first) + 1;
                         E_WARN("SVR [tick: %u] discard old input: %u - %u (%u samples)", world->tick, first, last, count);
-
                         client.lastInputAck = oldestInputSeqToProcess - 1;
                     }
                 }

@@ -12,7 +12,7 @@ void Slime::Init(NPC &npc)
     npc.combat.level = 1;
     npc.combat.hitPointsMax = 10.0f;
     npc.combat.hitPoints = npc.combat.hitPointsMax;
-    npc.combat.meleeDamage = 30.0f;
+    npc.combat.meleeDamage = 3.0f;
     npc.combat.xpMin = 2;
     npc.combat.xpMax = 4;
     npc.combat.lootTableId = LootTableID::LT_Slime;
@@ -91,7 +91,7 @@ bool Slime::TryCombine(NPC &npc, NPC &other)
     b->combat.hitPoints = 0.0f;
     b->combat.diedAt = g_clock.now;
     b->combat.droppedDeathLoot = true;
-#if SV_DEBUG_WORLD_ENEMIES
+#if SV_DEBUG_WORLD_NPCS
     E_DEBUG("Combined slime #%u into slime #%u", b->id, a->id);
 #endif
     return true;

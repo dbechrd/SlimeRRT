@@ -51,7 +51,7 @@
 #define SV_DEBUG_SPAWN_REALLY_CLOSE      (0 && _DEBUG)
 #define SV_DEBUG_INPUT_SAMPLES           (0 && _DEBUG)
 #define SV_DEBUG_WORLD_CHUNKS            (0 && _DEBUG)
-#define SV_DEBUG_WORLD_ENEMIES           (0 && _DEBUG)
+#define SV_DEBUG_WORLD_NPCS              (0 && _DEBUG)
 #define SV_DEBUG_WORLD_ITEMS             (0 && _DEBUG)
 #define SV_DEBUG_WORLD_PLAYERS           (0 && _DEBUG)
 
@@ -80,13 +80,13 @@
 #define SV_SINGLEPLAYER_PASS        "guest"
 #define SV_USERNAME                 "SERVER"
 #define SV_MAX_PLAYERS              8
-#define SV_MAX_NPC_SLIMES           8
+#define SV_MAX_NPC_SLIMES           1
 #define SV_MAX_NPC_TOWNFOLK         1
 #define SV_MAX_NPCS (               SV_MAX_NPC_SLIMES   + \
                                     SV_MAX_NPC_TOWNFOLK )
 #define SV_MAX_ITEMS                256 //4096
 #define SV_WORLD_ITEM_LIFETIME      120 //600 // despawn items after 10 minutes
-#define SV_TICK_RATE                60
+#define SV_TICK_RATE                29
 #define SV_TICK_DT                  (1.0 / SV_TICK_RATE)
 #define SV_TICK_DT_ACCUM_MAX        (1.5 * SV_TICK_DT)
 #define SV_TIME_SECONDS_IN_DAY      600.0

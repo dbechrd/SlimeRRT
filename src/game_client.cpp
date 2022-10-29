@@ -181,7 +181,7 @@ void GameClient::Init(void)
     Catalog::g_sounds.Load();
     LoadingScreen("Loading Music...");
     Catalog::g_tracks.Load();
-    Catalog::g_mixer.masterVolume = 1.0f;
+    Catalog::g_mixer.masterVolume = 0.2f;
     Catalog::g_mixer.musicVolume = 0; //0.3f;
     Catalog::g_sounds.mixer.volumeLimit[(size_t)Catalog::SoundID::GemBounce] = 0.8f;
     Catalog::g_sounds.mixer.volumeLimit[(size_t)Catalog::SoundID::Whoosh] = 0.6f;
@@ -366,9 +366,10 @@ void GameClient::PlayMode_Update(double frameDt, PlayerControllerState &input)
         sample.FromController(player->id, netClient.inputSeq, frameDt, input);
 
         // Send queued inputs to server ASAP (ideally, every frame), while respecting a sane rate limit
-        if (g_clock.now - netClient.lastInputSentAt > CL_INPUT_SEND_RATE_LIMIT_DT) {
-            netClient.SendPlayerInput();
-        }
+        netClient.SendPlayerInput();
+        //if (g_clock.now - netClient.lastInputSentAt > CL_INPUT_SEND_RATE_LIMIT_DT) {
+        //    netClient.SendPlayerInput();
+        //}
 
         // Update world state from worldSnapshot and re-apply sample with sample.tick > snapshot.tick
         netClient.ReconcilePlayer();
