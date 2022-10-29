@@ -219,12 +219,11 @@ ErrorType World::SpawnNpc(uint32_t id, NPC::Type type, Vector3 worldPos, NPC **r
         }
     }
 
-    // Find a suitable place to store the new NPC (try to replace by: free -> dead -> alive)
+    // Find a suitable place to store the new NPC (try to replace by: free slot -> oldest dead)
     NPC *newNpc = 0;
     NPC *oldestDeadNpc = 0;
     NPC *oldestAliveNpc = 0;
     double oldestDeadTime = 0;
-    double oldestAliveTime = 0;
 
     for (size_t i = 0; i < npcList.length; i++) {
         NPC &npc = npcList.data[i];
@@ -235,42 +234,28 @@ ErrorType World::SpawnNpc(uint32_t id, NPC::Type type, Vector3 worldPos, NPC **r
             newNpc = &npc;
             break;
         }
-        if (!g_clock.server) {
-            // Keep track of second/third best types of slots on client
-            if (npc.body.positionHistory.Count()) {
-                double staleTime = g_clock.now - npc.body.positionHistory.Last().recvAt;
-                if (npc.combat.diedAt && staleTime > oldestDeadTime) {
-                    oldestDeadNpc = &npc;
-                    oldestDeadTime = staleTime;
-                }
-                if (!npc.combat.diedAt && staleTime > oldestAliveTime) {
-                    oldestAliveNpc = &npc;
-                    oldestAliveTime = staleTime;
-                }
-            } else {
-                E_ERROR(ErrorType::EnemyNotFound, "Npc has no position history id: %u", npc.id);
-            }
+
+        // Keep track of second/third best types of slots
+        double staleTime = g_clock.now - npc.combat.diedAt;
+        if (npc.combat.diedAt && staleTime > oldestDeadTime) {
+            oldestDeadNpc = &npc;
+            oldestDeadTime = staleTime;
         }
     }
 
-    // Server simply stops spawning new mobs if list is full
-    if (g_clock.server && !newNpc) {
-        return ErrorType::AllocFailed_Full;
-    }
-
-    // Client falls back on stealing less ideal slots if their NPC list is full
+    // Reclaim dead slot
     if (!newNpc && oldestDeadNpc) {
-        E_WARN("Replacing oldest dead npc with new npc", 0);
+        //E_WARN("Replacing oldest dead npc with new npc", 0);
         newNpc = oldestDeadNpc;
         *newNpc = {};
     }
-    if (!newNpc && oldestAliveNpc) {
-        E_WARN("Replacing oldest alive npc with new npc", 0);
-        newNpc = oldestAliveNpc;
-        *newNpc = {};
-    }
-    DLB_ASSERT(newNpc);
 
+    // Mob cap is full of living mobs
+    if (!newNpc) {
+        return ErrorType::AllocFailed_Full;
+    }
+
+    DLB_ASSERT(newNpc);
     NPC &npc = *newNpc;
 
     if (id) {
@@ -455,7 +440,7 @@ void World::SV_SimPlayers(double dt)
         }
 
         // Try to spawn enemies near player
-        if (!peaceful && dlb_rand32f() < 0.9f) {
+        if (!peaceful && dlb_rand32f() < 0.1f) {
             Vector2 spawnPos{};
             spawnPos.x = dlb_rand32f_variance(1.0f);
             spawnPos.y = dlb_rand32f_variance(1.0f);
@@ -501,7 +486,7 @@ void World::SV_SimNpcs(double dt)
 void World::SV_SimItems(double dt)
 {
     for (WorldItem &item : itemSystem.worldItems) {
-        if (!item.euid || item.pickedUpAt || g_clock.now < item.spawnedAt + SV_ITEM_PICKUP_DELAY) {
+        if (!item.euid || item.despawnedAt || g_clock.now < item.spawnedAt + SV_ITEM_PICKUP_DELAY) {
             continue;
         }
 
@@ -520,7 +505,7 @@ void World::SV_SimItems(double dt)
         if (itemToPlayerDistSq < SQUARED(SV_ITEM_PICKUP_DIST)) {
             if (closestPlayer->inventory.PickUp(item.stack)) {
                 if (!item.stack.count) {
-                    item.pickedUpAt = g_clock.now;
+                    item.despawnedAt = g_clock.now;
 #if SV_DEBUG_WORLD_ITEMS
                     E_DEBUG("Sim: Item picked up %u", item.type);
 #endif
@@ -578,13 +563,13 @@ void World::SV_DespawnDeadEntities(void)
                     RemoveNpc(npc.id);
                     continue;
                 }
-            } else {
-                const double sinceDeath = npc.combat.diedAt ? (g_clock.now - npc.combat.diedAt) : 0;
-                if (sinceDeath > SV_NPC_CORPSE_LIFETIME) {
-                    E_DEBUG("Despawn dead npc %u", npc.id);
-                    npc.despawnedAt = g_clock.now;
-                    continue;
-                }
+            //} else {
+            //    const double sinceDeath = npc.combat.diedAt ? (g_clock.now - npc.combat.diedAt) : 0;
+            //    if (sinceDeath > SV_NPC_CORPSE_LIFETIME) {
+            //        E_DEBUG("Despawn dead npc %u", npc.id);
+            //        npc.despawnedAt = g_clock.now;
+            //        continue;
+            //    }
             }
         }
     }
@@ -650,7 +635,7 @@ void World::CL_Extrapolate(double dt)
         }
     }
     for (WorldItem &item : itemSystem.worldItems) {
-        if (!item.euid || item.pickedUpAt || g_clock.now < item.spawnedAt + SV_ITEM_PICKUP_DELAY) {
+        if (!item.euid || item.despawnedAt || g_clock.now < item.spawnedAt + SV_ITEM_PICKUP_DELAY) {
             continue;
         }
 

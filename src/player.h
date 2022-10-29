@@ -325,6 +325,7 @@ struct Player : Drawable {
     };
 
     uint32_t        id          {};
+    double          despawnedAt {};  // NOTE: Unused, just here for parity with NPC until entities are consolidated
     MoveState       moveState   {};
     ActionState     actionState {};
     Vector2         moveBuffer  {};

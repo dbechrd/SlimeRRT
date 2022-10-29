@@ -138,8 +138,6 @@ void UI::Minimap(const Font &font, World &world)
     if (player) {
         world.map.GenerateMinimap(player->body.GroundPosition());
         Vector2 playerPos = player->body.GroundPosition();
-        DLB_ASSERT(isfinite(playerPos.x));
-        DLB_ASSERT(isfinite(playerPos.y));
         const int offsetX = world.map.CalcChunkTile(playerPos.x) - CHUNK_W / 2;
         const int offsetY = world.map.CalcChunkTile(playerPos.y) - CHUNK_W / 2;
         BeginScissorMode(minimapTexX, minimapTexY, world.map.minimap.width, world.map.minimap.height);

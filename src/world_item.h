@@ -12,7 +12,8 @@ struct WorldItem : Drawable {
     Body3D    body              {};
     Sprite    sprite            {};
     double    spawnedAt         {};
-    double    pickedUpAt        {};
+    //double    pickedUpAt        {};
+    double    despawnedAt       {};
     uint32_t  droppedByPlayerId {};
 
     Vector3 WorldCenter    (void) const;

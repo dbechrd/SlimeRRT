@@ -87,6 +87,14 @@ inline void Body3D::Teleport(Vector3 pos)
 {
     positionPrev = position;
     position = pos;
+
+    position.x *= fabsf(position.x) >= POSITION_EPSILON;
+    position.y *= fabsf(position.y) >= POSITION_EPSILON;
+    position.z *= fabsf(position.z) >= POSITION_EPSILON;
+    DLB_ASSERT(isfinite(position.x));
+    DLB_ASSERT(isfinite(position.y));
+    DLB_ASSERT(isfinite(position.z));
+
     lastMoved = g_clock.now;
 }
 
@@ -95,6 +103,14 @@ inline void Body3D::Move(Vector2 offset)
     positionPrev = position;
     position.x += offset.x;
     position.y += offset.y;
+
+    position.x *= fabsf(position.x) >= POSITION_EPSILON;
+    position.y *= fabsf(position.y) >= POSITION_EPSILON;
+    position.z *= fabsf(position.z) >= POSITION_EPSILON;
+    DLB_ASSERT(isfinite(position.x));
+    DLB_ASSERT(isfinite(position.y));
+    DLB_ASSERT(isfinite(position.z));
+
     lastMoved = g_clock.now;
 }
 
@@ -102,6 +118,14 @@ inline void Body3D::Move3D(Vector3 offset)
 {
     positionPrev = position;
     position = v3_add(position, offset);
+
+    position.x *= fabsf(position.x) >= POSITION_EPSILON;
+    position.y *= fabsf(position.y) >= POSITION_EPSILON;
+    position.z *= fabsf(position.z) >= POSITION_EPSILON;
+    DLB_ASSERT(isfinite(position.x));
+    DLB_ASSERT(isfinite(position.y));
+    DLB_ASSERT(isfinite(position.z));
+
     lastMoved = g_clock.now;
 }
 
@@ -201,9 +225,16 @@ void Body3D::Update(double dt)
             velocity.z *= friction_coef;
         }
 
+        position.x *= fabsf(position.x) >= POSITION_EPSILON;
+        position.y *= fabsf(position.y) >= POSITION_EPSILON;
+        position.z *= fabsf(position.z) >= POSITION_EPSILON;
         DLB_ASSERT(isfinite(position.x));
         DLB_ASSERT(isfinite(position.y));
         DLB_ASSERT(isfinite(position.z));
+
+        velocity.x *= fabsf(velocity.x) >= VELOCITY_EPSILON;
+        velocity.y *= fabsf(velocity.y) >= VELOCITY_EPSILON;
+        velocity.z *= fabsf(velocity.z) >= VELOCITY_EPSILON;
         DLB_ASSERT(isfinite(velocity.x));
         DLB_ASSERT(isfinite(velocity.y));
         DLB_ASSERT(isfinite(velocity.z));

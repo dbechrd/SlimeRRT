@@ -69,8 +69,8 @@ void WorldItem::Draw(World &world)
     const Vector3 worldPos = body.WorldPosition();
     Shadow::Draw(worldPos, 16.0f * sprite.scale, 8.0f);
 
-    if (pickedUpAt) {
-        //DrawCircleV(body.VisualPosition(), 5.0f, RED);
+    if (despawnedAt) {
+        DrawCircleV(body.VisualPosition(), 5.0f, RED);
     } else {
         if (sprite.spriteDef) {
             sprite_draw_body(sprite, body, WHITE);

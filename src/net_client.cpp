@@ -759,13 +759,14 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                     item->stack.uid = itemSnapshot.itemUid;
                 }
                 if (itemSnapshot.flags & ItemSnapshot::Flags_StackCount) {
+                    DLB_ASSERT(itemSnapshot.stackCount);
                     item->stack.count = itemSnapshot.stackCount;
-                    if (!spawned) {
-                        if (!item->stack.count && !item->pickedUpAt) {
-                            item->pickedUpAt = worldSnapshot.recvAt;
-                            Catalog::g_sounds.Play(Catalog::SoundID::Gold, 1.0f + dlb_rand32f_variance(0.2f), true);
-                        }
-                    }
+                    //if (!spawned) {
+                    //    if (!item->stack.count && !item->pickedUpAt) {
+                    //        item->pickedUpAt = worldSnapshot.recvAt;
+                    //        Catalog::g_sounds.Play(Catalog::SoundID::Gold, 1.0f + dlb_rand32f_variance(0.2f), true);
+                    //    }
+                    //}
                 }
             }
             break;

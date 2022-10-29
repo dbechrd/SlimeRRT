@@ -13,7 +13,7 @@ struct ItemSystem {
     WorldItem *Find                (EntityUID eid);
     ErrorType  Remove              (EntityUID eid);
     void       Update              (double dt);
-    void       DespawnDeadEntities (double pickupDespawnDelay = 0);
+    void       DespawnDeadEntities (double despawnDelay = 0);
     void       PushAll             (DrawList& drawList);
 
     std::vector<WorldItem> worldItems{};

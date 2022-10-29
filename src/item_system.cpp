@@ -150,18 +150,18 @@ void ItemSystem::Update(double dt)
     }
 }
 
-void ItemSystem::DespawnDeadEntities(double pickupDespawnDelay)
+void ItemSystem::DespawnDeadEntities(double despawnDelay)
 {
     size_t i = 0;
     while (i < worldItems.size()) {
         WorldItem &item = worldItems[i];
 
-        // NOTE: Server adds extra pickupDespawnDelay to ensure all clients receive a snapshot
+        // NOTE: Server adds extra despawnDelay to ensure all clients receive a snapshot
         // containing the pickup flag before despawning the item. This may not be necessary
         // once nearby_events are implemented and send item pickup notifications.
-        const bool pickedUpAwhileAgo = (item.pickedUpAt && ((g_clock.now - item.pickedUpAt) > pickupDespawnDelay));
         const bool spawnedAwhileAgo = (item.spawnedAt && ((g_clock.now - item.spawnedAt) > SV_WORLD_ITEM_LIFETIME));
-        if (pickedUpAwhileAgo || spawnedAwhileAgo) {
+        const bool despawnedAwhileAgo = (item.despawnedAt && ((g_clock.now - item.despawnedAt) > despawnDelay));
+        if (spawnedAwhileAgo || despawnedAwhileAgo) {
             DLB_ASSERT(item.stack.uid);
             // NOTE: If remove succeeds, don't increment index, next element to check is in the
             // same slot now.

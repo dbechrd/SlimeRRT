@@ -48,7 +48,7 @@
 #define CL_DEMO_SNAPSHOT_RADII           (1 && _DEBUG)
 #define CL_DEMO_SPAWN_RADII              (0 && _DEBUG)
 #define CL_DEMO_VIEW_RTREE               (0 && _DEBUG)
-#define SV_DEBUG_SPAWN_REALLY_CLOSE      (1 && _DEBUG)
+#define SV_DEBUG_SPAWN_REALLY_CLOSE      (0 && _DEBUG)
 #define SV_DEBUG_INPUT_SAMPLES           (0 && _DEBUG)
 #define SV_DEBUG_WORLD_CHUNKS            (0 && _DEBUG)
 #define SV_DEBUG_WORLD_NPCS              (0 && _DEBUG)
@@ -80,7 +80,7 @@
 #define SV_SINGLEPLAYER_PASS        "guest"
 #define SV_USERNAME                 "SERVER"
 #define SV_MAX_PLAYERS              8
-#define SV_MAX_NPC_SLIMES           16
+#define SV_MAX_NPC_SLIMES           2
 #define SV_MAX_NPC_TOWNFOLK         1
 #define SV_MAX_NPCS (               SV_MAX_NPC_SLIMES   + \
                                     SV_MAX_NPC_TOWNFOLK )

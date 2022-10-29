@@ -9,12 +9,16 @@ LootSystem::LootSystem(void)
     AddDropToTable(LootTableID::LT_Sam,   ItemClass_Currency, 1, 4, 1.0f);
 
     InitLootTable(LootTableID::LT_Slime, 2);
-    AddDropToTable(LootTableID::LT_Slime, ItemClass_Empty,    1, 1, 0.50f);
-    AddDropToTable(LootTableID::LT_Slime, ItemClass_Currency, 1, 3, 0.30f);
-    AddDropToTable(LootTableID::LT_Slime, ItemClass_Weapon,   1, 1, 0.05f);
-    AddDropToTable(LootTableID::LT_Slime, ItemClass_Armor,    1, 1, 0.10f);
-    AddDropToTable(LootTableID::LT_Slime, ItemClass_Ring,     1, 1, 0.025f);
-    AddDropToTable(LootTableID::LT_Slime, ItemClass_Amulet,   1, 1, 0.025f);
+
+    AddDropToTable(LootTableID::LT_Slime, ItemClass_Empty   , 1, 1, 0.5f);
+    AddDropToTable(LootTableID::LT_Slime, ItemClass_Currency, 1, 3, 0.5f);
+
+    //AddDropToTable(LootTableID::LT_Slime, ItemClass_Empty,    1, 1, 0.50f);
+    //AddDropToTable(LootTableID::LT_Slime, ItemClass_Currency, 1, 3, 0.30f);
+    //AddDropToTable(LootTableID::LT_Slime, ItemClass_Weapon,   1, 1, 0.05f);
+    //AddDropToTable(LootTableID::LT_Slime, ItemClass_Armor,    1, 1, 0.10f);
+    //AddDropToTable(LootTableID::LT_Slime, ItemClass_Ring,     1, 1, 0.025f);
+    //AddDropToTable(LootTableID::LT_Slime, ItemClass_Amulet,   1, 1, 0.025f);
 
     InitLootTable(LootTableID::LT_LooseRock, 3);
     AddDropToTable(LootTableID::LT_LooseRock, ItemClass_Empty,    1, 1, 0.90f);
