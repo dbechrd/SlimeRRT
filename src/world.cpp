@@ -222,8 +222,9 @@ ErrorType World::SpawnNpc(uint32_t id, NPC::Type type, Vector3 worldPos, NPC **r
     // Find a suitable place to store the new NPC (try to replace by: free slot -> oldest dead)
     NPC *newNpc = 0;
     NPC *oldestDeadNpc = 0;
-    NPC *oldestAliveNpc = 0;
+    NPC *oldestStaleNpc = 0;
     double oldestDeadTime = 0;
+    double oldestStaleTime = 0;
 
     for (size_t i = 0; i < npcList.length; i++) {
         NPC &npc = npcList.data[i];
@@ -236,10 +237,18 @@ ErrorType World::SpawnNpc(uint32_t id, NPC::Type type, Vector3 worldPos, NPC **r
         }
 
         // Keep track of second/third best types of slots
-        double staleTime = g_clock.now - npc.combat.diedAt;
-        if (npc.combat.diedAt && staleTime > oldestDeadTime) {
+        double deadTime = g_clock.now - npc.combat.diedAt;
+        if (npc.combat.diedAt && deadTime > oldestDeadTime) {
             oldestDeadNpc = &npc;
-            oldestDeadTime = staleTime;
+            oldestDeadTime = deadTime;
+        }
+
+        if (!g_clock.server && npc.body.positionHistory.Count()) {
+            double staleTime = g_clock.now - npc.body.positionHistory.Last().serverTime;
+            if (staleTime > oldestStaleTime) {
+                oldestStaleNpc = &npc;
+                oldestStaleTime = staleTime;
+            }
         }
     }
 
@@ -247,6 +256,12 @@ ErrorType World::SpawnNpc(uint32_t id, NPC::Type type, Vector3 worldPos, NPC **r
     if (!newNpc && oldestDeadNpc) {
         //E_WARN("Replacing oldest dead npc with new npc", 0);
         newNpc = oldestDeadNpc;
+        *newNpc = {};
+    }
+
+    // Client only - reclaim stale slot
+    if (!newNpc && !g_clock.server) {
+        newNpc = oldestStaleNpc;
         *newNpc = {};
     }
 
@@ -673,21 +688,6 @@ void World::CL_DespawnStaleEntities(void)
         return;
     }
 
-#if 0
-    for (const Player &otherPlayer : players) {
-        if (!otherPlayer.type || otherPlayer.type == playerId) {
-            continue;
-        }
-
-        const float distSq = v3_length_sq(v3_sub(player->body.WorldPosition(), otherPlayer.body.WorldPosition()));
-        const bool faraway = distSq >= SQUARED(CL_PLAYER_FARAWAY_THRESHOLD);
-        if (faraway) {
-            E_DEBUG("Despawn far away player %u", otherPlayer.type);
-            DespawnPlayer(otherPlayer.type);
-        }
-    }
-#endif
-
     for (int type = NPC::Type_None + 1; type < NPC::Type_Count; type++) {
         NpcList npcList = npcs.byType[type];
         for (size_t i = 0; i < npcList.length; i++) {
@@ -702,40 +702,6 @@ void World::CL_DespawnStaleEntities(void)
                 RemoveNpc(npc.id);
                 continue;
             }
-
-            // Remove npc corpse if it's been dead for awhile
-            //if (npc.combat.diedAt) {
-            //    const double sinceDeath = npc.combat.diedAt ? (g_clock.now - npc.combat.diedAt) : 0;
-            //    if (sinceDeath > CL_NPC_CORPSE_LIFETIME) {
-            //        E_DEBUG("Remove dead npc %u", npc.id);
-            //        RemoveNpc(npc.id);
-            //        continue;
-            //    }
-            //}
-
-#if 0
-            if (npc.body.positionHistory.Count()) {
-                auto &lastPos = npc.body.positionHistory.Last();
-
-                const float distSq = v3_length_sq(v3_sub(player->body.WorldPosition(), lastPos.v));
-                const bool faraway = distSq >= SQUARED(CL_NPC_FARAWAY_THRESHOLD);
-                if (faraway) {
-                    E_TRACE("Despawn far away npc id %u", npc.id);
-                    RemoveNpc(npc.id);
-                    continue;
-                }
-
-                // TODO: This hack doesn't work since we're only sending snapshots when a slime moves, and slimes don't
-                // move unless they have a target. Need to figure out why slime is just chillin and not updating.
-                // HACK: Figure out WHY this is happening instead of just despawning. I'm assuming the server just didn't
-                // send me a despawn packet for this slime (e.g. because I'm too far away from it??)
-                if (g_clock.now - npc.body.positionHistory.Last().recvAt > CL_NPC_STALE_LIFETIME) {
-                    //E_WARN("Detected stale npc %u", npc.id);
-                    //RemoveSlime(enemy.id);
-                    continue;
-                }
-            }
-#endif
         }
     }
 

@@ -423,12 +423,17 @@ void NetClient::ProcessMsg(ENetPacket &packet)
             const WorldSnapshot &netSnapshot = tempMsg.data.worldSnapshot;
             WorldSnapshot &worldSnapshot = worldHistory.Alloc();
             worldSnapshot = netSnapshot;
-            worldSnapshot.recvAt = g_clock.now;
+            //worldSnapshot.recvAt = g_clock.now;
+            //worldSnapshot.rtt = rtt;
 
             const double rtt = server->roundTripTime / 1000.0;
-            worldSnapshot.rtt = rtt;
-
-            const double snapTime = g_clock.now; // - rtt;
+            const double serverNow = worldSnapshot.clock + (rtt / 2.0);
+            const double clockDrift = g_clock.now - serverNow;
+            if (abs(clockDrift) > 1.0) {
+                // TODO: Smoothly move clock closer to server time?
+                E_WARN("Detected clock drift %f, skipping from %.2f to %.2f", clockDrift, g_clock.now, serverNow);
+                g_clock.now = serverNow;
+            }
 
             for (size_t i = 0; i < worldSnapshot.playerCount; i++) {
                 const PlayerSnapshot &playerSnapshot = worldSnapshot.players[i];
@@ -461,7 +466,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                     }
 
                     Vector3Snapshot &state = player->body.positionHistory.Alloc();
-                    state.serverTime = snapTime;
+                    state.serverTime = worldSnapshot.clock;
 
                     if (posChanged) {
                         //E_DEBUG("Snapshot: pos %f %f %f",
@@ -504,7 +509,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                         player->combat.TakeDamage(hpDelta);
                         if (player->combat.diedAt) {
                             // Died
-                            player->combat.diedAt = worldSnapshot.recvAt;
+                            player->combat.diedAt = worldSnapshot.clock;
                             ParticleEffectParams bloodParams{};
                             bloodParams.particleCountMin = 128;
                             bloodParams.particleCountMax = bloodParams.particleCountMin;
@@ -601,7 +606,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                     }
 
                     Vector3Snapshot &state = npc->body.positionHistory.Alloc();
-                    state.serverTime = snapTime;
+                    state.serverTime = worldSnapshot.clock;
 
                     if (posChanged) {
                         //E_DEBUG("Snapshot: pos %f %f %f",
@@ -734,7 +739,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                     }
 
                     Vector3Snapshot &state = item->body.positionHistory.Alloc();
-                    state.serverTime = snapTime;
+                    state.serverTime = worldSnapshot.clock;
 
                     if (posChanged) {
                         //E_DEBUG("Snapshot: pos %f %f %f",

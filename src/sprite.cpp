@@ -138,29 +138,29 @@ static void sprite_draw(const Sprite &sprite, Rectangle screenRect, Color color)
 void sprite_draw_body(const Sprite &sprite, const Body3D &body, const Color &color)
 {
     if (g_cl_show_snapshot_shadow) {
-#if 1
-    Vector3 serverPos = body.WorldPositionServer();
-    serverPos.x = floorf(serverPos.x);
-    serverPos.y = floorf(serverPos.y);
-    serverPos.z = floorf(serverPos.z);
-    const Rectangle serverRect = sprite_world_rect(sprite, serverPos);
-    sprite_draw(sprite, serverRect, GRAY);
-#else
-    int posCount = (int)body.positionHistory.Count();
-    for (int i = 0; i < body.positionHistory.Count(); i++) {
-        Vector3 serverPos{};
-        if (body.positionHistory.Count()) {
-            const Vector3Snapshot &snapshotPos = body.positionHistory.At(i);
-            serverPos.x = floorf(snapshotPos.v.x);
-            serverPos.y = floorf(snapshotPos.v.y);
-            serverPos.z = floorf(snapshotPos.v.z);
-        }
-        const Rectangle serverRect = sprite_world_rect(sprite, serverPos);
+        #if 1
+            Vector3 serverPos = body.WorldPositionServer();
+            serverPos.x = floorf(serverPos.x);
+            serverPos.y = floorf(serverPos.y);
+            serverPos.z = floorf(serverPos.z);
+            const Rectangle serverRect = sprite_world_rect(sprite, serverPos);
+            sprite_draw(sprite, serverRect, GRAY);
+        #else
+            int posCount = (int)body.positionHistory.Count();
+            for (int i = 0; i < body.positionHistory.Count(); i++) {
+                Vector3 serverPos{};
+                if (body.positionHistory.Count()) {
+                    const Vector3Snapshot &snapshotPos = body.positionHistory.At(i);
+                    serverPos.x = floorf(snapshotPos.v.x);
+                    serverPos.y = floorf(snapshotPos.v.y);
+                    serverPos.z = floorf(snapshotPos.v.z);
+                }
+                const Rectangle serverRect = sprite_world_rect(sprite, serverPos);
 
-        uint8_t gray = (uint8_t)((float)(i + 1) / posCount * 255);
-        sprite_draw(sprite, serverRect, { gray, gray, gray, 255 });
-    }
-#endif
+                uint8_t gray = (uint8_t)((float)(i + 1) / posCount * 255);
+                sprite_draw(sprite, serverRect, { gray, gray, gray, 50 });
+            }
+        #endif
     }
 
     Vector3 worldPos = body.WorldPosition();

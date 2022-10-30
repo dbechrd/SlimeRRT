@@ -133,8 +133,4 @@ struct WorldSnapshot {
     NpcSnapshot    npcs          [SNAPSHOT_MAX_NPCS]{};
     uint32_t       itemCount     {};  // items in this snapshot
     ItemSnapshot   items         [SNAPSHOT_MAX_ITEMS]{};
-
-    // These are not sent over the wire, they are populated client-side upon receival
-    double recvAt {};  // time snapshot received by client (in client time)
-    double rtt    {};  // mean RTT at time of receiving this snapshot packet
 };

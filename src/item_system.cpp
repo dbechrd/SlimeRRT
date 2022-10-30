@@ -16,13 +16,11 @@
 
 WorldItem *ItemSystem::SpawnItem(Vector3 pos, ItemUID itemUid, uint32_t count, EntityUID euid)
 {
-    DLB_ASSERT(itemUid);
-    DLB_ASSERT(count);
-
     if (!count) {
         E_WARN("Not spawning item stack with count 0.", 0);
         return 0;
     }
+    DLB_ASSERT(itemUid);
 
     if (worldItems.size() == SV_MAX_ITEMS) {
         // TODO: Delete oldest item instead of discarding the new one

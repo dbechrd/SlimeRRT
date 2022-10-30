@@ -271,34 +271,39 @@ bool Body3D::CL_Interpolate(double renderAt, Direction &direction)
         right++;
     }
 
-    // renderAt is before any snapshots, show entity at oldest snapshot
     if (right == 0) {
+        // renderAt is before any snapshots, show entity at oldest snapshot
+
         const Vector3Snapshot &oldest = positionHistory.At(0);
         DLB_ASSERT(renderAt < oldest.serverTime);
-        //printf("renderAt %f before oldest snapshot %f\n", renderAt, oldest.serverTime);
+        #if CL_DEBUG_SNAPSHOT_INTERPOLATION
+            E_DEBUG("[%.2f, %.2f, %.2f] @ %.2f before oldest %.2f", oldest.v.x, oldest.v.y, oldest.v.z, renderAt, oldest.serverTime);
+        #endif
 
         Teleport(oldest.v);
         direction = oldest.direction;
-        // renderAt is after all snapshots, show entity at newest snapshot
     } else if (right == historyLen) {
+        // renderAt is after all snapshots, show entity at newest snapshot
+
         // TODO: Extrapolate beyond latest snapshot if/when this happens? Should be mostly avoidable..
         const Vector3Snapshot &newest = positionHistory.At(historyLen - 1);
         DLB_ASSERT(renderAt >= newest.serverTime);
-        if (renderAt > newest.serverTime) {
-            //printf("renderAt %f after newest snapshot %f\n", renderAt, newest.serverTime);
-        }
+        #if CL_DEBUG_SNAPSHOT_INTERPOLATION
+            E_DEBUG("[%.2f, %.2f, %.2f] @ %.2f after newest %.2f", newest.v.x, newest.v.y, newest.v.z, renderAt, newest.serverTime);
+        #endif
 
         // TODO: Send explicit despawn event from server
         // If we haven't seen an entity in 2 snapshots, chances are it's gone
-        if (renderAt > newest.serverTime + (1.0 / SNAPSHOT_SEND_RATE) * 2) {
-            //printf("Despawning body due to inactivity\n");
-            return false;
-        }
+        //if (renderAt > newest.serverTime + (1.0 / SNAPSHOT_SEND_RATE) * 2) {
+        //    E_DEBUG("Despawning body due to inactivity\n");
+        //    return false;
+        //}
 
         Teleport(newest.v);
         direction = newest.direction;
-        // renderAt is between two snapshots
     } else {
+        // renderAt is between two snapshots
+
         DLB_ASSERT(right > 0);
         DLB_ASSERT(right < historyLen);
         const Vector3Snapshot &a = positionHistory.At(right - 1);
@@ -312,8 +317,12 @@ bool Body3D::CL_Interpolate(double renderAt, Direction &direction)
 
         // Linear interpolation: x = x0 + (x1 - x0) * alpha;
         double alpha = (renderAt - a.serverTime) / (b.serverTime - a.serverTime);
-        const Vector3 interpPos = v3_add(a.v, v3_scale(v3_sub(b.v, a.v), (float)alpha));
-        Teleport(interpPos);
+        const Vector3 lerp = v3_add(a.v, v3_scale(v3_sub(b.v, a.v), (float)alpha));
+
+        #if CL_DEBUG_SNAPSHOT_INTERPOLATION
+            E_DEBUG("[%.2f, %.2f, %.2f] @ %.2f between %.2f - %.2f", lerp.x, lerp.y, lerp.z, renderAt, a.serverTime, b.serverTime);
+        #endif
+        Teleport(lerp);
         direction = b.direction;
     }
 

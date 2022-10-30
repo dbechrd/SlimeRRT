@@ -395,7 +395,7 @@ void UI::Netstat(NetClient &netClient, double renderAt)
 
         float times[CL_WORLD_HISTORY]{};
         for (size_t i = 0; i < snapshotCount; i++) {
-            times[i] = (float)(renderAt - netClient.worldHistory.At(i).recvAt);
+            times[i] = (float)(renderAt - netClient.worldHistory.At(i).clock);
         }
         ImGui::Text("Times:");
         ImGui::PlotHistogram("times", times, (int)snapshotCount, 0, 0, -2.0f, 2.0f, ImVec2(300.0f, 50.0f));

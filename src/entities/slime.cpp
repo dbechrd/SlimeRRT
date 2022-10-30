@@ -54,8 +54,6 @@ bool Slime::Move(NPC &npc, double dt, Vector2 offset)
 
 bool Slime::TryCombine(NPC &npc, NPC &other)
 {
-    return false;
-
     if (npc.type != NPC::Type_Slime || other.type != NPC::Type_Slime) {
         E_WARN("you can only combine slimes", 0);
         return false;
@@ -88,9 +86,10 @@ bool Slime::TryCombine(NPC &npc, NPC &other)
     //a->body.position = v3_add(a->body.position, halfAToB);
 
     // Kill slime B
-    b->combat.hitPoints = 0.0f;
-    b->combat.diedAt = g_clock.now;
-    b->combat.droppedDeathLoot = true;
+    b->despawnedAt = g_clock.now;
+    //b->combat.hitPoints = 0.0f;
+    //b->combat.diedAt = g_clock.now;
+    //b->combat.droppedDeathLoot = true;
 #if SV_DEBUG_WORLD_NPCS
     E_DEBUG("Combined slime #%u into slime #%u", b->id, a->id);
 #endif

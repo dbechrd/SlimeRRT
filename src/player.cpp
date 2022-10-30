@@ -502,7 +502,8 @@ void Player::Draw(World &world)
     {
         const Vector2 visPos = body.VisualPosition();
         DrawCircleLines((int)visPos.x, (int)visPos.y, SV_NPC_NEARBY_THRESHOLD, GREEN);
-        DrawCircleLines((int)visPos.x, (int)visPos.y, CL_NPC_FARAWAY_THRESHOLD, RED);
+        DrawCircleLines((int)visPos.x, (int)visPos.y, SV_ENEMY_MIN_SPAWN_DIST, YELLOW);
+        DrawCircleLines((int)visPos.x, (int)visPos.y, SV_ENEMY_DESPAWN_RADIUS, RED);
     }
 #endif
 

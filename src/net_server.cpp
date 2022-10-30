@@ -387,20 +387,18 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
         } else {
             // TODO: Make despawn threshold > spawn threshold to prevent spam on event horizon
             const float distSq = v2_length_sq(v2_sub(player.body.GroundPosition(), otherPlayer.body.GroundPosition()));
-            const bool nearby = distSq <= SQUARED(SV_PLAYER_NEARBY_THRESHOLD);
+            const bool nearby = !otherPlayer.despawnedAt && distSq <= SQUARED(SV_PLAYER_NEARBY_THRESHOLD);
+            const auto prevState = client.playerHistory.find(otherPlayer.id);
+            const bool clientAware = prevState != client.playerHistory.end();
 
             if (nearby) {
-                const auto prevState = client.playerHistory.find(otherPlayer.id);
-                const bool clientAware = prevState != client.playerHistory.end();
-
-                if (!clientAware && !otherPlayer.despawnedAt) {
-                    // Send full state
+                if (!clientAware) {
+                    // Send full state if client isn't tracking this entity yet
                     flags = PlayerSnapshot::Flags_Spawn;
                     #if SV_DEBUG_WORLD_PLAYERS
                         E_DEBUG("Entered vicinity of player #%u", otherPlayer.id);
                     #endif
-                } else if (clientAware && !otherPlayer.despawnedAt) {
-                    // Send delta updates for puppets that the client already knows about
+                } else {
                     // Send delta updates for puppets that the client already knows about
                     if (!v3_equal(otherPlayer.body.WorldPosition(), prevState->second.position, POSITION_EPSILON)) {
                         flags |= PlayerSnapshot::Flags_Position;
@@ -417,17 +415,17 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
                     if (otherPlayer.combat.level != prevState->second.level) {
                         flags |= PlayerSnapshot::Flags_Level;
                     }
-                } else if (clientAware && otherPlayer.despawnedAt) {
-                    if (!(prevState->second.flags & PlayerSnapshot::Flags_Despawn)) {
-                        // Send despawn notification
-                        flags |= PlayerSnapshot::Flags_Despawn;
-                        #if SV_DEBUG_WORLD_PLAYERS
-                            E_DEBUG("Left vicinity of player #%u", otherPlayer.id);
-                        #endif
-                    } else {
-                        // "Despawn" notification already sent, fogetaboutit
-                        client.playerHistory.erase(otherPlayer.id);
-                    }
+                }
+            } else if (clientAware) {
+                if (!(prevState->second.flags & PlayerSnapshot::Flags_Despawn)) {
+                    // Send despawn notification
+                    flags |= PlayerSnapshot::Flags_Despawn;
+                    #if SV_DEBUG_WORLD_PLAYERS
+                        E_DEBUG("Left vicinity of player #%u", otherPlayer.id);
+                    #endif
+                } else {
+                    // "Despawn" notification already sent, fogetaboutit
+                    client.playerHistory.erase(otherPlayer.id);
                 }
             }
         }
@@ -474,19 +472,18 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
 
             uint32_t flags = NpcSnapshot::Flags_None;
             const float distSq = v3_length_sq(v3_sub(player.body.WorldPosition(), npc.body.WorldPosition()));
-            const bool nearby = distSq <= SQUARED(SV_NPC_NEARBY_THRESHOLD);
+            const bool nearby = !npc.despawnedAt && distSq <= SQUARED(SV_NPC_NEARBY_THRESHOLD);
+            const auto prevState = client.npcHistory.find(npc.id);
+            const bool clientAware = prevState != client.npcHistory.end();
 
             if (nearby) {
-                const auto prevState = client.npcHistory.find(npc.id);
-                const bool clientAware = prevState != client.npcHistory.end();
-
-                if (!clientAware && !npc.despawnedAt) {
-                    // Send full state
+                if (!clientAware) {
+                    // Send full state if client isn't tracking this entity yet
                     flags = NpcSnapshot::Flags_Spawn;
                     #if SV_DEBUG_WORLD_NPCS
                         E_DEBUG("Entered vicinity of npc #%u", npc.id);
                     #endif
-                } else if (clientAware && !npc.despawnedAt) {
+                } else {
                     // Send delta updates for puppets that the client already knows about
                     if (strncmp(prevState->second.name, npc.name, npc.nameLength)) {
                         // TODO: Make NameChangeEvent if it ever actually needs to be updated.. or shared string table
@@ -507,17 +504,17 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
                     if (npc.combat.hitPointsMax != prevState->second.hitPointsMax) {
                         flags |= NpcSnapshot::Flags_HealthMax;
                     }
-                } else if (clientAware && npc.despawnedAt) {
-                    if (!(prevState->second.flags & NpcSnapshot::Flags_Despawn)) {
-                        // Send despawn notification
-                        flags = NpcSnapshot::Flags_Despawn;
-                        #if SV_DEBUG_WORLD_NPCS
-                            E_DEBUG("Left vicinity of npc #%u", npc.id);
-                        #endif
-                    } else {
-                        // "Despawn" notification already sent, fogetaboutit
-                        client.npcHistory.erase(npc.id);
-                    }
+                }
+            } else if (clientAware) {
+                if (!(prevState->second.flags & NpcSnapshot::Flags_Despawn)) {
+                    // Send despawn notification
+                    flags = NpcSnapshot::Flags_Despawn;
+                    #if SV_DEBUG_WORLD_NPCS
+                        E_DEBUG("Left vicinity of npc #%u", npc.id);
+                    #endif
+                } else {
+                    // "Despawn" notification already sent, fogetaboutit
+                    client.npcHistory.erase(npc.id);
                 }
             }
 
@@ -566,19 +563,18 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
 
         uint32_t flags = ItemSnapshot::Flags_None;
         const float distSq = v3_length_sq(v3_sub(player.body.WorldPosition(), item.body.WorldPosition()));
-        const bool nearby = distSq <= SQUARED(SV_ITEM_NEARBY_THRESHOLD);
+        const bool nearby = item.stack.count && distSq <= SQUARED(SV_ITEM_NEARBY_THRESHOLD);
+        const auto prevState = client.itemHistory.find(item.euid);
+        const bool clientAware = prevState != client.itemHistory.end();
 
         if (nearby) {
-            const auto prevState = client.itemHistory.find(item.euid);
-            const bool clientAware = prevState != client.itemHistory.end();
-
-            if (!clientAware && item.stack.count) {
-                // Send full state
+            if (!clientAware) {
+                // Send full state if client isn't tracking this entity yet
                 flags = ItemSnapshot::Flags_Spawn;
                 #if SV_DEBUG_WORLD_ITEMS
                     E_DEBUG("Entered vicinity of item #%u", item.uid);
                 #endif
-            } else if (clientAware && item.stack.count) {
+            } else {
                 // Send delta updates for puppets that the client already knows about
                 if (!v3_equal(item.body.WorldPosition(), prevState->second.position, POSITION_EPSILON)) {
                     flags |= ItemSnapshot::Flags_Position;
@@ -589,16 +585,17 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
                 if (item.stack.count != prevState->second.stackCount) {
                     flags |= ItemSnapshot::Flags_StackCount;
                 }
-            } else if (clientAware && !item.stack.count) {
-                if (!(prevState->second.flags & ItemSnapshot::Flags_Despawn)) {
-                    flags |= ItemSnapshot::Flags_Despawn;
-                    #if SV_DEBUG_WORLD_ITEMS
-                        E_DEBUG("Left vicinity of item #%u", item.uid);
-                    #endif
-                } else {
-                    // "Despawn" notification already sent, fogetaboutit
-                    client.itemHistory.erase(item.euid);
-                }
+            }
+        } else if (clientAware) {
+            if (!(prevState->second.flags & ItemSnapshot::Flags_Despawn)) {
+                // Send despawn notification
+                flags |= ItemSnapshot::Flags_Despawn;
+                #if SV_DEBUG_WORLD_ITEMS
+                    E_DEBUG("Left vicinity of item #%u", item.uid);
+                #endif
+            } else {
+                // "Despawn" notification already sent, fogetaboutit
+                client.itemHistory.erase(item.euid);
             }
         }
 

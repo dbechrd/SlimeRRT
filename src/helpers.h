@@ -38,6 +38,7 @@
 #define CL_SMOOTH_PLAYER_RECONCILIATION  1
 #define CL_DEBUG_ADVANCED_ITEM_TOOLTIPS  (1 && _DEBUG)
 #define CL_DEBUG_PLAYER_RECONCILIATION   (0 && _DEBUG)
+#define CL_DEBUG_SNAPSHOT_INTERPOLATION  (0 && _DEBUG)
 #define CL_DEBUG_REALLY_LONG_TIMEOUT     (0 && _DEBUG)
 #define CL_DEBUG_SHOW_LEVELS             (0 && _DEBUG)
 #define CL_DEBUG_SPEEDHAX                (1 && _DEBUG)
@@ -48,7 +49,7 @@
 #define CL_DEMO_SNAPSHOT_RADII           (1 && _DEBUG)
 #define CL_DEMO_SPAWN_RADII              (0 && _DEBUG)
 #define CL_DEMO_VIEW_RTREE               (0 && _DEBUG)
-#define SV_DEBUG_SPAWN_REALLY_CLOSE      (0 && _DEBUG)
+#define SV_DEBUG_SPAWN_REALLY_CLOSE      (1 && _DEBUG)
 #define SV_DEBUG_INPUT_SAMPLES           (0 && _DEBUG)
 #define SV_DEBUG_WORLD_CHUNKS            (0 && _DEBUG)
 #define SV_DEBUG_WORLD_NPCS              (0 && _DEBUG)
@@ -80,13 +81,13 @@
 #define SV_SINGLEPLAYER_PASS        "guest"
 #define SV_USERNAME                 "SERVER"
 #define SV_MAX_PLAYERS              8
-#define SV_MAX_NPC_SLIMES           2
+#define SV_MAX_NPC_SLIMES           4
 #define SV_MAX_NPC_TOWNFOLK         1
 #define SV_MAX_NPCS (               SV_MAX_NPC_SLIMES   + \
                                     SV_MAX_NPC_TOWNFOLK )
 #define SV_MAX_ITEMS                256 //4096
 #define SV_WORLD_ITEM_LIFETIME      120 //600 // despawn items after 10 minutes
-#define SV_TICK_RATE                29
+#define SV_TICK_RATE                60
 #define SV_TICK_DT                  (1.0 / SV_TICK_RATE)
 #define SV_TICK_DT_ACCUM_MAX        (1.5 * SV_TICK_DT)
 #define SV_TIME_SECONDS_IN_DAY      600.0
@@ -97,11 +98,11 @@
 #define SV_TILE_UPDATE_DIST         METERS_TO_PIXELS(20.0f)
 // NOTE: max diagonal distance at 1080p is 1100 + radius units. 1200px allows for a ~50px wide entity
 #if SV_DEBUG_SPAWN_REALLY_CLOSE
-#define SV_PLAYER_NEARBY_THRESHOLD  300.0f                   // how close a player has to be to appear in your snapshot
-#define SV_NPC_NEARBY_THRESHOLD     METERS_TO_PIXELS(10.0f)  // how close an NPC has to be to appear in your snapshot
-#define SV_ENEMY_MIN_SPAWN_DIST     METERS_TO_PIXELS(4.0f)   // closest enemies can spawn to a player
-#define SV_ENEMY_DESPAWN_RADIUS     METERS_TO_PIXELS(7.0f)   // furthest enemies can be from a player before despawning
-#define SV_ITEM_NEARBY_THRESHOLD    300.0f                   // how close an item has to be to receive a snapshot
+#define SV_PLAYER_NEARBY_THRESHOLD  300.0f                       // how close a player has to be to appear in your snapshot
+#define SV_NPC_NEARBY_THRESHOLD     METERS_TO_PIXELS(6.0f)       // how close an NPC has to be to appear in your snapshot
+#define SV_ENEMY_MIN_SPAWN_DIST     METERS_TO_PIXELS(8.0f)       // closest enemies can spawn to a player
+#define SV_ENEMY_DESPAWN_RADIUS     METERS_TO_PIXELS(10.0f)      // furthest enemies can be from a player before despawning
+#define SV_ITEM_NEARBY_THRESHOLD    300.0f                       // how close an item has to be to receive a snapshot
 #else
 #define SV_PLAYER_NEARBY_THRESHOLD  METERS_TO_PIXELS(20.0f)      // how close a player has to be to appear in your snapshot
 #define SV_NPC_NEARBY_THRESHOLD     METERS_TO_PIXELS(20.0f)      // how close an NPC has to be to appear in your snapshot
@@ -113,7 +114,6 @@
 #define SV_ITEM_PICKUP_DIST         METERS_TO_PIXELS(0.3f)       // how close player should be to item to pick it up
 #define SV_ITEM_PICKUP_DELAY        1.0                          // how long after an item is spawned before it can be picked up by a player
 #define SV_ITEM_REPICKUP_DELAY      2.0                          // how long after an item is dropped by a player before it can be picked up by the same player
-#define SV_STALE_RADIUS             50.0f                        // unknown.. was this supposed to be used for something?
 #define SV_PLAYER_MOVE_SPEED        3.0f                         // how fast player walks, in meters
 #define SV_PLAYER_ATTACK_COOLDOWN   0.5                          // how often the player can attack
 #define SV_PLAYER_CORPSE_LIFETIME   8.0                          // how long to wait after a player dies to despawn their corpse
@@ -132,7 +132,7 @@
 #define SV_INPUT_HACK_THRESHOLD     (SV_TICK_DT * 5.0)  // 4 frames of overflowed input time is surely a hacker (or a client with < 15 fps?)
 
 // NOTE: Due to how "enemy.moved" flag is calculated atm, this *MUST* match SV_TICK_RATE
-#define SNAPSHOT_SEND_RATE            20  //SV_TICK_RATE  //MIN(30, SV_TICK_RATE)
+#define SNAPSHOT_SEND_RATE            30  //SV_TICK_RATE  //MIN(30, SV_TICK_RATE)
 #define SNAPSHOT_SEND_DT              (1.0 / SV_TICK_RATE)
 #define SNAPSHOT_MAX_PLAYERS          SV_MAX_PLAYERS
 #define SNAPSHOT_MAX_NPCS             MIN(64, SV_MAX_NPCS)
@@ -145,9 +145,6 @@
 #define CL_INPUT_SAMPLES_MAX          (CL_INPUT_HISTORY) // send up to 1 second of samples per packet
 #define CL_WORLD_HISTORY              (SV_TICK_RATE / 2 + 1)  // >= 500 ms of data
 #define CL_CHAT_HISTORY               256
-#define CL_FARAWAY_BUFFER_RADIUS      (SV_STALE_RADIUS * 2.0f)
-#define CL_PLAYER_FARAWAY_THRESHOLD   (SV_PLAYER_NEARBY_THRESHOLD + CL_FARAWAY_BUFFER_RADIUS)
-#define CL_NPC_FARAWAY_THRESHOLD      (SV_NPC_NEARBY_THRESHOLD + CL_FARAWAY_BUFFER_RADIUS)
 #define CL_INVENTORY_UPDATE_SLOTS_MAX 256
 #define CL_MAX_PLAYER_POS_DESYNC_DIST METERS_TO_PIXELS(0.01)  // less than 1 pixel delta allowed
 #define CL_DAY_NIGHT_CYCLE            0
