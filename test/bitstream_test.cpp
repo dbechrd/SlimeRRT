@@ -16,7 +16,7 @@ uint32_t bit_stream_read(BitStream &stream, uint8_t bits)
 
 void bit_stream_test()
 {
-    uint8_t buffer[16]{};
+    uint8_t buffer[20]{};
 
     BitStream writer{ BitStream::Mode::Writer, buffer, sizeof(buffer) };
     bit_stream_write(writer, 0b0, 1);
@@ -27,6 +27,8 @@ void bit_stream_test()
     bit_stream_write(writer, 0b111111, 6);
     bit_stream_write(writer, 0b0000000, 7);
     bit_stream_write(writer, 0b11111111, 8);
+    uint64_t seedIn = 12345678900987654321;
+    writer.Process(seedIn);
     writer.Flush();
 
     BitStream reader{ BitStream::Mode::Reader, buffer, sizeof(buffer) };
@@ -38,4 +40,7 @@ void bit_stream_test()
     assert(bit_stream_read(reader, 6) == 0b111111);
     assert(bit_stream_read(reader, 7) == 0b0000000);
     assert(bit_stream_read(reader, 8) == 0b11111111);
+    uint64_t seedOut = 0;
+    reader.Process(seedOut);
+    assert(seedOut == seedIn);
 }

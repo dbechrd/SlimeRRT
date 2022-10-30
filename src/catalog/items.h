@@ -139,9 +139,9 @@ struct ItemAffixProto {
         return isScalar;
     }
 
-    ItemAffix Roll() const {
-        float min = dlb_rand32f_range(minRange.min, minRange.max);
-        float max = dlb_rand32f_range(maxRange.min, maxRange.max);
+    ItemAffix Roll(dlb_rand32_t *rng) const {
+        float min = dlb_rand32f_range_r(rng, minRange.min, minRange.max);
+        float max = dlb_rand32f_range_r(rng, maxRange.min, maxRange.max);
         return ItemAffix::make(type, min, max);
     }
 };
@@ -526,16 +526,22 @@ private:
 thread_local static ItemCatalog g_item_catalog{};
 
 struct Item {
-    ItemUID  uid        {};
-    ItemType type       {};
+    static uint64_t GenSeed(void) {
+        uint64_t seed = ((uint64_t)dlb_rand32u() << 32) | (uint64_t)dlb_rand32u();
+        return seed;
+    }
+
+    ItemUID  uid  {};
+    ItemType type {};
+    uint64_t seed {};
     // TODO: ENSURE NO DUPES (but without hash table or O(n) storage, i.e. use addAffix method w/ check and
     //       removeAffix to keep tightly packed)
     ItemAffix affixes[ITEM_AFFIX_MAX_COUNT]{};
 
     Item(void) {}
 
-    Item(ItemUID uid, ItemType type) : uid(uid), type(type) {
-        Roll();
+    Item(ItemUID uid, ItemType type, uint64_t seed) : uid(uid), type(type), seed(seed) {
+        Roll(seed);
     }
 
     const ItemProto &Proto(void) const {
@@ -543,10 +549,12 @@ struct Item {
         return proto;
     }
 
-    void Roll() {
+    void Roll(uint64_t seed) {
+        dlb_rand32_t rng{};
+        dlb_rand32_seed_r(&rng, seed, seed);
         const ItemProto &proto = g_item_catalog.FindProto(type);
         for (size_t i = 0; i < ARRAY_SIZE(affixes) && i < ARRAY_SIZE(proto.affixProtos); i++) {
-            affixes[i] = proto.affixProtos[i].Roll();
+            affixes[i] = proto.affixProtos[i].Roll(&rng);
         }
     }
 
@@ -595,6 +603,7 @@ struct ItemDatabase {
             Item &item = items[itemType];
             item.uid = itemType;
             item.type = itemType;
+            item.seed = 0;
             byUid[item.uid] = itemType;
         }
     }
@@ -615,7 +624,8 @@ struct ItemDatabase {
             return type;
         } else {
             //printf("Rolling new item for type: %d\n", type);
-            const Item &item = items.emplace_back(nextUid, type);
+            uint64_t seed = Item::GenSeed();
+            const Item &item = items.emplace_back(nextUid, type, seed);
             byUid[item.uid] = (uint32_t)items.size() - 1;
             return item.uid;
         }
@@ -647,7 +657,6 @@ private:
 
 thread_local static ItemDatabase g_item_db{};
 
-// TODO: Rename to ItemStack after done refactoring
 struct ItemStack {
     ItemUID  uid   {};
     uint32_t count {};

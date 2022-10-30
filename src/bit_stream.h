@@ -27,6 +27,7 @@ struct BitStream {
     void Process (uint8_t  &value, uint8_t bits =  8, uint8_t  min = 0        , uint8_t  max = UINT8_MAX );
     void Process (uint16_t &value, uint8_t bits = 16, uint16_t min = 0        , uint16_t max = UINT16_MAX);
     void Process (uint32_t &value, uint8_t bits = 32, uint32_t min = 0        , uint32_t max = UINT32_MAX);
+    void Process (uint64_t &value, uint8_t bits = 64, uint64_t min = 0        , uint64_t max = UINT64_MAX);
     void Process (int8_t   &value, uint8_t bits =  8, int8_t   min = INT8_MIN , int8_t   max = INT8_MAX  );
     void Process (int16_t  &value, uint8_t bits = 16, int16_t  min = INT16_MIN, int16_t  max = INT16_MAX );
     void Process (int32_t  &value, uint8_t bits = 32, int32_t  min = INT32_MIN, int32_t  max = INT32_MAX );

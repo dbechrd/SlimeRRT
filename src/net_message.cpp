@@ -222,12 +222,14 @@ size_t NetMessage::Process(BitStream::Mode mode, uint8_t *buf, size_t len)
                                 DLB_ASSERT(item.type);
                             }
                             stream.Process(item.type);
+                            stream.Process(item.seed);
 
                             // Default items have no rolled affixes that need to be sync'd
                             if (item.uid < ItemType_Count) {
                                 continue;
                             }
 
+                            #if 0
                             bool affixMap[ARRAY_SIZE(item.affixes)]{};
                             for (int affix = 0; affix < (int)ARRAY_SIZE(item.affixes); affix++) {
                                 affixMap[affix] = item.affixes[affix].type != ItemAffix_Empty;
@@ -244,6 +246,7 @@ size_t NetMessage::Process(BitStream::Mode mode, uint8_t *buf, size_t len)
                                     item.affixes[affix] = {};
                                 }
                             }
+                            #endif
                         }
                     }
                 }

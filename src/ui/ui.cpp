@@ -1859,6 +1859,7 @@ void UI::InventoryItemTooltip(ItemStack &invStack, int slot, Player &player, Net
 #if CL_DEBUG_ADVANCED_ITEM_TOOLTIPS
             const char *itemUidText = "uid: 000000";
             const char *itemTypeText = "itemType: 0000";
+            const char *itemSeedText = "seed: 00000000000000000000";
 #endif
 
             float maxWidth = 0.0f;
@@ -1871,6 +1872,7 @@ void UI::InventoryItemTooltip(ItemStack &invStack, int slot, Player &player, Net
 #if CL_DEBUG_ADVANCED_ITEM_TOOLTIPS
             maxWidth = MAX(maxWidth, ImGui::CalcTextSize(itemUidText).x);
             maxWidth = MAX(maxWidth, ImGui::CalcTextSize(itemTypeText).x);
+            maxWidth = MAX(maxWidth, ImGui::CalcTextSize(itemSeedText).x);
 #endif
             maxWidth += 8.0f;
 
@@ -1935,9 +1937,11 @@ void UI::InventoryItemTooltip(ItemStack &invStack, int slot, Player &player, Net
 #if CL_DEBUG_ADVANCED_ITEM_TOOLTIPS
             CenterNextItem(itemUidText);
             ImVec4 uidColor = item.uid == invStack.uid ? RayToImColor(DARKPURPLE) : RayToImColor(RED);
-            ImGui::TextColored(uidColor, "uid: %06d", invStack.uid);
+            ImGui::TextColored(uidColor, "uid: %06u", invStack.uid);
             CenterNextItem(itemTypeText);
-            ImGui::TextColored(RayToImColor(DARKPURPLE), "itemType: %04d", item.type);
+            ImGui::TextColored(RayToImColor(DARKPURPLE), "itemType: %04u", item.type);
+            CenterNextItem(itemSeedText);
+            ImGui::TextColored(RayToImColor(DARKPURPLE), "seed: %020llu", item.seed);
 #endif
 
             ImGui::EndTooltip();
