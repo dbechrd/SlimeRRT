@@ -541,7 +541,7 @@ struct Item {
     Item(void) {}
 
     Item(ItemUID uid, ItemType type, uint64_t seed) : uid(uid), type(type), seed(seed) {
-        Roll(seed);
+        Roll();
     }
 
     const ItemProto &Proto(void) const {
@@ -549,7 +549,7 @@ struct Item {
         return proto;
     }
 
-    void Roll(uint64_t seed) {
+    void Roll(void) {
         dlb_rand32_t rng{};
         dlb_rand32_seed_r(&rng, seed, seed);
         const ItemProto &proto = g_item_catalog.FindProto(type);

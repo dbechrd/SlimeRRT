@@ -223,6 +223,9 @@ size_t NetMessage::Process(BitStream::Mode mode, uint8_t *buf, size_t len)
                             }
                             stream.Process(item.type);
                             stream.Process(item.seed);
+                            if (stream.Reading() && item.seed) {
+                                item.Roll();
+                            }
 
                             // Default items have no rolled affixes that need to be sync'd
                             if (item.uid < ItemType_Count) {
