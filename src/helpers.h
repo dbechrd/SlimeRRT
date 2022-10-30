@@ -49,7 +49,7 @@
 #define CL_DEMO_SNAPSHOT_RADII           (1 && _DEBUG)
 #define CL_DEMO_SPAWN_RADII              (0 && _DEBUG)
 #define CL_DEMO_VIEW_RTREE               (0 && _DEBUG)
-#define SV_DEBUG_SPAWN_REALLY_CLOSE      (1 && _DEBUG)
+#define SV_DEBUG_SPAWN_REALLY_CLOSE      (0 && _DEBUG)
 #define SV_DEBUG_INPUT_SAMPLES           (0 && _DEBUG)
 #define SV_DEBUG_WORLD_CHUNKS            (0 && _DEBUG)
 #define SV_DEBUG_WORLD_NPCS              (0 && _DEBUG)
@@ -106,7 +106,7 @@
 #else
 #define SV_PLAYER_NEARBY_THRESHOLD  METERS_TO_PIXELS(20.0f)      // how close a player has to be to appear in your snapshot
 #define SV_NPC_NEARBY_THRESHOLD     METERS_TO_PIXELS(20.0f)      // how close an NPC has to be to appear in your snapshot
-#define SV_ENEMY_MIN_SPAWN_DIST     METERS_TO_PIXELS(5.0f)//METERS_TO_PIXELS(15.0f)  // closest enemies can spawn to a player
+#define SV_ENEMY_MIN_SPAWN_DIST     METERS_TO_PIXELS(25.0f)      // closest enemies can spawn to a player
 #define SV_ENEMY_DESPAWN_RADIUS     METERS_TO_PIXELS(40.0f)      // furthest enemies can be from a player before despawning
 #define SV_ITEM_NEARBY_THRESHOLD    METERS_TO_PIXELS(20.0f)      // how close an item has to be to receive a snapshot
 #endif
