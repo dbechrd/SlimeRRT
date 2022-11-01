@@ -9,7 +9,7 @@
 // Helper macros
 //------------------------------------------------------------------------------
 #define CLAMP(x, min, max) (MAX((min), MIN((x), (max))))
-#define LERP(a, b, alpha) ((a) * (1.0f - (alpha)) + b * (alpha))
+#define LERP(a, b, alpha) ((a) + ((b) - (a)) * (alpha))
 #define SQUARED(x) ((x)*(x))
 
 // NOTE: This defines 1 meter = 64 pixels

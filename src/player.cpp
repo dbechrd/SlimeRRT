@@ -161,7 +161,8 @@ bool Player::Attack(InputSample &input)
                 case ItemClass_Weapon: {
                     stats.timesSwordSwung++;
                     break;
-                } default: {
+                }
+                default: {
                     stats.timesFistSwung++;
                     break;
                 }

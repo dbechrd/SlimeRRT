@@ -157,6 +157,8 @@ void ParticleSystem::Update(double dt)
                 particle.body.Move3D(pos);
                 particle.alive = true;
             }
+            particle.body.drag = effect.params.drag;
+            particle.body.gravityScale = LERP(effect.params.gravityScaleA, effect.params.gravityScaleB, alpha);
             particle.body.Update(dt);
             sprite_update(particle.sprite, dt);
             DLB_ASSERT(Catalog::g_particleFx.FindById(effect.id).update);

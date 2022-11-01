@@ -1,11 +1,10 @@
 #include "../particles.h"
 #include "dlb_rand.h"
-#include <cassert>
 
 namespace FX {
     void rainbow_init(Particle &particle)
     {
-        assert(particle.effect);
+        DLB_ASSERT(particle.effect);
         const ParticleEffect &effect = *particle.effect;
 
         const float angleRad = dlb_rand32f_range(0.0f, PI);
@@ -18,7 +17,7 @@ namespace FX {
 
         // Die randomly during last 15% of animation
         particle.dieAt = particle.spawnAt + (effect.duration * 0.4);
-        assert(particle.dieAt > particle.spawnAt);
+        DLB_ASSERT(particle.dieAt > particle.spawnAt);
 
         const int colorArc = dlb_rand32i_range(0, 5);
         offset = v3_scale(offset, METERS_TO_PIXELS(3.0f) + (float)colorArc * METERS_TO_PIXELS(0.16f));

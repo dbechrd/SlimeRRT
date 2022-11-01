@@ -10,6 +10,7 @@ namespace Catalog {
         byId[(size_t)ParticleEffectID::GoldenChest] = { FX::golden_chest_init, FX::golden_chest_update };
         byId[(size_t)ParticleEffectID::Goo        ] = { FX::goo_init,          FX::goo_update          };
         byId[(size_t)ParticleEffectID::Number     ] = { FX::number_init,       FX::number_update       };
+        byId[(size_t)ParticleEffectID::Poison_Nova] = { FX::poison_nova_init,  FX::poison_nova_update  };
         byId[(size_t)ParticleEffectID::Rainbow    ] = { FX::rainbow_init,      FX::rainbow_update      };
     }
 

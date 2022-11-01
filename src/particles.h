@@ -59,13 +59,18 @@ struct ParticleEffectParams {
     float lifespanMax     = 5.0f;
     float spawnScaleFirst = 8.0f;  // scale that first particle spawns at
     float spawnScaleLast  = 1.0f;  // scale that last particle spawns at
+    float scaleA          = 8.0f;  // scale when particle spawns
+    float scaleB          = 4.0f;  // scale when particle dies
     float velocityXMin    = -1.0f;
     float velocityXMax    = 1.0f;
     float velocityYMin    = -1.0f;
     float velocityYMax    = 1.0f;
     float velocityZMin    = 2.0f;
     float velocityZMax    = 2.0f;
+    float drag            = 0.0f;
     float friction        = 0.5f;
+    float gravityScaleA   = 1.0f;  // gravity scale when particle spawns
+    float gravityScaleB   = 1.0f;  // gravity scale when particle dies
 };
 
 struct ParticleEffect {

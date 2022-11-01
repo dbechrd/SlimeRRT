@@ -12,6 +12,7 @@ namespace Catalog {
         GoldenChest,
         Goo,
         Number,
+        Poison_Nova,
         Rainbow,
         Count
     };

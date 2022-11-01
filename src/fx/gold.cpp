@@ -1,11 +1,10 @@
 #include "../particles.h"
 #include "dlb_rand.h"
-#include <cassert>
 
 namespace FX {
     void copper_init(Particle &particle)
     {
-        assert(particle.effect);
+        DLB_ASSERT(particle.effect);
         const ParticleEffect &effect = *particle.effect;
 
         // Spawn randomly during first 5% of duration
@@ -13,7 +12,7 @@ namespace FX {
 
         // Die randomly during last 15% of animation
         particle.dieAt = effect.startedAt + effect.duration - (effect.duration * (double)dlb_rand32f_variance(0.15f));
-        assert(particle.dieAt > particle.spawnAt);
+        DLB_ASSERT(particle.dieAt > particle.spawnAt);
 
     #if 1
         float randX = dlb_rand32f_variance(METERS_TO_PIXELS(1.0f));
@@ -37,7 +36,7 @@ namespace FX {
             copperSpriteDef = copperSpritesheet.FindSprite("coin_copper");
 
             // TODO: Don't play particle effects on the server so that we can re-enable this assert on client side
-            //assert(coinSpriteDef);
+            //DLB_ASSERT(coinSpriteDef);
         }
         particle.sprite.spriteDef = copperSpriteDef;
     }

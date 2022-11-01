@@ -1,11 +1,10 @@
 #include "../particles.h"
 #include "dlb_rand.h"
-#include <cassert>
 
 namespace FX {
     void number_init(Particle &particle)
     {
-        assert(particle.effect);
+        DLB_ASSERT(particle.effect);
         const ParticleEffect &effect = *particle.effect;
 
         // Spawn randomly during first 5% of duration
@@ -13,7 +12,7 @@ namespace FX {
 
         // Die randomly during last 15% of animation
         particle.dieAt = effect.startedAt + effect.duration - (effect.duration * (double)dlb_rand32f_variance(0.15f));
-        assert(particle.dieAt > particle.spawnAt);
+        DLB_ASSERT(particle.dieAt > particle.spawnAt);
 
         float vx = METERS_TO_PIXELS(dlb_rand32f_variance(0.5f));
         float vy = METERS_TO_PIXELS(dlb_rand32f_variance(0.5f));
@@ -29,7 +28,7 @@ namespace FX {
         particle.sprite.scale = 2.0f;
 
         // TODO: Don't play particle effects on the server so that we can re-enable this assert on client side
-        //assert(coinSpriteDef);
+        //DLB_ASSERT(coinSpriteDef);
     }
 
     void number_update(Particle &particle, float alpha)

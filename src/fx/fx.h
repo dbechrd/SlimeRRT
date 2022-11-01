@@ -17,4 +17,6 @@ namespace FX {
     extern void number_update       (Particle &particle, float alpha);
     extern void rainbow_init        (Particle &particle);
     extern void rainbow_update      (Particle &particle, float alpha);
+    extern void poison_nova_init    (Particle &particle);
+    extern void poison_nova_update  (Particle &particle, float alpha);
 }

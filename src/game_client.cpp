@@ -308,8 +308,8 @@ void GameClient::PlayMode_HandleInput(PlayerControllerState &input)
     }
 
     if (input.dbgChatMessage) {
-        netClient.serverWorld->chatHistory.PushDebug(CSTR("You pressed the send random chat message button. Congrats."));
-        g_clock.now += SV_TICK_DT * 100;
+        //netClient.serverWorld->chatHistory.PushDebug(CSTR("You pressed the send random chat message button. Congrats."));
+        //g_clock.now += SV_TICK_DT * 100;
     }
 
     if (input.dbgTeleport) {
@@ -422,6 +422,44 @@ void GameClient::PlayMode_DrawWorld(PlayerControllerState &input)
 #endif
 
     //UI::WorldGrid();
+
+
+    if (input.dbgChatMessage) {
+        Player *player = netClient.serverWorld->LocalPlayer();
+        ParticleEffectParams poisonNovaParams{};
+        poisonNovaParams.particleCountMin = 128;
+        poisonNovaParams.particleCountMax = poisonNovaParams.particleCountMin;
+        poisonNovaParams.durationMin = 0.25f;
+        poisonNovaParams.durationMax = poisonNovaParams.durationMin;
+        poisonNovaParams.spawnDelayMin = 0.0f;
+        poisonNovaParams.spawnDelayMax = poisonNovaParams.durationMax;
+        poisonNovaParams.lifespanMin = 0.5f;
+        poisonNovaParams.lifespanMax = 1.0f;
+        const float velMag = 4.0f;
+        poisonNovaParams.velocityXMin = -velMag;
+        poisonNovaParams.velocityXMax = velMag;
+        poisonNovaParams.velocityYMin = -velMag;
+        poisonNovaParams.velocityYMax = velMag;
+        poisonNovaParams.velocityZMin = 0.0f;
+        poisonNovaParams.velocityZMax = 0.0f;
+        poisonNovaParams.scaleA = 10.0f;
+        poisonNovaParams.scaleB = 2.0f;
+        poisonNovaParams.drag = 0.0f;
+        poisonNovaParams.friction = 0.0f;
+        poisonNovaParams.gravityScaleA = 0.0f;
+        poisonNovaParams.gravityScaleB = 0.5f;
+        ParticleEffect *fx = netClient.serverWorld->particleSystem.GenerateEffect(
+            Catalog::ParticleEffectID::Poison_Nova,
+            player->WorldCenter(),
+            poisonNovaParams
+        );
+        if (fx) {
+            fx->effectCallbacks[(size_t)ParticleEffect_Event::BeforeUpdate] = {
+                ParticlesFollowPlayerGut,
+                player
+            };
+        }
+    }
 
     if (input.dbgFindMouseTile) {
         UI::TileHoverOutline(netClient.serverWorld->map);
