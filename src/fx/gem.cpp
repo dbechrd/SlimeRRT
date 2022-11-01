@@ -31,9 +31,9 @@ namespace FX {
         particle.color = WHITE;
         particle.sprite.scale = 1.0f;
 
-        const Spritesheet &itemSpritesheet = Catalog::g_spritesheets.FindById(Catalog::SpritesheetID::Items);
-        uint32_t randomGemIdx = dlb_rand32u_range(0, (uint32_t)itemSpritesheet.sprites.size() - 2);
-        particle.sprite.spriteDef = &itemSpritesheet.sprites[randomGemIdx];
+        //const Spritesheet &itemSpritesheet = Catalog::g_spritesheets.FindById(Catalog::SpritesheetID::Items);
+        //uint32_t randomGemIdx = dlb_rand32u_range(0, (uint32_t)itemSpritesheet.sprites.size() - 2);
+        //particle.sprite.spriteDef = &itemSpritesheet.sprites[randomGemIdx];
 
         // TODO: Don't play particle effects on the server so that we can re-enable this assert on client side
         //assert(coinSpriteDef);

@@ -511,7 +511,21 @@ void GameClient::PlayMode_DrawScreen(double frameDt, PlayerControllerState &inpu
             Vector2 worldCenter = netClient.serverWorld->map.TileCenter(worldPos);
             Vector2 screenCenter = g_spycam.WorldToScreen(worldCenter);
             screenCenter.y -= 10;
-            HealthBar::Draw(screenCenter, "Loose Rock", {});
+
+            // TODO: Make this more generic somehow
+            const char *typeDesc = "Something mysterious";
+            switch (tile->object.EffectiveType()) {
+                case ObjectType_Rock01: {
+                    typeDesc = "Loose Rock";
+                    break;
+                }
+                case ObjectType_Tree01: {
+                    typeDesc = "Hidden Hollow";
+                    break;
+                }
+            }
+
+            HealthBar::Draw(screenCenter, typeDesc, {});
             if (input.primaryPress) {
                 netClient.SendTileInteract(worldPos.x, worldPos.y);
             }

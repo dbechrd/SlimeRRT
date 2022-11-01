@@ -21,7 +21,7 @@ void Slime::Init(NPC &npc)
     npc.sprite.scale = 1.0f;
 
     if (!g_clock.server) {
-        const Spritesheet &spritesheet = Catalog::g_spritesheets.FindById(Catalog::SpritesheetID::Slime);
+        const Spritesheet &spritesheet = Catalog::g_spritesheets.FindById(Catalog::SpritesheetID::Monster_Slime);
         const SpriteDef *spriteDef = spritesheet.FindSprite("green_slime");
         npc.sprite.spriteDef = spriteDef;
     }

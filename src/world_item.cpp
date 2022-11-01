@@ -58,9 +58,10 @@ bool WorldItem::Cull(const Rectangle& cullRect) const
     return cull;
 }
 
-void WorldItem::Draw(World &world)
+void WorldItem::Draw(World &world, Vector2 at) const
 {
     UNUSED(world);
+    UNUSED(at);
     DLB_ASSERT(stack.uid);
     DLB_ASSERT(stack.count);
 

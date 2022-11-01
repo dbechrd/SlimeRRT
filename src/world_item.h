@@ -19,9 +19,9 @@ struct WorldItem : Drawable {
     Vector3 WorldCenter    (void) const;
     Vector3 WorldTopCenter (void) const;
     void    Update         (double dt);
-    float   Depth          (void) const override;
-    bool    Cull           (const Rectangle& cullRect) const override;
-    void    Draw           (World &world) override;
+    float   Depth          (void) const;
+    bool    Cull           (const Rectangle& cullRect) const;
+    void    Draw           (World &world, Vector2 at) const override;
 
 private:
     ItemStack namedStack {};

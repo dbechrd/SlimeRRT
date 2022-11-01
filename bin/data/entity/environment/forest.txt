@@ -1,0 +1,10 @@
+# spritesheet <frame_count> <animation_count> <sprite_count> <texture_path>
+# frame <name> <x> <y> <width> <height>
+# animation <name> <frame0> [frame1] ... [frame15]
+# sprite <name> <anim_n> <anim_ne> <anim_e> <anim_se> <anim_s> <anim_sw> <anim_w> <anim_nw>
+
+spritesheet 1 1 1 data/texture/environment/forest.png
+
+frame       tree_01     0 0 192 192
+animation   tree_01     0
+sprite      tree_01     0 - - - - - - -

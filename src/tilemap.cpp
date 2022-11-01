@@ -249,11 +249,20 @@ Chunk &Tilemap::FindOrGenChunk(World &world, int16_t chunkX, int16_t chunkY)
 
                 // Forest trees
                 if (tileType == TileType_Forest) {
+#if 0
                     const double alpha = (elev - 0.6) / (0.92 - 0.6);
                     const double falloffNoise = g_noise.Seq1(x, y, FREQ_FOREST_TREES);
                     if (falloffNoise >= fabs(alpha - 0.5) * 2.0) {
-                        tileType = TileType_Tree;
+                        tileObject.type = ObjectType_Tree01_21;
+                        tileObject.SetFlag(ObjectFlag_Collide | ObjectFlag_Interact);
                     }
+#else
+                    const double decoNoise = g_noise.Seq1(x, y, FREQ_FOREST_TREES);
+                    if (NOISE_BETWEEN(decoNoise, 0.05, 0.054)) {
+                        tileObject.type = ObjectType_Tree01;
+                        tileObject.SetFlag(ObjectFlag_Collide | ObjectFlag_Interact);
+                    }
+#endif
                 }
 
                 // Forest fall-off into Mountaintop Lake Beach

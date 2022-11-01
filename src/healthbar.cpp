@@ -37,7 +37,7 @@ void HealthBar::Draw(const Vector2 &topCenter, const char *name, const Combat &c
             nameText = SafeTextFormat("[%u]", id);
         }
     } else {
-        nameText = name ? SafeTextFormat("%s [%u]", name, id) : nullptr;
+        nameText = name ? SafeTextFormat("%s", name) : nullptr;
     }
 #endif
 

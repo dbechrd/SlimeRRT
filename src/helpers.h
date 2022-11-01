@@ -81,7 +81,7 @@
 #define SV_SINGLEPLAYER_PASS        "guest"
 #define SV_USERNAME                 "SERVER"
 #define SV_MAX_PLAYERS              8
-#define SV_MAX_NPC_SLIMES           4
+#define SV_MAX_NPC_SLIMES           16
 #define SV_MAX_NPC_TOWNFOLK         1
 #define SV_MAX_NPCS (               SV_MAX_NPC_SLIMES   + \
                                     SV_MAX_NPC_TOWNFOLK )

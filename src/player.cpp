@@ -23,7 +23,7 @@ void Player::Init()
 
     sprite.scale = 1.0f;
     if (!g_clock.server) {
-        const Spritesheet &spritesheet = Catalog::g_spritesheets.FindById(Catalog::SpritesheetID::Charlie);
+        const Spritesheet &spritesheet = Catalog::g_spritesheets.FindById(Catalog::SpritesheetID::Character_Charlie);
         const SpriteDef *spriteDef = spritesheet.FindSprite("player_sword");
         sprite.spriteDef = spriteDef;
     }
@@ -481,8 +481,10 @@ void Player::DrawSwimOverlay(const World &world) const
     }
 }
 
-void Player::Draw(World &world)
+void Player::Draw(World &world, Vector2 at) const
 {
+    UNUSED(at);
+
     // HACK: Don't draw players who have left the game
     PlayerInfo *playerInfo = world.FindPlayerInfo(id);
     if (!playerInfo) return;

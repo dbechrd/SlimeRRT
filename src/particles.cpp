@@ -219,7 +219,7 @@ void ParticleSystem::PushAll(DrawList &drawList)
         //const float animTime = (float)(g_clock.now - particle.effect->startedAt);
         //const float alpha = (float)((animTime - particle.spawnAt) / (particle.dieAt - particle.spawnAt));
         //if (alpha >= 0.0f && alpha < 1.0f) {
-        drawList.Push(particle);
+        drawList.Push(particle, particle.Depth(), particle.Cull(drawList.cullRect));
     }
 }
 
@@ -241,12 +241,13 @@ bool Particle::Cull(const Rectangle &cullRect) const
     return cull;
 }
 
-void Particle::Draw(World &world)
+void Particle::Draw(World &world, Vector2 at) const
 {
     UNUSED(world);
+    UNUSED(at);
     const ParticleEffect_ParticleCallback &draw = effect->particleCallbacks[(size_t)ParticleEffect_ParticleEvent::Draw];
     if (draw.callback) {
-        draw.callback(*this, draw.userData);
+        draw.callback(const_cast<Particle &>(*this), draw.userData);
     } else {
         if (sprite.spriteDef) {
             sprite_draw_body(sprite, body, color);

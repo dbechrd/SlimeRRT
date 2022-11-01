@@ -882,14 +882,14 @@ void UI::QuickHUD(const Font &font, const Player &player, const Tilemap &tilemap
     float hudCursorY = margin;
     hudCursorY += pad;
 
-    const Spritesheet &gildedSpritesheet = Catalog::g_spritesheets.FindById(Catalog::SpritesheetID::Coin_Gilded);
-    const SpriteDef *gildedSpriteDef = gildedSpritesheet.FindSprite("coin");
+    const Spritesheet &coinSpritesheet = Catalog::g_spritesheets.FindById(Catalog::SpritesheetID::Item_Coins);
+    const SpriteDef *coinGildedSpriteDef = coinSpritesheet.FindSprite("coin_gilded");
     Rectangle frameRect{};
-    frameRect.x      = (float)gildedSpriteDef->spritesheet->frames[3].x;
-    frameRect.y      = (float)gildedSpriteDef->spritesheet->frames[3].y;
-    frameRect.width  = (float)gildedSpriteDef->spritesheet->frames[3].width;
-    frameRect.height = (float)gildedSpriteDef->spritesheet->frames[3].height;
-    DrawTextureRec(gildedSpriteDef->spritesheet->texture, frameRect, { margin + pad, hudCursorY }, WHITE);
+    frameRect.x      = (float)coinGildedSpriteDef->spritesheet->frames[3].x;
+    frameRect.y      = (float)coinGildedSpriteDef->spritesheet->frames[3].y;
+    frameRect.width  = (float)coinGildedSpriteDef->spritesheet->frames[3].width;
+    frameRect.height = (float)coinGildedSpriteDef->spritesheet->frames[3].height;
+    DrawTextureRec(coinGildedSpriteDef->spritesheet->texture, frameRect, { margin + pad, hudCursorY }, WHITE);
 
     text = SafeTextFormat("%d", player.inventory.slots[PlayerInventory::SlotId_Coin_Copper].stack.count);
     DrawTextFont(font, text, margin + pad + frameRect.width + pad, hudCursorY, 0, 0, font.baseSize, WHITE);

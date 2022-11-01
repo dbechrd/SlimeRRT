@@ -101,9 +101,10 @@ bool NPC::Cull(const Rectangle &cullRect) const
     return cull;
 }
 
-void NPC::Draw(World &world)
+void NPC::Draw(World &world, Vector2 at) const
 {
     UNUSED(world);
+    UNUSED(at);
     DLB_ASSERT(!despawnedAt);
 
     const Vector3 groundPos = body.GroundPosition3();

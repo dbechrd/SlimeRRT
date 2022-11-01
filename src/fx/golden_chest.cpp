@@ -28,8 +28,8 @@ namespace FX {
         particle.color = WHITE;
         particle.sprite.scale = 2.0f;
 
-        const Spritesheet &itemSpritesheet = Catalog::g_spritesheets.FindById(Catalog::SpritesheetID::Items);
-        particle.sprite.spriteDef = itemSpritesheet.FindSprite("item_golden_chest");
+        //const Spritesheet &itemSpritesheet = Catalog::g_spritesheets.FindById(Catalog::SpritesheetID::Items);
+        //particle.sprite.spriteDef = itemSpritesheet.FindSprite("item_golden_chest");
 
         // TODO: Don't play particle effects on the server so that we can re-enable this assert on client side
         //assert(coinSpriteDef);

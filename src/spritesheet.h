@@ -4,23 +4,30 @@
 #include "raylib/raylib.h"
 #include <vector>
 
-struct SpriteFrame {
-    StringView name   {};  // name of frame
-    int        x      {};  // x position (left)
-    int        y      {};  // y position (top)
-    int        width  {};  // width of frame
-    int        height {};  // height of frame
+struct Spritesheet;
+
+struct SpriteFrame : Drawable {
+    StringView          name        {};  // name of frame
+    const Spritesheet * spritesheet {};  // parent spritesheet
+    int                 x           {};  // x position (left)
+    int                 y           {};  // y position (top)
+    int                 width       {};  // width of frame
+    int                 height      {};  // height of frame
+
+    SpriteFrame(const Spritesheet *spritesheet) : spritesheet(spritesheet) {}
+
+    void Draw(World &world, Vector2 at) const;
 };
 
 #define SPRITEANIM_MAX_FRAMES 16
 
-struct Spritesheet;
-
 struct SpriteAnim {
-    StringView    name        {};  // name of animation
-    Spritesheet * spritesheet {};  // parent spritesheet
-    size_t        frameCount  {};  // 0 = not used, 1 = static sprite, > 1 = animation frame count
-    int           frames[SPRITEANIM_MAX_FRAMES]{};  // frame indices (spritesheet->frames)
+    StringView          name        {};  // name of animation
+    const Spritesheet * spritesheet {};  // parent spritesheet
+    size_t              frameCount  {};  // 0 = not used, 1 = static sprite, > 1 = animation frame count
+    int                 frames      [SPRITEANIM_MAX_FRAMES]{};  // frame indices (spritesheet->frames)
+
+    SpriteAnim(const Spritesheet *spritesheet) : spritesheet(spritesheet) {}
 };
 
 struct SpriteDef {
@@ -28,7 +35,7 @@ struct SpriteDef {
     const Spritesheet * spritesheet {};  // parent spritesheet
     int animations[(int)Direction::Count]{};  // animation index (spritesheet->animations)
 
-    SpriteDef(const Spritesheet *spritesheet);
+    SpriteDef(const Spritesheet *spritesheet) : spritesheet(spritesheet) {}
 
 private:
     SpriteDef() = default;

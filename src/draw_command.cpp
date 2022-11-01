@@ -3,7 +3,6 @@
 #include "particles.h"
 #include "player.h"
 #include "world_item.h"
-#include <cassert>
 #include <cstdlib>
 #include <cstring>
 #include <vector>
@@ -17,11 +16,11 @@ void DrawList::EnableCulling(const Rectangle &rect)
 void DrawList::DisableCulling()
 {
     cullRect = {};
-    assert(cullRect.width == 0);
+    DLB_ASSERT(cullRect.width == 0);
     cullEnabled = false;
 }
 
-void DrawList::Push(Drawable &drawable)
+void DrawList::Push(const Drawable &drawable, float depth, bool cull, Vector2 at)
 {
     // TODO: Check this before calling push
     //if (!drawable.sprite.spriteDef) {
@@ -29,25 +28,22 @@ void DrawList::Push(Drawable &drawable)
     //}
 
 #if CL_CULL_ON_PUSH
-    if (cullEnabled && drawable.Cull(cullRect)) {
+    if (cullEnabled && cull) {
         return;
     }
 #endif
 
     size_t size = sortedCommands.size();
     sortedCommands.resize(size + 1);
-    const float depthA = drawable.Depth();
     int j;
     // NOTE: j is signed because it terminates at -1
     for (j = (int)size - 1; j >= 0; j--) {
-        assert(sortedCommands[j].drawable);
-        const float depthB = sortedCommands[j].drawable->Depth();
-        if (depthB <= depthA) {
+        if (depth > sortedCommands[j].depth) {
             break;
         }
-        sortedCommands[(size_t)j + 1].drawable = sortedCommands[j].drawable;
+        sortedCommands[(size_t)j + 1] = sortedCommands[j];
     }
-    sortedCommands[(size_t)j + 1].drawable = &drawable;
+    sortedCommands[(size_t)j + 1] = { &drawable, depth, cull, at };
 }
 
 void DrawList::Flush(World &world)
@@ -58,12 +54,12 @@ void DrawList::Flush(World &world)
 
     for (const DrawCommand &cmd : sortedCommands) {
 #if !CL_CULL_ON_PUSH
-        if (!cullEnabled || !cmd.drawable.Cull()) {
+        if (!cullEnabled || !cmd.cull) {
             cmd.drawable->Draw();
         }
 #else
-        assert(cmd.drawable);
-        cmd.drawable->Draw(world);
+        DLB_ASSERT(cmd.drawable);
+        cmd.drawable->Draw(world, cmd.at);
 #endif
     }
 

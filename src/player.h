@@ -344,9 +344,9 @@ struct Player : Drawable {
     ItemStack GetSelectedStack (void) const;
     void      Update           (InputSample &input, Tilemap &map);
 
-    float Depth (void) const override;
-    bool  Cull  (const Rectangle& cullRect) const override;
-    void  Draw  (World &world) override;
+    float Depth (void) const;
+    bool  Cull  (const Rectangle& cullRect) const;
+    void  Draw  (World &world, Vector2 at) const override;
 
 private:
     const char *LOG_SRC = "Player";

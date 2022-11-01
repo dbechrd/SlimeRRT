@@ -517,13 +517,13 @@ ErrorType Scanner::ParseSpritesheet(Spritesheet &spritesheet)
                         break;
                     }
                     case Token::Type::Frame: {
-                        SpriteFrame &frame = spritesheet.frames.emplace_back();
+                        SpriteFrame &frame = spritesheet.frames.emplace_back(&spritesheet);
                         E_ERROR_RETURN(ParseFrame(frame), "Failed to parse frame", 0);
                         framesParsed++;
                         break;
                     }
                     case Token::Type::Animation: {
-                        SpriteAnim &animation = spritesheet.animations.emplace_back();
+                        SpriteAnim &animation = spritesheet.animations.emplace_back(&spritesheet);
                         E_ERROR_RETURN(ParseAnimation(animation), "Failed to parse animation", 0);
                         animationsParsed++;
                         break;
@@ -554,11 +554,6 @@ ErrorType Scanner::ParseSpritesheet(Spritesheet &spritesheet)
     return ErrorType::Success;
 }
 
-SpriteDef::SpriteDef(const Spritesheet *spritesheet)
-{
-    this->spritesheet = spritesheet;
-}
-
 ErrorType Spritesheet::LoadFromFile(const char *filename)
 {
     buf = (char *)LoadFileData(filename, &bufLength);
@@ -581,6 +576,27 @@ Spritesheet::~Spritesheet()
     sprites.clear();
     UnloadTexture(texture);
     UnloadFileData((unsigned char *)buf);
+}
+
+void SpriteFrame::Draw(World &world, Vector2 at) const
+{
+    UNUSED(world);
+    DLB_ASSERT(width);
+    DLB_ASSERT(height);
+    DLB_ASSERT(spritesheet);
+
+    const Rectangle frameRect = {
+        (float)x,
+        (float)y,
+        (float)width,
+        (float)height
+    };
+    // Render bottom center of sprite in center of tile
+    const Vector2 topLeft = {
+        at.x + TILE_W / 2 - frameRect.width / 2,
+        at.y + TILE_H - frameRect.height
+    };
+    DrawTextureRec(spritesheet->texture, frameRect, topLeft, WHITE);
 }
 
 const SpriteDef *Spritesheet::FindSprite(const char *name) const

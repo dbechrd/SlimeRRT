@@ -1,0 +1,41 @@
+# spritesheet <frame_count> <animation_count> <sprite_count> <texture_path>
+# frame <name> <x> <y> <width> <height>
+# animation <name> <frame0> [frame1] ... [frame15]
+# sprite <name> <anim_n> <anim_ne> <anim_e> <anim_se> <anim_s> <anim_sw> <anim_w> <anim_nw>
+
+spritesheet 24 3 3 data/texture/item/coins.png
+
+frame coin_copper_spin_0   0 0 20 18
+frame coin_copper_spin_1  20 0 20 18
+frame coin_copper_spin_2  40 0 20 18
+frame coin_copper_spin_3  60 0 20 18
+frame coin_copper_spin_4  80 0 20 18
+frame coin_copper_spin_5 100 0 20 18
+frame coin_copper_spin_6 120 0 20 18
+frame coin_copper_spin_7 140 0 20 18
+
+frame coin_gilded_spin_0   0 18 20 18
+frame coin_gilded_spin_1  20 18 20 18
+frame coin_gilded_spin_2  40 18 20 18
+frame coin_gilded_spin_3  60 18 20 18
+frame coin_gilded_spin_4  80 18 20 18
+frame coin_gilded_spin_5 100 18 20 18
+frame coin_gilded_spin_6 120 18 20 18
+frame coin_gilded_spin_7 140 18 20 18
+
+frame coin_silver_spin_0   0 36 20 18
+frame coin_silver_spin_1  20 36 20 18
+frame coin_silver_spin_2  40 36 20 18
+frame coin_silver_spin_3  60 36 20 18
+frame coin_silver_spin_4  80 36 20 18
+frame coin_silver_spin_5 100 36 20 18
+frame coin_silver_spin_6 120 36 20 18
+frame coin_silver_spin_7 140 36 20 18
+
+animation coin_copper_spin  0  1  2  3  4  5  6  7
+animation coin_gilded_spin  8  9 10 11 12 13 14 15
+animation coin_silver_spin 16 17 18 19 20 21 22 23
+
+sprite coin_copper 0 0 0 0 0 0 0 0
+sprite coin_gilded 1 1 1 1 1 1 1 1
+sprite coin_silver 2 2 2 2 2 2 2 2

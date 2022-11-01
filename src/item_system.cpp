@@ -175,7 +175,7 @@ void ItemSystem::PushAll(DrawList &drawList)
     for (WorldItem &item : worldItems) {
         if (item.stack.count) {
             DLB_ASSERT(item.stack.uid);
-            drawList.Push(item);
+            drawList.Push(item, item.Depth(), item.Cull(drawList.cullRect));
         }
     }
 }

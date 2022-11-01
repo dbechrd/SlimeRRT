@@ -19,7 +19,8 @@ const SpriteAnim &sprite_anim(const Sprite &sprite)
 const SpriteFrame &sprite_frame(const Sprite &sprite)
 {
     if (!sprite.spriteDef) {
-        thread_local static SpriteFrame frame{};
+        // TODO: Wtf is this? Who is using this?
+        thread_local static SpriteFrame frame{ 0 };
         frame.x = 0;
         frame.y = 0;
         frame.width = 16;

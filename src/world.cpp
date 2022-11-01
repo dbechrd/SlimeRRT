@@ -297,7 +297,7 @@ ErrorType World::SpawnNpc(uint32_t id, NPC::Type type, Vector3 worldPos, NPC **r
 
             // TODO: Look this up by npc.type in Draw() instead
             if (!g_clock.server) {
-                const Spritesheet &spritesheet = Catalog::g_spritesheets.FindById(Catalog::SpritesheetID::Slime);
+                const Spritesheet &spritesheet = Catalog::g_spritesheets.FindById(Catalog::SpritesheetID::Monster_Slime);
                 const SpriteDef *spriteDef = spritesheet.FindSprite("blue_slime");
                 npc.sprite.spriteDef = spriteDef;
             }
@@ -822,10 +822,44 @@ size_t World::DrawMap(const Spycam &spycam)
             xx = floorf(xx / TILE_W) * TILE_W;
             yy = floorf(yy / TILE_W) * TILE_W;
 
+            const Vector2 at = { xx, yy };
+
             const Tile *tile = map.TileAtWorld(xx, yy);
             if (tile && tile->object.type) {
                 ObjectType effectiveType = tile->object.EffectiveType();
-                tileset_draw_tile(TilesetID::TS_Objects, effectiveType, { xx, yy }, WHITE);
+                if (effectiveType < ObjectType_SpritesheetCount) {
+                    tileset_draw_tile(TilesetID::TS_Objects, effectiveType, at, WHITE);
+                } else {
+                    // TODO: Make this lookup more general somehow
+                    switch (effectiveType) {
+                        case ObjectType_Tree01: {
+                            const Spritesheet &spritesheet = Catalog::g_spritesheets.FindById(Catalog::SpritesheetID::Environment_Forest);
+                            DLB_ASSERT(spritesheet.texture.id);
+                            const SpriteDef *spriteDef = spritesheet.FindSprite("tree_01");
+                            const SpriteAnim &spriteAnim = spritesheet.animations[spriteDef->animations[0]];
+                            DLB_ASSERT(spriteAnim.frameCount == 1);
+                            const SpriteFrame &spriteFrame = spritesheet.frames[spriteAnim.frames[0]];
+                            DLB_ASSERT(spriteFrame.width);
+                            DLB_ASSERT(spriteFrame.height);
+
+                            drawList.Push(spriteFrame, at.y + TILE_H, false, at);
+
+                            //const Rectangle frameRect = {
+                            //    (float)spriteFrame.x,
+                            //    (float)spriteFrame.y,
+                            //    (float)spriteFrame.width,
+                            //    (float)spriteFrame.height
+                            //};
+                            //// Render bottom center of sprite in center of tile
+                            //const Vector2 topLeft = {
+                            //    at.x + TILE_W / 2 - frameRect.width / 2,
+                            //    at.y + TILE_H - frameRect.height
+                            //};
+                            //DrawTextureRec(spritesheet.texture, frameRect, topLeft, WHITE);
+                            break;
+                        }
+                    }
+                }
             }
         }
     }
@@ -842,7 +876,7 @@ void World::DrawEntities(void)
 {
     for (Player &player : players) {
         if (player.id) {
-            drawList.Push(player);
+            drawList.Push(player, player.Depth(), player.Cull(drawList.cullRect));
         }
     }
 
@@ -851,7 +885,7 @@ void World::DrawEntities(void)
         for (size_t i = 0; i < npcList.length; i++) {
             NPC &npc = npcList.data[i];
             if (npc.id) {
-                drawList.Push(npc);
+                drawList.Push(npc, npc.Depth(), npc.Cull(drawList.cullRect));
             }
         }
     }

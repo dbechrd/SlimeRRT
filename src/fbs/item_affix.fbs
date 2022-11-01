@@ -1,6 +1,6 @@
 enum ItemAffixType:uint8 {
     empty,                     // no affix
-    
+
     // [1-3] - [5-9] damage
     damage_min,
     damage_max,
@@ -19,7 +19,7 @@ enum ItemAffixType:uint8 {
     move_speed,
 
     // calculated on drop, based on other affixes, where it spawned, value bonus effects, etc.
-    value,       
+    value,
 }
 
 table ItemAffixProto {

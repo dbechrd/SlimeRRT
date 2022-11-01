@@ -46,7 +46,7 @@ public:
     float   TakeDamage      (float damage);
     void    UpdateDirection (Vector2 offset);
     void    Update          (World &world, double dt);
-    float   Depth           (void) const override;
-    bool    Cull            (const Rectangle& cullRect) const override;
-    void    Draw            (World &world) override;
+    float   Depth           (void) const;
+    bool    Cull            (const Rectangle& cullRect) const;
+    void    Draw            (World &world, Vector2 at) const override;
 };
