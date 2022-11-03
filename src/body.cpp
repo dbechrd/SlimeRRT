@@ -254,7 +254,7 @@ void Body3D::Update(double dt)
     //lastUpdated = g_clock.now;
 }
 
-bool Body3D::CL_Interpolate(double renderAt, Direction &direction)
+void Body3D::CL_Interpolate(double renderAt, Direction &direction)
 {
     Vector3 startPos = WorldPosition();
     const size_t historyLen = positionHistory.Count();
@@ -262,7 +262,7 @@ bool Body3D::CL_Interpolate(double renderAt, Direction &direction)
     // If no history, nothing to interpolate yet
     if (historyLen == 0) {
         //printf("No snapshot history to interpolate from\n");
-        return true;
+        return;
     }
 
     // Find first snapshot after renderAt time
@@ -273,6 +273,9 @@ bool Body3D::CL_Interpolate(double renderAt, Direction &direction)
 
     if (right == 0) {
         // renderAt is before any snapshots, show entity at oldest snapshot
+
+        // Don't render things before we have at least two snapshots to interpolate between
+        return;
 
         const Vector3Snapshot &oldest = positionHistory.At(0);
         DLB_ASSERT(renderAt < oldest.serverTime);
@@ -341,6 +344,4 @@ bool Body3D::CL_Interpolate(double renderAt, Direction &direction)
     idle = timeSinceLastMove > IDLE_THRESHOLD_SECONDS;
     idleChanged = idle != prevIdle;
     //lastUpdated = g_clock.now;
-
-    return true;
 }

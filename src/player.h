@@ -190,7 +190,7 @@ struct PlayerInventory {
 
             // Pick up as many items as possible from all slots that match the cursor's current item
             bool dstFull = false;
-            for (SlotId otherSlotId = SlotId_Count - 1; !dstFull; otherSlotId--) {
+            for (int otherSlotId = SlotId_Count - 1; otherSlotId >= 0 && !dstFull; otherSlotId--) {
                 if (otherSlotId == SlotId_Cursor)
                     continue;
 

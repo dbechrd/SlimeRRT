@@ -41,7 +41,7 @@ struct Body3D {
     double TimeSinceLastMove(void) const;
     void ApplyForce(Vector3 force);
     void Update(double dt);
-    bool CL_Interpolate(double renderAt, Direction &direction);
+    void CL_Interpolate(double renderAt, Direction &direction);
 
 private:
     const char *LOG_SRC = "Body";
