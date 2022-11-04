@@ -139,26 +139,6 @@ inline bool Body3D::Resting(void) const
     return v3_is_zero(velocity) && OnGround();
 }
 
-inline bool Body3D::Idle(void) const
-{
-    return idle;
-}
-
-inline bool Body3D::Jumped(void) const
-{
-    return jumped;
-}
-
-inline bool Body3D::Landed(void) const
-{
-    return landed;
-}
-
-inline bool Body3D::Bounced(void) const
-{
-    return bounced;
-}
-
 inline double Body3D::TimeSinceLastMove(void) const
 {
     return g_clock.now - lastMoved;

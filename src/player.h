@@ -38,7 +38,7 @@ bool ItemFilter_ItemType_Currency_Gilded(Item item)
     return item.type == ItemType_Currency_Gilded;
 };
 
-struct PlayerInventory {
+struct Inventory : public Facet {
     typedef uint8_t SlotId;
     enum : SlotId {
         SlotId_Coin_Copper = PLAYER_INV_REG_COUNT,
@@ -63,8 +63,11 @@ struct PlayerInventory {
         ItemStack stack{};
     };
 
+    std::vector<Slot> slots;
+};
+
+struct PlayerInventory : public Inventory {
     SlotId selectedSlot {};  // NOTE: for hotbar, needs rework
-    Slot   slots        [SlotId_Count]{};
     bool   dirty        {true};  // Used server-side to determine whether client needs a new inv snapshot
     bool   skipUpdate   {};  // HACK: Simulate inv action to see if it's valid client-side without actually performing it
 
@@ -296,45 +299,27 @@ struct PlayerInfo {
     }
 };
 
-struct Player : Drawable {
-    enum class MoveState {
-        Idle    = 0,
-        Walking = 1,
-        Running = 2,
-    };
-
-    enum class ActionState {
-        None          = 0,
-        AttackBegin   = 1,
-        AttackSustain = 2,
-        AttackRecover = 3,
-    };
-
+struct Player : public Entity {
     enum class AttachPoint {
         Gut
     };
 
+    // TODO: Silly idea: Make everything a type/count pair that goes
+    // into some invisible inventory slot. Then just serialize the
+    // relevant "items" in an NPC's "inventory" over the network to
+    // replicate the whole thing. Inventory = components!?
     struct Stats {
-        //uint32_t coinsCollected  {};  // TODO: Money earned via selling? Or something else cool
+        uint32_t xp              {};
         float    damageDealt     {};
         float    kmWalked        {};
-        uint32_t npcsSlain       [NPC::Type_Count]{};
-        uint32_t playersSlain    {};
+        uint32_t entitiesSlain   [Entity::Type_Count]{};
         uint32_t timesFistSwung  {};
         uint32_t timesSwordSwung {};
+        //uint32_t coinsCollected  {};  // TODO: Money earned via selling? Or something else cool
     };
 
-    uint32_t        id          {};
-    double          despawnedAt {};  // NOTE: Unused, just here for parity with NPC until entities are consolidated
-    MoveState       moveState   {};
-    ActionState     actionState {};
-    Vector2         moveBuffer  {};
-    Body3D          body        {};
-    Combat          combat      {};
-    Sprite          sprite      {};
-    uint32_t        xp          {};
-    PlayerInventory inventory   {};
-    Stats           stats       {};
+    PlayerInventory inventory {};
+    Stats           stats     {};
 
     void      Init             (void);
     Vector3   WorldCenter      (void) const;

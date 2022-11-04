@@ -43,7 +43,7 @@ namespace FX {
         UNUSED(particle);
         UNUSED(alpha);
 
-        if (particle.body.Bounced()) {
+        if (particle.body.bounced) {
             Catalog::g_sounds.Play(Catalog::SoundID::GemBounce, 1.5f + dlb_rand32f_variance(0.1f), true);
         }
     }

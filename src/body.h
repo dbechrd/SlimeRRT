@@ -10,7 +10,7 @@ struct Vector3Snapshot {
     Direction direction  {};  // facing direction
 };
 
-struct Body3D {
+struct Body3D : public Facet {
     RingBuffer<Vector3Snapshot, CL_WORLD_HISTORY> positionHistory {};
 
     float   speed        {};  // move speed, in meters
@@ -20,6 +20,10 @@ struct Body3D {
     float   drag         {};  // 0 = no drag      1 = 100% drag
     float   friction     {};  // 0 = no friction  1 = 100% friction (when touching ground, i.e. z == 0.0f)
     float   gravityScale {};  // 1 = normal gravity
+    bool    jumped       {};
+    bool    landed       {};
+    bool    bounced      {};
+    bool    idle         {};
 
     Body3D(void);
     Vector3 WorldPosition(void) const;
@@ -34,10 +38,6 @@ struct Body3D {
     void Move3D(Vector3 offset);
     bool OnGround(void) const;
     bool Resting(void) const;
-    bool Idle(void) const;
-    bool Jumped(void) const;
-    bool Landed(void) const;
-    bool Bounced(void) const;
     double TimeSinceLastMove(void) const;
     void ApplyForce(Vector3 force);
     void Update(double dt);
@@ -46,13 +46,7 @@ struct Body3D {
 private:
     const char *LOG_SRC = "Body";
     Vector3 positionPrev {};
-    //Vector3 destPosition {};  // buffer all non-sim move offsets (teleport, etc.)
     Vector3 position     {};
-    //double  lastUpdated  {};  // TODO(cleanup): Do we need this for something? I don't.. think.. so??
     double  lastMoved    {};
-    bool    jumped       {};
-    bool    landed       {};
-    bool    bounced      {};
-    bool    idle         {};
     bool    idleChanged  {};
 };

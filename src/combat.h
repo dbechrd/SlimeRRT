@@ -3,7 +3,7 @@
 #include "loot_table.h"
 #include "dlb_types.h"
 
-struct Combat {
+struct Combat : public Facet {
     typedef uint8_t Flags;
     enum : Flags {
         Flag_None         = 0x0,

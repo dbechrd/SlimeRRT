@@ -225,8 +225,7 @@ void Player::Update(InputSample &input, Tilemap &map)
             // TODO: moveState = Player::MoveState::Swimming;
         }
 
-        Vector2 moveOffset = v2_scale(v2_normalize(move), METERS_TO_PIXELS(speed) * input.dt);
-        moveBuffer = v2_add(moveBuffer, moveOffset);
+        Vector2 moveBuffer = v2_scale(v2_normalize(move), METERS_TO_PIXELS(speed) * input.dt);
 
         if (Attack(input) && !input.skipFx) {
             Catalog::g_sounds.Play(Catalog::SoundID::Whoosh, 1.0f + dlb_rand32f_variance(0.1f));
@@ -302,7 +301,6 @@ void Player::Update(InputSample &input, Tilemap &map)
                 body.GroundPosition().y
             );
 #endif
-            moveBuffer = {};
         }
     }
 
@@ -317,7 +315,7 @@ void Player::Update(InputSample &input, Tilemap &map)
             if (selectedItem.Proto().itemClass == ItemClass_Weapon) {
                 switch (actionState) {
                     case ActionState::None: {
-                        switch ((int)body.Idle()) {
+                        switch ((int)body.idle) {
                             // TODO: sprite_by_name("player_sword");
                             case 0: sprite.spriteDef = &sheet->sprites[2]; break;
                             // TODO: sprite_by_name("player_sword_idle");
@@ -337,7 +335,7 @@ void Player::Update(InputSample &input, Tilemap &map)
                     }
                 }
             } else {
-                switch ((int)body.Idle()) {
+                switch ((int)body.idle) {
                     // TODO: sprite_by_name("player_melee");
                     case 0: sprite.spriteDef = &sheet->sprites[0]; break;
                     // TODO: sprite_by_name("player_melee_idle");

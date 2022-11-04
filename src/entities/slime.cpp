@@ -113,7 +113,7 @@ bool Slime::Attack(NPC &npc, double dt)
         return true;
     }
 #else
-    if (npc.body.Landed()) {
+    if (npc.body.landed) {
         npc.actionState = NPC::Act_Attack;
         npc.body.Move({});  // update last move to stop idle animation
         npc.combat.attackStartedAt = g_clock.now;

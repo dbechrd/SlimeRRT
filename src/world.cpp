@@ -177,113 +177,54 @@ void World::RemovePlayer(uint32_t id)
     *player = {};
 }
 
-ErrorType World::SpawnSam(NPC **result)
+ErrorType World::SpawnSam(void)
 {
-    NPC *sam = 0;
-    E_ERROR_RETURN(SpawnNpc(0, NPC::Type_Slime, { 0, 0, 0 }, &sam), "Failed to spawn Sam", 0);
+    //NPC *sam = 0;
+    //E_ERROR_RETURN(SpawnNpc(0, NPC::Type_Slime, { 0, 0, 0 }, &sam), "Failed to spawn Sam", 0);
 
-    DLB_ASSERT(sam);
-    sam->SetName(CSTR("Sam"));
-    sam->combat.hitPointsMax = 20.0f; //100000.0f;
-    sam->combat.hitPoints = sam->combat.hitPointsMax;
-    sam->combat.meleeDamage = -1.0f;
-    sam->combat.lootTableId = LootTableID::LT_Sam;
-    sam->body.Teleport(v3_add(GetWorldSpawn(), { -200.0f, 0, 0 }));
-    sam->sprite.scale = 2.0f;
+    //DLB_ASSERT(sam);
+    //sam->SetName(CSTR("Sam"));
+    //sam->combat.hitPointsMax = 20.0f; //100000.0f;
+    //sam->combat.hitPoints = sam->combat.hitPointsMax;
+    //sam->combat.meleeDamage = -1.0f;
+    //sam->combat.lootTableId = LootTableID::LT_Sam;
+    //sam->body.Teleport(v3_add(GetWorldSpawn(), { -200.0f, 0, 0 }));
+    //sam->sprite.scale = 2.0f;
 
-    if (result) *result = sam;
     return ErrorType::Success;
 }
 
-ErrorType World::SpawnNpc(uint32_t id, NPC::Type type, Vector3 worldPos, NPC **result)
+ErrorType World::SpawnEntity(EntityID entityId, EntityType type, Vector3 worldPos, Entity **result)
 {
     DLB_ASSERT(type > 0);
-    DLB_ASSERT(type < NPC::Type_Count);
+    DLB_ASSERT(type < Entity_Count);
 
     // Only the server should be spawning new npcs; the client merely replicates them by id
     if (g_clock.server) {
-        DLB_ASSERT(id == 0);
+        DLB_ASSERT(entityId == 0);
     } else {
-        DLB_ASSERT(id);
+        DLB_ASSERT(entityId);
     }
 
-    NpcList npcList = npcs.byType[type];
-    if (id) {
-        for (size_t i = 0; i < npcList.length; i++) {
-            NPC &npc = npcList.data[i];
-            if (npc.id == id) {
-                // TODO: Is this really an error? Just replace the duplicate with the new state, right?
-                // Not sure if/when this would ever happen and not be a bug though...
-                E_ERROR_RETURN(ErrorType::AllocFailed_Duplicate, "This npc id is already in use!", 0);
-            }
-        }
-    }
-
-    // Find a suitable place to store the new NPC (try to replace by: free slot -> oldest dead)
-    NPC *newNpc = 0;
-    NPC *oldestDeadNpc = 0;
-    NPC *oldestStaleNpc = 0;
-    double oldestDeadTime = 0;
-    double oldestStaleTime = 0;
-
-    for (size_t i = 0; i < npcList.length; i++) {
-        NPC &npc = npcList.data[i];
-        if (!npc.id) {
-            DLB_ASSERT(!npc.type);
-            DLB_ASSERT(!npc.nameLength);
-            DLB_ASSERT(!npc.combat.hitPointsMax);
-            newNpc = &npc;
-            break;
-        }
-
-        // Keep track of second/third best types of slots
-        double deadTime = g_clock.now - npc.combat.diedAt;
-        if (npc.combat.diedAt && deadTime > oldestDeadTime) {
-            oldestDeadNpc = &npc;
-            oldestDeadTime = deadTime;
-        }
-
-        if (!g_clock.server && npc.body.positionHistory.Count()) {
-            double staleTime = g_clock.now - npc.body.positionHistory.Last().serverTime;
-            if (staleTime > oldestStaleTime) {
-                oldestStaleNpc = &npc;
-                oldestStaleTime = staleTime;
-            }
-        }
-    }
-
-    // Reclaim dead slot
-    if (!newNpc && oldestDeadNpc) {
-        //E_WARN("Replacing oldest dead npc with new npc", 0);
-        newNpc = oldestDeadNpc;
-        *newNpc = {};
-    }
-
-    // Client only - reclaim stale slot
-    if (!newNpc && !g_clock.server) {
-        newNpc = oldestStaleNpc;
-        *newNpc = {};
-    }
-
-    // Mob cap is full of living mobs
-    if (!newNpc) {
-        return ErrorType::AllocFailed_Full;
-    }
-
-    DLB_ASSERT(newNpc);
-    NPC &npc = *newNpc;
-
-    if (id) {
-        npc.id = id;
-    } else {
+    if (!entityId) {
         thread_local static uint32_t nextId = 0;
         nextId = MAX(1, nextId + 1); // Prevent ID zero from being used on overflow
-        npc.id = nextId;
+        entityId = nextId;
     }
 
+    Facet *facet = 0;
+    E_ERROR_RETURN(facetDepot.FacetAlloc(entityId, Facet_Entity, &facet), "Facet alloc failed");
+    Entity *entity = (Entity *)facet;
+    DLB_ASSERT(entity);
+
     switch (type) {
-        case NPC::Type_Slime: Slime::Init(npc); break;
-        case NPC::Type_Townfolk: {
+        case Entity_Slime: {
+            // TODO: Slime factory, add all necessary facets and initialize them appropriately
+            Slime::Init(facetDepot, entityId);
+            break;
+        }
+        case Entity_Townfolk: {
+            // TODO: Townfolk factory, add all necessary facets and initialize them appropriately
             npc.type = NPC::Type_Townfolk;
             npc.SetName(CSTR("Townfolk"));
             npc.combat.hitPointsMax = 1;
@@ -311,36 +252,6 @@ ErrorType World::SpawnNpc(uint32_t id, NPC::Type type, Vector3 worldPos, NPC **r
     if (result) *result = &npc;
     return ErrorType::Success;
 
-}
-
-NPC *World::FindNpc(uint32_t id)
-{
-    if (!id) {
-        return 0;
-    }
-
-    for (int type = NPC::Type_None + 1; type < NPC::Type_Count; type++) {
-        NpcList npcList = npcs.byType[type];
-        for (size_t i = 0; i < npcList.length; i++) {
-            NPC &npc = npcList.data[i];
-            if (npc.id == id) {
-                return &npc;
-            }
-        }
-    }
-    return 0;
-}
-
-void World::RemoveNpc(uint32_t id)
-{
-    NPC *enemy = FindNpc(id);
-    if (!enemy) {
-        //TraceLog(LOG_ERROR, "Cannot remove a enemy that doesn't exist. enemyId: %u", enemyId);
-        return;
-    }
-
-    E_DEBUG("RemoveNPC [%u]", enemy->id);
-    *enemy = {};
 }
 
 void World::SV_Simulate(double dt)
@@ -610,7 +521,7 @@ void World::CL_Interpolate(double renderAt)
             }
             npc.body.CL_Interpolate(renderAt, npc.sprite.direction);
 
-            if (npc.type == NPC::Type_Slime && npc.body.Jumped()) {
+            if (npc.type == NPC::Type_Slime && npc.body.jumped) {
                 //Catalog::SoundID squish = dlb_rand32i_range(0, 1) ? Catalog::SoundID::Squish1 : Catalog::SoundID::Squish2;
                 Catalog::SoundID squish = Catalog::SoundID::Squish1;
                 Catalog::g_sounds.Play(squish, 1.0f + dlb_rand32f_variance(0.2f), true);

@@ -3,8 +3,7 @@
 #include "spritesheet.h"
 #include "raylib/raylib.h"
 
-struct Sprite {
-public:
+struct Sprite : public Facet {
     const SpriteDef * spriteDef            {};
     float             scale                {};
     Direction         direction            {};

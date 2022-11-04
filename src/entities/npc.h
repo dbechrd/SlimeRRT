@@ -4,41 +4,53 @@
 #include "draw_command.h"
 #include "sprite.h"
 
-class NPC : public Drawable {
-public:
-    enum Type {
-        Type_None     = 0,
-        Type_Slime    = 1,
-        Type_Townfolk = 2,
-        Type_Count
-    };
+enum FacetType {
+    Facet_Entity,
+    Facet_Body,
+    Facet_Combat,
+    Facet_Sprite,
+    Facet_Inventory,
+    Facet_Count
+};
 
-    enum MoveState {
-        Move_Idle = 0,
-        Move_Jump = 1,
-    };
+typedef uint32_t EntityID;
 
-    enum ActionState {
-        Act_None   = 0,
-        Act_Attack = 1,
-    };
+struct Facet {
+    EntityID  entityId;
+    FacetType facetType;
+};
 
-    uint32_t    id           {};
-    Type        type         {};
-    double      despawnedAt  {};
+// These determine the behavior of the facets, i.e. which systems
+// are responsible for updating them.
+enum EntityType {
+    Entity_Player   = 0,
+    Entity_Slime    = 1,
+    Entity_Townfolk = 2,
+    Entity_Count
+};
+
+struct Entity : public Facet {
+    EntityType  entityType   {};
     uint32_t    nameLength   {};
     char        name         [ENTITY_NAME_LENGTH_MAX]{};
-    Body3D      body         {};
-    Combat      combat       {};
-    Sprite      sprite       {};
+
+    // TODO: Move to Body3D or Pathfind or AI or something..
+    enum MoveState {
+        Move_Idle = 0,
+        Move_Walk = 1,
+        Move_Run  = 2,
+        Move_Jump = 3,
+    };
+    // TODO: Move to Combat or Brain or something..
+    enum ActionState {
+        Act_None    = 0,
+        Act_Attack  = 1,
+        // attack recovery.. we could also have hit recovery.. is that different?
+        Act_Recover = 2,
+    };
     MoveState   moveState    {};
     ActionState actionState  {};
-
-    union {
-        struct {
-            double randJumpIdle{};
-        } slime;
-    } state{};
+    double      despawnedAt  {};
 
     void    SetName         (const char *newName, uint32_t newNameLength);
     Vector3 WorldCenter     (void) const;
