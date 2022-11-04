@@ -8,7 +8,7 @@ void HealthBar::SetFont(const Font font)
     s_font = font;
 }
 
-void HealthBar::Draw(const Vector2 &topCenter, const char *name, const Combat &combat, uint32_t id)
+void HealthBar::Draw(const Vector2 &topCenter, const char *name, const Combat &combat, EntityID entityId)
 {
     bool showHp = combat.hitPointsMax && !(combat.flags & Combat::Flag_TooBigToFail);
     const int fontSize = s_font.baseSize;
@@ -30,11 +30,11 @@ void HealthBar::Draw(const Vector2 &topCenter, const char *name, const Combat &c
     const char *nameText = name ? SafeTextFormat("%s (%u)", name, combat.level) : nullptr;
 #else
     const char *nameText = 0;
-    if (id) {
+    if (entityId) {
         if (name) {
-            nameText = SafeTextFormat("%s [%u]", name, id);
+            nameText = SafeTextFormat("%s [%u]", name, entityId);
         } else {
-            nameText = SafeTextFormat("[%u]", id);
+            nameText = SafeTextFormat("[%u]", entityId);
         }
     } else {
         nameText = name ? SafeTextFormat("%s", name) : nullptr;

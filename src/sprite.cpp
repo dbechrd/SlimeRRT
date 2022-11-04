@@ -84,6 +84,71 @@ Vector3 sprite_center(const Sprite &sprite)
     return center;
 }
 
+void sprite_set_direction(Sprite &sprite, Vector2 offset)
+{
+#if 0
+    // 4-directional mode
+    Direction dir = sprite.direction;
+    if (offset.x > 0.0f) {
+        if (offset.y > 0.0f) {
+            dir = fabs(offset.x) > fabs(offset.y) ? Direction::East : Direction::South;
+        } else if (offset.y < 0.0f) {
+            dir = fabs(offset.x) > fabs(offset.y) ? Direction::East : Direction::North;
+        } else {
+            dir = Direction::East;
+        }
+    } else if (offset.x < 0.0f) {
+        if (offset.y > 0.0f) {
+            dir = fabs(offset.x) > fabs(offset.y) ? Direction::West : Direction::South;
+        } else if (offset.y < 0.0f) {
+            dir = fabs(offset.x) > fabs(offset.y) ? Direction::West : Direction::North;
+        } else {
+            dir = Direction::West;
+        }
+    } else {
+        if (offset.y > 0.0f) {
+            dir = Direction::South;
+        } else if (offset.y < 0.0f) {
+            dir = Direction::North;
+        }
+    }
+    if (dir != sprite.direction) {
+        sprite.direction = dir;
+        sprite.animFrameIdx = 0;
+    }
+#else
+    // 8-directional mode
+    Direction dir = sprite.direction;
+    if (offset.x > 0.0f) {
+        if (offset.y > 0.0f) {
+            dir = Direction::SouthEast;
+        } else if (offset.y < 0.0f) {
+            dir = Direction::NorthEast;
+        } else {
+            dir = Direction::East;
+        }
+    } else if (offset.x < 0.0f) {
+        if (offset.y > 0.0f) {
+            dir = Direction::SouthWest;
+        } else if (offset.y < 0.0f) {
+            dir = Direction::NorthWest;
+        } else {
+            dir = Direction::West;
+        }
+    } else {
+        if (offset.y > 0.0f) {
+            dir = Direction::South;
+        } else if (offset.y < 0.0f) {
+            dir = Direction::North;
+        }
+    }
+    if (dir != sprite.direction) {
+        sprite.direction = dir;
+        sprite.animFrameIdx = 0;
+    }
+#endif
+}
+
 void sprite_update(Sprite &sprite, double dt)
 {
     UNUSED(dt);

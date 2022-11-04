@@ -76,17 +76,17 @@ struct NpcSnapshot {
         //    Flags_HealthMax ,
     };
 
-    uint32_t  id           {};
-    uint32_t  flags        {};
-    NPC::Type type         {};
-    uint8_t   nameLength   {};
-    char      name         [ENTITY_NAME_LENGTH_MAX]{};
-    Vector3   position     {};  // teleport, move
-    Direction direction    {};  // teleport, move
-    float     scale        {};  // combine
-    float     hitPoints    {};  // heal, damage, die
-    float     hitPointsMax {};  // <no events>
-    uint8_t   level        {};  // spawn, level up
+    uint32_t   id           {};
+    uint32_t   flags        {};
+    EntityType type         {};
+    uint8_t    nameLength   {};
+    char       name         [ENTITY_NAME_LENGTH_MAX]{};
+    Vector3    position     {};  // teleport, move
+    Direction  direction    {};  // teleport, move
+    float      scale        {};  // combine
+    float      hitPoints    {};  // heal, damage, die
+    float      hitPointsMax {};  // <no events>
+    uint8_t    level        {};  // spawn, level up
 
     static const char *FlagStr(uint32_t flags) {
         thread_local static char buf[33]{};

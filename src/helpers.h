@@ -47,7 +47,6 @@
 #define CL_DEMO_AI_TRACKING              (0 && _DEBUG)
 #define CL_DEMO_BODY_RECT                (0 && _DEBUG)
 #define CL_DEMO_SNAPSHOT_RADII           (1 && _DEBUG)
-#define CL_DEMO_SPAWN_RADII              (0 && _DEBUG)
 #define CL_DEMO_VIEW_RTREE               (0 && _DEBUG)
 #define SV_DEBUG_SPAWN_REALLY_CLOSE      (0 && _DEBUG)
 #define SV_DEBUG_INPUT_SAMPLES           (0 && _DEBUG)
@@ -181,6 +180,7 @@
 
 // Type alises
 typedef uint32_t ChunkHash;
+typedef uint32_t EntityID;
 typedef uint8_t  ItemSlot;
 typedef uint8_t  ItemClass;
 typedef uint16_t ItemType;

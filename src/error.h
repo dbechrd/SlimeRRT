@@ -23,6 +23,7 @@ enum class ErrorType {
     PancakeVerifyFailed,
     ServerFull,
     UserAccountInUse,
+    UnknownType,
     Count
 };
 

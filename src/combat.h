@@ -1,5 +1,6 @@
 #pragma once
 #include "clock.h"
+#include "entities/facet.h"
 #include "loot_table.h"
 #include "dlb_types.h"
 

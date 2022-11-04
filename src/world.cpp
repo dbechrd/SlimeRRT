@@ -93,14 +93,15 @@ void World::RemovePlayerInfo(uint32_t playerId)
     }
 }
 
-Player *World::AddPlayer(uint32_t playerId)
+Entity *World::PlayerFindOrCreate(EntityID id)
 {
-    Player *existingPlayer = FindPlayer(playerId);
-    if (existingPlayer) {
-        //E_WARN("This playerId is already in use!");
-        //return existingPlayer;
-        return 0;
+    Entity *player = facetDepot.EntityFind(id);
+    if (!player) {
+        Player::Init();
+    } else {
+        E_WARN("PlayerFindOrCreate: eid %u is already in use!", id);
     }
+    return player;
 
     //const PlayerInfo *playerInfo = FindPlayerInfo(playerId);
     //assert(playerInfo->nameLength);

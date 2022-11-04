@@ -3,10 +3,11 @@
 #include "controller.h"
 #include "catalog/items.h"
 #include "direction.h"
+#include "entities/entities.h"
+#include "entities/facet.h"
 #include "item_system.h"
 #include "particles.h"
 #include "player.h"
-#include "entities/entities.h"
 #include "spycam.h"
 #include "tilemap.h"
 #include "world_item.h"
@@ -14,20 +15,33 @@
 #include "dlb_rand.h"
 #include <vector>
 
+// TODO: Put this somewhere else
+// TODO: Silly idea: Make everything a type/count pair that goes
+// into some invisible inventory slot. Then just serialize the
+// relevant "items" in an NPC's "inventory" over the network to
+// replicate the whole thing. Inventory = components!?
+struct Stats {
+    uint32_t xp              {};
+    float    damageDealt     {};
+    float    kmWalked        {};
+    uint32_t entitiesSlain   [Entity_Count]{};
+    uint32_t timesFistSwung  {};
+    uint32_t timesSwordSwung {};
+    //uint32_t coinsCollected  {};  // TODO: Money earned via selling? Or something else cool
+};
+
+// TODO: Put these somewhere else..
+enum AttachType {
+    Attach_Gut,
+    Attach_Count
+};
+struct Attach : public Facet {
+    Vector3 points[Attach_Count]{};
+};
+
 // TODO: Refactor WorldItems out of ItemSystem into EntityCollector
 // TODO: ResourceCatalog byType/byId for shared resources (textures, sprites, etc.)
 struct FacetDepot {
-    const char *LOG_SRC = "EntityOwner";
-
-    // NOTE: Slot 0 is reserved for the EMPTY facet in each pool
-    std::vector<Entity>    entityPool    {{}};
-    std::vector<Body3D>    body3dPool    {{}};
-    std::vector<Combat>    combatPool    {{}};
-    std::vector<Sprite>    spritePool    {{}};
-    std::vector<Inventory> inventoryPool {{}};
-    //std::vector<Facet *> byType[Facet::Facet_Count]{};
-    std::unordered_map<EntityID, size_t> poolIndexByEntityID[Facet_Count]{};
-
     ErrorType FacetAlloc(EntityID entityId, FacetType type, Facet **result) {
         DLB_ASSERT(type >= 0);
         DLB_ASSERT(type < Facet_Count);
@@ -39,12 +53,12 @@ struct FacetDepot {
 
         Facet *facet = 0;
         switch (type) {
-            case Facet_Entity: {
-                Facet *facet = &entityPool.emplace_back();
-                poolIdx = entityPool.size() - 1;
+            case Facet_Attach: {
+                Facet *facet = &attachPool.emplace_back();
+                poolIdx = attachPool.size() - 1;
                 break;
             }
-            case Facet_Body: {
+            case Facet_Body3D: {
                 Facet *facet = &body3dPool.emplace_back();
                 poolIdx = body3dPool.size() - 1;
                 break;
@@ -54,14 +68,23 @@ struct FacetDepot {
                 poolIdx = combatPool.size() - 1;
                 break;
             }
-            case Facet_Sprite: {
-                Facet *facet = &spritePool.emplace_back();
-                poolIdx = spritePool.size() - 1;
+            case Facet_Entity: {
+                Facet *facet = &entityPool.emplace_back();
+                poolIdx = entityPool.size() - 1;
                 break;
             }
             case Facet_Inventory: {
                 Facet *facet = &inventoryPool.emplace_back();
                 poolIdx = inventoryPool.size() - 1;
+                break;
+            }
+            case Facet_Sprite: {
+                Facet *facet = &spritePool.emplace_back();
+                poolIdx = spritePool.size() - 1;
+                break;
+            }
+            default: {
+                E_ERROR_RETURN(ErrorType::UnknownType, "Unrecognized facet type %u", type);
                 break;
             }
         }
@@ -82,11 +105,12 @@ struct FacetDepot {
         size_t poolIdx = poolIndexByEntityID[type][entityId];
         if (poolIdx) {
             switch (type) {
-                case Facet_Entity:    return &entityPool[poolIdx];
-                case Facet_Body:      return &body3dPool[poolIdx];
+                case Facet_Attach:    return &attachPool[poolIdx];
+                case Facet_Body3D:    return &body3dPool[poolIdx];
                 case Facet_Combat:    return &combatPool[poolIdx];
-                case Facet_Sprite:    return &spritePool[poolIdx];
+                case Facet_Entity:    return &entityPool[poolIdx];
                 case Facet_Inventory: return &inventoryPool[poolIdx];
+                case Facet_Sprite:    return &spritePool[poolIdx];
             }
         }
         return 0;
@@ -102,12 +126,12 @@ struct FacetDepot {
         }
 
         switch (type) {
-            case Facet_Entity: {
-                entityPool[poolIdx] = std::move(entityPool.back());
-                entityPool.pop_back();
+            case Facet_Attach: {
+                attachPool[poolIdx] = std::move(attachPool.back());
+                attachPool.pop_back();
                 break;
             }
-            case Facet_Body: {
+            case Facet_Body3D: {
                 body3dPool[poolIdx] = std::move(body3dPool.back());
                 body3dPool.pop_back();
                 break;
@@ -117,14 +141,19 @@ struct FacetDepot {
                 combatPool.pop_back();
                 break;
             }
-            case Facet_Sprite: {
-                spritePool[poolIdx] = std::move(spritePool.back());
-                spritePool.pop_back();
+            case Facet_Entity: {
+                entityPool[poolIdx] = std::move(entityPool.back());
+                entityPool.pop_back();
                 break;
             }
             case Facet_Inventory: {
                 inventoryPool[poolIdx] = std::move(inventoryPool.back());
                 inventoryPool.pop_back();
+                break;
+            }
+            case Facet_Sprite: {
+                spritePool[poolIdx] = std::move(spritePool.back());
+                spritePool.pop_back();
                 break;
             }
         }
@@ -144,6 +173,19 @@ struct FacetDepot {
             FacetFree(entityId, (FacetType)type);
         }
     }
+
+private:
+    const char *LOG_SRC = "EntityOwner";
+
+    // NOTE: Slot 0 is reserved for the EMPTY facet in each pool
+    std::vector<Attach>    attachPool    {{}};
+    std::vector<Body3D>    body3dPool    {{}};
+    std::vector<Combat>    combatPool    {{}};
+    std::vector<Entity>    entityPool    {{}};
+    std::vector<Inventory> inventoryPool {{}};
+    std::vector<Sprite>    spritePool    {{}};
+    //std::vector<Facet *> byType[Facet::Facet_Count]{};
+    std::unordered_map<EntityID, size_t> poolIndexByEntityID[Facet_Count]{};
 };
 
 struct World {
@@ -174,7 +216,7 @@ struct World {
     PlayerInfo *FindPlayerInfo       (uint32_t playerId);
     PlayerInfo *FindPlayerInfoByName (const char *name, size_t nameLength);
     void        RemovePlayerInfo     (uint32_t playerId);
-    Player     *AddPlayer            (uint32_t playerId);
+    Entity     *PlayerFindOrCreate   (EntityID id);
     Player     *FindPlayer           (uint32_t playerId);
     Player     *LocalPlayer          (void);
     Player     *FindPlayerByName     (const char *name, size_t nameLength);

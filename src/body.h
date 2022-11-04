@@ -1,5 +1,6 @@
 #pragma once
 #include "direction.h"
+#include "entities/facet.h"
 #include "helpers.h"
 #include "ring_buffer.h"
 #include "raylib/raylib.h"

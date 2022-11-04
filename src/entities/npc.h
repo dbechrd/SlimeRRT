@@ -3,22 +3,7 @@
 #include "combat.h"
 #include "draw_command.h"
 #include "sprite.h"
-
-enum FacetType {
-    Facet_Entity,
-    Facet_Body,
-    Facet_Combat,
-    Facet_Sprite,
-    Facet_Inventory,
-    Facet_Count
-};
-
-typedef uint32_t EntityID;
-
-struct Facet {
-    EntityID  entityId;
-    FacetType facetType;
-};
+#include "world.h"
 
 // These determine the behavior of the facets, i.e. which systems
 // are responsible for updating them.
@@ -52,13 +37,24 @@ struct Entity : public Facet {
     ActionState actionState  {};
     double      despawnedAt  {};
 
-    void    SetName         (const char *newName, uint32_t newNameLength);
-    Vector3 WorldCenter     (void) const;
-    Vector3 WorldTopCenter  (void) const;
-    float   TakeDamage      (float damage);
-    void    UpdateDirection (Vector2 offset);
-    void    Update          (World &world, double dt);
-    float   Depth           (void) const;
-    bool    Cull            (const Rectangle& cullRect) const;
-    void    Draw            (World &world, Vector2 at) const override;
+    union {
+        struct {
+            double randJumpIdle{};
+        } slime;
+    } state;
+
+    void      SetName          (const char *newName, uint32_t newNameLength);
+    static Vector3 WorldCenter      (World &world, EntityID entityId);
+    static Vector3 WorldTopCenter3D (World &world, EntityID entityId);
+    static Vector2 WorldTopCenter2D (World &world, EntityID entityId);
+    static Vector3 GetAttachPoint   (World &world, EntityID entityId, AttachType attachType);
+    static void    SlimeUpdate      (World &world, EntityID entityId, double dt);
+    static void    Update           (World &world, EntityID entityId, double dt);
+    static float   Depth            (World &world, EntityID entityId);
+    static bool    Cull             (World &world, EntityID entityId, const Rectangle& cullRect);
+    static void    DrawSwimOverlay  (World &world, EntityID entityId);
+    static void    Draw             (World &world, EntityID entityId, Vector2 at) override;
+
+private:
+    const char *LOG_SRC = "Entity";
 };

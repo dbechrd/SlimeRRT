@@ -59,15 +59,26 @@ struct Inventory : public Facet {
     };
 
     struct Slot {
-        ItemFilterFn filter{};
-        ItemStack stack{};
+        ItemFilterFn filter {};
+        ItemStack    stack  {};
     };
 
-    std::vector<Slot> slots;
+    SlotId            selectedSlot {};  // NOTE: for hotbar, needs rework
+    std::vector<Slot> slots        {};
+
+    ItemStack GetSelectedStack(void) const
+    {
+        ItemStack stack = slots[(size_t)selectedSlot].stack;
+        if (stack.uid || stack.count) {
+            DLB_ASSERT(stack.uid);
+            DLB_ASSERT(stack.count);
+        }
+        return stack;
+    }
 };
 
+// TODO: InventorySystem?
 struct PlayerInventory : public Inventory {
-    SlotId selectedSlot {};  // NOTE: for hotbar, needs rework
     bool   dirty        {true};  // Used server-side to determine whether client needs a new inv snapshot
     bool   skipUpdate   {};  // HACK: Simulate inv action to see if it's valid client-side without actually performing it
 
@@ -299,45 +310,11 @@ struct PlayerInfo {
     }
 };
 
-struct Player : public Entity {
-    enum class AttachPoint {
-        Gut
-    };
-
-    // TODO: Silly idea: Make everything a type/count pair that goes
-    // into some invisible inventory slot. Then just serialize the
-    // relevant "items" in an NPC's "inventory" over the network to
-    // replicate the whole thing. Inventory = components!?
-    struct Stats {
-        uint32_t xp              {};
-        float    damageDealt     {};
-        float    kmWalked        {};
-        uint32_t entitiesSlain   [Entity::Type_Count]{};
-        uint32_t timesFistSwung  {};
-        uint32_t timesSwordSwung {};
-        //uint32_t coinsCollected  {};  // TODO: Money earned via selling? Or something else cool
-    };
-
-    PlayerInventory inventory {};
-    Stats           stats     {};
-
-    void      Init             (void);
-    Vector3   WorldCenter      (void) const;
-    Vector3   WorldTopCenter3D (void) const;
-    Vector2   WorldTopCenter2D (void) const;
-    Vector3   GetAttachPoint   (AttachPoint attachPoint) const;
-    ItemStack GetSelectedStack (void) const;
-    void      Update           (InputSample &input, Tilemap &map);
-
-    float Depth (void) const;
-    bool  Cull  (const Rectangle& cullRect) const;
-    void  Draw  (World &world, Vector2 at) const override;
-
-private:
+namespace Player {
     const char *LOG_SRC = "Player";
 
-    void UpdateDirection (Vector2 offset);
-    bool Move            (Vector2 offset);
-    bool Attack          (InputSample &input);
-    void DrawSwimOverlay (const World &world) const;
+    ErrorType Init   (World &world, EntityID id);
+    bool      Attack (World &world, EntityID entityId, InputSample &input);
+    bool      Move   (World &world, EntityID entityId, Vector2 offset);
+    void      Update (World &world, EntityID entityId, InputSample &input, Tilemap &map);
 };
