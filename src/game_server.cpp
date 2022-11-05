@@ -57,7 +57,7 @@ ErrorType GameServer::Run(const Args *args)
         g_clock.accum += MIN(SV_TICK_DT_ACCUM_MAX, dt);  // Limit accumulator
 
         //printf("clock: %f now: %f tickDt: %f dtAccum: %f\n", g_clock.now, now, tickDt, dtAccum);
-        assert(dt > 0);
+        DLB_ASSERT(dt > 0);
 
         // Check if tick due
         if (g_clock.accum > SV_TICK_DT) {
@@ -89,13 +89,6 @@ ErrorType GameServer::Run(const Args *args)
                 if (!client.playerId) {
                     continue;
                 }
-
-                Player *player = world->FindPlayer(client.playerId);
-                if (!player) {
-                    E_DEBUG("Player not found, cannot simulate", 0);
-                    continue;
-                }
-                assert(client.playerId == player->id);
 
 #if 1
                 // Ignore inputs that are too far behind to ever get processed to avoid excessive input processing latency
@@ -135,7 +128,7 @@ ErrorType GameServer::Run(const Args *args)
                         // manage to send us at least one input sample per server tick, fuck 'em.
                         input.dt = MIN(input.dt, (float)CL_INPUT_SEND_RATE_LIMIT_DT);
                         client.lastInputAck = input.seq;
-                        player->Update(input, world->map);
+                        Player::Update(*world, client.playerId, input, world->map);
                     }
 
                     //if (client.inputOverflow) {

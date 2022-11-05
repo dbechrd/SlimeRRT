@@ -24,15 +24,15 @@ struct Noise {
 
     double Seq1(double x, double y, double freq)
     {
-        assert(ose);
-        assert(osg);
+        DLB_ASSERT(ose);
+        DLB_ASSERT(osg);
         return 0.5 + noise2(ose, osg, x * freq, y * freq) * 0.5;
     }
 
     double Seq2(double x, double y, double freq)
     {
-        assert(ose);
-        assert(osg);
+        DLB_ASSERT(ose);
+        DLB_ASSERT(osg);
         return 0.5 + noise2(ose, osg, (x + 212369) * freq, (y + 314927) * freq) * 0.5;
     }
 
@@ -56,7 +56,7 @@ struct Noise {
         noiseImg.mipmaps = 1;
         noiseImg.format = PIXELFORMAT_UNCOMPRESSED_GRAYSCALE; //PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
         noiseImg.data = calloc(WIDTH * HEIGHT, sizeof(uint8_t));
-        assert(noiseImg.data);
+        DLB_ASSERT(noiseImg.data);
 
         uint8_t *noisePixel = (uint8_t *)noiseImg.data;
         for (int y = 0; y < HEIGHT; y++) {

@@ -5,7 +5,6 @@
 #include "world.h"
 #include "raylib/raylib.h"
 #include "enet_zpl.h"
-#include <cassert>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -22,14 +21,14 @@ ErrorType NetClient::SaveDefaultServerDB(const char *filename)
     tpjGuest.port = SV_DEFAULT_PORT;
     tpjGuest.user = "guest";
     tpjGuest.pass = "guest";
-    E_ERROR_RETURN(server_db.Add(tpjGuest), "Failed to add default server to ServerDB", 0);
-    E_ERROR_RETURN(server_db.Save(filename), "Failed to save default ServerDB", 0);
+    E_ERROR_RETURN(serverDb.Add(tpjGuest), "Failed to add default server to ServerDB", 0);
+    E_ERROR_RETURN(serverDb.Save(filename), "Failed to save default ServerDB", 0);
     return ErrorType::Success;
 }
 
 ErrorType NetClient::Load(void)
 {
-    if (server_db.Load("db/servers.dat") == ErrorType::FileReadFailed) {
+    if (serverDb.Load("db/servers.dat") == ErrorType::FileReadFailed) {
         E_ERROR_RETURN(SaveDefaultServerDB("db/servers.dat"), "Failed to save default server DB", 0);
     };
 
@@ -56,7 +55,7 @@ ErrorType NetClient::OpenSocket(void)
         E_ERROR_RETURN(ErrorType::HostCreateFailed, "Failed to create host.", 0);
     }
     // TODO(dlb)[cleanup]: This probably isn't providing any additional value on top of if (!client) check
-    assert(client->socket);
+    DLB_ASSERT(client->socket);
     return ErrorType::Success;
 }
 
@@ -78,7 +77,7 @@ ErrorType NetClient::Connect(const char *serverHost, unsigned short serverPort, 
     enet_address_set_host(&address, serverHost);
     address.port = serverPort;
     server = enet_host_connect(client, &address, 1, 0);
-    assert(server);
+    DLB_ASSERT(server);
 
 #if _DEBUG && CL_DEBUG_REALLY_LONG_TIMEOUT
     uint32_t thirtyMins = 30 * 60 * 1000;
@@ -102,9 +101,9 @@ ErrorType NetClient::Connect(const char *serverHost, unsigned short serverPort, 
 
 ErrorType NetClient::SendRaw(const uint8_t *buf, size_t len)
 {
-    assert(buf);
-    assert(len);
-    assert(len <= PACKET_SIZE_MAX);
+    DLB_ASSERT(buf);
+    DLB_ASSERT(len);
+    DLB_ASSERT(len <= PACKET_SIZE_MAX);
 
     if (!server || server->state != ENET_PEER_STATE_CONNECTED) {
         E_WARN("Not connected to server. Data not sent.", 0);
@@ -139,8 +138,8 @@ ErrorType NetClient::SendMsg(NetMessage &message)
 
 ErrorType NetClient::Auth(void)
 {
-    assert(usernameLength);
-    assert(passwordLength);
+    DLB_ASSERT(usernameLength);
+    DLB_ASSERT(passwordLength);
 
     memset(&tempMsg, 0, sizeof(tempMsg));
     tempMsg.type = NetMessage::Type::Identify;
@@ -158,11 +157,11 @@ ErrorType NetClient::Auth(void)
 
 ErrorType NetClient::SendChatMessage(const char *message, size_t messageLength)
 {
-    assert(message);
+    DLB_ASSERT(message);
 
     // TODO: Account for header size, determine MTU we want to aim for, and perhaps do auto-segmentation somewhere
-    assert(messageLength);
-    assert(messageLength <= CHATMSG_LENGTH_MAX);
+    DLB_ASSERT(messageLength);
+    DLB_ASSERT(messageLength <= CHATMSG_LENGTH_MAX);
     size_t messageLengthSafe = MIN(messageLength, CHATMSG_LENGTH_MAX);
 
     // If we don't have a username yet (salt, client type, etc.) then we're not connected and can't send chat messages!
@@ -180,8 +179,8 @@ ErrorType NetClient::SendChatMessage(const char *message, size_t messageLength)
 
 ErrorType NetClient::SendSlotClick(SlotId slot, bool doubleClicked)
 {
-    assert(slot >= 0);
-    assert(slot < PlayerInventory::SlotId_Count);
+    DLB_ASSERT(slot >= 0);
+    DLB_ASSERT(slot < SlotId_Count);
 
     memset(&tempMsg, 0, sizeof(tempMsg));
     tempMsg.type = NetMessage::Type::SlotClick;
@@ -193,9 +192,9 @@ ErrorType NetClient::SendSlotClick(SlotId slot, bool doubleClicked)
 
 ErrorType NetClient::SendSlotScroll(SlotId slot, int scrollY)
 {
-    assert(slot >= 0);
-    assert(slot < PlayerInventory::SlotId_Count);
-    assert(scrollY);
+    DLB_ASSERT(slot >= 0);
+    DLB_ASSERT(slot < SlotId_Count);
+    DLB_ASSERT(scrollY);
 
     memset(&tempMsg, 0, sizeof(tempMsg));
     tempMsg.type = NetMessage::Type::SlotScroll;
@@ -208,9 +207,9 @@ ErrorType NetClient::SendSlotScroll(SlotId slot, int scrollY)
 
 ErrorType NetClient::SendSlotDrop(SlotId slot, uint32_t count)
 {
-    assert(slot >= 0);
-    assert(slot < PlayerInventory::SlotId_Count);
-    assert(count);
+    DLB_ASSERT(slot >= 0);
+    DLB_ASSERT(slot < SlotId_Count);
+    DLB_ASSERT(count);
 
     memset(&tempMsg, 0, sizeof(tempMsg));
     tempMsg.type = NetMessage::Type::SlotDrop;
@@ -271,11 +270,12 @@ void NetClient::ReconcilePlayer(void)
         //E_WARN("Can't reconcile player; no world");
         return;
     }
-    Player *player = serverWorld->FindPlayer(serverWorld->playerId);
-    assert(player);
-    if (!player) {
+
+    Body3D *body3d = (Body3D * )serverWorld->facetDepot.FacetFind(serverWorld->playerId, Facet_Body3D);
+    DLB_ASSERT(body3d);
+    if (!body3d) {
         // playerId is invalid??
-        E_WARN("Can't reconcile player; no player found", 0);
+        E_WARN("Can't reconcile player; player has no body", 0);
         return;
     }
 
@@ -287,14 +287,14 @@ void NetClient::ReconcilePlayer(void)
             break;
         }
     }
-    assert(playerSnapshot);
+    DLB_ASSERT(playerSnapshot);
     if (!playerSnapshot) {
         // Server sent us a snapshot that doesn't contain our own player??
         E_WARN("Can't reconcile player; no snapshot", 0);
         return;
     }
 
-    const Vector3 localPos = player->body.WorldPosition();
+    const Vector3 localPos = body3d->WorldPosition();
     //const Vector3 serverPos = playerSnapshot->position;
     // Client presumably hasn't moved; skip reconciliation
     //if (v3_distance_sq(localPos, serverPos) < SQUARED(CL_MAX_PLAYER_POS_DESYNC_DIST)) {
@@ -303,7 +303,7 @@ void NetClient::ReconcilePlayer(void)
 
     // Roll back local player to server snapshot location
     if (playerSnapshot->flags & PlayerSnapshot::Flags_Position) {
-        player->body.Teleport(playerSnapshot->position);
+        body3d->Teleport(playerSnapshot->position);
 
         if (inputHistory.Count()) {
             const InputSample &oldestInput = inputHistory.At(0);
@@ -319,7 +319,7 @@ void NetClient::ReconcilePlayer(void)
                 InputSample &input = inputHistory.At(i);
                 // NOTE: Old input's ownerId might not match if the player recently reconnected to a
                 // server and received a new playerId. Intentionally ignore those.
-                if (input.ownerId == player->id && input.seq > latestSnapshot.lastInputAck) {
+                if (input.ownerId == serverWorld->playerId && input.seq > latestSnapshot.lastInputAck) {
     #if CL_DEBUG_PLAYER_RECONCILIATION
                     if (input.walkEast) putchar('>');
                     else if (input.walkWest) putchar('<');
@@ -328,7 +328,7 @@ void NetClient::ReconcilePlayer(void)
                     else putchar('.');
     #endif
                     //E_DEBUG("CLI SQ: %u OS: %f S: %f", input.seq, origInput.dt, input.dt);
-                    player->Update(input, serverWorld->map);
+                    Player::Update(*serverWorld, serverWorld->playerId, input, serverWorld->map);
                 }
             }
         }
@@ -338,11 +338,11 @@ void NetClient::ReconcilePlayer(void)
     // turned off. I think it's fine for now..
     if (g_cl_smooth_reconcile) {
         Vector3 oldPos = localPos;
-        Vector3 newPos = player->body.WorldPosition();
+        Vector3 newPos = body3d->WorldPosition();
         Vector3 delta = v3_sub(newPos, oldPos);
         Vector3 smoothDelta = v3_scale(delta, g_cl_smooth_reconcile_factor);
         Vector3 smoothNewPos = v3_add(oldPos, smoothDelta);
-        player->body.Teleport(smoothNewPos);
+        body3d->Teleport(smoothNewPos);
     }
 }
 
@@ -374,7 +374,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
             for (size_t i = 0; i < welcomeMsg.playerCount; i++) {
                 NetMessage_Welcome::NetMessage_Welcome_Player &netPlayerInfo = welcomeMsg.players[i];
                 PlayerInfo &playerInfo = serverWorld->playerInfos[i];
-                playerInfo.id = netPlayerInfo.id;
+                playerInfo.entityId = netPlayerInfo.entityId;
                 playerInfo.nameLength = (uint32_t)MIN(netPlayerInfo.nameLength, USERNAME_LENGTH_MAX);
                 memcpy(playerInfo.name, netPlayerInfo.name, playerInfo.nameLength);
             }
@@ -393,7 +393,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                 E_DEBUG("  Updating existing chunk");
 #endif
                 size_t idx = chunkIter->second;
-                assert(idx < map.chunks.size());
+                DLB_ASSERT(idx < map.chunks.size());
                 map.chunks[chunkIter->second] = worldChunk.chunk;
             } else {
 #if CL_DEBUG_WORLD_CHUNKS
@@ -403,9 +403,10 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                 map.chunksIndex[worldChunk.chunk.Hash()] = map.chunks.size() - 1;
             }
             // TODO(perf): Only update if chunk is within visible region?
-            Player *player = serverWorld->FindPlayer(serverWorld->playerId);
-            if (player) {
-                map.GenerateMinimap(player->body.GroundPosition());
+            Body3D *body3d = (Body3D *)serverWorld->facetDepot.FacetFind(serverWorld->playerId, Facet_Body3D);
+            DLB_ASSERT(body3d);
+            if (body3d) {
+                map.GenerateMinimap(body3d->GroundPosition());
             }
             break;
         } case NetMessage::Type::TileUpdate: {
@@ -442,15 +443,18 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                     continue;
                 }
 
-                bool spawned = false;
-                Player *player = serverWorld->FindPlayer(playerSnapshot.id);
-                if (!player) {
-                    player = serverWorld->AddPlayer(playerSnapshot.id);
-                    if (!player) {
-                        continue;
-                    }
-                    spawned = true;
-                }
+                EntityID playerId = serverWorld->PlayerFindOrCreate(playerSnapshot.id);
+                DLB_ASSERT(playerId);
+                Attach *attach = (Attach *)serverWorld->facetDepot.FacetFind(playerId, Facet_Attach);
+                Body3D *body3d = (Body3D *)serverWorld->facetDepot.FacetFind(playerId, Facet_Body3D);
+                Combat *combat = (Combat *)serverWorld->facetDepot.FacetFind(playerId, Facet_Combat);
+                Inventory *inventory = (Inventory *)serverWorld->facetDepot.FacetFind(playerId, Facet_Inventory);
+                Sprite *sprite = (Sprite *)serverWorld->facetDepot.FacetFind(playerId, Facet_Sprite);
+                DLB_ASSERT(attach);
+                DLB_ASSERT(body3d);
+                DLB_ASSERT(combat);
+                DLB_ASSERT(inventory);
+                DLB_ASSERT(sprite);
 
                 if (playerSnapshot.flags != PlayerSnapshot::Flags_None) {
                     //E_DEBUG("Snapshot: player #%u", playerSnapshot.type);
@@ -461,11 +465,11 @@ void NetClient::ProcessMsg(ENetPacket &packet)
 
                 if (posChanged || dirChanged) {
                     const Vector3Snapshot *prevState{};
-                    if (player->body.positionHistory.Count()) {
-                        prevState = &player->body.positionHistory.Last();
+                    if (body3d->positionHistory.Count()) {
+                        prevState = &body3d->positionHistory.Last();
                     }
 
-                    Vector3Snapshot &state = player->body.positionHistory.Alloc();
+                    Vector3Snapshot &state = body3d->positionHistory.Alloc();
                     state.serverTime = worldSnapshot.clock;
 
                     if (posChanged) {
@@ -479,7 +483,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                             state.v = prevState->v;
                         } else {
                             E_WARN("Received direction update but previous position is not known. playerId: %u", playerSnapshot.id);
-                            state.v = player->body.WorldPosition();
+                            state.v = body3d->WorldPosition();
                         }
                     }
 
@@ -492,34 +496,37 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                             //E_DEBUG("Snapshot: dir %d (fallback prev)", (char)state.direction);
                         } else {
                             E_WARN("Received position update but previous position is not available.", 0);
-                            state.direction = player->sprite.direction;
+                            state.direction = sprite->direction;
                         }
                     }
                 }
 
                 if (playerSnapshot.flags & PlayerSnapshot::Flags_Speed) {
-                    player->body.speed = playerSnapshot.speed;
+                    body3d->speed = playerSnapshot.speed;
                 }
                 // TODO: Pos/dir are history based, but these are instantaneous.. hmm.. is that okay?
                 if (playerSnapshot.flags & PlayerSnapshot::Flags_Health) {
                     //E_DEBUG("Snapshot: health %f", playerSnapshot.hitPoints);
-                    const bool respawn = player->combat.diedAt && playerSnapshot.hitPoints;
-                    float hpDelta = player->combat.hitPoints - playerSnapshot.hitPoints;
+                    const bool respawn = combat->diedAt && playerSnapshot.hitPoints;
+                    float hpDelta = combat->hitPoints - playerSnapshot.hitPoints;
                     if (hpDelta > 0) {
-                        player->combat.TakeDamage(hpDelta);
-                        if (player->combat.diedAt) {
+                        combat->TakeDamage(hpDelta);
+                        if (combat->diedAt) {
                             // Died
-                            player->combat.diedAt = worldSnapshot.clock;
+                            combat->diedAt = worldSnapshot.clock;
                             ParticleEffectParams bloodParams{};
                             bloodParams.particleCountMin = 128;
                             bloodParams.particleCountMax = bloodParams.particleCountMin;
                             bloodParams.durationMin = 4.0f;
                             bloodParams.durationMax = bloodParams.durationMin;
-                            serverWorld->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Blood, player->WorldCenter(), bloodParams);
+                            serverWorld->particleSystem.GenerateEffect(
+                                Catalog::ParticleEffectID::Blood,
+                                Entity::WorldCenter(*serverWorld, playerId),
+                                bloodParams);
                             Catalog::g_sounds.Play(Catalog::SoundID::Eughh, 1.0f + dlb_rand32f_variance(0.1f));
                         } else {
                             // Took damage
-                            Vector3 playerGut = player->GetAttachPoint(Player::AttachPoint::Gut);
+                            Vector3 playerGut = attach->points[Attach_Gut];
                             ParticleEffectParams bloodParams{};
                             bloodParams.particleCountMin = 32;
                             bloodParams.particleCountMax = bloodParams.particleCountMin;
@@ -529,42 +536,47 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                             if (bloodParticles) {
                                 bloodParticles->effectCallbacks[(size_t)ParticleEffect_Event::BeforeUpdate] = {
                                     ParticlesFollowPlayerGut,
-                                    player
+                                    serverWorld,
+                                    playerId
                                 };
                             }
                         }
-                    } else if (player->combat.diedAt && playerSnapshot.hitPoints) {
+                    } else if (combat->diedAt && playerSnapshot.hitPoints) {
                         // Respawn
-                        player->combat.hitPoints = playerSnapshot.hitPoints;
-                        player->combat.diedAt = 0;
+                        combat->hitPoints = playerSnapshot.hitPoints;
+                        combat->diedAt = 0;
                     }
                 }
                 if (playerSnapshot.flags & PlayerSnapshot::Flags_HealthMax) {
                     //E_DEBUG("Snapshot: healthMax %f", playerSnapshot.hitPointsMax);
-                    player->combat.hitPointsMax = playerSnapshot.hitPointsMax;
+                    combat->hitPointsMax = playerSnapshot.hitPointsMax;
                 }
                 if (playerSnapshot.flags & PlayerSnapshot::Flags_Level) {
                     //E_DEBUG("Snapshot: level %u", enemySnapshot.level);
-                    if (!spawned) {
-                        if (playerSnapshot.level && playerSnapshot.level > player->combat.level) {
+                    if (combat->level) {
+                        if (playerSnapshot.level && playerSnapshot.level > combat->level) {
                             ParticleEffectParams rainbowParams{};
                             rainbowParams.durationMin = 3.0f;
                             rainbowParams.durationMax = rainbowParams.durationMin;
                             rainbowParams.particleCountMin = 256;
                             rainbowParams.particleCountMax = rainbowParams.particleCountMin;
-                            ParticleEffect *rainbowFx = serverWorld->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Rainbow, player->body.WorldPosition(), rainbowParams);
+                            ParticleEffect *rainbowFx = serverWorld->particleSystem.GenerateEffect(
+                                Catalog::ParticleEffectID::Rainbow,
+                                body3d->WorldPosition(),
+                                rainbowParams);
                             if (rainbowFx) {
                                 Catalog::g_sounds.Play(Catalog::SoundID::RainbowSparkles, 1.0f);
                             }
                         }
                     }
-                    player->combat.level = playerSnapshot.level;
+                    combat->level = playerSnapshot.level;
                 }
                 if (playerSnapshot.flags & PlayerSnapshot::Flags_XP) {
-                    player->xp = playerSnapshot.xp;
+                    combat->xp = playerSnapshot.xp;
                 }
                 if (playerSnapshot.flags & PlayerSnapshot::Flags_Inventory) {
-                    player->inventory = playerSnapshot.inventory;
+                    // TODO: This probably isn't gonna work forever...
+                    *inventory = playerSnapshot.inventory;
                     //player->inventory.selectedSlot = playerSnapshot.inventory.selectedSlot;
                     //for (size_t i = 0; i < ARRAY_SIZE(playerSnapshot.inventory.slots); i++) {
                     //    player->inventory.slots[i] = playerSnapshot.inventory.slots[i];
@@ -647,6 +659,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                     float hpDelta = npc->combat.hitPoints - npcSnapshot.hitPoints;
                     if (hpDelta > 0) {
                         npc->combat.TakeDamage(hpDelta);
+                        // TODO: This only makes sense for slimes.. not all entities.. refactor
                         if (npc->combat.diedAt) {
                             // Died
                             ParticleEffectParams gooParams{};
@@ -676,11 +689,11 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                                 snprintf(text, 16, "%.f", hpDelta);
                                 dmgFx->particleCallbacks[(size_t)ParticleEffect_ParticleEvent::Draw] = {
                                     ParticleDrawText,
-                                    text
+                                    (World *)text
                                 };
                                 dmgFx->effectCallbacks[(size_t)ParticleEffect_Event::Dying] = {
                                     ParticleFreeText,
-                                    text
+                                    (World *)text
                                 };
                             }
 
@@ -784,7 +797,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                     PlayerInfo *playerInfo = serverWorld->FindPlayerInfo(joinEvent.playerId);
                     if (!playerInfo) {
                         serverWorld->AddPlayerInfo(joinEvent.name, joinEvent.nameLength, &playerInfo);
-                        playerInfo->id = joinEvent.playerId;
+                        playerInfo->entityId = joinEvent.playerId;
                     }
                     break;
                 } case NetMessage_GlobalEvent::Type::PlayerLeave: {
@@ -838,7 +851,7 @@ ErrorType NetClient::Receive(void)
         return ErrorType::Success;
     }
 
-    assert(server->address.port);
+    DLB_ASSERT(server->address.port);
 
     // TODO: Do I need to limit the amount of network data processed each "frame" to prevent the simulation from
     // falling behind? How easy is it to overload the server in this manner? Limiting it just seems like it would
@@ -871,7 +884,7 @@ ErrorType NetClient::Receive(void)
                 case ENET_EVENT_TYPE_CONNECT: {
                     E_INFO("Connected to server on port %hu.", event.peer->address.port);
 
-                    assert(!serverWorld);
+                    DLB_ASSERT(!serverWorld);
                     serverWorld = new World;
                     serverWorld->chatHistory.PushDebug(CSTR("Connected to server. :)"));
                     Auth();
@@ -926,7 +939,7 @@ bool NetClient::ConnectedAndSpawned(void) const
         IsConnected() &&
         serverWorld &&
         serverWorld->playerId &&
-        serverWorld->FindPlayer(serverWorld->playerId);
+        serverWorld->facetDepot.EntityFind(serverWorld->playerId);
     return connectedAndSpawned;
 }
 

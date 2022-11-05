@@ -1,6 +1,5 @@
 #pragma once
 #include <array>
-#include <cassert>
 
 template<typename T, size_t BufferSize>
 struct RingBuffer : protected std::array<T, BufferSize> {
@@ -51,28 +50,28 @@ struct RingBuffer : protected std::array<T, BufferSize> {
 
     T &At(size_t index)
     {
-        assert(index < count);
+        DLB_ASSERT(index < count);
         size_t at = (first + index) % std::array<T, BufferSize>::size();
         return std::array<T, BufferSize>::at(at);
     }
 
     T &Last()
     {
-        assert(count);
+        DLB_ASSERT(count);
         size_t at = (first + count - 1) % std::array<T, BufferSize>::size();
         return std::array<T, BufferSize>::at(at);
     }
 
     const T &At(size_t index) const
     {
-        assert(index < count);
+        DLB_ASSERT(index < count);
         size_t at = (first + index) % std::array<T, BufferSize>::size();
         return std::array<T, BufferSize>::at(at);
     }
 
     const T &Last() const
     {
-        assert(count);
+        DLB_ASSERT(count);
         size_t at = (first + count - 1) % std::array<T, BufferSize>::size();
         return std::array<T, BufferSize>::at(at);
     }

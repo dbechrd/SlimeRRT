@@ -32,7 +32,7 @@ namespace FX {
 
         thread_local static const SpriteDef *copperSpriteDef{};
         if (!copperSpriteDef) {
-            const Spritesheet &copperSpritesheet = Catalog::g_spritesheets.FindById(Catalog::SpritesheetID::Item_Coins);
+            Spritesheet &copperSpritesheet = Catalog::g_spritesheets.FindById(Catalog::SpritesheetID::Item_Coins);
             copperSpriteDef = copperSpritesheet.FindSprite("coin_copper");
 
             // TODO: Don't play particle effects on the server so that we can re-enable this assert on client side

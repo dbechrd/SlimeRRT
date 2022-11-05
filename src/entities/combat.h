@@ -1,8 +1,6 @@
 #pragma once
-#include "clock.h"
-#include "entities/facet.h"
-#include "loot_table.h"
-#include "dlb_types.h"
+#include "facet.h"
+#include "../loot_table.h"
 
 struct Combat : public Facet {
     typedef uint8_t Flags;
@@ -25,8 +23,7 @@ struct Combat : public Facet {
     float       hitPoints        {};
     float       hitPointsSmooth  {};  // For animating delta hp (damage/healing)
     float       meleeDamage      {};  // TODO: add min/max and randomly choose?
-    uint32_t    xpMin            {};
-    uint32_t    xpMax            {};
+    uint32_t    xp               {};  // How much xp entity has *and* how much you get when you kill it (might get scaled by penalties/bonuses)
     LootTableID lootTableId      {};
 
     double      attackStartedAt  {};
@@ -35,26 +32,7 @@ struct Combat : public Facet {
     bool        droppedHitLoot   {};  // loot on hit? could be fun for some slime ball items to fly off when attacking
     bool        droppedDeathLoot {};  // loot on death, proper loot roll
 
-    inline float TakeDamage(float damage) {
-        DLB_ASSERT(damage > 0);
-        if (diedAt || flags & Flag_TooBigToFail) {
-            return 0;
-        }
-        DLB_ASSERT(hitPoints);
-        DLB_ASSERT(hitPointsMax);
-
-        hitPointsPrev = hitPoints;
-        const float dealt = CLAMP(damage, 0.0f, hitPoints);
-        hitPoints -= dealt;
-        if (!hitPoints) {
-            diedAt = g_clock.now;
-        }
-        return dealt;
-    }
-
-    void Update(double dt)
-    {
-        DLB_ASSERT(hitPointsMax);
-        hitPointsSmooth += (hitPoints - hitPointsSmooth) * CLAMP(5.0f * (float)dt, 0.05f, 1.0f);
-    }
+    float   TakeDamage (float damage);
+    uint8_t GrantXP    (uint32_t xpToGrant);  // Returns number of levels the entity gained due to the xp (or 0)
+    void    Update     (double dt);
 };

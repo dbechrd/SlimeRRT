@@ -1,5 +1,6 @@
 #pragma once
 #include "../helpers.h"
+#include "../clock.h"
 #include "csv.h"
 #include "imgui/imgui.h"
 #include "raylib/raylib.h"

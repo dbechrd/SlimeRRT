@@ -1,10 +1,4 @@
 #include "draw_command.h"
-#include "entities/entities.h"
-#include "particles.h"
-#include "player.h"
-#include "world_item.h"
-#include <cstdlib>
-#include <cstring>
 #include <vector>
 
 void DrawList::EnableCulling(const Rectangle &rect)
@@ -13,14 +7,14 @@ void DrawList::EnableCulling(const Rectangle &rect)
     cullEnabled = true;
 }
 
-void DrawList::DisableCulling()
+void DrawList::DisableCulling(void)
 {
     cullRect = {};
     DLB_ASSERT(cullRect.width == 0);
     cullEnabled = false;
 }
 
-void DrawList::Push(const Drawable &drawable, float depth, bool cull, Vector2 at)
+void DrawList::Push(Drawable &drawable, float depth, bool cull, Vector2 at)
 {
     // TODO: Check this before calling push
     //if (!drawable.sprite.spriteDef) {

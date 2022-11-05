@@ -2,6 +2,10 @@
 
 #include "../helpers.h"
 
+// TODO: ParticleSystems should also be attached to an EntityID, so that when
+// and entity is despawned, the particles don't keep playing on top of an
+// invisible entity (this also makes effectCallbacks easier since they don't
+// need to worry about other facets returning NULL).
 enum FacetType {
     Facet_Attach,
     Facet_Body3D,

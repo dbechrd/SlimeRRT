@@ -12,7 +12,7 @@ namespace Catalog {
         //byId[(size_t)SpritesheetID::Items      ].LoadFromFile("data/entity/item/items.txt");
     }
 
-    const Spritesheet &Spritesheets::FindById(SpritesheetID id) const
+    Spritesheet &Spritesheets::FindById(SpritesheetID id)
     {
         return byId[(size_t)id];
     }

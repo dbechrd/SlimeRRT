@@ -181,6 +181,7 @@
 // Type alises
 typedef uint32_t ChunkHash;
 typedef uint32_t EntityID;
+typedef uint32_t EntityUID;  // TODO(cleanup): Deprecated, plz remove
 typedef uint8_t  ItemSlot;
 typedef uint8_t  ItemClass;
 typedef uint16_t ItemType;

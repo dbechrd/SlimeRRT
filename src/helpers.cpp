@@ -1,6 +1,5 @@
 #include "helpers.h"
 #include "raylib/raylib.h"
-#include <cassert>
 #include <cmath>
 #include <cstdio>
 
@@ -108,7 +107,7 @@ const char *SafeTextFormatTimestamp()
     time_t t = time(NULL);
     struct tm tm = *localtime(&t);
     int len = snprintf(timestampStr, sizeof(timestampStr), "%02d:%02d:%02d", tm.tm_hour, tm.tm_min, tm.tm_sec);
-    assert(len < (int)sizeof(timestampStr));
+    DLB_ASSERT(len < (int)sizeof(timestampStr));
     return timestampStr;
 }
 

@@ -1,6 +1,5 @@
 #include "particles.h"
 #include "catalog/particle_fx.h"
-#include "sprite.h"
 #include "spritesheet.h"
 #include "helpers.h"
 #include "draw_command.h"
@@ -137,7 +136,7 @@ void ParticleSystem::Update(double dt)
 
         const ParticleEffect_Callback &beforeUpdate = effect.effectCallbacks[(size_t)ParticleEffect_Event::BeforeUpdate];
         if (beforeUpdate.callback) {
-            beforeUpdate.callback(effect, beforeUpdate.userData);
+            beforeUpdate.callback(effect, beforeUpdate.world, beforeUpdate.entityId);
         }
         effectsCounted++;
     }
@@ -166,14 +165,14 @@ void ParticleSystem::Update(double dt)
 
             const ParticleEffect_ParticleCallback &afterUpdate = effect.particleCallbacks[(size_t)ParticleEffect_ParticleEvent::AfterUpdate];
             if (afterUpdate.callback) {
-                afterUpdate.callback(particle, afterUpdate.userData);
+                afterUpdate.callback(particle, afterUpdate.world, afterUpdate.entityId);
             }
         } else if (alpha >= 1.0f) {
             effect.particlesLeft--;
 
             const ParticleEffect_ParticleCallback &died = effect.particleCallbacks[(size_t)ParticleEffect_ParticleEvent::Died];
             if (died.callback) {
-                died.callback(particle, died.userData);
+                died.callback(particle, died.world, died.entityId);
             }
 
             // Return particle to free list
@@ -196,7 +195,7 @@ void ParticleSystem::Update(double dt)
         if (!effect.particlesLeft) {
             const ParticleEffect_Callback &dying = effect.effectCallbacks[(size_t)ParticleEffect_Event::Dying];
             if (dying.callback) {
-                dying.callback(effect, dying.userData);
+                dying.callback(effect, dying.world, dying.entityId);
             }
 
             // Return effect to free list
@@ -243,13 +242,13 @@ bool Particle::Cull(const Rectangle &cullRect) const
     return cull;
 }
 
-void Particle::Draw(World &world, Vector2 at) const
+void Particle::Draw(World &world, Vector2 at)
 {
     UNUSED(world);
     UNUSED(at);
     const ParticleEffect_ParticleCallback &draw = effect->particleCallbacks[(size_t)ParticleEffect_ParticleEvent::Draw];
     if (draw.callback) {
-        draw.callback(const_cast<Particle &>(*this), draw.userData);
+        draw.callback(const_cast<Particle &>(*this), draw.world, draw.entityId);
     } else {
         if (sprite.spriteDef) {
             sprite_draw_body(sprite, body, color);
@@ -263,24 +262,30 @@ void Particle::Draw(World &world, Vector2 at) const
     }
 }
 
-void ParticlesFollowPlayerGut(ParticleEffect &effect, void *userData)
+void ParticlesFollowPlayerGut(ParticleEffect &effect, World *world, EntityID entityId)
 {
-    DLB_ASSERT(userData);
-    Player *player = (Player *)userData;
-    effect.origin = player->GetAttachPoint(Player::AttachPoint::Gut);
+    DLB_ASSERT(world);
+    DLB_ASSERT(entityId);
+
+    Attach *attach = (Attach *)world->facetDepot.FacetFind(entityId, Facet_Attach);
+    DLB_ASSERT(attach);
+    if (attach) {
+        effect.origin = attach->points[Attach_Gut];
+    }
 }
 
-void ParticleDrawText(Particle &particle, void *userData)
+// HACK(cleanup): Using *EXTREME* HAXOR HAX to stuff a const char * into the World*
+void ParticleDrawText(Particle &particle, World *world, EntityID entityId)
 {
-    DLB_ASSERT(userData);
-    const char *text = (const char *)userData;
+    DLB_ASSERT(world);
+    const char *text = (const char *)world;
     UI::ParticleText(particle.body.VisualPosition(), text);
 }
 
-void ParticleFreeText(ParticleEffect &effect, void *userData)
+void ParticleFreeText(ParticleEffect &effect, World *world, EntityID entityId)
 {
     UNUSED(effect);
-    DLB_ASSERT(userData);
-    char *text = (char *)userData;
+    DLB_ASSERT(world);
+    char *text = (char *)world;
     free(text);
 }

@@ -4,7 +4,6 @@
 #include "net_message.h"
 #include "world.h"
 #include "raylib/raylib.h"
-#include <cassert>
 #include <cstring>
 
 const char *ChatHistory::LOG_SRC = "Chat";
@@ -15,7 +14,7 @@ void ChatHistory::PushNetMessage(const NetMessage_ChatMessage &netChat)
     NetMessage_ChatMessage &chat = buffer.Alloc();
     memcpy(&chat, &netChat, sizeof(netChat));
     chat.recvAt = g_clock.now;
-    assert(!chat.timestampStr[0]); // If this triggers, FYI, your timestamp will be overwritten
+    DLB_ASSERT(!chat.timestampStr[0]); // If this triggers, FYI, your timestamp will be overwritten
     const char *timestampStr = SafeTextFormatTimestamp();
     memcpy(chat.timestampStr, timestampStr, MIN(sizeof(chat.timestampStr), strlen(timestampStr)));
 }
@@ -47,9 +46,9 @@ void ChatHistory::PushSam(const char *message, size_t messageLength)
 
 void ChatHistory::PushMessage(NetMessage_ChatMessage::Source source, uint32_t id, const char *message, size_t messageLength)
 {
-    assert(message);
-    assert(messageLength);
-    assert(messageLength <= CHATMSG_LENGTH_MAX);
+    DLB_ASSERT(message);
+    DLB_ASSERT(messageLength);
+    DLB_ASSERT(messageLength <= CHATMSG_LENGTH_MAX);
 
     NetMessage_ChatMessage &chat = buffer.Alloc();
     chat.recvAt = g_clock.now;
@@ -89,7 +88,7 @@ void ChatHistory::Render(const Font &font, int fontSize, World &world, float lef
 
     for (int i = 0; i < chatMsgCount && i < CHAT_MAX_MSG_COUNT; i++) {
         const NetMessage_ChatMessage &chatMsg = buffer.At((size_t)chatMsgCount - 1 - i);
-        assert(chatMsg.messageLength);
+        DLB_ASSERT(chatMsg.messageLength);
 
         // Show messages for 10 seconds when chat window not active
         float fadeAlpha = 1.0;

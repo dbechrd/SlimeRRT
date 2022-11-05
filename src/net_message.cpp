@@ -1,5 +1,4 @@
 #include "bit_stream.h"
-#include "entities/entities.h"
 #include "helpers.h"
 #include "net_message.h"
 #include "tilemap.h"
@@ -58,15 +57,14 @@ size_t NetMessage::Process(BitStream::Mode mode, uint8_t *buf, size_t len)
             for (size_t i = 0; i < welcome.playerCount; i++) {
                 NetMessage_Welcome::NetMessage_Welcome_Player &player = welcome.players[i];
 
-                stream.Process(player.id, 32, 0, UINT32_MAX);
+                stream.Process(player.entityId, 32, 0, UINT32_MAX);
+                DLB_ASSERT(player.entityId);
 
-                if (player.id) {
-                    // TODO: Don't sync name unless it has changed
-                    stream.Process(player.nameLength, 6, USERNAME_LENGTH_MIN, USERNAME_LENGTH_MAX);
-                    stream.Align();
-                    for (size_t i = 0; i < player.nameLength; i++) {
-                        stream.ProcessChar(player.name[i]);
-                    }
+                // TODO: Don't sync name unless it has changed
+                stream.Process(player.nameLength, 6, USERNAME_LENGTH_MIN, USERNAME_LENGTH_MAX);
+                stream.Align();
+                for (size_t i = 0; i < player.nameLength; i++) {
+                    stream.ProcessChar(player.name[i]);
                 }
             }
 
@@ -118,8 +116,8 @@ size_t NetMessage::Process(BitStream::Mode mode, uint8_t *buf, size_t len)
                     stream.Process(sample.walkWest);
                     stream.Process(sample.run);
                     stream.Process(sample.primary);
-                    DLB_ASSERT(PlayerInventory::SlotId_Count > 0);
-                    stream.Process(sample.selectSlot, 8, 0, PlayerInventory::SlotId_Count - 1);
+                    DLB_ASSERT(SlotId_Count > 0);
+                    stream.Process(sample.selectSlot, 8, 0, SlotId_Count - 1);
                 }
                 //E_DEBUG("%s sample: %u %f", mode == BitStream::Mode::Reader ? "READ" : "WRITE", sample.seq, sample.dt);
             }
@@ -198,7 +196,7 @@ size_t NetMessage::Process(BitStream::Mode mode, uint8_t *buf, size_t len)
                     //    E_DEBUG("Sending player inventory update for player %u\n", playerSnap.id);
                     //}
 
-                    stream.Process((uint8_t &)playerSnap.inventory.selectedSlot, 8, 0, PlayerInventory::SlotId_Count - 1);
+                    stream.Process((uint8_t &)playerSnap.inventory.selectedSlot, 8, 0, SlotId_Count - 1);
 
                     const size_t slotCount = ARRAY_SIZE(playerSnap.inventory.slots);
                     bool slotMap[slotCount]{};
@@ -259,7 +257,7 @@ size_t NetMessage::Process(BitStream::Mode mode, uint8_t *buf, size_t len)
                 NpcSnapshot &npcSnap = worldSnapshot.npcs[i];
                 stream.Process(npcSnap.id, 32, 1, UINT32_MAX);
                 stream.Process((uint32_t &)npcSnap.flags);
-                stream.Process((uint32_t &)npcSnap.type, 4, NPC::Type_None + 1, NPC::Type_Count - 1);
+                stream.Process((uint32_t &)npcSnap.type, 4, 0, Entity_Count - 1);
                 if (npcSnap.flags & NpcSnapshot::Flags_Name) {
                     stream.Process(npcSnap.nameLength, 7, 0, ENTITY_NAME_LENGTH_MAX);
                     stream.Align();
@@ -440,19 +438,19 @@ size_t NetMessage::Process(BitStream::Mode mode, uint8_t *buf, size_t len)
             break;
         } case NetMessage::Type::SlotClick: {
             NetMessage_SlotClick &slotClick = data.slotClick;
-            stream.Process((uint8_t &)slotClick.slotId, 8, 0, PlayerInventory::SlotId_Count - 1);
+            stream.Process((uint8_t &)slotClick.slotId, 8, 0, SlotId_Count - 1);
             stream.Align();
             stream.Process(slotClick.doubleClick);
             break;
         } case NetMessage::Type::SlotScroll: {
             NetMessage_SlotScroll &slotScroll = data.slotScroll;
-            stream.Process((uint8_t &)slotScroll.slotId, 8, 0, PlayerInventory::SlotId_Count - 1);
+            stream.Process((uint8_t &)slotScroll.slotId, 8, 0, SlotId_Count - 1);
             stream.Align();
             stream.Process(slotScroll.scrollY);
             break;
         } case NetMessage::Type::SlotDrop: {
             NetMessage_SlotDrop &slotDrop = data.slotDrop;
-            stream.Process((uint8_t &)slotDrop.slotId, 8, 0, PlayerInventory::SlotId_Count - 1);
+            stream.Process((uint8_t &)slotDrop.slotId, 8, 0, SlotId_Count - 1);
             stream.Align();
             stream.Process(slotDrop.count);
             break;

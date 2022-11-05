@@ -1,17 +1,16 @@
 #include "sprite.h"
 #include "spritesheet.h"
 #include "body.h"
-#include <cassert>
 
 const SpriteAnim &sprite_anim(const Sprite &sprite)
 {
-    assert(sprite.spriteDef);
-    assert(sprite.spriteDef->spritesheet);
-    assert(sprite.spriteDef->animations);
+    DLB_ASSERT(sprite.spriteDef);
+    DLB_ASSERT(sprite.spriteDef->spritesheet);
+    DLB_ASSERT(sprite.spriteDef->animations);
 
     const Spritesheet *sheet = sprite.spriteDef->spritesheet;
     const int animationIdx = sprite.spriteDef->animations[(int)sprite.direction];
-    assert(animationIdx >= 0 && animationIdx < (int)sheet->animations.size());
+    DLB_ASSERT(animationIdx >= 0 && animationIdx < (int)sheet->animations.size());
     const SpriteAnim &anim = sheet->animations[animationIdx];
     return anim;
 }
@@ -19,26 +18,27 @@ const SpriteAnim &sprite_anim(const Sprite &sprite)
 const SpriteFrame &sprite_frame(const Sprite &sprite)
 {
     if (!sprite.spriteDef) {
-        // TODO: Wtf is this? Who is using this?
-        thread_local static SpriteFrame frame{ 0 };
-        frame.x = 0;
-        frame.y = 0;
-        frame.width = 16;
-        frame.height = 16;
-        return frame;
+        DLB_ASSERT(!"Who done dat");
+        //// TODO: Wtf is this? Who is using this?
+        //thread_local static SpriteFrame frame{};
+        //frame.x = 0;
+        //frame.y = 0;
+        //frame.width = 16;
+        //frame.height = 16;
+        //return frame;
     }
 
-    assert(sprite.spriteDef);
-    assert(sprite.spriteDef->spritesheet);
+    DLB_ASSERT(sprite.spriteDef);
+    DLB_ASSERT(sprite.spriteDef->spritesheet);
 
     const SpriteAnim &animation = sprite_anim(sprite);
-    assert(sprite.animFrameIdx >= 0);
-    assert(sprite.animFrameIdx < animation.frameCount);
+    DLB_ASSERT(sprite.animFrameIdx >= 0);
+    DLB_ASSERT(sprite.animFrameIdx < animation.frameCount);
 
     const int frameIdx = animation.frames[sprite.animFrameIdx];
     const Spritesheet *sheet = sprite.spriteDef->spritesheet;
-    assert(frameIdx >= 0);
-    assert(frameIdx < (int)sheet->frames.size());
+    DLB_ASSERT(frameIdx >= 0);
+    DLB_ASSERT(frameIdx < (int)sheet->frames.size());
 
     const SpriteFrame &frame = sheet->frames[frameIdx];
     return frame;

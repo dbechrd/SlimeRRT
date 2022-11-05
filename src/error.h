@@ -1,4 +1,5 @@
 #pragma once
+#include "clock.h"
 #include "raylib/raylib.h"
 
 enum class ErrorType {

@@ -58,7 +58,7 @@ bool WorldItem::Cull(const Rectangle& cullRect) const
     return cull;
 }
 
-void WorldItem::Draw(World &world, Vector2 at) const
+void WorldItem::Draw(World &world, Vector2 at)
 {
     UNUSED(world);
     UNUSED(at);

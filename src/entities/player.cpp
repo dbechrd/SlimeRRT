@@ -20,11 +20,11 @@ namespace Player {
         combat->hitPoints = 100;
         combat->hitPointsMax = 100;
         combat->meleeDamage = 1;
-        inventory->selectedSlot = PlayerInventory::SlotId_Hotbar_0;
+        inventory->selectedSlot = SlotId_Hotbar_0;
         sprite->scale = 1;
         if (!g_clock.server) {
-            const Spritesheet &spritesheet = Catalog::g_spritesheets.FindById(Catalog::SpritesheetID::Character_Charlie);
-            const SpriteDef *spriteDef = spritesheet.FindSprite("player_sword");
+            Spritesheet &spritesheet = Catalog::g_spritesheets.FindById(Catalog::SpritesheetID::Character_Charlie);
+            SpriteDef *spriteDef = spritesheet.FindSprite("player_sword");
             sprite->spriteDef = spriteDef;
         }
 
@@ -45,24 +45,24 @@ namespace Player {
 
         const double attackAlpha = (g_clock.now - combat->attackStartedAt) / combat->attackDuration;
         switch (entity->actionState) {
-            case Entity::Act_Attack: {
+            case Action_Attack: {
                 if (attackAlpha > 0.5f) {
-                    entity->actionState = Entity::Act_Recover;
+                    entity->actionState = Action_Recover;
                 }
                 break;
             }
-            case Entity::Act_Recover: {
+            case Action_Recover: {
                 if (attackAlpha > 1.0f) {
                     combat->attackStartedAt = 0;
                     combat->attackDuration = 0;
-                    entity->actionState = Entity::Act_None;
+                    entity->actionState = Action_None;
                 }
                 break;
             }
         }
 
-        if (input.primary && entity->actionState == Entity::Act_None) {
-            entity->actionState = Entity::Act_Attack;
+        if (input.primary && entity->actionState == Action_None) {
+            entity->actionState = Action_Attack;
             body3d->Move({});  // update lastMoved to stop idle animation
             combat->attackStartedAt = g_clock.now;
             combat->attackDuration = 0.3;
@@ -71,14 +71,16 @@ namespace Player {
             if (selectedStack.uid) {
                 const Item &selectedItem = g_item_db.Find(selectedStack.uid);
                 switch (selectedItem.Proto().itemClass) {
-                    //case ItemClass_Weapon: {
-                    //    stats.timesSwordSwung++;
-                    //    break;
-                    //}
-                    //default: {
-                    //    stats.timesFistSwung++;
-                    //    break;
-                    //}
+                    case ItemClass_Weapon: {
+                        // TODO: Stats
+                        //stats.timesSwordSwung++;
+                        break;
+                    }
+                    default: {
+                        // TODO: Stats
+                        //stats.timesFistSwung++;
+                        break;
+                    }
                 }
             }
             return true;
@@ -144,7 +146,7 @@ namespace Player {
             float speed = body3d->speed;
 
             {
-                ItemUID speedSlotUid = inventory->slots[PlayerInventory::SlotId_Hotbar_9].stack.uid;
+                ItemUID speedSlotUid = inventory->slots[SlotId_Hotbar_9].stack.uid;
                 if (speedSlotUid) {
                     const Item &speedSlotItem = g_item_db.Find(speedSlotUid);
                     ItemAffix afxMoveSpeedFlat = speedSlotItem.FindAffix(ItemAffix_MoveSpeedFlat);
@@ -159,13 +161,13 @@ namespace Player {
                 move.y += 1.0f * input.walkSouth;
                 move.x -= 1.0f * input.walkWest;
                 if (input.run) {
-                    entity->moveState = Entity::Move_Run;
+                    entity->moveState = Move_Run;
                     speed += 1.0f;
                 } else {
-                    entity->moveState = Entity::Move_Walk;
+                    entity->moveState = Move_Walk;
                 }
             } else {
-                entity->moveState = Entity::Move_Idle;
+                entity->moveState = Move_Idle;
             }
 
             const Vector2 pos = body3d->GroundPosition();
@@ -264,7 +266,7 @@ namespace Player {
                 const Item &selectedItem = g_item_db.Find(selectedStack.uid);
                 if (selectedItem.Proto().itemClass == ItemClass_Weapon) {
                     switch (entity->actionState) {
-                        case Entity::Act_None: {
+                        case Action_None: {
                             if (body3d->idle) {
                                 // TODO: sprite_by_name("player_sword");
                                 sprite->spriteDef = &sheet->sprites[2];
@@ -274,12 +276,12 @@ namespace Player {
                             }
                             break;
                         }
-                        case Entity::Act_Attack: {
+                        case Action_Attack: {
                             // sprite_by_name("player_sword_attack");
                             sprite->spriteDef = &sheet->sprites[4];
                             break;
                         }
-                        case Entity::Act_Recover: {
+                        case Action_Recover: {
                             sprite->spriteDef = &sheet->sprites[2];
                             break;
                         }

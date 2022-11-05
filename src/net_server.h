@@ -1,13 +1,15 @@
 #pragma once
-#include "chat.h"
 #include "error.h"
 #include "fbs.h"
-#include "tilemap.h"
-#include "world_item.h"
+#include "net_message.h"
 #include "dlb_murmur3.h"
 #include <cstdint>
 #include <unordered_map>
 #include <unordered_set>
+
+struct PlayerInfo;
+struct World;
+//struct WorldItem;
 
 struct SV_Client {
     ENetPeer    *peer              {};
@@ -22,10 +24,10 @@ struct SV_Client {
     RingBuffer<InputSample, SV_INPUT_HISTORY> inputHistory {};
 
     //RingBuffer<WorldSnapshot, SV_WORLD_HISTORY> worldHistory {};
-    std::unordered_map<uint32_t, PlayerSnapshot> playerHistory {};
-    std::unordered_map<uint32_t, NpcSnapshot>    npcHistory    {};
-    std::unordered_map<EntityUID, ItemSnapshot>  itemHistory   {};
-    std::unordered_set<ChunkHash>                chunkHistory  {};  // TODO: RingBuffer, this set will grow indefinitely
+    std::unordered_map<uint32_t,  PlayerSnapshot> playerHistory {};
+    std::unordered_map<uint32_t,  NpcSnapshot>    npcHistory    {};
+    std::unordered_map<EntityUID, ItemSnapshot>   itemHistory   {};
+    std::unordered_set<ChunkHash>                 chunkHistory  {};  // TODO: RingBuffer, this set will grow indefinitely
 };
 
 struct NetServer {
@@ -63,9 +65,9 @@ private:
     ErrorType BroadcastChatMessage (NetMessage_ChatMessage &chatMsg);
     ErrorType BroadcastPlayerJoin  (const PlayerInfo &playerInfo);
     ErrorType BroadcastPlayerLeave (uint32_t playerId);
-    ErrorType SendPlayerState      (const SV_Client &client, const Player &otherPlayer, bool nearby, bool spawned);
-    ErrorType SendNPCState         (const SV_Client &client, const NPC &npc, bool nearby, bool spawned);
-    ErrorType SendItemState        (const SV_Client &client, const WorldItem &item, bool nearby, bool spawned);
+    //ErrorType SendPlayerState      (const SV_Client &client, const Player &otherPlayer, bool nearby, bool spawned);
+    //ErrorType SendNPCState         (const SV_Client &client, const NPC &npc, bool nearby, bool spawned);
+    //ErrorType SendItemState        (const SV_Client &client, const WorldItem &item, bool nearby, bool spawned);
     ErrorType BroadcastTileUpdate  (float worldX, float worldY, const Tile &tile);
 
     bool IsValidInput (const SV_Client &client, const InputSample &sample);

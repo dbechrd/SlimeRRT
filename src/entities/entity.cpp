@@ -1,10 +1,11 @@
-#include "npc.h"
+#include "entity.h"
 #include "draw_command.h"
 #include "healthbar.h"
 #include "helpers.h"
 #include "maths.h"
 #include "player.h"
 #include "shadow.h"
+#include "slime.h"
 #include "spritesheet.h"
 #include "dlb_rand.h"
 #include "particles.h"
@@ -30,8 +31,8 @@ void Entity::Init(World &world)
 
             // TODO: Look this up by npc.type in Draw() instead
             if (!g_clock.server) {
-                const Spritesheet &spritesheet = Catalog::g_spritesheets.FindById(Catalog::SpritesheetID::Monster_Slime);
-                const SpriteDef *spriteDef = spritesheet.FindSprite("blue_slime");
+                Spritesheet &spritesheet = Catalog::g_spritesheets.FindById(Catalog::SpritesheetID::Monster_Slime);
+                SpriteDef *spriteDef = spritesheet.FindSprite("blue_slime");
                 npc.sprite.spriteDef = spriteDef;
             }
             break;
@@ -120,6 +121,7 @@ void Entity::Update(World &world, EntityID entityId, double dt)
         }
         body3d->Update(dt);
     } else if (!body3d->Resting()) {
+        // Ragdoll dead entities if corpse not resting
         body3d->Update(dt);
     }
 
@@ -251,7 +253,7 @@ void Entity::DrawSwimOverlay(World &world, EntityID entityId)
             //DrawCircleV({ minXWater, playerGut2D.y }, 2.0f, PINK);
             //DrawCircleV({ maxXWater, playerGut2D.y }, 2.0f, PINK);
 
-            const float radiusDelta = (entity->moveState != Entity::Move_Idle)
+            const float radiusDelta = (entity->moveState != Move_Idle)
                 ? (sinf((float)g_clock.now * 8) * 3)
                 : 0.0f;
             const float radius = 20.0f + radiusDelta;
@@ -260,7 +262,7 @@ void Entity::DrawSwimOverlay(World &world, EntityID entityId)
     }
 }
 
-void Entity::Draw(World &world, EntityID entityId, Vector2 at)
+void Entity::Draw(World &world, Vector2 at)
 {
     DLB_ASSERT(entityId);
     UNUSED(at);

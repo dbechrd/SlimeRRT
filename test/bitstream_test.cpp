@@ -1,6 +1,5 @@
 #include "tests.h"
 #include "../src/bit_stream.h"
-#include <cassert>
 
 void bit_stream_write(BitStream &stream, uint32_t value, uint8_t bits)
 {
@@ -32,15 +31,15 @@ void bit_stream_test()
     writer.Flush();
 
     BitStream reader{ BitStream::Mode::Reader, buffer, sizeof(buffer) };
-    assert(bit_stream_read(reader, 1) == 0b0);
-    assert(bit_stream_read(reader, 2) == 0b11);
-    assert(bit_stream_read(reader, 3) == 0b000);
-    assert(bit_stream_read(reader, 4) == 0b1111);
-    assert(bit_stream_read(reader, 5) == 0b00000);
-    assert(bit_stream_read(reader, 6) == 0b111111);
-    assert(bit_stream_read(reader, 7) == 0b0000000);
-    assert(bit_stream_read(reader, 8) == 0b11111111);
+    DLB_ASSERT(bit_stream_read(reader, 1) == 0b0);
+    DLB_ASSERT(bit_stream_read(reader, 2) == 0b11);
+    DLB_ASSERT(bit_stream_read(reader, 3) == 0b000);
+    DLB_ASSERT(bit_stream_read(reader, 4) == 0b1111);
+    DLB_ASSERT(bit_stream_read(reader, 5) == 0b00000);
+    DLB_ASSERT(bit_stream_read(reader, 6) == 0b111111);
+    DLB_ASSERT(bit_stream_read(reader, 7) == 0b0000000);
+    DLB_ASSERT(bit_stream_read(reader, 8) == 0b11111111);
     uint64_t seedOut = 0;
     reader.Process(seedOut);
-    assert(seedOut == seedIn);
+    DLB_ASSERT(seedOut == seedIn);
 }

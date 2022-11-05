@@ -3,6 +3,7 @@
 #define UI_MENU_ITEMS_MAX 64
 
 struct ImGuiIO;
+struct Inventory;
 struct NetClient;
 struct Spycam;
 struct Tilemap;
@@ -43,14 +44,14 @@ struct UI {
     static void Netstat(NetClient &netClient, double renderAt);
     static void ItemProtoEditor(World &world);
     static void HUD(const Font &font, World &world, const DebugStats &debugStats);
-    static void QuickHUD(const Font &font, const Player &player, const Tilemap &tilemap);
+    static void QuickHUD(const Font &font, World &world, const Tilemap &tilemap);
     static void Chat(const Font &font, int fontSize, World &world, NetClient &netClient, bool &escape);
     static void TileHoverTip(const Font &font, Tilemap &map);
     static int  OldRaylibMenu(const Font &font, const char **items, size_t itemCount);
     static void MainMenu(bool &escape, GameClient &game);
     static void InGameMenu(bool &escape, bool connectedToServer);
-    static void InventorySlot(bool inventoryActive, int slot, const Texture &invItems, Player &player, NetClient &netClient);
-    static void Inventory(const Texture &invItems, Player &player, NetClient &netClient, bool &escape, bool &inventoryActive);
+    static void InventorySlot(bool inventoryActive, int slot, const Texture &invItems, Inventory &inventory, NetClient &netClient);
+    static void InventoryUI(const Texture &invItems, Inventory &inventory, NetClient &netClient, bool &escape, bool &inventoryActive);
     static void Dialog(World &world);
     static void ParticleText(Vector2 pos, const char *text);
 
@@ -172,5 +173,5 @@ private:
     static bool MenuButton(const char *label, const ImVec2 &size = { 600, 0 });
     static void MenuMultiplayer(GameClient &game);
     static void MenuMultiplayerNew(NetClient &netClient);
-    static void InventoryItemTooltip(ItemStack &invStack, int slot, Player &player, NetClient &netClient);
+    static void InventoryItemTooltip(ItemStack &invStack, int slot, Inventory &inventory, NetClient &netClient);
 };

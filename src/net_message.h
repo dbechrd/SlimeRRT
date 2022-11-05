@@ -1,8 +1,6 @@
 #pragma once
 #include "bit_stream.h"
 #include "controller.h"
-#include "entities/entities.h"
-#include "player.h"
 #include "tilemap.h"
 #include "world_snapshot.h"
 #include "enet_zpl.h"
@@ -21,7 +19,7 @@ struct NetMessage_Welcome {
     uint32_t playerId    {};                       // client's assigned playerId
     uint32_t playerCount {};                       // players in game
     struct NetMessage_Welcome_Player {
-        uint32_t  id           {};
+        EntityID  entityId     {};
         uint32_t  nameLength   {};
         char      name         [USERNAME_LENGTH_MAX + 1]{};
     } players[SV_MAX_PLAYERS]{};  // player info
@@ -40,7 +38,7 @@ struct NetMessage_ChatMessage {
     double   recvAt         {};
     char     timestampStr   [TIMESTAMP_LENGTH + 1]{};  // hh:MM:SS AM
     Source   source         {};
-    uint32_t id             {};
+    uint32_t id             {};  // PlayerID, when source == Client
     uint32_t messageLength  {};
     char     message        [CHATMSG_LENGTH_MAX + 1]{};
 };

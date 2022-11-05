@@ -1,7 +1,6 @@
 #pragma once
 #include "maths.h"
 #include "raylib/raylib.h"
-#include <cassert>
 #include <array>
 #include <vector>
 #include <bitset>
@@ -55,19 +54,19 @@ namespace RTree {
                 prev = chunk;
                 chunk = chunk->next;
             }
-            assert(chunk);
+            DLB_ASSERT(chunk);
 
             // Find the slot in the chunk containing this entry
             size_t slot = 0;
             while (slot < chunk->in_use.size() && (!chunk->in_use[slot] || &chunk->entries[slot] != entry)) {
                 slot++;
             }
-            assert(slot < chunk->in_use.size());
-            assert(&chunk->entries[slot] == entry);
+            DLB_ASSERT(slot < chunk->in_use.size());
+            DLB_ASSERT(&chunk->entries[slot] == entry);
 
             // Zero the memory
             *entry = {};
-            assert(entry->metadata.chunk == 0);
+            DLB_ASSERT(entry->metadata.chunk == 0);
 
             // Clear bitset flag
             chunk->in_use.reset(slot);
@@ -179,7 +178,7 @@ namespace RTree {
                 leaf->count++;
             } else {
                 newLeaf = SplitLeaf(leaf, entry);
-                assert(newLeaf);
+                DLB_ASSERT(newLeaf);
             }
             AdjustTree(leaf, newLeaf);
         }
@@ -193,8 +192,8 @@ namespace RTree {
                 return false;  // Entry not found
             }
 
-            assert(leaf->type == NodeType::Leaf);
-            assert(leaf->count > 0);
+            DLB_ASSERT(leaf->type == NodeType::Leaf);
+            DLB_ASSERT(leaf->count > 0);
 
             size_t i = 0;
 
@@ -212,7 +211,7 @@ namespace RTree {
             // Zero last entry which is no longer in use
             *leaf->entries[leaf->count] = {};
             //memset(leaf->entries[leaf->count], 0, sizeof(*leaf->entries));
-            assert(leaf->entries[leaf->count]->udata == 0);
+            DLB_ASSERT(leaf->entries[leaf->count]->udata == 0);
 
             CondenseTree(*leaf);
 
@@ -260,7 +259,7 @@ namespace RTree {
                             matches.push_back(node.entries[i]->udata);
                             break;
                         default:
-                            assert(!"Unexpected variant type");
+                            DLB_ASSERT(!"Unexpected variant type");
                             break;
                     }
                 }
@@ -269,7 +268,7 @@ namespace RTree {
 
         Node<T> *ChooseLeaf(const Entry<T> &entry)
         {
-            assert(root);
+            DLB_ASSERT(root);
             Node<T> *node = root;
             while (node->type == NodeType::Directory) {
                 // Find child whose bounds need least enlargement to include aabb
@@ -291,8 +290,8 @@ namespace RTree {
         // second new node will be created and a pointer to it will be returned
         Node<T> *SplitLeaf(Node<T> *node, Entry<T> *entry)
         {
-            assert(node->type == NodeType::Leaf);
-            assert(node->count == RTREE_MAX_ENTRIES);
+            DLB_ASSERT(node->type == NodeType::Leaf);
+            DLB_ASSERT(node->count == RTREE_MAX_ENTRIES);
 
             Entry<T> *remainingEntries[RTREE_MAX_ENTRIES + 1] = {};
             memcpy(remainingEntries, node->entries, sizeof(node->entries));
@@ -324,8 +323,8 @@ namespace RTree {
                     }
                 }
 
-                assert(E1 < ARRAY_SIZE(remainingEntries));
-                assert(E2 < ARRAY_SIZE(remainingEntries));
+                DLB_ASSERT(E1 < ARRAY_SIZE(remainingEntries));
+                DLB_ASSERT(E2 < ARRAY_SIZE(remainingEntries));
 
                 node->entries[node->count] = remainingEntries[E1];
                 nodeB->entries[nodeB->count] = remainingEntries[E2];
@@ -361,11 +360,11 @@ namespace RTree {
                     }
 
                     if (!addToNode) {
-                        assert(node->count + nodeB->count == ARRAY_SIZE(remainingEntries));
+                        DLB_ASSERT(node->count + nodeB->count == ARRAY_SIZE(remainingEntries));
                         break;
                     }
 
-                    assert(ENext < ARRAY_SIZE(remainingEntries));
+                    DLB_ASSERT(ENext < ARRAY_SIZE(remainingEntries));
                     addToNode->entries[addToNode->count] = remainingEntries[ENext];
                     addToNode->count++;
                     addToNode->bounds.growToContain(remainingEntries[ENext]->bounds);
@@ -393,8 +392,8 @@ namespace RTree {
                     }
                 }
 
-                assert(node->count >= RTREE_MIN_ENTRIES);
-                assert(nodeB->count >= RTREE_MIN_ENTRIES);
+                DLB_ASSERT(node->count >= RTREE_MIN_ENTRIES);
+                DLB_ASSERT(nodeB->count >= RTREE_MIN_ENTRIES);
             }
 
             return nodeB;
@@ -402,8 +401,8 @@ namespace RTree {
 
         Node<T> *SplitDirectory(Node<T> *node, Node<T> *child)
         {
-            assert(node->type == NodeType::Directory);
-            assert(node->count == RTREE_MAX_ENTRIES);
+            DLB_ASSERT(node->type == NodeType::Directory);
+            DLB_ASSERT(node->count == RTREE_MAX_ENTRIES);
 
             Node<T> *remainingChildren[RTREE_MAX_ENTRIES + 1] = {};
             memcpy(remainingChildren, node->children, sizeof(node->children));
@@ -435,8 +434,8 @@ namespace RTree {
                     }
                 }
 
-                assert(E1 < ARRAY_SIZE(remainingChildren));
-                assert(E2 < ARRAY_SIZE(remainingChildren));
+                DLB_ASSERT(E1 < ARRAY_SIZE(remainingChildren));
+                DLB_ASSERT(E2 < ARRAY_SIZE(remainingChildren));
 
                 node->children[node->count] = remainingChildren[E1];
                 nodeB->children[nodeB->count] = remainingChildren[E2];
@@ -472,11 +471,11 @@ namespace RTree {
                     }
 
                     if (!addToNode) {
-                        assert(node->count + nodeB->count == ARRAY_SIZE(remainingChildren));
+                        DLB_ASSERT(node->count + nodeB->count == ARRAY_SIZE(remainingChildren));
                         break;
                     }
 
-                    assert(ENext < ARRAY_SIZE(remainingChildren));
+                    DLB_ASSERT(ENext < ARRAY_SIZE(remainingChildren));
                     addToNode->children[addToNode->count] = remainingChildren[ENext];
                     addToNode->count++;
                     addToNode->bounds.growToContain(remainingChildren[ENext]->bounds);
@@ -510,8 +509,8 @@ namespace RTree {
 
         void RecalcNodeBounds(Node<T> *node)
         {
-            assert(node);
-            assert(node->count);
+            DLB_ASSERT(node);
+            DLB_ASSERT(node->count);
 
             AABB temp = node->bounds;
             node->bounds = *node->aabbs[0];
@@ -519,7 +518,7 @@ namespace RTree {
                 node->bounds.growToContain(*node->aabbs[i]);
             }
 
-            assert(temp.min.x != 6.2349234f);
+            DLB_ASSERT(temp.min.x != 6.2349234f);
         }
 
         void AdjustTree(Node<T> *node, Node<T> *splitNode)
@@ -561,8 +560,8 @@ namespace RTree {
 
             // We're at root now, if there's an NN, then the root node was split. Make new root.
             if (NN) {
-                assert(N && !N->parent);
-                assert(NN && !NN->parent);
+                DLB_ASSERT(N && !N->parent);
+                DLB_ASSERT(NN && !NN->parent);
                 Node<T> *newRoot = nodes.Alloc();
                 newRoot->type = NodeType::Directory;
                 newRoot->count = 2;
@@ -618,7 +617,7 @@ namespace RTree {
                 LIME,
                 SKYBLUE
             };
-            assert(level < ARRAY_SIZE(colors));
+            DLB_ASSERT(level < ARRAY_SIZE(colors));
             switch (node.type) {
                 case NodeType::Directory: {
                     for (size_t i = 0; i < node.count; i++) {

@@ -1,5 +1,7 @@
 #pragma once
-#include <cassert>
+#include "helpers.h"
+#include "dlb_types.h"
+#include <cmath>
 #include <cstdio>
 
 struct Clock {
@@ -14,6 +16,7 @@ struct Clock {
     double timeOfDay    {};  // 0 = start of day, 1 = end of day
     double daylightPerc {};  // how bright the daylight currently is
 
+    // NOTE: Do not hold returned pointer, it's a shared temp buffer
     const char *timeOfDayStr() {
         thread_local static char buf[16]{};
         const double hours = 1.0 + timeOfDay * 24.0;
@@ -22,7 +25,7 @@ struct Clock {
         const int mm = (int)mins;
         int len = snprintf(buf, sizeof(buf), "%02d:%02d %s", hh, mm, hours < 12 ? "am" : "pm");
         if (len > 10) {
-            assert(len);
+            DLB_ASSERT(len);
         }
         return buf;
     }

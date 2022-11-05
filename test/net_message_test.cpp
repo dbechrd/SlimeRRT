@@ -1,6 +1,5 @@
 #include "tests.h"
 #include "../src/net_message.h"
-#include <cassert>
 #include <cstring>
 
 void net_message_test_snapshot()
@@ -32,27 +31,27 @@ void net_message_test_snapshot()
     NetMessage baseMsgRead{};
     baseMsgRead.Deserialize(buf, len);
 
-    assert(baseMsgRead.connectionToken = msgWritten.connectionToken);
-    assert(baseMsgRead.type == msgWritten.type);
+    DLB_ASSERT(baseMsgRead.connectionToken = msgWritten.connectionToken);
+    DLB_ASSERT(baseMsgRead.type == msgWritten.type);
 
-    assert(baseMsgRead.type == NetMessage::Type::WorldSnapshot);
+    DLB_ASSERT(baseMsgRead.type == NetMessage::Type::WorldSnapshot);
     WorldSnapshot &msgRead = baseMsgRead.data.worldSnapshot;
-    assert(msgRead.tick == msgWritten.data.worldSnapshot.tick);
-    assert(msgRead.lastInputAck == msgWritten.data.worldSnapshot.lastInputAck);
-    assert(msgRead.inputOverflow == msgWritten.data.worldSnapshot.inputOverflow);
-    assert(msgRead.playerCount == msgWritten.data.worldSnapshot.playerCount);
-    assert(msgRead.npcCount == msgWritten.data.worldSnapshot.npcCount);
+    DLB_ASSERT(msgRead.tick == msgWritten.data.worldSnapshot.tick);
+    DLB_ASSERT(msgRead.lastInputAck == msgWritten.data.worldSnapshot.lastInputAck);
+    DLB_ASSERT(msgRead.inputOverflow == msgWritten.data.worldSnapshot.inputOverflow);
+    DLB_ASSERT(msgRead.playerCount == msgWritten.data.worldSnapshot.playerCount);
+    DLB_ASSERT(msgRead.npcCount == msgWritten.data.worldSnapshot.npcCount);
 
     PlayerSnapshot &playerRead = msgRead.players[0];
-    assert(playerRead.id == player.id);
-    assert(playerRead.hitPointsMax == player.hitPointsMax);
-    assert(playerRead.hitPoints == player.hitPoints);
+    DLB_ASSERT(playerRead.id == player.id);
+    DLB_ASSERT(playerRead.hitPointsMax == player.hitPointsMax);
+    DLB_ASSERT(playerRead.hitPoints == player.hitPoints);
 
     NpcSnapshot &npcRead = msgRead.npcs[0];
-    assert(npcRead.id == npc.id);
-    assert(npcRead.type == npc.type);
-    assert(npcRead.hitPoints == npc.hitPoints);
-    assert(npcRead.hitPointsMax == npc.hitPointsMax);
+    DLB_ASSERT(npcRead.id == npc.id);
+    DLB_ASSERT(npcRead.type == npc.type);
+    DLB_ASSERT(npcRead.hitPoints == npc.hitPoints);
+    DLB_ASSERT(npcRead.hitPointsMax == npc.hitPointsMax);
 
     delete &msgWritten;
     free(buf);
@@ -73,14 +72,14 @@ void net_message_test_chat()
     NetMessage baseMsgRead{};
     baseMsgRead.Deserialize(buf, len);
 
-    assert(baseMsgRead.type == NetMessage::Type::ChatMessage);
+    DLB_ASSERT(baseMsgRead.type == NetMessage::Type::ChatMessage);
     NetMessage_ChatMessage &msgRead = baseMsgRead.data.chatMsg;
 
-    assert(baseMsgRead.type == msgWritten.type);
-    assert(msgRead.source == msgWritten.data.chatMsg.source);
-    assert(msgRead.id == msgWritten.data.chatMsg.id);
-    assert(msgRead.messageLength == msgWritten.data.chatMsg.messageLength);
-    assert(!strncmp(msgRead.message, msgWritten.data.chatMsg.message, msgRead.messageLength));
+    DLB_ASSERT(baseMsgRead.type == msgWritten.type);
+    DLB_ASSERT(msgRead.source == msgWritten.data.chatMsg.source);
+    DLB_ASSERT(msgRead.id == msgWritten.data.chatMsg.id);
+    DLB_ASSERT(msgRead.messageLength == msgWritten.data.chatMsg.messageLength);
+    DLB_ASSERT(!strncmp(msgRead.message, msgWritten.data.chatMsg.message, msgRead.messageLength));
     delete &msgWritten;
     free(buf);
 }

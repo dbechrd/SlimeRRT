@@ -6,12 +6,11 @@
 #include "direction.h"
 #include "helpers.h"
 #include "maths.h"
-#include "entities/entities.h"
 #include "particles.h"
-#include "player.h"
 #include "spritesheet.h"
 #include "tilemap.h"
 #include "dlb_rand.h"
+#include <unordered_set>
 
 World::World(void)
 {
@@ -23,6 +22,7 @@ World::World(void)
 
 World::~World(void)
 {
+    // HUH
 }
 
 const Vector3 World::GetWorldSpawn(void)
@@ -123,10 +123,16 @@ EntityID World::PlayerFindByName(const char *name, size_t nameLength)
     return result;
 }
 
-EntityID World::PlayerFindNearest(Vector2 worldPos, float maxDist, Vector2 *toPlayer)
+EntityID World::PlayerFindNearest(Vector2 worldPos, float maxDist, Vector2 *toPlayer, bool includeDead)
 {
     EntityID result = 0;
     for (EntityID playerId : facetDepot.entityIdsByType[Entity_Player]) {
+        Combat *combat = (Combat *)facetDepot.FacetFind(playerId, Facet_Combat);
+        DLB_ASSERT(combat);
+        if (!includeDead && combat->diedAt) {
+            continue;
+        }
+
         Body3D *body3d = (Body3D *)facetDepot.FacetFind(playerId, Facet_Body3D);
         DLB_ASSERT(body3d);
         Vector2 toPlayerVec = v2_sub(body3d->GroundPosition(), worldPos);
@@ -170,12 +176,12 @@ ErrorType World::SpawnSam(void)
     return ErrorType::Success;
 }
 
-ErrorType World::SpawnEntity(EntityID entityId, EntityType type, Vector3 worldPos, EntityID *result)
+ErrorType World::SpawnEntity(EntityID entityId, EntityType type, Vector3 worldPos, Entity **result)
 {
     DLB_ASSERT(type > 0);
     DLB_ASSERT(type < Entity_Count);
 
-    // Only the server should be spawning new npcs; the client merely replicates them by entityId
+    // Only the server should be spawning new npcs; the client merely replicates them by targetId
     if (g_clock.server) {
         DLB_ASSERT(entityId == 0);
     } else {
@@ -202,7 +208,7 @@ ErrorType World::SpawnEntity(EntityID entityId, EntityType type, Vector3 worldPo
         E_DEBUG("Spawning entity [%u]", entityId);
     }
 
-    if (result) *result = entityId;
+    if (result) *result = entity;
     return ErrorType::Success;
 }
 
@@ -217,18 +223,24 @@ void World::SV_SimPlayers(double dt)
 {
     UNUSED(dt);
 
-    for (Player &player : players) {
-        if (!player.id) {
-            continue;
-        }
+    for (EntityID playerId : facetDepot.entityIdsByType[Entity_Player]) {
+        Entity *playerEntity = facetDepot.EntityFind(playerId);
+        Body3D *playerBody3d = (Body3D *)facetDepot.FacetFind(playerId, Facet_Body3D);
+        Combat *playerCombat = (Combat *)facetDepot.FacetFind(playerId, Facet_Combat);
+        Inventory *playerInventory = (Inventory *)facetDepot.FacetFind(playerId, Facet_Inventory);
+        DLB_ASSERT(playerEntity);
+        DLB_ASSERT(playerBody3d);
+        DLB_ASSERT(playerCombat);
+        DLB_ASSERT(playerInventory);
 
-        if (player.combat.diedAt) {
-            if (g_clock.now - player.combat.diedAt < SV_RESPAWN_TIMER) {
+        // Use < to allow two players to kill each other in the same tick
+        if (playerCombat->diedAt < g_clock.now) {
+            if (g_clock.now - playerCombat->diedAt < SV_RESPAWN_TIMER) {
                 continue;
             } else {
-                player.combat.diedAt = 0;
-                player.combat.hitPoints = player.combat.hitPointsMax;
-                player.body.Teleport(GetWorldSpawn());
+                playerCombat->diedAt = 0;
+                playerCombat->hitPoints = playerCombat->hitPointsMax;
+                playerBody3d->Teleport(GetWorldSpawn());
             }
         }
 
@@ -237,80 +249,79 @@ void World::SV_SimPlayers(double dt)
         //    case Player::ActionState::AttackSustain: printf("%u **\n", tick); break;
         //    case Player::ActionState::AttackRecover: printf("%u .\n", tick); break;
         //}
-        if (player.actionState == Player::ActionState::AttackBegin) {
+        if (playerEntity->actionState == Action_Attack) {
             const float playerAttackReach = METERS_TO_PIXELS(1.0f);
 
-            const ItemStack selectedStack = player.GetSelectedStack();
+            const ItemStack selectedStack = playerInventory->GetSelectedStack();
             const Item &selectedItem = g_item_db.Find(selectedStack.uid);
             float playerDamage = selectedItem.FindAffix(ItemAffix_DamageFlat).rollValue();
             float playerKnockback = selectedItem.FindAffix(ItemAffix_KnockbackFlat).rollValue();
             if (selectedItem.type == ItemType_Empty) {
-                playerDamage = player.combat.meleeDamage;
+                playerDamage = playerCombat->meleeDamage;
             }
 
-            for (int type = NPC::Type_None + 1; type < NPC::Type_Count; type++) {
-                NpcList npcList = npcs.byType[type];
-                for (size_t i = 0; i < npcList.length; i++) {
-                    NPC &npc = npcList.data[i];
-                    if (!npc.id || npc.combat.diedAt) {
+            // TODO: Store list of EntityIDs in each chunk. Find nearby entities by combining
+            // the the 3x3 chunks around the entity being processed. In the future, we will
+            // also be finding entities nearby projectiles, not just nearby players, so it
+            // be smart to have a generic FindEntitiesNearby(EntityID entityId) function.
+            for (int targetEntityType = 0; targetEntityType < Entity_Count; targetEntityType++) {
+                // When pvp is disabled, skip all attacks targeting other players
+                // TODO: We may want to allow healing attacks in the future?
+                if (targetEntityType == Entity_Player && !pvp) {
+                    continue;
+                }
+
+                for (EntityID targetId : facetDepot.entityIdsByType[targetEntityType]) {
+                    // Don't attack oneself
+                    if (targetId == playerId) {
+                        continue;
+                    }
+                    // TODO: Also check if target is a player and on your team
+
+                    Body3D *targetBody3d = (Body3D *)facetDepot.FacetFind(targetId, Facet_Body3D);
+                    Combat *targetCombat = (Combat *)facetDepot.FacetFind(targetId, Facet_Combat);
+                    DLB_ASSERT(targetBody3d);
+                    DLB_ASSERT(targetCombat);
+
+                    // Don't let the player beat a dead horse
+                    if (targetCombat->diedAt) {
                         continue;
                     }
 
                     // Apply damage to nearby NPCs
-                    Vector3 playerToNpc = v3_sub(npc.body.WorldPosition(), player.body.WorldPosition());
-                    if (v3_length_sq(playerToNpc) <= SQUARED(playerAttackReach)) {
-                        player.stats.damageDealt += npc.TakeDamage(playerDamage);
-                        if (playerKnockback) {
-                            Vector3 knockbackDir = v3_normalize(playerToNpc);
-                            Vector3 knockbackVec = v3_scale(knockbackDir, METERS_TO_PIXELS(playerKnockback));
-                            npc.body.ApplyForce(knockbackVec);
-                        }
-                        if (!npc.combat.hitPoints) {
-                            player.xp += dlb_rand32u_range(npc.combat.xpMin, npc.combat.xpMax);
-                            int overflowXp = player.xp - (player.combat.level * 20u);
-                            if (overflowXp >= 0) {
-                                player.combat.level++;
-                                player.xp = (uint32_t)overflowXp;
-
+                    Vector3 playerToTarget = v3_sub(targetBody3d->WorldPosition(), playerBody3d->WorldPosition());
+                    if (v3_length_sq(playerToTarget) <= SQUARED(playerAttackReach)) {
+                        // TODO: Stats
+                        //player.stats.damageDealt += combat->TakeDamage(playerDamage);
+                        targetCombat->TakeDamage(playerDamage);
+                        if (targetCombat->hitPoints) {
+                            // Still alive, apply effects
+                            if (playerKnockback) {
+                                Vector3 knockbackDir = v3_normalize(playerToTarget);
+                                Vector3 knockbackVec = v3_scale(knockbackDir, METERS_TO_PIXELS(playerKnockback));
+                                targetBody3d->ApplyForce(knockbackVec);
+                            }
+                        } else {
+                            // Dead, do all the dead stuff
+                            bool spawnMerchantOnLevelUp = playerCombat->level == 1;
+                            if (playerCombat->GrantXP(targetCombat->xp)) {
                                 // Spawn a merchant for the player
-                                if (player.combat.level == 2) {
-                                    Vector3 spawnPos = player.body.WorldPosition();
+                                if (spawnMerchantOnLevelUp) {
+                                    Vector3 spawnPos = playerBody3d->WorldPosition();
                                     spawnPos.y -= 40;
                                     spawnPos.z = 0;
-                                    NPC *level1Merchant = 0;
-                                    SpawnNpc(0, NPC::Type_Townfolk, spawnPos, &level1Merchant);
+                                    Entity *level1Merchant = 0;
+                                    SpawnEntity(0, Entity_Townfolk, spawnPos, &level1Merchant);
+                                    DLB_ASSERT(level1Merchant);
                                     if (level1Merchant) {
-                                        PlayerInfo *playerInfo = FindPlayerInfo(player.id);
-                                        DLB_ASSERT(playerInfo);
                                         char nameBuf[USERNAME_LENGTH_MAX + 32]{};
-                                        int nameLen = snprintf(CSTR0(nameBuf), "%.*s's Merchant", playerInfo->nameLength, playerInfo->name);
+                                        int nameLen = snprintf(CSTR0(nameBuf), "%.*s's Merchant", playerEntity->nameLength, playerEntity->name);
                                         level1Merchant->SetName(nameBuf, nameLen);
                                     }
                                 }
                             }
-                            player.stats.npcsSlain[npc.type]++;
-                        }
-                    }
-                }
-            }
-
-            if (pvp) {
-                for (Player &otherPlayer : players) {
-                    if (otherPlayer.id == player.id || !otherPlayer.id || otherPlayer.combat.diedAt) {
-                        continue;
-                    }
-
-                    Vector3 playerToPlayer = v3_sub(otherPlayer.body.WorldPosition(), player.body.WorldPosition());
-                    if (v3_length_sq(playerToPlayer) <= SQUARED(playerAttackReach)) {
-                        player.stats.damageDealt += otherPlayer.combat.TakeDamage(playerDamage);
-                        if (!otherPlayer.combat.hitPoints) {
-                            player.xp += otherPlayer.combat.level * 10u;
-                            int overflowXp = player.xp - (player.combat.level * 20u);
-                            if (overflowXp >= 0) {
-                                player.combat.level++;
-                                player.xp = (uint32_t)overflowXp;
-                            }
-                            player.stats.playersSlain++;
+                            // TODO: Stats
+                            //player.stats.entitiesSlainByType[entityType]++;
                         }
                     }
                 }
@@ -329,15 +340,15 @@ void World::SV_SimPlayers(double dt)
             spawnPos = v2_scale(spawnPos, mult);
 
             // Translate to whatever point we want to spawn
-            Vector2 playerPos = player.body.GroundPosition();
+            Vector2 playerPos = playerBody3d->GroundPosition();
             spawnPos.x += playerPos.x;
             spawnPos.y += playerPos.y;
 
             const Tile *spawnTile = map.TileAtWorld(spawnPos.x, spawnPos.y);
             if (spawnTile && spawnTile->IsSpawnable()) {
-                Player *anyPlayerTooClose = PlayerFindNearest(spawnPos, SV_ENEMY_MIN_SPAWN_DIST);
-                if (!anyPlayerTooClose) {
-                    SpawnNpc(0, NPC::Type_Slime, { spawnPos.x, spawnPos.y, 0 }, 0);
+                EntityID anyPlayerWithinRange = PlayerFindNearest(spawnPos, SV_ENEMY_MIN_SPAWN_DIST);
+                if (!anyPlayerWithinRange) {
+                    SpawnEntity(0, Entity_Slime, { spawnPos.x, spawnPos.y, 0 }, 0);
                 }
             }
         }
@@ -346,23 +357,32 @@ void World::SV_SimPlayers(double dt)
 
 void World::SV_SimNpcs(double dt)
 {
-    for (int type = NPC::Type_None + 1; type < NPC::Type_Count; type++) {
-        NpcList npcList = npcs.byType[type];
-        for (size_t i = 0; i < npcList.length; i++) {
-            NPC &npc = npcList.data[i];
-            if (!npc.id || npc.despawnedAt) {
-                continue;
-            }
+    // TODO: We need e.g. EntityClass_NPC or EntityTag_NPC or some better way
+    // of encapsulating sets of entity types under various categories.
+    std::unordered_set<int> npcTypes{
+        Entity_Slime,
+        Entity_Townfolk
+    };
 
-            DLB_ASSERT(npc.type);
-            DLB_ASSERT(npc.combat.hitPointsMax);
-            npc.Update(*this, dt);
+    for (int entityType = 0; entityType < Entity_Count; entityType++) {
+        if (npcTypes.contains(entityType)) {
+            for (EntityID entityId : facetDepot.entityIdsByType[entityType]) {
+                Entity *entity = facetDepot.EntityFind(entityId);
+                DLB_ASSERT(entity);
+
+                if (entity->despawnedAt) {
+                    continue;
+                }
+
+                entity->Update(*this, entityId, dt);
+            }
         }
     }
 }
 
 void World::SV_SimItems(double dt)
 {
+    // Move items toward nearby players (attraction zone auto-pickup)
     for (WorldItem &item : itemSystem.worldItems) {
         if (!item.euid || item.despawnedAt || g_clock.now < item.spawnedAt + SV_ITEM_PICKUP_DELAY) {
             continue;
@@ -371,17 +391,30 @@ void World::SV_SimItems(double dt)
         DLB_ASSERT(item.stack.uid);
         DLB_ASSERT(item.stack.count);
 
-        Player *closestPlayer = PlayerFindNearest(item.body.GroundPosition(), SV_ITEM_ATTRACT_DIST);
-        if (!closestPlayer || !closestPlayer->id ||
-            (item.droppedByPlayerId == closestPlayer->id && g_clock.now < item.spawnedAt + SV_ITEM_REPICKUP_DELAY)
-        ) {
+        EntityID closestPlayerId = PlayerFindNearest(item.body.GroundPosition(), SV_ITEM_ATTRACT_DIST);
+
+        // No players nearby
+        if (!closestPlayerId) {
             continue;
         }
 
-        Vector2 itemToPlayer = v2_sub(closestPlayer->body.GroundPosition(), item.body.GroundPosition());
+        // Don't attract items you just dropped a moment ago, it's annnoying
+        if (item.droppedByPlayerId == closestPlayerId &&
+            g_clock.now < item.spawnedAt + SV_ITEM_REPICKUP_DELAY)
+        {
+            continue;
+        }
+
+        Body3D *playerBody3d = (Body3D *)facetDepot.FacetFind(closestPlayerId, Facet_Body3D);
+        DLB_ASSERT(playerBody3d);
+
+        Vector2 itemToPlayer = v2_sub(playerBody3d->GroundPosition(), item.body.GroundPosition());
         const float itemToPlayerDistSq = v2_length_sq(itemToPlayer);
         if (itemToPlayerDistSq < SQUARED(SV_ITEM_PICKUP_DIST)) {
-            if (closestPlayer->inventory.PickUp(item.stack)) {
+            Inventory *playerInventory = (Inventory *)facetDepot.FacetFind(closestPlayerId, Facet_Inventory);
+            DLB_ASSERT(playerInventory);
+
+            if (playerInventory->PickUp(item.stack)) {
                 if (!item.stack.count) {
                     item.despawnedAt = g_clock.now;
 #if SV_DEBUG_WORLD_ITEMS
@@ -407,21 +440,6 @@ void World::SV_SimItems(double dt)
 
 void World::SV_DespawnDeadEntities(void)
 {
-#if 0
-    for (size_t i = 0; i < SV_MAX_PLAYERS; i++) {
-        Player &player = players[i];
-        if (!player.type) {
-            continue;
-        }
-
-        // NOTE: Player is likely going to respawn very quickly, so this may not be useful
-        if (!player.combat.hitPoints && g_clock.now - player.combat.diedAt > SV_PLAYER_CORPSE_LIFETIME) {
-            E_DEBUG("Despawn stale player corpse %u", player.type);
-            DespawnPlayer(player.type);
-        }
-    }
-#endif
-
     for (int entityType = 0; entityType < Entity_Count; entityType++) {
         std::vector<EntityID> entitiesByType = facetDepot.entityIdsByType[entityType];
         for (EntityID entityId : entitiesByType) {
@@ -440,11 +458,11 @@ void World::SV_DespawnDeadEntities(void)
 #if 0
                 // NOTE: We really only need to do this if the # of corpses gets really large,
                 // i.e. garbage collection of corpses, to prevent using too much memory.
-                Combat *combat = (Combat *)facetDepot.FacetFind(entityId, Facet_Combat);
+                Combat *combat = (Combat *)facetDepot.FacetFind(targetId, Facet_Combat);
                 if (combat) {
                     const double sinceDeath = combat->diedAt ? (g_clock.now - combat->diedAt) : 0;
                     if (sinceDeath > SV_NPC_CORPSE_LIFETIME) {
-                        E_DEBUG("Despawn dead npc %u", entityId);
+                        E_DEBUG("Despawn dead npc %u", targetId);
                         entity->despawnedAt = g_clock.now;
                         continue;
                     }
@@ -459,29 +477,29 @@ void World::SV_DespawnDeadEntities(void)
 
 void World::CL_Interpolate(double renderAt)
 {
-    // TODO: Probably would help to unify entities in some way so there's less duplication here
-    for (Player &player : players) {
-        if (!player.id || player.id == playerId) {
-            continue;
-        }
-        player.body.CL_Interpolate(renderAt, player.sprite.direction);
-    }
-    for (int type = NPC::Type_None + 1; type < NPC::Type_Count; type++) {
-        NpcList npcList = npcs.byType[type];
-        for (size_t i = 0; i < npcList.length; i++) {
-            NPC &npc = npcList.data[i];
-            if (!npc.type) {
-                continue;
-            }
-            npc.body.CL_Interpolate(renderAt, npc.sprite.direction);
+    for (int entityType = 0; entityType < Entity_Count; entityType++) {
+        std::vector<EntityID> entitiesByType = facetDepot.entityIdsByType[entityType];
+        for (EntityID entityId : entitiesByType) {
+            Entity *entity = facetDepot.EntityFind(entityId);
+            Body3D *body3d = (Body3D *)facetDepot.FacetFind(entityId, Facet_Body3D);
+            Sprite *sprite = (Sprite *)facetDepot.FacetFind(entityId, Facet_Sprite);
+            DLB_ASSERT(entity);
+            DLB_ASSERT(body3d);
+            DLB_ASSERT(sprite);
 
-            if (npc.type == NPC::Type_Slime && npc.body.jumped) {
+            // TODO: It might be a better idea to just serialize direction over
+            // the wire as part of positionHistory?
+            body3d->CL_Interpolate(renderAt, sprite->direction);
+
+            // HACK(cleanup): Where should sfx generation *actually* go??
+            if (entity->entityType == Entity_Slime && body3d->jumped) {
                 //Catalog::SoundID squish = dlb_rand32i_range(0, 1) ? Catalog::SoundID::Squish1 : Catalog::SoundID::Squish2;
                 Catalog::SoundID squish = Catalog::SoundID::Squish1;
                 Catalog::g_sounds.Play(squish, 1.0f + dlb_rand32f_variance(0.2f), true);
             }
         }
     }
+
     for (WorldItem &item : itemSystem.worldItems) {
         if (!item.euid) {
             continue;
@@ -492,6 +510,7 @@ void World::CL_Interpolate(double renderAt)
 
 void World::CL_Extrapolate(double dt)
 {
+#if 0
     // TODO: Collision detection is in Simulate() for enemies, but Player::Update() for players..
     // this makes no sense. It should probably not be in either place. We need a ResolveCollisions, eh?
 
@@ -514,6 +533,7 @@ void World::CL_Extrapolate(double dt)
             npc.Update(*this, dt);
         }
     }
+
     for (WorldItem &item : itemSystem.worldItems) {
         if (!item.euid || item.despawnedAt || g_clock.now < item.spawnedAt + SV_ITEM_PICKUP_DELAY) {
             continue;
@@ -523,49 +543,32 @@ void World::CL_Extrapolate(double dt)
         DLB_ASSERT(item.stack.count);
         item.Update(dt);
     }
+#endif
 }
 
 void World::CL_Animate(double dt)
 {
-    for (Player &player : players) {
-        if (!player.id || player.id == playerId) {
-            continue;
-        }
-        player.combat.Update(dt);
-    }
-    for (int type = NPC::Type_None + 1; type < NPC::Type_Count; type++) {
-        NpcList npcList = npcs.byType[type];
-        for (size_t i = 0; i < npcList.length; i++) {
-            NPC &npc = npcList.data[i];
-            if (!npc.id) {
-                continue;
-            }
-            npc.combat.Update(dt);
+    for (int entityType = 0; entityType < Entity_Count; entityType++) {
+        std::vector<EntityID> entitiesByType = facetDepot.entityIdsByType[entityType];
+        for (EntityID entityId : entitiesByType) {
+            Combat *combat = (Combat *)facetDepot.FacetFind(entityId, Facet_Combat);
+            DLB_ASSERT(combat);
+            combat->Update(dt);
         }
     }
 }
 
-void World::CL_DespawnStaleEntities(void)
+void World::CL_FreeDespawnedEntities(void)
 {
-    Player *player = FindPlayer(playerId);
-    if (!player) {
-        TraceLog(LOG_ERROR, "Failed to find player");
-        return;
-    }
-
-    for (int type = NPC::Type_None + 1; type < NPC::Type_Count; type++) {
-        NpcList npcList = npcs.byType[type];
-        for (size_t i = 0; i < npcList.length; i++) {
-            NPC &npc = npcList.data[i];
-            if (!npc.id) {
-                continue;
-            }
-
-            // Remove npc immediately if requested by server
-            if (npc.despawnedAt) {
-                E_DEBUG("Remove despawned npc id %u", npc.id);
-                RemoveNpc(npc.id);
-                continue;
+    for (int entityType = 0; entityType < Entity_Count; entityType++) {
+        std::vector<EntityID> entitiesByType = facetDepot.entityIdsByType[entityType];
+        for (EntityID entityId : entitiesByType) {
+            Entity *entity = facetDepot.EntityFind(entityId);
+            DLB_ASSERT(entity);
+            if (entity->despawnedAt) {
+                // Remove npc immediately if requested by server
+                E_DEBUG("Remove despawned entity %u", entityId);
+                facetDepot.EntityFree(entityId);
             }
         }
     }
@@ -698,29 +701,16 @@ size_t World::DrawMap(const Spycam &spycam)
                     // TODO: Make this lookup more general somehow
                     switch (effectiveType) {
                         case ObjectType_Tree01: {
-                            const Spritesheet &spritesheet = Catalog::g_spritesheets.FindById(Catalog::SpritesheetID::Environment_Forest);
+                            Spritesheet &spritesheet = Catalog::g_spritesheets.FindById(Catalog::SpritesheetID::Environment_Forest);
                             DLB_ASSERT(spritesheet.texture.id);
-                            const SpriteDef *spriteDef = spritesheet.FindSprite("tree_01");
-                            const SpriteAnim &spriteAnim = spritesheet.animations[spriteDef->animations[0]];
+                            SpriteDef *spriteDef = spritesheet.FindSprite("tree_01");
+                            SpriteAnim &spriteAnim = spritesheet.animations[spriteDef->animations[0]];
                             DLB_ASSERT(spriteAnim.frameCount == 1);
-                            const SpriteFrame &spriteFrame = spritesheet.frames[spriteAnim.frames[0]];
+                            SpriteFrame &spriteFrame = spritesheet.frames[spriteAnim.frames[0]];
                             DLB_ASSERT(spriteFrame.width);
                             DLB_ASSERT(spriteFrame.height);
 
                             drawList.Push(spriteFrame, at.y + TILE_H, false, at);
-
-                            //const Rectangle frameRect = {
-                            //    (float)spriteFrame.x,
-                            //    (float)spriteFrame.y,
-                            //    (float)spriteFrame.width,
-                            //    (float)spriteFrame.height
-                            //};
-                            //// Render bottom center of sprite in center of tile
-                            //const Vector2 topLeft = {
-                            //    at.x + TILE_W / 2 - frameRect.width / 2,
-                            //    at.y + TILE_H - frameRect.height
-                            //};
-                            //DrawTextureRec(spritesheet.texture, frameRect, topLeft, WHITE);
                             break;
                         }
                     }
@@ -739,19 +729,16 @@ void World::DrawItems(void)
 
 void World::DrawEntities(void)
 {
-    for (Player &player : players) {
-        if (player.id) {
-            drawList.Push(player, player.Depth(), player.Cull(drawList.cullRect));
-        }
-    }
+    for (int entityType = 0; entityType < Entity_Count; entityType++) {
+        std::vector<EntityID> entitiesByType = facetDepot.entityIdsByType[entityType];
+        for (EntityID entityId : entitiesByType) {
+            Entity *entity = facetDepot.EntityFind(entityId);
+            DLB_ASSERT(entity);
+            // NOTE: CL_FreeDespawnedEntities() should've been called right before drawing
+            DLB_ASSERT(!entity->despawnedAt);
 
-    for (int type = NPC::Type_None + 1; type < NPC::Type_Count; type++) {
-        NpcList npcList = npcs.byType[type];
-        for (size_t i = 0; i < npcList.length; i++) {
-            NPC &npc = npcList.data[i];
-            if (npc.id) {
-                drawList.Push(npc, npc.Depth(), npc.Cull(drawList.cullRect));
-            }
+            drawList.Push(*entity, entity->Depth(*this, entityId),
+                entity->Cull(*this, entityId, drawList.cullRect));
         }
     }
 }

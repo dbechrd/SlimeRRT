@@ -2,7 +2,6 @@
 #include "args.h"
 #include "error.h"
 #include "net_server.h"
-#include "world.h"
 #include <thread>
 
 struct GameServer {

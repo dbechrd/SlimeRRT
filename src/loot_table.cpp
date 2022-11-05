@@ -51,7 +51,7 @@ void LootSystem::AddDropToTable(LootTableID lootTableId, ItemClass itemClass, ui
             break;
         }
     }
-    assert(drop);  // outta space yo
+    DLB_ASSERT(drop);  // outta space yo
 
     if (drop) {
         drop->itemClass = itemClass;

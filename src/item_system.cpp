@@ -1,8 +1,7 @@
 #include "item_system.h"
 #include "catalog/spritesheets.h"
-#include "raylib/raylib.h"
-#include "sprite.h"
 #include "dlb_rand.h"
+#include "raylib/raylib.h"
 #include "GLFW/glfw3.h"
 
 // Server spawns items into world
@@ -66,7 +65,7 @@ WorldItem *ItemSystem::SpawnItem(Vector3 pos, ItemUID itemUid, uint32_t count, E
     //    case ItemID_Currency_Gilded: spritesheetId = Catalog::SpritesheetID::Coin_Gilded; break;
     //}
     if (spritesheetId != Catalog::SpritesheetID::Empty) {
-        const Spritesheet &spritesheet = Catalog::g_spritesheets.FindById(spritesheetId);
+        Spritesheet &spritesheet = Catalog::g_spritesheets.FindById(spritesheetId);
         worldItem.sprite.spriteDef = spritesheet.FindSprite("coin");
     }
     worldItem.sprite.scale = 1.0f;
@@ -88,7 +87,7 @@ WorldItem *ItemSystem::Find(EntityUID euid)
     }
 
     size_t idx = elem->second;
-    assert(idx < worldItems.size());
+    DLB_ASSERT(idx < worldItems.size());
     return &worldItems[idx];
 }
 

@@ -1,6 +1,7 @@
 ﻿#include "error.h"
 #include "net_client.h"
 #include "../catalog/items.h"
+#include "../entities/inventory.h"
 #include "../spycam.h"
 #include "../tilemap.h"
 #include "../world.h"
@@ -122,6 +123,12 @@ void UI::Minimap(const Font &font, World &world)
 {
     DLB_ASSERT(spycam);
 
+    EntityID playerId = world.playerId;
+    DLB_ASSERT(playerId);
+
+    Body3D *body3d = (Body3D *)world.facetDepot.FacetFind(playerId, Facet_Body3D);
+    DLB_ASSERT(body3d);
+
     // Render minimap
     const int minimapMargin = 6;
     const int minimapBorderWidth = 2;
@@ -134,18 +141,16 @@ void UI::Minimap(const Font &font, World &world)
     DrawRectangle(minimapX, minimapY, minimapW, minimapH, Fade(BLACK, 0.6f));
     DrawRectangleLinesEx({(float)minimapX, (float)minimapY, (float)minimapW, (float)minimapH}, (float)minimapBorderWidth, BLACK);
 
-    Player *player = world.FindPlayer(world.playerId);
-    if (player) {
-        world.map.GenerateMinimap(player->body.GroundPosition());
-        Vector2 playerPos = player->body.GroundPosition();
-        const int offsetX = world.map.CalcChunkTile(playerPos.x) - CHUNK_W / 2;
-        const int offsetY = world.map.CalcChunkTile(playerPos.y) - CHUNK_W / 2;
-        BeginScissorMode(minimapTexX, minimapTexY, world.map.minimap.width, world.map.minimap.height);
-        DrawTexture(world.map.minimap, minimapTexX - offsetX, minimapTexY - offsetY, WHITE);
-        EndScissorMode();
-    }
+    world.map.GenerateMinimap(body3d->GroundPosition());
+    Vector2 playerPos = body3d->GroundPosition();
+    const int offsetX = world.map.CalcChunkTile(playerPos.x) - CHUNK_W / 2;
+    const int offsetY = world.map.CalcChunkTile(playerPos.y) - CHUNK_W / 2;
+    BeginScissorMode(minimapTexX, minimapTexY, world.map.minimap.width, world.map.minimap.height);
+    DrawTexture(world.map.minimap, minimapTexX - offsetX, minimapTexY - offsetY, WHITE);
+    EndScissorMode();
 
-#if 1
+#if 0
+    // TODO: This needs to be updated for facetDepot and fix bugs noted below
     const Rectangle &camRect = spycam->GetRect();
 
     // TODO: Fix relative positioning of the map markers now that the map scrolls
@@ -317,15 +322,17 @@ void UI::ParticleConfig(World &world)
     SliderFloatLeft("##velocityZMax     ", &params.velocityZMax, -10.0f, 10.0f);
     SliderFloatLeft("##friction         ", &params.friction, 0.0f, 10.0f);
     if (ImGui::Button("Generate")) {
-        Player *player = world.FindPlayer(world.playerId);
-        if (player) {
-            ParticleEffect *blood = world.particleSystem.GenerateEffect(
-                Catalog::ParticleEffectID::Blood,
-                v3_add(player->body.WorldPosition(), { 0, 0, 40 }),
-                params);
-            if (blood) {
-                blood->effectCallbacks[(size_t)ParticleEffect_Event::BeforeUpdate] = { ParticlesFollowPlayerGut, player };
-            }
+        EntityID playerId = world.playerId;
+        DLB_ASSERT(playerId);
+        Body3D *body3d = (Body3D *)world.facetDepot.FacetFind(playerId, Facet_Body3D);
+        DLB_ASSERT(body3d);
+        ParticleEffect *blood = world.particleSystem.GenerateEffect(
+            Catalog::ParticleEffectID::Blood,
+            v3_add(body3d->WorldPosition(), { 0, 0, 40 }),
+            params
+        );
+        if (blood) {
+            blood->effectCallbacks[(size_t)ParticleEffect_Event::BeforeUpdate] = { ParticlesFollowPlayerGut, &world, playerId };
         }
     }
 
@@ -378,13 +385,14 @@ void UI::Netstat(NetClient &netClient, double renderAt)
     ImGui::SliderFloat("##g_cl_smooth_reconcile_factor", &g_cl_smooth_reconcile_factor, 0.01f, 1.0f, "%.02f", ImGuiSliderFlags_AlwaysClamp);
 
     if (ImGui::Button("Force de-sync")) {
-        Player *player = netClient.serverWorld->LocalPlayer();
-        if (player) {
-            Vector3 worldPos = player->body.WorldPosition();
-            worldPos.x += METERS_TO_PIXELS(3.0f);
-            worldPos.y += METERS_TO_PIXELS(3.0f);
-            player->body.Teleport(worldPos);
-        }
+        EntityID playerId = netClient.serverWorld->playerId;
+        DLB_ASSERT(playerId);
+        Body3D *body3d = (Body3D *)netClient.serverWorld->facetDepot.FacetFind(playerId, Facet_Body3D);
+        DLB_ASSERT(body3d);
+        Vector3 worldPos = body3d->WorldPosition();
+        worldPos.x += METERS_TO_PIXELS(3.0f);
+        worldPos.y += METERS_TO_PIXELS(3.0f);
+        body3d->Teleport(worldPos);
     }
 
     ImGui::NewLine();
@@ -604,11 +612,6 @@ void UI::HUD(const Font &font, World &world, const DebugStats &debugStats)
 {
     DLB_ASSERT(spycam);
 
-    Player *player = world.FindPlayer(world.playerId);
-    if (!player) {
-        return;
-    }
-
     const char *text = 0;
     float hudCursorY = 0;
 
@@ -637,20 +640,26 @@ void UI::HUD(const Font &font, World &world, const DebugStats &debugStats)
 
     hudCursorY += pad;
 
+    // TODO: Stats
     text = SafeTextFormat("%2i fps %.03f ms %u ticks", GetFPS(), debugStats.frameDt * 1000.0f, debugStats.tick);
     PUSH_TEXT(text, LIGHTGRAY);
-    text = SafeTextFormat("Kilometers walked %.2f", player->stats.kmWalked);
+    text = SafeTextFormat("Kilometers walked %.2f", 0); //player->stats.kmWalked);
     PUSH_TEXT(text, WHITE);
-    text = SafeTextFormat("Damage dealt      %.2f", player->stats.damageDealt);
+    text = SafeTextFormat("Damage dealt      %.2f", 0); //player->stats.damageDealt);
     PUSH_TEXT(text, RED);
-    text = SafeTextFormat("Times fist swung  %u", player->stats.timesFistSwung);
+    text = SafeTextFormat("Times fist swung  %u", 0); //player->stats.timesFistSwung);
     PUSH_TEXT(text, RED);
-    text = SafeTextFormat("Times sword swung %u", player->stats.timesSwordSwung);
+    text = SafeTextFormat("Times sword swung %u", 0); //player->stats.timesSwordSwung);
     PUSH_TEXT(text, RED);
-    text = SafeTextFormat("Slimes slain      %u", player->stats.npcsSlain[NPC::Type_Slime]);
+    text = SafeTextFormat("Slimes slain      %u", 0); //player->stats.npcsSlain[NPC::Type_Slime]);
     PUSH_TEXT(text, GREEN);
 
-    const Vector2 playerBC = player->body.GroundPosition();
+    EntityID playerId = world.playerId;
+    DLB_ASSERT(playerId);
+    Body3D *body3d = (Body3D *)world.facetDepot.FacetFind(playerId, Facet_Body3D);
+    DLB_ASSERT(body3d);
+
+    const Vector2 playerBC = body3d->GroundPosition();
     text = SafeTextFormat("World: %0.2f, %0.2f", playerBC.x, playerBC.y);
     PUSH_TEXT(text, LIGHTGRAY);
     const int16_t playerChunkX = world.map.CalcChunk(playerBC.x);
@@ -765,6 +774,9 @@ void UI::HUD(const Font &font, World &world, const DebugStats &debugStats)
 
     rlDrawRenderBatchActive();
 
+    Combat *combat = (Combat *)world.facetDepot.FacetFind(playerId, Facet_Combat);
+    DLB_ASSERT(combat);
+
     const float xpBarWindowPad = 4.0f;
     const float levelDiamondRadius = 18.0f;
     ImVec2 xpBarWindowSize{ 512, levelDiamondRadius * 2.0f + xpBarWindowPad * 2.0f };
@@ -822,8 +834,8 @@ void UI::HUD(const Font &font, World &world, const DebugStats &debugStats)
     drawList->AddRectFilled(xpBarBgTopLeft, xpBarBgBottomRight, ImColor(0.7f, 0.7f, 0.7f, 1.0f), xpBarRadius);
 
     // XP bar green bar
-    uint32_t xpNextLevel = player->combat.level * 20u;
-    float xpProgress = (float)player->xp / xpNextLevel;
+    uint32_t xpNextLevel = combat->level * 20u;
+    float xpProgress = (float)combat->xp / xpNextLevel;
     //xpProgress = sinf((float)g_clock.now) / 2.0f + 0.5f;
     if (xpProgress) {
         const float xpEarnedWidth = MAX(6.0f, xpProgress * (xpBarBgBottomRight.x - xpBarBgTopLeft.x));
@@ -843,7 +855,7 @@ void UI::HUD(const Font &font, World &world, const DebugStats &debugStats)
 
     // XP bar level diamond text
     char levelDiamondTextBuf[32]{};
-    uint8_t level = player->combat.level;
+    uint8_t level = combat->level;
     //level = (uint8_t)((sin(g_clock.now) / 2.0f + 0.5f) * UINT8_MAX);
     snprintf(CSTR0(levelDiamondTextBuf), "%u", level);
     ImVec2 levelDiamondTextPos{
@@ -869,8 +881,16 @@ void UI::HUD(const Font &font, World &world, const DebugStats &debugStats)
     ImGui::PopStyleVar(styleVars);
 }
 
-void UI::QuickHUD(const Font &font, const Player &player, const Tilemap &tilemap)
+void UI::QuickHUD(const Font &font, World &world, const Tilemap &tilemap)
 {
+    EntityID playerId = world.playerId;
+    DLB_ASSERT(playerId);
+
+    Body3D    *body3d    = (Body3D    *)world.facetDepot.FacetFind(playerId, Facet_Body3D   );
+    Inventory *inventory = (Inventory *)world.facetDepot.FacetFind(playerId, Facet_Inventory);
+    DLB_ASSERT(body3d);
+    DLB_ASSERT(inventory);
+
     const char *text = 0;
 
     //int linesOfText = 1;
@@ -891,11 +911,11 @@ void UI::QuickHUD(const Font &font, const Player &player, const Tilemap &tilemap
     frameRect.height = (float)coinGildedSpriteDef->spritesheet->frames[3].height;
     DrawTextureRec(coinGildedSpriteDef->spritesheet->texture, frameRect, { margin + pad, hudCursorY }, WHITE);
 
-    text = SafeTextFormat("%d", player.inventory.slots[PlayerInventory::SlotId_Coin_Copper].stack.count);
+    text = SafeTextFormat("%d", inventory->slots[SlotId_Coin_Copper].stack.count);
     DrawTextFont(font, text, margin + pad + frameRect.width + pad, hudCursorY, 0, 0, font.baseSize, WHITE);
     hudCursorY += font.baseSize + pad;
 
-    const Vector2 playerBC = player.body.GroundPosition();
+    const Vector2 playerBC = body3d->GroundPosition();
     const int16_t playerChunkX = tilemap.CalcChunk(playerBC.x);
     const int16_t playerChunkY = tilemap.CalcChunk(playerBC.y);
     const int16_t playerTileX = tilemap.CalcChunkTile(playerBC.x);
@@ -1187,7 +1207,7 @@ void UI::MenuMultiplayer(GameClient &game) {
                 reset = true;
             }
         } else {
-            const DB::ServerDB *serverDB = game.netClient.server_db.flat;
+            const DB::ServerDB *serverDB = game.netClient.serverDb.flat;
             auto servers = serverDB->servers();
 
             // Display user'npc saved servers
@@ -1222,8 +1242,8 @@ void UI::MenuMultiplayer(GameClient &game) {
             ImGui::PopFont();
 
             if (deleteServerIdx >= 0) {
-                game.netClient.server_db.Delete(deleteServerIdx);
-                game.netClient.server_db.Save();
+                game.netClient.serverDb.Delete(deleteServerIdx);
+                game.netClient.serverDb.Save();
             }
 
             if (err != ErrorType::Success) {
@@ -1298,8 +1318,8 @@ void UI::MenuMultiplayerNew(NetClient &netClient) {
     if (!form.port) {
         if (editingServerIdx == SERVER_IDX_NEW) {
             form.port = SV_DEFAULT_PORT;
-        } else if(editingServerIdx < (int)netClient.server_db.Size()) {
-            const DB::Server &server = *netClient.server_db.flat->servers()->Get(editingServerIdx);
+        } else if(editingServerIdx < (int)netClient.serverDb.Size()) {
+            const DB::Server &server = *netClient.serverDb.flat->servers()->Get(editingServerIdx);
             strncpy(form.desc, server.desc()->c_str(), sizeof(form.desc));
             strncpy(form.host, server.host()->c_str(), sizeof(form.host));
             form.port = server.port();
@@ -1413,11 +1433,11 @@ void UI::MenuMultiplayerNew(NetClient &netClient) {
         server.user = std::string(form.user);
         server.pass = std::string(form.pass);
         if (editingServerIdx >= 0) {
-            netClient.server_db.Replace(editingServerIdx, server);
+            netClient.serverDb.Replace(editingServerIdx, server);
         } else {
-            netClient.server_db.Add(server);
+            netClient.serverDb.Add(server);
         }
-        netClient.server_db.Save();
+        netClient.serverDb.Save();
     }
 
     if (accept || cancel) {
@@ -1741,10 +1761,10 @@ void UI::InGameMenu(bool &escape, bool connectedToServer)
     }
 }
 
-void UI::InventoryItemTooltip(ItemStack &invStack, int slot, Player &player, NetClient &netClient)
+void UI::InventoryItemTooltip(ItemStack &invStack, int slot, Inventory &inventory, NetClient &netClient)
 {
-    player.inventory.skipUpdate = true;
-    ItemStack &cursorStack = player.inventory.CursorSlot().stack;
+    inventory.skipUpdate = true;
+    ItemStack &cursorStack = inventory.CursorSlot().stack;
 
     // Terraria:
     //   on mouse down
@@ -1781,14 +1801,14 @@ void UI::InventoryItemTooltip(ItemStack &invStack, int slot, Player &player, Net
         const int scrollY = (int)GetMouseWheelMove();
         if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
             const bool doubleClick = ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left);
-            bool success = player.inventory.SlotClick(slot, doubleClick);
+            bool success = inventory.SlotClick(slot, doubleClick);
             if (success) {
                 netClient.SendSlotClick(slot, doubleClick);
             }
             Catalog::g_sounds.Play(Catalog::SoundID::Click1, (success ? 1.0f : 0.77f) + dlb_rand32f_variance(0.01f), true);
         } else if (scrollY) {
             // TODO(dlb): This will break if the window has any scrolling controls
-            bool success = player.inventory.SlotScroll(slot, scrollY);
+            bool success = inventory.SlotScroll(slot, scrollY);
             if (success) {
                 netClient.SendSlotScroll(slot, scrollY);
             }
@@ -1809,7 +1829,7 @@ void UI::InventoryItemTooltip(ItemStack &invStack, int slot, Player &player, Net
 
                     // Time to vaccuum again
                     if (ImGui::IsMouseClicked(ImGuiMouseButton_Right) || sinceLastVacuum > vacuumDelay) {
-                        bool success = player.inventory.SlotScroll(slot, -(int)vacuumCount);
+                        bool success = inventory.SlotScroll(slot, -(int)vacuumCount);
                         if (success) {
                             netClient.SendSlotScroll(slot, -(int)vacuumCount);
                         }
@@ -1948,19 +1968,19 @@ void UI::InventoryItemTooltip(ItemStack &invStack, int slot, Player &player, Net
             ImGui::PopStyleVar(2);
         }
     }
-    player.inventory.skipUpdate = false;
+    inventory.skipUpdate = false;
 }
 
-void UI::InventorySlot(bool inventoryActive, int slot, const Texture &invItems, Player &player, NetClient &netClient)
+void UI::InventorySlot(bool inventoryActive, int slot, const Texture &invItems, Inventory &inventory, NetClient &netClient)
 {
-    ItemStack &invStack = player.inventory.GetInvSlot(slot).stack;
+    ItemStack &invStack = inventory.GetInvSlot(slot).stack;
 
     if (invStack.count) {
         Vector2 uv0{};
         Vector2 uv1{};
 
         const Item &item = g_item_db.Find(invStack.uid);
-        player.inventory.TexRect(invItems, item.type, uv0, uv1);
+        inventory.TexRect(invItems, item.type, uv0, uv1);
         ImGui::ImageButton("##invSlotButton", (ImTextureID)(size_t)invItems.id, ImVec2{ ITEM_W, ITEM_H }, ImVec2{ uv0.x, uv0.y }, ImVec2{ uv1.x, uv1.y });
 
         if (item.Proto().stackLimit > 1) {
@@ -1991,11 +2011,11 @@ void UI::InventorySlot(bool inventoryActive, int slot, const Texture &invItems, 
     }
 
     if (inventoryActive) {
-        InventoryItemTooltip(invStack, slot, player, netClient);
+        InventoryItemTooltip(invStack, slot, inventory, netClient);
     }
 }
 
-void UI::Inventory(const Texture &invItems, Player& player, NetClient &netClient, bool &escape, bool &inventoryActive)
+void UI::InventoryUI(const Texture &invItems, Inventory &inventory, NetClient &netClient, bool &escape, bool &inventoryActive)
 {
     if (inventoryActive && escape) {
         inventoryActive = false;
@@ -2034,16 +2054,16 @@ void UI::Inventory(const Texture &invItems, Player& player, NetClient &netClient
     int hoveredSlot = -1;
 
     ImGui::PushID("inv_hotbar");
-    for (int hotbarSlot = PlayerInventory::SlotId_Hotbar_0; hotbarSlot <= PlayerInventory::SlotId_Hotbar_9; hotbarSlot++) {
+    for (int hotbarSlot = SlotId_Hotbar_0; hotbarSlot <= SlotId_Hotbar_9; hotbarSlot++) {
         ImGui::PushID(hotbarSlot);
-        if (hotbarSlot == player.inventory.selectedSlot) {
+        if (hotbarSlot == inventory.selectedSlot) {
             ImGui::PushStyleColor(ImGuiCol_Button, ImColor(170, 170, 0, 255).Value);
         }
-        UI::InventorySlot(inventoryActive, hotbarSlot, invItems, player, netClient);
-        if (hotbarSlot == player.inventory.selectedSlot) {
+        UI::InventorySlot(inventoryActive, hotbarSlot, invItems, inventory, netClient);
+        if (hotbarSlot == inventory.selectedSlot) {
             ImGui::PopStyleColor();
         }
-        if (hotbarSlot < PlayerInventory::SlotId_Hotbar_9) {
+        if (hotbarSlot < SlotId_Hotbar_9) {
             ImGui::SameLine();
         }
         ImGui::PopID();
@@ -2056,14 +2076,14 @@ void UI::Inventory(const Texture &invItems, Player& player, NetClient &netClient
 
     if (inventoryActive) {
         thread_local static bool ignoreEmpty = false;
-        if (ImGui::Button("Sort")) player.inventory.Sort(ignoreEmpty);
+        if (ImGui::Button("Sort")) inventory.Sort(ignoreEmpty);
         ImGui::SameLine();
-        if (ImGui::Button("Sort & Combine")) player.inventory.SortAndCombine(ignoreEmpty);
+        if (ImGui::Button("Sort & Combine")) inventory.SortAndCombine(ignoreEmpty);
 #if _DEBUG
         auto dbgColor = PINK;
         ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(dbgColor.r, dbgColor.g, dbgColor.b, 0.7f * 255.0f));
         ImGui::SameLine();
-        if (ImGui::Button("Combine")) player.inventory.Combine(ignoreEmpty);
+        if (ImGui::Button("Combine")) inventory.Combine(ignoreEmpty);
         ImGui::SameLine();
         ImGui::Checkbox("Ignore empty", &ignoreEmpty);
         ImGui::PopStyleColor();
@@ -2090,7 +2110,7 @@ void UI::Inventory(const Texture &invItems, Player& player, NetClient &netClient
                 ImGui::PushID(col);
 
                 int slot = row * PLAYER_INV_COLS + col;
-                UI::InventorySlot(inventoryActive, slot, invItems, player, netClient);
+                UI::InventorySlot(inventoryActive, slot, invItems, inventory, netClient);
 
                 if (col < PLAYER_INV_COLS - 1) {
                     ImGui::SameLine();
@@ -2109,7 +2129,7 @@ void UI::Inventory(const Texture &invItems, Player& player, NetClient &netClient
     ImGui::PopStyleColor(styleCols);
     ImGui::PopStyleVar(styleVars);
 
-    ItemStack &cursorStack = player.inventory.CursorSlot().stack;
+    ItemStack &cursorStack = inventory.CursorSlot().stack;
     if (cursorStack.count) {
         // Drop item(npc) from cursor stack onto ground
         if (hoveredSlot < 0 && IsKeyPressed(KEY_Q)) {
@@ -2119,7 +2139,7 @@ void UI::Inventory(const Texture &invItems, Player& player, NetClient &netClient
                 if (hoveredSlot >= 0) {
                     netClient.SendSlotScroll(hoveredSlot, dropCount);
                 } else {
-                    netClient.SendSlotDrop(PlayerInventory::SlotId_Cursor, dropCount);
+                    netClient.SendSlotDrop(SlotId_Cursor, dropCount);
                 }
             }
         }
@@ -2135,7 +2155,7 @@ void UI::Inventory(const Texture &invItems, Player& player, NetClient &netClient
 
         Vector2 uv0{};
         Vector2 uv1{};
-        player.inventory.TexRect(invItems, cursorItem.type, uv0, uv1);
+        inventory.TexRect(invItems, cursorItem.type, uv0, uv1);
 
         Vector2 cursorOffset{};
 #if CL_CURSOR_ITEM_RELATIVE_TERRARIA || 1
@@ -2219,12 +2239,9 @@ void UI::Inventory(const Texture &invItems, Player& player, NetClient &netClient
 
 void UI::Dialog(World &world)
 {
-    Player *player = world.LocalPlayer();
-    if (!player) {
-        return;
-    }
-
-    Vector2 topCenter = player->WorldTopCenter2D();
+    EntityID playerId = world.playerId;
+    DLB_ASSERT(playerId);
+    Vector2 topCenter = Entity::WorldTopCenter2D(world, playerId);
 
     //DrawCircleLines(topCenter.x, topCenter.y - topCenter.z, 2.0f, RED);
     //HealthBar::Dialog({ topCenter.x, topCenter.y - 10.0f },

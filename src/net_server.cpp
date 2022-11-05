@@ -83,14 +83,14 @@ ErrorType NetServer::OpenSocket(unsigned short socketPort)
 
 ErrorType NetServer::SendRaw(const SV_Client &client, const void *data, size_t size)
 {
-    assert(data);
-    assert(size <= PACKET_SIZE_MAX);
+    DLB_ASSERT(data);
+    DLB_ASSERT(size <= PACKET_SIZE_MAX);
 
     if (!client.peer || client.peer->state != ENET_PEER_STATE_CONNECTED) { // || !clients[i].playerId) {
         return ErrorType::Success;
     }
 
-    assert(client.peer->address.port);
+    DLB_ASSERT(client.peer->address.port);
 
     // TODO(dlb): Don't always use reliable flag.. figure out what actually needs to be reliable (e.g. chat)
     ENetPacket *packet = enet_packet_create(data, size, ENET_PACKET_FLAG_RELIABLE);
@@ -105,8 +105,8 @@ ErrorType NetServer::SendRaw(const SV_Client &client, const void *data, size_t s
 
 ErrorType NetServer::BroadcastRaw(const void *data, size_t size)
 {
-    assert(data);
-    assert(size <= PACKET_SIZE_MAX);
+    DLB_ASSERT(data);
+    DLB_ASSERT(size <= PACKET_SIZE_MAX);
 
     ErrorType err_code = ErrorType::Success;
 
@@ -123,8 +123,8 @@ ErrorType NetServer::BroadcastRaw(const void *data, size_t size)
         }
 
         SV_Client &client = clients[i];
-        assert(client.peer);
-        assert(client.peer->address.port);
+        DLB_ASSERT(client.peer);
+        DLB_ASSERT(client.peer->address.port);
         if (enet_peer_send(client.peer, 0, packet) < 0) {
             TraceLog(LOG_ERROR, "[NetServer] BROADCAST %u bytes failed", size);
             err_code = ErrorType::PeerSendFailed;
@@ -180,12 +180,9 @@ ErrorType NetServer::BroadcastMsg(NetMessage &message, std::function<bool(SV_Cli
 
 ErrorType NetServer::SendWelcomeBasket(SV_Client &client)
 {
-    // TODO: Send current state to new client
-    // - world (seed + entities)
-    // - slime list
-
     {
-        memset(&netMsg, 0, sizeof(netMsg));
+        //memset(&netMsg, 0, sizeof(netMsg));
+        netMsg = {};
         netMsg.type = NetMessage::Type::Welcome;
 
         NetMessage_Welcome &welcome = netMsg.data.welcome;
@@ -229,8 +226,8 @@ ErrorType NetServer::SendWelcomeBasket(SV_Client &client)
 
 ErrorType NetServer::BroadcastChatMessage(NetMessage_ChatMessage &chatMsg)
 {
-    assert(chatMsg.message);
-    assert(chatMsg.messageLength <= UINT32_MAX);
+    DLB_ASSERT(chatMsg.message);
+    DLB_ASSERT(chatMsg.messageLength <= UINT32_MAX);
 
     memset(&netMsg, 0, sizeof(netMsg));
     netMsg.type = NetMessage::Type::ChatMessage;
@@ -268,8 +265,8 @@ ErrorType NetServer::BroadcastPlayerLeave(uint32_t playerId)
 
 ErrorType NetServer::SendChatMessage(const SV_Client &client, const char *message, size_t messageLength)
 {
-    assert(message);
-    assert(messageLength <= UINT32_MAX);
+    DLB_ASSERT(message);
+    DLB_ASSERT(messageLength <= UINT32_MAX);
 
     NetMessage_ChatMessage chatMsg{};
     chatMsg.source = NetMessage_ChatMessage::Source::Server;
@@ -345,7 +342,7 @@ ErrorType NetServer::BroadcastTileUpdate(float worldX, float worldY, const Tile 
 
 ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
 {
-    assert(client.playerId);
+    DLB_ASSERT(client.playerId);
 
     memset(&netMsg, 0, sizeof(netMsg));
     netMsg.type = NetMessage::Type::WorldSnapshot;
@@ -627,7 +624,7 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
 ErrorType NetServer::SendNearbyEvents(const SV_Client &client)
 {
     Player *player = serverWorld->FindPlayer(client.playerId);
-    assert(player);
+    DLB_ASSERT(player);
     if (!player) {
         TraceLog(LOG_ERROR, "Failed to find player to send nearby events to");
         return ErrorType::PlayerNotFound;
@@ -764,7 +761,7 @@ ErrorType NetServer::SendEnemyState(const SV_Client &client, const Slime &enemy,
 
 ErrorType NetServer::SendItemState(const SV_Client &client, const WorldItem &item, bool nearby, bool spawned)
 {
-    assert(!"Not yet implemented");
+    DLB_ASSERT(!"Not yet implemented");
     return ErrorType::PeerSendFailed;
 }
 #endif
@@ -972,7 +969,7 @@ bool NetServer::ParseCommand(SV_Client &client, NetMessage_ChatMessage &chatMsg)
             Player *player = serverWorld->FindPlayer(client.playerId);
             if (player) {
                 const PlayerInfo *playerInfo = serverWorld->FindPlayerInfo(player->id);
-                assert(playerInfo);
+                DLB_ASSERT(playerInfo);
 
                 Vector3 worldPos{};
                 worldPos.x += dlb_rand32f_variance(variance);
@@ -987,7 +984,7 @@ bool NetServer::ParseCommand(SV_Client &client, NetMessage_ChatMessage &chatMsg)
             Player *player = serverWorld->FindPlayer(client.playerId);
             if (player) {
                 const PlayerInfo *playerInfo = serverWorld->FindPlayerInfo(player->id);
-                assert(playerInfo);
+                DLB_ASSERT(playerInfo);
                 float speed = strtof(argv[0], 0);
                 player->body.speed = speed;
                 printf("[speed] Set %.*s speed to %f\n", playerInfo->nameLength, playerInfo->name, speed);
@@ -997,7 +994,7 @@ bool NetServer::ParseCommand(SV_Client &client, NetMessage_ChatMessage &chatMsg)
             Player *player = serverWorld->PlayerFindByName(argv[0], strlen(argv[0]));
             if (player) {
                 const PlayerInfo *playerInfo = serverWorld->FindPlayerInfo(player->id);
-                assert(playerInfo);
+                DLB_ASSERT(playerInfo);
                 float speed = strtof(argv[1], 0);
                 player->body.speed = speed;
                 printf("[speed] Set %.*s speed to %f\n", playerInfo->nameLength, playerInfo->name, speed);
@@ -1013,7 +1010,7 @@ bool NetServer::ParseCommand(SV_Client &client, NetMessage_ChatMessage &chatMsg)
             Player *player = serverWorld->FindPlayer(client.playerId);
             if (player) {
                 const PlayerInfo *playerInfo = serverWorld->FindPlayerInfo(player->id);
-                assert(playerInfo);
+                DLB_ASSERT(playerInfo);
                 float x = strtof(argv[0], 0);
                 float y = strtof(argv[1], 0);
                 float z = strtof(argv[2], 0);
@@ -1025,7 +1022,7 @@ bool NetServer::ParseCommand(SV_Client &client, NetMessage_ChatMessage &chatMsg)
             Player *player = serverWorld->PlayerFindByName(argv[0], strlen(argv[0]));
             if (player) {
                 const PlayerInfo *playerInfo = serverWorld->FindPlayerInfo(player->id);
-                assert(playerInfo);
+                DLB_ASSERT(playerInfo);
                 float x = strtof(argv[1], 0);
                 float y = strtof(argv[2], 0);
                 float z = strtof(argv[3], 0);
@@ -1056,7 +1053,7 @@ bool NetServer::ParseCommand(SV_Client &client, NetMessage_ChatMessage &chatMsg)
 
 void NetServer::ProcessMsg(SV_Client &client, ENetPacket &packet)
 {
-    assert(serverWorld);
+    DLB_ASSERT(serverWorld);
 
     memset(&netMsg, 0, sizeof(netMsg));
     netMsg.Deserialize(packet.data, packet.dataLength);
@@ -1115,24 +1112,24 @@ void NetServer::ProcessMsg(SV_Client &client, ENetPacket &packet)
             client.connectionToken = netMsg.connectionToken;
             client.playerId = playerInfo->id;
 
-            assert(identMsg.usernameLength);
+            DLB_ASSERT(identMsg.usernameLength);
             playerInfo->SetName(identMsg.username, identMsg.usernameLength);
 
             Player *player = serverWorld->AddPlayer(playerInfo->id);
-            assert(player);
+            DLB_ASSERT(player);
 
             // TODO: Load player's spawn location from save file
             player->body.Teleport(serverWorld->GetWorldSpawn());
 
             // TODO: Load selected slot from save file
-            player->inventory.selectedSlot = PlayerInventory::SlotId_Hotbar_0;
+            player->inventory.selectedSlot = SlotId_Hotbar_0;
 
             // TODO: Load inventory from save file
             ItemUID longSword = g_item_db.SV_Spawn(ItemType_Weapon_Long_Sword);
             ItemUID dagger = g_item_db.SV_Spawn(ItemType_Weapon_Dagger);
             ItemUID blackBook = g_item_db.SV_Spawn(ItemType_Book_BlackSkull);
             ItemUID silverCoin = g_item_db.SV_Spawn(ItemType_Currency_Silver);
-            player->inventory.slots[PlayerInventory::SlotId_Hotbar_0].stack = { longSword, 1 };
+            player->inventory.slots[SlotId_Hotbar_0].stack = { longSword, 1 };
             player->inventory.slots[0].stack = { dagger, 1 };
             player->inventory.slots[1].stack = { blackBook, 3 };
             player->inventory.slots[10].stack = { silverCoin, 10 };
@@ -1257,11 +1254,11 @@ SV_Client *NetServer::AddClient(ENetPeer *peer)
     for (int i = 0; i < SV_MAX_PLAYERS; i++) {
         SV_Client &client = clients[i];
         if (!client.playerId) {
-            assert(!client.peer);
+            DLB_ASSERT(!client.peer);
             client.peer = peer;
             peer->data = &client;
 
-            assert(serverWorld->tick);
+            DLB_ASSERT(serverWorld->tick);
             return &client;
         }
     }
@@ -1314,7 +1311,7 @@ ErrorType NetServer::RemoveClient(ENetPeer *peer)
 
 ErrorType NetServer::Listen(void)
 {
-    assert(server->address.port);
+    DLB_ASSERT(server->address.port);
 
     // TODO: Do I need to limit the amount of network data processed each "frame" to prevent the simulation from
     // falling behind? How easy is it to overload the server in this manner? Limiting it just seems like it would
@@ -1344,7 +1341,7 @@ ErrorType NetServer::Listen(void)
                 //    event.channelID);
 
                 SV_Client *client = FindClient(event.peer);
-                assert(client);
+                DLB_ASSERT(client);
                 if (client) {
                     ProcessMsg(*client, *event.packet);
                 }
@@ -1378,8 +1375,8 @@ void NetServer::CloseSocket(void)
     }
     enet_host_service(server, nullptr, 0);
     enet_host_destroy(server);
-    assert(sizeof(clients) > 8); // in case i change client list to a pointer and break the memset
+    DLB_ASSERT(sizeof(clients) > 8); // in case i change client list to a pointer and break the memset
     //memset(clients, 0, sizeof(clients));
     *clients = {};
-    assert(sizeof(clients) > 8); // in case i change client list to a pointer and break the memset
+    DLB_ASSERT(sizeof(clients) > 8); // in case i change client list to a pointer and break the memset
 }

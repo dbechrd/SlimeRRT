@@ -29,16 +29,24 @@
 const char *GameClient::LOG_SRC = "GameClient";
 
 // TODO: Move this somewhere less stupid (e.g. a library of particle updaters)
-inline void RainbowParticlesDamagePlayer(Particle &particle, void *userData)
+inline void RainbowParticlesDamagePlayer(Particle &particle, World *world, EntityID entityId)
 {
-    DLB_ASSERT(userData);
+    DLB_ASSERT(world);
+    DLB_ASSERT(entityId);
 
-    Player *player = (Player *)userData;
-    const Vector3 particleWorld = v3_add(particle.effect->origin, particle.body.WorldPosition());
-    const Vector3 gut = player->GetAttachPoint(Player::AttachPoint::Gut);
-    const float particleToGut = v3_length_sq(v3_sub(gut, particleWorld));
-    if (particleToGut < SQUARED(METERS_TO_PIXELS(0.2f))) {
-        player->combat.TakeDamage(0.1f);
+    Attach *attach = (Attach *)world->facetDepot.FacetFind(entityId, Facet_Attach);
+    DLB_ASSERT(attach);  // not sure if this is expected to be null sometimes? hence the if below
+    if (attach) {
+        const Vector3 gut = attach->points[Attach_Gut];
+        const Vector3 particleWorld = v3_add(particle.effect->origin, particle.body.WorldPosition());
+        const float particleToGut = v3_length_sq(v3_sub(gut, particleWorld));
+        if (particleToGut < SQUARED(METERS_TO_PIXELS(0.2f))) {
+            Combat *combat = (Combat *)world->facetDepot.FacetFind(entityId, Facet_Combat);
+            DLB_ASSERT(combat);  // not sure if this is expected to be null sometimes? hence the if below
+            if (combat) {
+                combat->TakeDamage(0.1f);
+            }
+        }
     }
 }
 
@@ -347,7 +355,8 @@ void GameClient::PlayMode_HandleInput(PlayerControllerState &input)
 
 void GameClient::PlayMode_Update(double frameDt, PlayerControllerState &input)
 {
-    Player *player = netClient.serverWorld->FindPlayer(netClient.serverWorld->playerId);
+    const EntityID playerId = netClient.serverWorld->playerId;
+    DLB_ASSERT(playerId);
 
     renderAt = 0;
     if (netClient.worldHistory.Count()) {
@@ -363,7 +372,7 @@ void GameClient::PlayMode_Update(double frameDt, PlayerControllerState &input)
 
         netClient.inputSeq = MAX(1, netClient.inputSeq + 1);
         InputSample &sample = netClient.inputHistory.Alloc();
-        sample.FromController(player->id, netClient.inputSeq, frameDt, input);
+        sample.FromController(playerId, netClient.inputSeq, frameDt, input);
 
         // Send queued inputs to server ASAP (ideally, every frame), while respecting a sane rate limit
         netClient.SendPlayerInput();
@@ -374,7 +383,7 @@ void GameClient::PlayMode_Update(double frameDt, PlayerControllerState &input)
         // Update world state from worldSnapshot and re-apply sample with sample.tick > snapshot.tick
         netClient.ReconcilePlayer();
 
-        netClient.serverWorld->CL_DespawnStaleEntities();
+        netClient.serverWorld->CL_FreeDespawnedEntities();
 
         // Interpolate all of the other entities in the world
         //printf("RTT: %u RTTv: %u LRT: %u LRTv: %u HRTv %u\n",
@@ -396,10 +405,10 @@ void GameClient::PlayMode_Update(double frameDt, PlayerControllerState &input)
 
 void GameClient::PlayMode_UpdateCamera(double frameDt, PlayerControllerState &input)
 {
+    DLB_ASSERT(netClient.serverWorld);
+    World &world = *netClient.serverWorld;
     if (!g_spycam.freeRoam) {
-        Player *player = netClient.serverWorld->FindPlayer(netClient.serverWorld->playerId);
-        DLB_ASSERT(player);
-        Vector2 wtc = player->WorldTopCenter2D();
+        Vector2 wtc = Entity::WorldTopCenter2D(world, world.playerId);
         g_spycam.cameraGoal = { wtc.x, wtc.y };
     }
     g_spycam.Update(input, frameDt);
@@ -423,9 +432,11 @@ void GameClient::PlayMode_DrawWorld(PlayerControllerState &input)
 
     //UI::WorldGrid();
 
-
     if (input.dbgChatMessage) {
-        Player *player = netClient.serverWorld->LocalPlayer();
+        DLB_ASSERT(netClient.serverWorld);
+        World &world = *netClient.serverWorld;
+        DLB_ASSERT(world.playerId);
+
         ParticleEffectParams poisonNovaParams{};
         poisonNovaParams.particleCountMin = 128;
         poisonNovaParams.particleCountMax = poisonNovaParams.particleCountMin;
@@ -450,13 +461,14 @@ void GameClient::PlayMode_DrawWorld(PlayerControllerState &input)
         poisonNovaParams.gravityScaleB = 0.5f;
         ParticleEffect *fx = netClient.serverWorld->particleSystem.GenerateEffect(
             Catalog::ParticleEffectID::Poison_Nova,
-            player->WorldCenter(),
+            Entity::WorldCenter(world, world.playerId),
             poisonNovaParams
         );
         if (fx) {
             fx->effectCallbacks[(size_t)ParticleEffect_Event::BeforeUpdate] = {
                 ParticlesFollowPlayerGut,
-                player
+                netClient.serverWorld,
+                world.playerId
             };
         }
     }
@@ -535,6 +547,7 @@ void GameClient::PlayMode_DrawWorld(PlayerControllerState &input)
 void GameClient::PlayMode_DrawScreen(double frameDt, PlayerControllerState &input)
 {
     DLB_ASSERT(netClient.serverWorld);
+    DLB_ASSERT(netClient.serverWorld->playerId);
 
     // Handle mouse hover/click on important things
     {
@@ -563,7 +576,10 @@ void GameClient::PlayMode_DrawScreen(double frameDt, PlayerControllerState &inpu
                 }
             }
 
-            HealthBar::Draw(screenCenter, typeDesc, {});
+            // TODO: Refactor common text draw code from HealthBar so that
+            // things like tile object tooltips don't need to pass empty Combat
+            // structs etc.
+            HealthBar::Draw(screenCenter, typeDesc, {}, 0);
             if (input.primaryPress) {
                 netClient.SendTileInteract(worldPos.x, worldPos.y);
             }
@@ -610,10 +626,11 @@ void GameClient::PlayMode_DrawScreen(double frameDt, PlayerControllerState &inpu
     }
     UI::HUD(g_fonts.fontSmall, *netClient.serverWorld, debugStats);
 
-    //UI::QuickHUD(fontSdf24, player, *world->map);
-    Player *player = netClient.serverWorld->FindPlayer(netClient.serverWorld->playerId);
-    if (player) {
-        UI::Inventory(g_item_catalog.Tex(), *player, netClient, input.escape, inventoryActive);
+    //UI::QuickHUD(fontSdf24, netClient.serverWorld->playerId, *world->map);
+    Inventory *inventory = (Inventory *)netClient.serverWorld->facetDepot.FacetFind(netClient.serverWorld->playerId, Facet_Inventory);
+    DLB_ASSERT(inventory);
+    if (inventory) {
+        UI::InventoryUI(g_item_catalog.Tex(), *inventory, netClient, input.escape, inventoryActive);
     }
 
     if (false) {

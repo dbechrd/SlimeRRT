@@ -51,7 +51,7 @@ struct Spritesheet {
 
     ~Spritesheet();
     ErrorType LoadFromFile(const char *filename);
-    const SpriteDef *FindSprite(const char *name) const;
+    SpriteDef *FindSprite(const char *name);
 
 private:
     const char *LOG_SRC = "Spritesheet";

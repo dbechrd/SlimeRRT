@@ -1,6 +1,5 @@
 #include "tileset.h"
 #include "raylib/raylib.h"
-#include <cassert>
 #include <stdlib.h>
 
 static void tileset_load(TilesetID tilesetId, const char *texturePath);
@@ -16,8 +15,8 @@ static void tileset_load(TilesetID tilesetId, const char *texturePath)
     Tileset &tileset = g_tilesets[(size_t)tilesetId];
 
     tileset.texture = LoadTexture(texturePath);
-    assert(tileset.texture.width);
-    assert((tileset.texture.width % TILE_W) == 0);
+    DLB_ASSERT(tileset.texture.width);
+    DLB_ASSERT((tileset.texture.width % TILE_W) == 0);
 
     int tilesPerRow = tileset.texture.width / TILE_W;
     for (size_t i = 0; i < (size_t)TileType_Count; i++) {

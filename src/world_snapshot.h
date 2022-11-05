@@ -1,7 +1,11 @@
 #pragma once
-#include "entities/entities.h"
-#include "player.h"
+#include "direction.h"
+#include "entities/entity.h"
+#include "entities/inventory.h"
+#include "helpers.h"
 #include "dlb_types.h"
+#include "raylib/raylib.h"
+#include <cstdint>
 
 struct PlayerSnapshot {
     enum Flags : uint32_t {
@@ -36,16 +40,16 @@ struct PlayerSnapshot {
             Flags_XP        ,
     };
 
-    uint32_t        flags        {};
-    uint32_t        id           {};
-    Vector3         position     {};  // teleport, move
-    Direction       direction    {};  // teleport, move
-    float           speed        {};  // not velocity, just move speed, only needed for owner
-    float           hitPoints    {};  // heal, damage, die
-    float           hitPointsMax {};  // <no events>
-    uint8_t         level        {};  // join, level up
-    uint32_t        xp           {};  // join, kill enemy
-    PlayerInventory inventory    {};  // join, inventory update
+    uint32_t  flags        {};
+    uint32_t  id           {};
+    Vector3   position     {};  // teleport, move
+    Direction direction    {};  // teleport, move
+    float     speed        {};  // not velocity, just move speed, only needed for owner
+    float     hitPoints    {};  // heal, damage, die
+    float     hitPointsMax {};  // <no events>
+    uint8_t   level        {};  // join, level up
+    uint32_t  xp           {};  // join, kill enemy
+    Inventory inventory    {};  // join, inventory update
 };
 
 struct NpcSnapshot {

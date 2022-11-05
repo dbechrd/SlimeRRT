@@ -1,5 +1,5 @@
 #pragma once
-#include "spritesheet.h"
+#include "../spritesheet.h"
 
 namespace Catalog {
     enum class SpritesheetID {
@@ -13,7 +13,7 @@ namespace Catalog {
 
     struct Spritesheets {
         void Load(void);
-        const Spritesheet &FindById(SpritesheetID id) const;
+        Spritesheet &FindById(SpritesheetID id);
 
     private:
         Spritesheet byId[(size_t)SpritesheetID::Count];

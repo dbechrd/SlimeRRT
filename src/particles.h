@@ -2,7 +2,6 @@
 #include "body.h"
 #include "draw_command.h"
 #include "catalog/particle_fx.h"
-#include "sprite.h"
 #include "raylib/raylib.h"
 
 struct ParticleEffect;
@@ -20,7 +19,7 @@ struct Particle : Drawable {
 
     float Depth(void) const;
     bool  Cull(const Rectangle& cullRect) const;
-    void  Draw(World &world, Vector2 at) const override;
+    void  Draw(World &world, Vector2 at) override;
 };
 
 //-----------------------------------------------------------------------------
@@ -39,13 +38,15 @@ enum class ParticleEffect_ParticleEvent {
 };
 
 struct ParticleEffect_Callback {
-    void (*callback)(struct ParticleEffect &effect, void *userData);
-    void *userData{};
+    void (*callback)(struct ParticleEffect &effect, World *world, EntityID entityId);
+    World *world{};
+    EntityID entityId{};
 };
 
 struct ParticleEffect_ParticleCallback {
-    void (*callback)(struct Particle &particle, void *userData);
-    void *userData{};
+    void (*callback)(struct Particle &particle, World *world, EntityID entityId);
+    World *world{};
+    EntityID entityId{};
 };
 
 struct ParticleEffectParams {
@@ -119,6 +120,6 @@ private:
 
 //-----------------------------------------------------------------------------
 
-void ParticlesFollowPlayerGut(ParticleEffect &effect, void *userData);
-void ParticleDrawText(Particle &particle, void *userData);
-void ParticleFreeText(ParticleEffect &effect, void *userData);
+void ParticlesFollowPlayerGut (ParticleEffect &effect, World *world, EntityID entityId);
+void ParticleDrawText         (Particle &particle, World *world, EntityID entityId);
+void ParticleFreeText         (ParticleEffect &effect, World *world, EntityID entityId);

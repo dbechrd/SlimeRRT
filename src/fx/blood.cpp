@@ -1,28 +1,27 @@
 #include "../particles.h"
 #include "dlb_rand.h"
-#include <cassert>
 
 namespace FX {
     void blood_init(Particle &particle)
     {
-        assert(particle.effect);
+        DLB_ASSERT(particle.effect);
         const ParticleEffect &effect = *particle.effect;
         const ParticleEffectParams &par = effect.params;
 
-        assert(par.spawnDelayMin >= 0);
-        assert(par.spawnDelayMax >= par.spawnDelayMin);
-        assert(par.lifespanMin >= 0);
-        assert(par.lifespanMax >= par.lifespanMin);
-        assert(par.spawnScaleFirst > 0);
-        assert(par.spawnScaleLast > 0);
+        DLB_ASSERT(par.spawnDelayMin >= 0);
+        DLB_ASSERT(par.spawnDelayMax >= par.spawnDelayMin);
+        DLB_ASSERT(par.lifespanMin >= 0);
+        DLB_ASSERT(par.lifespanMax >= par.lifespanMin);
+        DLB_ASSERT(par.spawnScaleFirst > 0);
+        DLB_ASSERT(par.spawnScaleLast > 0);
 
         const float spawnDelay = dlb_rand32f_range(par.spawnDelayMin, par.spawnDelayMax);
         const float lifetime = dlb_rand32f_range(par.lifespanMin, par.lifespanMax);
 
         particle.spawnAt = effect.startedAt + (double)spawnDelay;
         particle.dieAt = particle.spawnAt + (double)lifetime;
-        assert(particle.spawnAt >= effect.startedAt);
-        assert(particle.dieAt > particle.spawnAt);
+        DLB_ASSERT(particle.spawnAt >= effect.startedAt);
+        DLB_ASSERT(particle.dieAt > particle.spawnAt);
 
         //float vx = dlb_rand32f_variance(1.0f);
         //float vy = dlb_rand32f_variance(1.0f);

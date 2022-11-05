@@ -24,59 +24,72 @@ namespace Slime {
         combat->hitPointsMax = 10.0f;
         combat->hitPoints = combat->hitPointsMax;
         combat->meleeDamage = 3.0f;
-        combat->xpMin = 2;
-        combat->xpMax = 4;
+        combat->xp = 3;
         combat->lootTableId = LootTableID::LT_Slime;
-        //npc.combat.droppedHitLoot = false;
-        //npc.combat.droppedDeathLoot = false;
         sprite->scale = 1.0f;
 
         if (!g_clock.server) {
-            const Spritesheet &spritesheet = Catalog::g_spritesheets.FindById(Catalog::SpritesheetID::Monster_Slime);
-            const SpriteDef *spriteDef = spritesheet.FindSprite("green_slime");
+            Spritesheet &spritesheet = Catalog::g_spritesheets.FindById(Catalog::SpritesheetID::Monster_Slime);
+            SpriteDef *spriteDef = spritesheet.FindSprite("green_slime");
             sprite->spriteDef = spriteDef;
         }
         return ErrorType::Success;
     }
 
-    bool TryCombine(World &world, EntityID entityId, EntityID otherId)
+    bool TryCombine(World &world, EntityID slimeId, EntityID otherSlimeId)
     {
-        if (npc.type != NPC::Type_Slime || other.type != NPC::Type_Slime) {
-            E_WARN("you can only combine slimes", 0);
+        DLB_ASSERT(slimeId);
+        DLB_ASSERT(otherSlimeId);
+
+        // Don't try to combine a slime with itself, very bad things will occur
+        DLB_ASSERT(slimeId != otherSlimeId);
+        if (slimeId == otherSlimeId) {
             return false;
         }
 
-        DLB_ASSERT(other.id > npc.id);
+        Combat *combatA = (Combat *)world.facetDepot.FacetFind(slimeId, Facet_Combat);
+        Entity *entityA = (Entity *)world.facetDepot.FacetFind(slimeId, Facet_Entity);
+        Sprite *spriteA = (Sprite *)world.facetDepot.FacetFind(slimeId, Facet_Sprite);
+        DLB_ASSERT(combatA);
+        DLB_ASSERT(entityA);
+        DLB_ASSERT(spriteA);
+
+        Combat *combatB = (Combat *)world.facetDepot.FacetFind(otherSlimeId, Facet_Combat);
+        Entity *entityB = (Entity *)world.facetDepot.FacetFind(otherSlimeId, Facet_Entity);
+        Sprite *spriteB = (Sprite *)world.facetDepot.FacetFind(otherSlimeId, Facet_Sprite);
+        DLB_ASSERT(combatB);
+        DLB_ASSERT(entityB);
+        DLB_ASSERT(spriteB);
+
+        if (entityA->entityType != Entity_Slime || entityB->entityType != Entity_Slime) {
+            E_WARN("you can only combine slimes", 0);
+            DLB_ASSERT(!"ur stupid, stop that");
+            return false;
+        }
 
         // The bigger slime should absorb the smaller one
-        NPC *a = nullptr;
-        NPC *b = nullptr;
-        if (npc.sprite.scale > other.sprite.scale) {
-            a = &npc;
-            b = &other;
-        } else {
-            a = &other;
-            b = &npc;
+        if (spriteB->scale > spriteA->scale) {
+            std::swap(combatA, combatB);
+            std::swap(entityA, entityB);
+            std::swap(spriteA, spriteB);
         }
 
         // Limit max scale
-        float newScale = a->sprite.scale + 0.5f * b->sprite.scale;
+        float newScale = spriteA->scale + 0.5f * spriteB->scale;
         if (newScale > SLIME_MAX_SCALE) {
             return false;
         }
 
         // Combine slime B's attributes into slime A
-        a->sprite.scale = newScale;
-        a->combat.hitPoints = a->combat.hitPoints + 0.5f * b->combat.hitPoints;
-        a->combat.hitPointsMax = a->combat.hitPointsMax + 0.5f * b->combat.hitPointsMax;
-        //Vector3 halfAToB = v3_scale(v3_sub(b->body.position, a->body.position), 0.5f);
-        //a->body.position = v3_add(a->body.position, halfAToB);
+        spriteA->scale = newScale;
+        combatA->hitPoints = combatA->hitPoints + 0.5f * combatB->hitPoints;
+        combatA->hitPointsMax = combatA->hitPointsMax + 0.5f * combatB->hitPointsMax;
 
         // Kill slime B
-        b->despawnedAt = g_clock.now;
-        //b->combat.hitPoints = 0.0f;
-        //b->combat.diedAt = g_clock.now;
-        //b->combat.droppedDeathLoot = true;
+        entityB->despawnedAt = g_clock.now;
+        //entityB->hitPoints = 0.0f;
+        //entityB->diedAt = g_clock.now;
+        //entityB->droppedDeathLoot = true;
     #if SV_DEBUG_WORLD_NPCS
         E_DEBUG("Combined slime #%u into slime #%u", b->id, a->id);
     #endif
@@ -100,14 +113,14 @@ namespace Slime {
             return false;
         }
 
-        entity->moveState = Entity::Move_Idle;
+        entity->moveState = Move_Idle;
         if (v2_is_zero(offset)) {
             return false;
         }
 
         // Check if hasn't moved for a bit
         if (body3d->TimeSinceLastMove() > entity->state.slime.randJumpIdle) {
-            entity->moveState = Entity::Move_Jump;
+            entity->moveState = Move_Jump;
             body3d->ApplyForce({ offset.x, offset.y, METERS_TO_PIXELS(5.0f) });
             // TODO: This is essentially Move_Recovery in a way.. hmm..
             entity->state.slime.randJumpIdle = (double)dlb_rand32f_range(0.5f, 1.5f) / sprite->scale;
@@ -120,6 +133,14 @@ namespace Slime {
     bool Attack(World &world, EntityID entityId, double dt)
     {
         UNUSED(dt); // todo: use dt;
+
+        DLB_ASSERT(entityId);
+        Body3D *body3d = (Body3D *)world.facetDepot.FacetFind(entityId, Facet_Body3D);
+        Combat *combat = (Combat *)world.facetDepot.FacetFind(entityId, Facet_Combat);
+        Entity *entity = (Entity *)world.facetDepot.FacetFind(entityId, Facet_Entity);
+        DLB_ASSERT(body3d);
+        DLB_ASSERT(combat);
+        DLB_ASSERT(entity);
 
     #if 0
         if (!body.landed) {
@@ -134,11 +155,11 @@ namespace Slime {
             return true;
         }
     #else
-        if (npc.body.landed) {
-            npc.actionState = NPC::Act_Attack;
-            npc.body.Move({});  // update last move to stop idle animation
-            npc.combat.attackStartedAt = g_clock.now;
-            npc.combat.attackDuration = 0.0;
+        if (body3d->landed) {
+            entity->actionState = Action_Attack;
+            body3d->Move({});  // update last move to stop idle animation
+            combat->attackStartedAt = g_clock.now;
+            combat->attackDuration = 0.0;
             return true;
         }
     #endif
@@ -148,83 +169,96 @@ namespace Slime {
     void Update(World &world, EntityID entityId, double dt)
     {
         DLB_ASSERT(entityId);
-        Body3D *body3d = (Body3D *)world.facetDepot.FacetFind(entityId, Facet_Body3D);
-        DLB_ASSERT(body3d);
+        Body3D *slimeBody3d = (Body3D *)world.facetDepot.FacetFind(entityId, Facet_Body3D);
+        Combat *slimeCombat = (Combat *)world.facetDepot.FacetFind(entityId, Facet_Combat);
+        Entity *slimeEntity = world.facetDepot.EntityFind(entityId);
+        Sprite *slimeSprite = (Sprite *)world.facetDepot.FacetFind(entityId, Facet_Sprite);
+        DLB_ASSERT(slimeBody3d);
+        DLB_ASSERT(slimeCombat);
+        DLB_ASSERT(slimeEntity);
+        DLB_ASSERT(slimeSprite);
 
         // Find nearest player
         Vector2 toNearestPlayer{};
-        EntityID nearestPlayer = world.PlayerFindNearest(body3d->GroundPosition(),
-            SV_ENEMY_DESPAWN_RADIUS, &toNearestPlayer);
-
-        bool despawn = !nearestPlayer;
-        if (!despawn) {
-            Combat *combat = (Combat *)world.facetDepot.FacetFind(entityId, Facet_Combat);
-            DLB_ASSERT(combat);
-        }
+        EntityID nearestPlayer = world.PlayerFindNearest(
+            slimeBody3d->GroundPosition(),
+            SV_ENEMY_DESPAWN_RADIUS,
+            &toNearestPlayer,
+            false
+        );
 
         // TODO: Make this more general for all enemies that should go away when nobody is nearby
         // Alternatively, we could store enemies in the world chunk if we want some sort of
         // mob continuity when a player returns to a previously visited area? Seems pointless.
-        if (!nearestPlayer || nearestPlayer->combat.diedAt) {
-            // No nearby players, insta-kill enemy w/ no loot
-            E_DEBUG("No nearby players, mark slime for despawn %u", npc.id);
-            npc.despawnedAt = g_clock.now;
+        if (!nearestPlayer) {
+            E_DEBUG("No nearby players, mark slime for despawn %u", entityId);
+            slimeEntity->despawnedAt = g_clock.now;
             return;
         }
 
         // Allow enemy to move toward nearest player
         const float distToNearestPlayer = v2_length(toNearestPlayer);
         if (distToNearestPlayer <= (float)SV_SLIME_ATTACK_TRACK) {
-            Vector2 slimeToPlayer = v2_sub(nearestPlayer->body.GroundPosition(), npc.body.GroundPosition());
-            const float moveDist = MIN(distToNearestPlayer, METERS_TO_PIXELS(npc.body.speed) * npc.sprite.scale);
+            const float moveDist = MIN(distToNearestPlayer, METERS_TO_PIXELS(slimeBody3d->speed) * slimeSprite->scale);
             // 5% -1.0, 95% +1.0f
             const float moveRandMult = 1.0f; //dlb_rand32i_range(1, 100) > 5 ? 1.0f : -1.0f;
-            const Vector2 slimeMoveDir = v2_normalize(slimeToPlayer);
+            const Vector2 slimeMoveDir = v2_normalize(toNearestPlayer);
             const Vector2 slimeMoveMag = v2_scale(slimeMoveDir, moveDist * moveRandMult);
-            const Vector3 slimePos = npc.body.WorldPosition();
+            const Vector3 slimePos = slimeBody3d->WorldPosition();
             const Vector3 slimePosNew = v3_add(slimePos, { slimeMoveMag.x, slimeMoveMag.y, 0 });
 
             int willCollide = 0;
-            for (auto &entity : world.facetDepot.entityPool) {
-                if (entity.id <= npc.id || other.combat.diedAt) {
+            for (EntityID otherSlimeId : world.facetDepot.entityIdsByType[Entity_Slime]) {
+                // Cut O(n^2) in half
+                if (otherSlimeId <= entityId) {
                     continue;
                 }
-                DLB_ASSERT(other.type == NPC::Type_Slime);
 
-                Vector3 otherSlimePos = other.body.WorldPosition();
-                const float radiusScaled = SV_SLIME_RADIUS * npc.sprite.scale;
+                // Ignore dead slimes
+                Combat *otherSlimeCombat = (Combat *)world.facetDepot.FacetFind(otherSlimeId, Facet_Combat);
+                DLB_ASSERT(otherSlimeCombat);
+                if (otherSlimeCombat->diedAt) {
+                    continue;
+                }
+
+                Body3D *otherSlimeBody3d = (Body3D *)world.facetDepot.FacetFind(otherSlimeId, Facet_Body3D);
+
+                Vector3 otherSlimePos = otherSlimeBody3d->WorldPosition();
+                const float radiusScaled = SV_SLIME_RADIUS * slimeSprite->scale;
                 if (v3_length_sq(v3_sub(slimePos, otherSlimePos)) < SQUARED(radiusScaled)) {
-                    TryCombine(npc, other);
+                    TryCombine(world, entityId, otherSlimeId);
                 }
                 if (v3_length_sq(v3_sub(slimePosNew, otherSlimePos)) < SQUARED(radiusScaled)) {
                     willCollide = 1;
                 }
             }
 
-            if (!willCollide && Move(npc, dt, slimeMoveMag)) {
+            if (!willCollide && Move(world, entityId, dt, slimeMoveMag)) {
                 // TODO(cleanup): used to play sound effect, might do something else on server?
                 //if (g_clock.server) {
-                //    Vector2 gPos = npc.body.GroundPosition();
-                //    E_DEBUG("Updated slime %u @ %.f, %.f", npc.id, gPos.x, gPos.y);
+                //    Vector2 gPos = slime.body.GroundPosition();
+                //    E_DEBUG("Updated slime %u @ %.f, %.f", slime.id, gPos.x, gPos.y);
                 //}
             }
         }
 
         // Allow slime to attack if on the ground and close enough to the player
         if (distToNearestPlayer <= SV_SLIME_ATTACK_REACH) {
-            if (!world.peaceful && Attack(npc, dt)) {
-                nearestPlayer->combat.TakeDamage(npc.combat.meleeDamage * npc.sprite.scale);
+            if (!world.peaceful && Attack(world, entityId, dt)) {
+                Combat *targetCombat = (Combat *)world.facetDepot.FacetFind(entityId, Facet_Combat);
+                DLB_ASSERT(targetCombat);
+                targetCombat->TakeDamage(slimeCombat->meleeDamage * slimeSprite->scale);
             }
         }
 
-        switch (npc.actionState) {
-            case NPC::Act_Attack:
+        switch (slimeEntity->actionState) {
+            case Action_Attack:
             {
-                const double timeSinceAttackStarted = g_clock.now - npc.combat.attackStartedAt;
-                if (timeSinceAttackStarted > npc.combat.attackDuration) {
-                    npc.actionState = NPC::Act_None;
-                    npc.combat.attackStartedAt = 0;
-                    npc.combat.attackDuration = 0;
+                const double timeSinceAttackStarted = g_clock.now - slimeCombat->attackStartedAt;
+                if (timeSinceAttackStarted > slimeCombat->attackDuration) {
+                    slimeEntity->actionState = Action_None;
+                    slimeCombat->attackStartedAt = 0;
+                    slimeCombat->attackDuration = 0;
                 }
                 break;
             }

@@ -2,7 +2,6 @@
 #include "body.h"
 #include "helpers.h"
 #include "raylib/raylib.h"
-#include <cassert>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -93,7 +92,7 @@ public:
 
 bool Scanner::DiscardChar(char c)
 {
-    assert(c);
+    DLB_ASSERT(c);
 
     if (cursor < length && text[cursor] == c) {
         cursor++;
@@ -104,7 +103,7 @@ bool Scanner::DiscardChar(char c)
 
 bool Scanner::DiscardString(const char *str)
 {
-    assert(str);
+    DLB_ASSERT(str);
 
     size_t idx = 0;
     while (cursor < length && text[cursor] == str[idx]) {
@@ -297,8 +296,8 @@ void Scanner::DiscardWhitespaceNewlinesComments()
 
 Token::Type Scanner::GetIdentifierType(StringView tok)
 {
-    assert(tok.length);
-    assert(tok.text);
+    DLB_ASSERT(tok.length);
+    DLB_ASSERT(tok.text);
 
     Token::Type type = Token::Type::Unknown;
 
@@ -599,10 +598,10 @@ void SpriteFrame::Draw(World &world, Vector2 at) const
     DrawTextureRec(spritesheet->texture, frameRect, topLeft, WHITE);
 }
 
-const SpriteDef *Spritesheet::FindSprite(const char *name) const
+SpriteDef *Spritesheet::FindSprite(const char *name)
 {
     // TODO: Hash table if the # of sprites per sheet grows to > 16.. or make SpriteID / sprite catalog?
-    for (const SpriteDef &sprite : sprites) {
+    for (SpriteDef &sprite : sprites) {
         if (!strncmp(sprite.name.text, name, sprite.name.length)) {
             return &sprite;
         }

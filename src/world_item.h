@@ -1,10 +1,11 @@
 #pragma once
 #include "body.h"
 #include "draw_command.h"
+#include "catalog/items.h"
+#include "entities/sprite.h"
+#include "raylib/raylib.h"
 
 #define ITEM_WORLD_RADIUS 10.0f
-
-typedef uint32_t EntityUID;
 
 struct WorldItem : Drawable {
     EntityUID euid              {};
@@ -21,7 +22,7 @@ struct WorldItem : Drawable {
     void    Update         (double dt);
     float   Depth          (void) const;
     bool    Cull           (const Rectangle& cullRect) const;
-    void    Draw           (World &world, Vector2 at) const override;
+    void    Draw           (World &world, Vector2 at) override;
 
 private:
     ItemStack namedStack {};

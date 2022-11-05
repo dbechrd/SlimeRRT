@@ -106,7 +106,7 @@ void HealthBar::Dialog(const Vector2 &topCenter, const char *text)
     UNUSED(topCenter);
     UNUSED(text);
     //const int fontSize = s_font.baseSize;
-    //assert(fontSize);
+    //DLB_ASSERT(fontSize);
 
     //Vector2 pad{ 16.0f, 8.0f };
 
