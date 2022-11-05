@@ -2,30 +2,41 @@
 #include "../catalog/spritesheets.h"
 
 namespace Slime {
-    ErrorType Init(World &world, EntityID id)
+    ErrorType Init(World &world, EntityID entityId)
     {
-        npc.type = NPC::Type_Slime;
-        npc.SetName(CSTR("Slime"));
-        npc.body.speed = SV_SLIME_MOVE_SPEED;
-        npc.body.drag = 0.01f;
-        npc.body.friction = 0.95f;
-        npc.body.restitution = 0.5f;
-        npc.combat.level = 1;
-        npc.combat.hitPointsMax = 10.0f;
-        npc.combat.hitPoints = npc.combat.hitPointsMax;
-        npc.combat.meleeDamage = 3.0f;
-        npc.combat.xpMin = 2;
-        npc.combat.xpMax = 4;
-        npc.combat.lootTableId = LootTableID::LT_Slime;
+        DLB_ASSERT(entityId);
+        Entity *entity = world.facetDepot.EntityFind(entityId);
+        DLB_ASSERT(entity);
+
+        Body3D *body3d = 0;
+        Combat *combat = 0;
+        Sprite *sprite = 0;
+        E_ERROR_RETURN(world.facetDepot.FacetAlloc(entityId, Facet_Body3D, (Facet **)&body3d), "Failed to alloc facet");
+        E_ERROR_RETURN(world.facetDepot.FacetAlloc(entityId, Facet_Combat, (Facet **)&combat), "Failed to alloc facet");
+        E_ERROR_RETURN(world.facetDepot.FacetAlloc(entityId, Facet_Sprite, (Facet **)&sprite), "Failed to alloc facet");
+
+        entity->SetName(CSTR("Slime"));
+        body3d->speed = SV_SLIME_MOVE_SPEED;
+        body3d->drag = 0.01f;
+        body3d->friction = 0.95f;
+        body3d->restitution = 0.5f;
+        combat->level = 1;
+        combat->hitPointsMax = 10.0f;
+        combat->hitPoints = combat->hitPointsMax;
+        combat->meleeDamage = 3.0f;
+        combat->xpMin = 2;
+        combat->xpMax = 4;
+        combat->lootTableId = LootTableID::LT_Slime;
         //npc.combat.droppedHitLoot = false;
         //npc.combat.droppedDeathLoot = false;
-        npc.sprite.scale = 1.0f;
+        sprite->scale = 1.0f;
 
         if (!g_clock.server) {
             const Spritesheet &spritesheet = Catalog::g_spritesheets.FindById(Catalog::SpritesheetID::Monster_Slime);
             const SpriteDef *spriteDef = spritesheet.FindSprite("green_slime");
-            npc.sprite.spriteDef = spriteDef;
+            sprite->spriteDef = spriteDef;
         }
+        return ErrorType::Success;
     }
 
     bool TryCombine(World &world, EntityID entityId, EntityID otherId)
@@ -136,18 +147,27 @@ namespace Slime {
 
     void Update(World &world, EntityID entityId, double dt)
     {
+        DLB_ASSERT(entityId);
+        Body3D *body3d = (Body3D *)world.facetDepot.FacetFind(entityId, Facet_Body3D);
+        DLB_ASSERT(body3d);
+
         // Find nearest player
         Vector2 toNearestPlayer{};
-        Player *nearestPlayer = world.FindNearestPlayer(npc.body.GroundPosition(), SV_ENEMY_DESPAWN_RADIUS,
-            &toNearestPlayer);
+        EntityID nearestPlayer = world.PlayerFindNearest(body3d->GroundPosition(),
+            SV_ENEMY_DESPAWN_RADIUS, &toNearestPlayer);
+
+        bool despawn = !nearestPlayer;
+        if (!despawn) {
+            Combat *combat = (Combat *)world.facetDepot.FacetFind(entityId, Facet_Combat);
+            DLB_ASSERT(combat);
+        }
 
         // TODO: Make this more general for all enemies that should go away when nobody is nearby
         // Alternatively, we could store enemies in the world chunk if we want some sort of
-        // mob continuity when a player returns to a previously visited area? Seems less fun.
+        // mob continuity when a player returns to a previously visited area? Seems pointless.
         if (!nearestPlayer || nearestPlayer->combat.diedAt) {
             // No nearby players, insta-kill enemy w/ no loot
             E_DEBUG("No nearby players, mark slime for despawn %u", npc.id);
-            //npc.combat.Despawn();
             npc.despawnedAt = g_clock.now;
             return;
         }
@@ -165,9 +185,8 @@ namespace Slime {
             const Vector3 slimePosNew = v3_add(slimePos, { slimeMoveMag.x, slimeMoveMag.y, 0 });
 
             int willCollide = 0;
-            for (size_t collideIdx = 0; collideIdx < ARRAY_SIZE(world.npcs.slimes); collideIdx++) {
-                NPC &other = world.npcs.slimes[collideIdx];
-                if (other.id <= npc.id || other.combat.diedAt) {
+            for (auto &entity : world.facetDepot.entityPool) {
+                if (entity.id <= npc.id || other.combat.diedAt) {
                     continue;
                 }
                 DLB_ASSERT(other.type == NPC::Type_Slime);

@@ -43,7 +43,8 @@ struct Entity : public Facet {
         } slime;
     } state;
 
-    void      SetName          (const char *newName, uint32_t newNameLength);
+    void           Init             (World &world);
+    void           SetName          (const char *newName, uint32_t newNameLength);
     static Vector3 WorldCenter      (World &world, EntityID entityId);
     static Vector3 WorldTopCenter3D (World &world, EntityID entityId);
     static Vector2 WorldTopCenter2D (World &world, EntityID entityId);

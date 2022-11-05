@@ -935,7 +935,7 @@ bool NetServer::ParseCommand(SV_Client &client, NetMessage_ChatMessage &chatMsg)
 #endif
         } else if (argc == 2) {
             uint32_t nameLength = (uint32_t)strnlen(argv[0], USERNAME_LENGTH_MAX);
-            Player *player = serverWorld->FindPlayerByName(argv[0], nameLength);
+            Player *player = serverWorld->PlayerFindByName(argv[0], nameLength);
             if (player) {
 #if 0
                 // TODO: Broadcast name change to other players
@@ -994,7 +994,7 @@ bool NetServer::ParseCommand(SV_Client &client, NetMessage_ChatMessage &chatMsg)
             }
         // /speed <player> <speed>
         } else if (argc == 2) {
-            Player *player = serverWorld->FindPlayerByName(argv[0], strlen(argv[0]));
+            Player *player = serverWorld->PlayerFindByName(argv[0], strlen(argv[0]));
             if (player) {
                 const PlayerInfo *playerInfo = serverWorld->FindPlayerInfo(player->id);
                 assert(playerInfo);
@@ -1022,7 +1022,7 @@ bool NetServer::ParseCommand(SV_Client &client, NetMessage_ChatMessage &chatMsg)
             }
         // /teleport <player> <x> <y> <z>
         } else if (argc == 4) {
-            Player *player = serverWorld->FindPlayerByName(argv[0], strlen(argv[0]));
+            Player *player = serverWorld->PlayerFindByName(argv[0], strlen(argv[0]));
             if (player) {
                 const PlayerInfo *playerInfo = serverWorld->FindPlayerInfo(player->id);
                 assert(playerInfo);

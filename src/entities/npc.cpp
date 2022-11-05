@@ -9,6 +9,36 @@
 #include "dlb_rand.h"
 #include "particles.h"
 
+void Entity::Init(World &world)
+{
+    switch (entityType) {
+        case Entity_Slime: {
+            Slime::Init(world, entityId);
+            break;
+        }
+        case Entity_Townfolk: {
+            // TODO: Townfolk factory, add all necessary facets and initialize them appropriately
+            npc.SetName(CSTR("Townfolk"));
+            npc.combat.hitPointsMax = 1;
+            npc.combat.hitPoints = npc.combat.hitPointsMax;
+            npc.combat.flags |= Combat::Flag_TooBigToFail;
+            // TODO: Shop inventory?
+            //npc.combat.lootTableId = LootTableID::LT_Slime;
+            npc.sprite.scale = 1.0f;
+            // TODO: FindClosestPlayer and update direction in Townfolk::Update()
+            npc.sprite.direction = Direction::South;
+
+            // TODO: Look this up by npc.type in Draw() instead
+            if (!g_clock.server) {
+                const Spritesheet &spritesheet = Catalog::g_spritesheets.FindById(Catalog::SpritesheetID::Monster_Slime);
+                const SpriteDef *spriteDef = spritesheet.FindSprite("blue_slime");
+                npc.sprite.spriteDef = spriteDef;
+            }
+            break;
+        }
+    }
+}
+
 void Entity::SetName(const char *newName, uint32_t newNameLen)
 {
     memset(name, 0, nameLength);

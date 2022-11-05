@@ -52,12 +52,6 @@ struct Combat : public Facet {
         return dealt;
     }
 
-    inline void Despawn() {
-        //hitPoints = 0;
-        //diedAt = g_clock.now;
-        //droppedDeathLoot = true;
-    }
-
     void Update(double dt)
     {
         DLB_ASSERT(hitPointsMax);

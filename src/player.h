@@ -298,7 +298,7 @@ struct PlayerInventory : public Inventory {
 };
 
 struct PlayerInfo {
-    uint32_t id         {};
+    EntityID entityId   {};
     uint32_t nameLength {};
     char     name       [USERNAME_LENGTH_MAX]{};
     uint16_t ping       {};
@@ -313,7 +313,7 @@ struct PlayerInfo {
 namespace Player {
     const char *LOG_SRC = "Player";
 
-    ErrorType Init   (World &world, EntityID id);
+    ErrorType Init   (World &world, EntityID entityId);
     bool      Attack (World &world, EntityID entityId, InputSample &input);
     bool      Move   (World &world, EntityID entityId, Vector2 offset);
     void      Update (World &world, EntityID entityId, InputSample &input, Tilemap &map);

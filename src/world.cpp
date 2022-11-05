@@ -12,7 +12,6 @@
 #include "spritesheet.h"
 #include "tilemap.h"
 #include "dlb_rand.h"
-#include <cassert>
 
 World::World(void)
 {
@@ -48,7 +47,7 @@ ErrorType World::AddPlayerInfo(const char *name, uint32_t nameLength, PlayerInfo
         PlayerInfo &playerInfo = playerInfos[i];
         if (!playerInfo.nameLength) {
             // We found a free slot
-            playerInfo.id = i + 1;
+            playerInfo.entityId = i + 1;
             playerInfo.nameLength = (uint32_t)MIN(nameLength, USERNAME_LENGTH_MAX);
             memcpy(playerInfo.name, name, playerInfo.nameLength);
             *result = &playerInfo;
@@ -58,10 +57,10 @@ ErrorType World::AddPlayerInfo(const char *name, uint32_t nameLength, PlayerInfo
     return ErrorType::ServerFull;
 }
 
-PlayerInfo *World::FindPlayerInfo(uint32_t playerId)
+PlayerInfo *World::FindPlayerInfo(EntityID entityId)
 {
     for (PlayerInfo &info : playerInfos) {
-        if (info.id == playerId) {
+        if (info.entityId == entityId) {
             return &info;
         }
     }
@@ -83,7 +82,7 @@ PlayerInfo *World::FindPlayerInfoByName(const char *name, size_t nameLength)
 }
 
 
-void World::RemovePlayerInfo(uint32_t playerId)
+void World::RemovePlayerInfo(EntityID playerId)
 {
     RemovePlayer(playerId);
 
@@ -93,89 +92,65 @@ void World::RemovePlayerInfo(uint32_t playerId)
     }
 }
 
-Entity *World::PlayerFindOrCreate(EntityID id)
+EntityID World::PlayerFindOrCreate(EntityID entityId)
 {
-    Entity *player = facetDepot.EntityFind(id);
+    Entity *player = facetDepot.EntityFind(entityId);
     if (!player) {
-        Player::Init();
+        Player::Init(*this, entityId);
     } else {
-        E_WARN("PlayerFindOrCreate: eid %u is already in use!", id);
+        E_WARN("PlayerFindOrCreate: eid %u is already in use!", entityId);
     }
-    return player;
+    return entityId;
+}
 
-    //const PlayerInfo *playerInfo = FindPlayerInfo(playerId);
-    //assert(playerInfo->nameLength);
+EntityID World::PlayerFindByName(const char *name, size_t nameLength)
+{
+    DLB_ASSERT(name);
+    DLB_ASSERT(nameLength);
 
-    for (int i = 0; i < SV_MAX_PLAYERS; i++) {
-        Player &player = players[i];
-        if (!player.id) {
-            assert(!player.combat.hitPointsMax);
-            player.id = playerId;
-            player.Init();
-            if (g_clock.server) {
-                player.body.Teleport(GetWorldSpawn());
-            }
-            return &player;
+    EntityID result = 0;
+    for (EntityID playerId : facetDepot.entityIdsByType[Entity_Player]) {
+        Entity *entity = facetDepot.EntityFind(playerId);
+        DLB_ASSERT(entity);
+        if (entity &&
+            entity->nameLength == nameLength &&
+            !strncmp(entity->name, name, nameLength))
+        {
+            result = playerId;
+            break;
         }
     }
-
-    // TODO: Make world->players a RingBuffer if this happens; there must
-    // be old/invalid player references hanging around (e.g. if there are 8
-    // other players and 1 leaves/joins really fast??)
-    TraceLog(LOG_ERROR, "Failed to add player");
-    return 0;
+    return result;
 }
 
-Player *World::FindPlayer(uint32_t playerId)
+EntityID World::PlayerFindNearest(Vector2 worldPos, float maxDist, Vector2 *toPlayer)
 {
-    if (!playerId) {
-        return 0;
-    }
-
-    for (Player &player : players) {
-        if (player.id == playerId) {
-            return &player;
+    EntityID result = 0;
+    for (EntityID playerId : facetDepot.entityIdsByType[Entity_Player]) {
+        Body3D *body3d = (Body3D *)facetDepot.FacetFind(playerId, Facet_Body3D);
+        DLB_ASSERT(body3d);
+        Vector2 toPlayerVec = v2_sub(body3d->GroundPosition(), worldPos);
+        const float toPlayerDistSq = v2_length_sq(toPlayerVec);
+        if (toPlayerDistSq <= SQUARED(maxDist)) {
+            if (toPlayer) *toPlayer = toPlayerVec;
+            result = playerId;
+            break;
         }
     }
-    return 0;
+    return result;
 }
 
-Player *World::LocalPlayer(void)
+void World::RemovePlayer(EntityID entityId)
 {
-    return FindPlayer(playerId);
-}
+    E_DEBUG("Remove player %u", entityId);
 
-Player *World::FindPlayerByName(const char *name, size_t nameLength)
-{
-    PlayerInfo *playerInfo = FindPlayerInfoByName(name, nameLength);
-    return playerInfo ? FindPlayer(playerInfo->id) : 0;
-}
-
-Player *World::FindNearestPlayer(Vector2 worldPos, float maxDist, Vector2 *toPlayer)
-{
-    for (Player &player : players) {
-        if (player.id) {
-            Vector2 toPlayerVec = v2_sub(player.body.GroundPosition(), worldPos);
-            const float toPlayerDistSq = v2_length_sq(toPlayerVec);
-            if (toPlayerDistSq <= SQUARED(maxDist)) {
-                if (toPlayer) *toPlayer = toPlayerVec;
-                return &player;
-            }
-        }
+    Entity *entity = facetDepot.EntityFind(entityId);
+    if (!entity) {
+        E_WARN("Cannot remove a player that doesn't exist (entityId: %u).", entityId);
     }
-    return 0;
-}
+    DLB_ASSERT(entity->entityType == Entity_Player);
 
-void World::RemovePlayer(uint32_t id)
-{
-    Player *player = FindPlayer(id);
-    if (!player) {
-        TraceLog(LOG_ERROR, "Cannot remove a player that doesn't exist (id: %u).", id);
-        return;
-    }
-
-    E_DEBUG("Remove player %u", id);
-    *player = {};
+    facetDepot.EntityFree(entityId);
 }
 
 ErrorType World::SpawnSam(void)
@@ -195,12 +170,12 @@ ErrorType World::SpawnSam(void)
     return ErrorType::Success;
 }
 
-ErrorType World::SpawnEntity(EntityID entityId, EntityType type, Vector3 worldPos, Entity **result)
+ErrorType World::SpawnEntity(EntityID entityId, EntityType type, Vector3 worldPos, EntityID *result)
 {
     DLB_ASSERT(type > 0);
     DLB_ASSERT(type < Entity_Count);
 
-    // Only the server should be spawning new npcs; the client merely replicates them by id
+    // Only the server should be spawning new npcs; the client merely replicates them by entityId
     if (g_clock.server) {
         DLB_ASSERT(entityId == 0);
     } else {
@@ -213,46 +188,22 @@ ErrorType World::SpawnEntity(EntityID entityId, EntityType type, Vector3 worldPo
         entityId = nextId;
     }
 
-    Facet *facet = 0;
-    E_ERROR_RETURN(facetDepot.FacetAlloc(entityId, Facet_Entity, &facet), "Facet alloc failed");
-    Entity *entity = (Entity *)facet;
+    Entity *entity = 0;
+    E_ERROR_RETURN(facetDepot.EntityAlloc(entityId, type, &entity), "Entity alloc failed");
     DLB_ASSERT(entity);
 
-    switch (type) {
-        case Entity_Slime: {
-            // TODO: Slime factory, add all necessary facets and initialize them appropriately
-            Slime::Init(facetDepot, entityId);
-            break;
-        }
-        case Entity_Townfolk: {
-            // TODO: Townfolk factory, add all necessary facets and initialize them appropriately
-            npc.type = NPC::Type_Townfolk;
-            npc.SetName(CSTR("Townfolk"));
-            npc.combat.hitPointsMax = 1;
-            npc.combat.hitPoints = npc.combat.hitPointsMax;
-            npc.combat.flags |= Combat::Flag_TooBigToFail;
-            // TODO: Shop inventory?
-            //npc.combat.lootTableId = LootTableID::LT_Slime;
-            npc.sprite.scale = 1.0f;
-            // TODO: FindClosestPlayer and update direction in Townfolk::Update()
-            npc.sprite.direction = Direction::South;
+    entity->Init(*this);
 
-            // TODO: Look this up by npc.type in Draw() instead
-            if (!g_clock.server) {
-                const Spritesheet &spritesheet = Catalog::g_spritesheets.FindById(Catalog::SpritesheetID::Monster_Slime);
-                const SpriteDef *spriteDef = spritesheet.FindSprite("blue_slime");
-                npc.sprite.spriteDef = spriteDef;
-            }
-            break;
-        }
+    Body3D *body3d = (Body3D *)facetDepot.FacetFind(entityId, Facet_Body3D);
+    if (body3d) {
+        body3d->Teleport({ worldPos.x, worldPos.y, 0 });
+        E_DEBUG("Spawning entity [%u] @ %.f, %.f", entityId, worldPos.x, worldPos.y);
+    } else {
+        E_DEBUG("Spawning entity [%u]", entityId);
     }
 
-    npc.body.Teleport({ worldPos.x, worldPos.y, 0 });
-    E_DEBUG("Spawning npc [%u] @ %.f, %.f", npc.id, worldPos.x, worldPos.y);
-
-    if (result) *result = &npc;
+    if (result) *result = entityId;
     return ErrorType::Success;
-
 }
 
 void World::SV_Simulate(double dt)
@@ -384,7 +335,7 @@ void World::SV_SimPlayers(double dt)
 
             const Tile *spawnTile = map.TileAtWorld(spawnPos.x, spawnPos.y);
             if (spawnTile && spawnTile->IsSpawnable()) {
-                Player *anyPlayerTooClose = FindNearestPlayer(spawnPos, SV_ENEMY_MIN_SPAWN_DIST);
+                Player *anyPlayerTooClose = PlayerFindNearest(spawnPos, SV_ENEMY_MIN_SPAWN_DIST);
                 if (!anyPlayerTooClose) {
                     SpawnNpc(0, NPC::Type_Slime, { spawnPos.x, spawnPos.y, 0 }, 0);
                 }
@@ -417,10 +368,10 @@ void World::SV_SimItems(double dt)
             continue;
         }
 
-        assert(item.stack.uid);
-        assert(item.stack.count);
+        DLB_ASSERT(item.stack.uid);
+        DLB_ASSERT(item.stack.count);
 
-        Player *closestPlayer = FindNearestPlayer(item.body.GroundPosition(), SV_ITEM_ATTRACT_DIST);
+        Player *closestPlayer = PlayerFindNearest(item.body.GroundPosition(), SV_ITEM_ATTRACT_DIST);
         if (!closestPlayer || !closestPlayer->id ||
             (item.droppedByPlayerId == closestPlayer->id && g_clock.now < item.spawnedAt + SV_ITEM_REPICKUP_DELAY)
         ) {
@@ -471,32 +422,34 @@ void World::SV_DespawnDeadEntities(void)
     }
 #endif
 
-    for (int type = NPC::Type_None + 1; type < NPC::Type_Count; type++) {
-        NpcList npcList = npcs.byType[type];
-        if (type == NPC::Type_Townfolk && !g_clock.server) {
-            DLB_ASSERT(1);
-        }
-        for (size_t i = 0; i < npcList.length; i++) {
-            NPC &npc = npcList.data[i];
-            if (!npc.id) {
-                continue;
-            }
+    for (int entityType = 0; entityType < Entity_Count; entityType++) {
+        std::vector<EntityID> entitiesByType = facetDepot.entityIdsByType[entityType];
+        for (EntityID entityId : entitiesByType) {
+            Entity *entity = facetDepot.EntityFind(entityId);
+            DLB_ASSERT(entity);
 
-            // Despawn npc if they've been dead for awhile
-            if (npc.despawnedAt) {
-                const double sinceDespawn = g_clock.now - npc.despawnedAt;
+            // Remove entity if they've been despawned for awhile
+            if (entity->despawnedAt) {
+                const double sinceDespawn = g_clock.now - entity->despawnedAt;
                 if (sinceDespawn > SV_NPC_DESPAWN_LIFETIME) {
-                    E_DEBUG("Remove despawned npc %u", npc.id);
-                    RemoveNpc(npc.id);
+                    E_DEBUG("Remove despawned npc %u", entityId);
+                    facetDepot.EntityFree(entityId);
                     continue;
                 }
-            //} else {
-            //    const double sinceDeath = npc.combat.diedAt ? (g_clock.now - npc.combat.diedAt) : 0;
-            //    if (sinceDeath > SV_NPC_CORPSE_LIFETIME) {
-            //        E_DEBUG("Despawn dead npc %u", npc.id);
-            //        npc.despawnedAt = g_clock.now;
-            //        continue;
-            //    }
+            } else {
+#if 0
+                // NOTE: We really only need to do this if the # of corpses gets really large,
+                // i.e. garbage collection of corpses, to prevent using too much memory.
+                Combat *combat = (Combat *)facetDepot.FacetFind(entityId, Facet_Combat);
+                if (combat) {
+                    const double sinceDeath = combat->diedAt ? (g_clock.now - combat->diedAt) : 0;
+                    if (sinceDeath > SV_NPC_CORPSE_LIFETIME) {
+                        E_DEBUG("Despawn dead npc %u", entityId);
+                        entity->despawnedAt = g_clock.now;
+                        continue;
+                    }
+                }
+#endif
             }
         }
     }
@@ -647,7 +600,7 @@ bool World::CullTile(Vector2 tilePos, int zoomMipLevel)
 size_t World::DrawMap(const Spycam &spycam)
 {
     const int zoomMipLevel = spycam.GetZoomMipLevel();
-    assert(zoomMipLevel > 0);
+    DLB_ASSERT(zoomMipLevel > 0);
     if (zoomMipLevel <= 0) {
         return 0;
     }

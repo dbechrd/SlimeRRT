@@ -1,5 +1,5 @@
 namespace Player {
-    ErrorType Init(World &world, EntityID id)
+    ErrorType Init(World &world, EntityID entityId)
     {
         Attach *attach = 0;
         Body3D *body3d = 0;
@@ -7,14 +7,15 @@ namespace Player {
         Inventory *inventory = 0;
         Sprite *sprite = 0;
 
-        E_ERROR_RETURN(world.facetDepot.FacetAlloc(id, Facet_Attach, (Facet **)&attach), "Failed to alloc facet");
-        E_ERROR_RETURN(world.facetDepot.FacetAlloc(id, Facet_Body3D, (Facet **)&body3d), "Failed to alloc facet");
-        E_ERROR_RETURN(world.facetDepot.FacetAlloc(id, Facet_Combat, (Facet **)&combat), "Failed to alloc facet");
-        E_ERROR_RETURN(world.facetDepot.FacetAlloc(id, Facet_Inventory, (Facet **)&inventory), "Failed to alloc facet");
-        E_ERROR_RETURN(world.facetDepot.FacetAlloc(id, Facet_Sprite, (Facet **)&sprite), "Failed to alloc facet");
+        E_ERROR_RETURN(world.facetDepot.FacetAlloc(entityId, Facet_Attach, (Facet **)&attach), "Failed to alloc facet");
+        E_ERROR_RETURN(world.facetDepot.FacetAlloc(entityId, Facet_Body3D, (Facet **)&body3d), "Failed to alloc facet");
+        E_ERROR_RETURN(world.facetDepot.FacetAlloc(entityId, Facet_Combat, (Facet **)&combat), "Failed to alloc facet");
+        E_ERROR_RETURN(world.facetDepot.FacetAlloc(entityId, Facet_Inventory, (Facet **)&inventory), "Failed to alloc facet");
+        E_ERROR_RETURN(world.facetDepot.FacetAlloc(entityId, Facet_Sprite, (Facet **)&sprite), "Failed to alloc facet");
 
         attach->points[Attach_Gut] = { 0.0f, 0.0f, -16.0f };
         body3d->speed = SV_PLAYER_MOVE_SPEED;
+        body3d->Teleport(world.GetWorldSpawn());
         combat->level = 1;
         combat->hitPoints = 100;
         combat->hitPointsMax = 100;

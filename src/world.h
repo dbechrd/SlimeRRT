@@ -13,6 +13,7 @@
 #include "world_item.h"
 #include "world_snapshot.h"
 #include "dlb_rand.h"
+#include <algorithm>
 #include <vector>
 
 // TODO: Put this somewhere else
@@ -42,7 +43,18 @@ struct Attach : public Facet {
 // TODO: Refactor WorldItems out of ItemSystem into EntityCollector
 // TODO: ResourceCatalog byType/byId for shared resources (textures, sprites, etc.)
 struct FacetDepot {
-    ErrorType FacetAlloc(EntityID entityId, FacetType type, Facet **result) {
+    // NOTE: Slot 0 is reserved for the EMPTY facet in each pool
+    std::vector<Attach>    attachPool    {{}};
+    std::vector<Body3D>    body3dPool    {{}};
+    std::vector<Combat>    combatPool    {{}};
+    std::vector<Entity>    entityPool    {{}};
+    std::vector<Inventory> inventoryPool {{}};
+    std::vector<Sprite>    spritePool    {{}};
+    std::unordered_map<EntityID, size_t> poolIndexByEntityID[Facet_Count]{};
+    std::vector<EntityID>entityIdsByType[Entity_Count]{};
+
+    ErrorType FacetAlloc(EntityID entityId, FacetType type, Facet **result)
+    {
         DLB_ASSERT(type >= 0);
         DLB_ASSERT(type < Facet_Count);
 
@@ -98,7 +110,8 @@ struct FacetDepot {
         return ErrorType::Success;
     }
 
-    Facet *FacetFind(EntityID entityId, FacetType type) {
+    Facet *FacetFind(EntityID entityId, FacetType type)
+    {
         DLB_ASSERT(type >= 0);
         DLB_ASSERT(type < Facet_Count);
 
@@ -116,7 +129,8 @@ struct FacetDepot {
         return 0;
     }
 
-    void FacetFree(EntityID entityId, FacetType type) {
+    void FacetFree(EntityID entityId, FacetType type)
+    {
         DLB_ASSERT(type >= 0);
         DLB_ASSERT(type < Facet_Count);
 
@@ -159,16 +173,38 @@ struct FacetDepot {
         }
     }
 
-    Entity *EntityFind(EntityID entityId) {
+    ErrorType EntityAlloc(EntityID entityId, EntityType type, Entity **result)
+    {
+        Entity *entity = 0;
+        E_ERROR_RETURN(FacetAlloc(entityId, Facet_Entity, (Facet **)entity),
+            "Failed to allocate entity id %u type %u", entityId, type);
+        entityIdsByType[type].emplace_back(entityId);
+        entity->entityType = type;
+        if (result) *result = entity;
+    }
+
+    Entity *EntityFind(EntityID entityId)
+    {
+        Entity *entity = 0;
         size_t poolIdx = poolIndexByEntityID[Facet_Entity][entityId];
         if (poolIdx) {
-            return &entityPool[poolIdx];
+            entity = &entityPool[poolIdx];
+            DLB_ASSERT(entity->entityId == entityId);
         }
-        return 0;
+        return entity;
     }
 
     void EntityFree(EntityID entityId) {
-        E_DEBUG("RemoveEntity [%u]", entityId);
+        E_DEBUG("EntityFree [%u]", entityId);
+
+        Entity *entity = EntityFind(entityId);
+        if (entity) {
+            auto &vec = entityIdsByType[entity->entityType];
+            vec.erase(std::remove(vec.begin(), vec.end(), entityId), vec.end());
+        } else {
+            E_WARN("No entity facet found for id %u. Removing other facets anyway.", entityId);
+        }
+
         for (int type = 0; type < Facet_Count; type++) {
             FacetFree(entityId, (FacetType)type);
         }
@@ -176,16 +212,6 @@ struct FacetDepot {
 
 private:
     const char *LOG_SRC = "EntityOwner";
-
-    // NOTE: Slot 0 is reserved for the EMPTY facet in each pool
-    std::vector<Attach>    attachPool    {{}};
-    std::vector<Body3D>    body3dPool    {{}};
-    std::vector<Combat>    combatPool    {{}};
-    std::vector<Entity>    entityPool    {{}};
-    std::vector<Inventory> inventoryPool {{}};
-    std::vector<Sprite>    spritePool    {{}};
-    //std::vector<Facet *> byType[Facet::Facet_Count]{};
-    std::unordered_map<EntityID, size_t> poolIndexByEntityID[Facet_Count]{};
 };
 
 struct World {
@@ -193,7 +219,7 @@ struct World {
     dlb_rand32_t   rtt_rand       {};
     uint32_t       tick           {};
     double         dtUpdate       {};
-    uint32_t       playerId       {};
+    EntityID       playerId       {};
     PlayerInfo     playerInfos    [SV_MAX_PLAYERS]{};
     FacetDepot     facetDepot     {};
     ItemSystem     itemSystem     {};
@@ -213,19 +239,15 @@ struct World {
     // vvv DO NOT HOLD A POINTER TO THESE! vvv
     //
     ErrorType   AddPlayerInfo        (const char *name, uint32_t nameLength, PlayerInfo **result);
-    PlayerInfo *FindPlayerInfo       (uint32_t playerId);
+    PlayerInfo *FindPlayerInfo       (EntityID entityId);
     PlayerInfo *FindPlayerInfoByName (const char *name, size_t nameLength);
-    void        RemovePlayerInfo     (uint32_t playerId);
-    Entity     *PlayerFindOrCreate   (EntityID id);
-    Player     *FindPlayer           (uint32_t playerId);
-    Player     *LocalPlayer          (void);
-    Player     *FindPlayerByName     (const char *name, size_t nameLength);
-    Player     *FindNearestPlayer    (Vector2 worldPos, float maxDist, Vector2 *dist = 0);
-    void        RemovePlayer         (uint32_t playerId);
+    void        RemovePlayerInfo     (EntityID entityId);
+    EntityID    PlayerFindOrCreate   (EntityID entityId);
+    EntityID    PlayerFindByName     (const char *name, size_t nameLength);
+    EntityID    PlayerFindNearest    (Vector2 worldPos, float maxDist, Vector2 *toPlayer = 0);
+    void        RemovePlayer         (EntityID entityId);
     ErrorType   SpawnSam             (void);
-    ErrorType   SpawnEntity          (EntityID entityId, EntityType type, Vector3 worldPos, Entity **result);
-    Entity     *FindEntity           (EntityID entityId);
-    void        RemoveEntity         (EntityID entityId);
+    ErrorType   SpawnEntity          (EntityID entityId, EntityType type, Vector3 worldPos, EntityID *result);
     //
     // ^^^ DO NOT HOLD A POINTER TO THESE! ^^^
     ////////////////////////////////////////////
