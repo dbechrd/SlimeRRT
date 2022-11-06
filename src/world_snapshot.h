@@ -11,15 +11,16 @@ struct PlayerSnapshot {
     enum Flags : uint32_t {
         Flags_None      = 0,
         Flags_Despawn   = 1 << 0,  // sent when client should despawn a puppet
-        Flags_Position  = 1 << 1,  // world position
-        Flags_Direction = 1 << 2,  // facing direction
-        Flags_Speed     = 1 << 3,  // move speed
-        Flags_Health    = 1 << 4,  // current health, e.g. heal/damage
-        Flags_HealthMax = 1 << 5,  // max health
-        Flags_Level     = 1 << 6,
-        Flags_XP        = 1 << 7,
+        Flags_Name      = 1 << 1,
+        Flags_Position  = 1 << 2,  // world position
+        Flags_Direction = 1 << 3,  // facing direction
+        Flags_Speed     = 1 << 4,  // move speed
+        Flags_Health    = 1 << 5,  // current health, e.g. heal/damage
+        Flags_HealthMax = 1 << 6,  // max health
+        Flags_Level     = 1 << 7,
+        Flags_XP        = 1 << 8,
         // TODO: PublicInventory and PrivateInventory to share visible gear without showing inv contents to other players
-        Flags_Inventory = 1 << 8,  // player inventory state
+        Flags_Inventory = 1 << 9,  // player inventory state
 
         // Fields to always send for puppets (players the client doesn't control) when entering their vicinity
         Flags_Spawn =
@@ -40,8 +41,10 @@ struct PlayerSnapshot {
             Flags_XP        ,
     };
 
-    uint32_t  flags        {};
     uint32_t  id           {};
+    uint32_t  flags        {};
+    uint8_t   nameLength   {};
+    char      name         [ENTITY_NAME_LENGTH_MAX]{};
     Vector3   position     {};  // teleport, move
     Direction direction    {};  // teleport, move
     float     speed        {};  // not velocity, just move speed, only needed for owner

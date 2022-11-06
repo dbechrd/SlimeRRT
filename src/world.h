@@ -42,16 +42,15 @@ struct World {
     ////////////////////////////////////////////
     // vvv DO NOT HOLD A POINTER TO THESE! vvv
     //
-    ErrorType   AddPlayerInfo        (const char *name, uint32_t nameLength, PlayerInfo **result);
+    ErrorType   AddPlayerInfo        (PlayerInfo **result);
     PlayerInfo *FindPlayerInfo       (EntityID entityId);
     PlayerInfo *FindPlayerInfoByName (const char *name, size_t nameLength);
     void        RemovePlayerInfo     (EntityID entityId);
-    EntityID    PlayerFindOrCreate   (EntityID entityId);
     EntityID    PlayerFindByName     (const char *name, size_t nameLength);
     EntityID    PlayerFindNearest    (Vector2 worldPos, float maxDist, Vector2 *toPlayer = 0, bool includeDead = false);
-    void        RemovePlayer         (EntityID entityId);
     ErrorType   SpawnSam             (void);
     ErrorType   SpawnEntity          (EntityID entityId, EntityType type, Vector3 worldPos, Entity **result);
+    ErrorType   FindOrSpawnEntity    (EntityID entityId, EntityType type, Entity **result);
     //
     // ^^^ DO NOT HOLD A POINTER TO THESE! ^^^
     ////////////////////////////////////////////

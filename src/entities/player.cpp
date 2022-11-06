@@ -1,4 +1,5 @@
-namespace Player {
+namespace Player
+{
     ErrorType Init(World &world, EntityID entityId)
     {
         Attach *attach = 0;

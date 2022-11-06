@@ -165,6 +165,7 @@ int main(int argc, char *argv[])
 #include "entities/player.cpp"
 #include "entities/slime.cpp"
 #include "entities/sprite.cpp"
+#include "entities/townfolk.cpp"
 #include "error.cpp"
 #include "fx/blood.cpp"
 #include "fx/gem.cpp"

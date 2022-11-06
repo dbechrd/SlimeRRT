@@ -1,7 +1,8 @@
 #include "slime.h"
 #include "../catalog/spritesheets.h"
 
-namespace Slime {
+namespace Slime
+{
     ErrorType Init(World &world, EntityID entityId)
     {
         DLB_ASSERT(entityId);
@@ -252,8 +253,7 @@ namespace Slime {
         }
 
         switch (slimeEntity->actionState) {
-            case Action_Attack:
-            {
+            case Action_Attack: {
                 const double timeSinceAttackStarted = g_clock.now - slimeCombat->attackStartedAt;
                 if (timeSinceAttackStarted > slimeCombat->attackDuration) {
                     slimeEntity->actionState = Action_None;

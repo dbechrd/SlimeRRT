@@ -109,6 +109,7 @@
 #define SV_ENEMY_DESPAWN_RADIUS     METERS_TO_PIXELS(40.0f)      // furthest enemies can be from a player before despawning
 #define SV_ITEM_NEARBY_THRESHOLD    METERS_TO_PIXELS(20.0f)      // how close an item has to be to receive a snapshot
 #endif
+#define SV_PLAYER_INTERACT_DIST_MAX METERS_TO_PIXELS(1.0f)       // how close player must be to interact with an interactable (e.g. overturn a rock)
 #define SV_ITEM_ATTRACT_DIST        METERS_TO_PIXELS(1.0f)       // how close player should be to item to attract it
 #define SV_ITEM_PICKUP_DIST         METERS_TO_PIXELS(0.3f)       // how close player should be to item to pick it up
 #define SV_ITEM_PICKUP_DELAY        1.0                          // how long after an item is spawned before it can be picked up by a player

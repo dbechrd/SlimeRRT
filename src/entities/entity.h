@@ -44,20 +44,19 @@ struct Entity : public Facet, public Drawable {
         } slime;
     } state;
 
-    static Vector3 WorldCenter      (World &world, EntityID entityId);
-    static Vector3 WorldTopCenter3D (World &world, EntityID entityId);
-    static Vector2 WorldTopCenter2D (World &world, EntityID entityId);
-    static Vector3 GetAttachPoint   (World &world, EntityID entityId, AttachType attachType);
-    static void    SlimeUpdate      (World &world, EntityID entityId, double dt);
-    static void    Update           (World &world, EntityID entityId, double dt);
-    static float   Depth            (World &world, EntityID entityId);
-    static bool    Cull             (World &world, EntityID entityId, const Rectangle& cullRect);
-    static void    DrawSwimOverlay  (World &world, EntityID entityId);
-
-    void           Init             (World &world);
-    void           SetName          (const char *newName, uint32_t newNameLength);
-    void           Draw             (World &world, Vector2 at) override;
+    static ErrorType Init             (World &world, EntityID entityId, EntityType type);
+    static Vector3   WorldCenter      (World &world, EntityID entityId);
+    static Vector3   WorldTopCenter3D (World &world, EntityID entityId);
+    static Vector2   WorldTopCenter2D (World &world, EntityID entityId);
+    static Vector3   GetAttachPoint   (World &world, EntityID entityId, AttachType attachType);
+    static void      SlimeUpdate      (World &world, EntityID entityId, double dt);
+    static void      Update           (World &world, EntityID entityId, double dt);
+    static float     Depth            (World &world, EntityID entityId);
+    static bool      Cull             (World &world, EntityID entityId, const Rectangle& cullRect);
+    static void      DrawSwimOverlay  (World &world, EntityID entityId);
+    void             SetName          (const char *newName, uint32_t newNameLength);
+    void             Draw             (World &world, Vector2 at) override;
 
 private:
-    const char *LOG_SRC = "Entity";
+    static const char *LOG_SRC;
 };

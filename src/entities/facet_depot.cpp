@@ -86,6 +86,8 @@ void FacetDepot::FacetFree(EntityID entityId, FacetType type)
         return;
     }
 
+    poolIndexByEntityID[type].erase(entityId);
+
     switch (type) {
         case Facet_Attach:
         {

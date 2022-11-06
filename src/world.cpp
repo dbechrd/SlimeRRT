@@ -31,25 +31,14 @@ const Vector3 World::GetWorldSpawn(void)
     return worldSpawn;
 };
 
-ErrorType World::AddPlayerInfo(const char *name, uint32_t nameLength, PlayerInfo **result)
+ErrorType World::AddPlayerInfo(PlayerInfo **result)
 {
-    DLB_ASSERT(name);
-    DLB_ASSERT(nameLength >= USERNAME_LENGTH_MIN);
-    DLB_ASSERT(nameLength <= USERNAME_LENGTH_MAX);
     DLB_ASSERT(result);
-
-    PlayerInfo *existingPlayer = FindPlayerInfoByName(name, nameLength);
-    if (existingPlayer) {
-        return ErrorType::UserAccountInUse;
-    }
 
     for (int i = 0; i < (int)ARRAY_SIZE(playerInfos); i++) {
         PlayerInfo &playerInfo = playerInfos[i];
         if (!playerInfo.nameLength) {
             // We found a free slot
-            playerInfo.entityId = i + 1;
-            playerInfo.nameLength = (uint32_t)MIN(nameLength, USERNAME_LENGTH_MAX);
-            memcpy(playerInfo.name, name, playerInfo.nameLength);
             *result = &playerInfo;
             return ErrorType::Success;
         }
@@ -84,23 +73,14 @@ PlayerInfo *World::FindPlayerInfoByName(const char *name, size_t nameLength)
 
 void World::RemovePlayerInfo(EntityID playerId)
 {
-    RemovePlayer(playerId);
+    DLB_ASSERT(playerId);
+
+    facetDepot.EntityFree(playerId);
 
     PlayerInfo *playerInfo = FindPlayerInfo(playerId);
     if (playerInfo) {
         *playerInfo = {};
     }
-}
-
-EntityID World::PlayerFindOrCreate(EntityID entityId)
-{
-    Entity *player = facetDepot.EntityFind(entityId);
-    if (!player) {
-        Player::Init(*this, entityId);
-    } else {
-        E_WARN("PlayerFindOrCreate: eid %u is already in use!", entityId);
-    }
-    return entityId;
 }
 
 EntityID World::PlayerFindByName(const char *name, size_t nameLength)
@@ -146,19 +126,6 @@ EntityID World::PlayerFindNearest(Vector2 worldPos, float maxDist, Vector2 *toPl
     return result;
 }
 
-void World::RemovePlayer(EntityID entityId)
-{
-    E_DEBUG("Remove player %u", entityId);
-
-    Entity *entity = facetDepot.EntityFind(entityId);
-    if (!entity) {
-        E_WARN("Cannot remove a player that doesn't exist (entityId: %u).", entityId);
-    }
-    DLB_ASSERT(entity->entityType == Entity_Player);
-
-    facetDepot.EntityFree(entityId);
-}
-
 ErrorType World::SpawnSam(void)
 {
     //NPC *sam = 0;
@@ -198,7 +165,7 @@ ErrorType World::SpawnEntity(EntityID entityId, EntityType type, Vector3 worldPo
     E_ERROR_RETURN(facetDepot.EntityAlloc(entityId, type, &entity), "Entity alloc failed");
     DLB_ASSERT(entity);
 
-    entity->Init(*this);
+    entity->Init(*this, entityId, type);
 
     Body3D *body3d = (Body3D *)facetDepot.FacetFind(entityId, Facet_Body3D);
     if (body3d) {
@@ -209,6 +176,17 @@ ErrorType World::SpawnEntity(EntityID entityId, EntityType type, Vector3 worldPo
     }
 
     if (result) *result = entity;
+    return ErrorType::Success;
+}
+
+ErrorType World::FindOrSpawnEntity(EntityID entityId, EntityType type, Entity **result)
+{
+    Entity *entity = facetDepot.EntityFind(entityId);
+    if (entity) {
+        if (result) *result = entity;
+    } else {
+        E_ERROR_RETURN(SpawnEntity(entityId, type, {}, result), "Failed to spawn entity");
+    }
     return ErrorType::Success;
 }
 

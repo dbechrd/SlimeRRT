@@ -24,7 +24,7 @@ ErrorType NetServer::SaveUserDB(const char *filename)
 
     DB::FinishUserDBBuffer(fbb, userDB);
     if (!SaveFileData(filename, fbb.GetBufferPointer(), fbb.GetSize())) {
-        printf("Uh oh, it didn't work :(\n");
+        E_DEBUG("Uh oh, it didn't work :(\n");
     }
 
     return ErrorType::Success;
@@ -77,7 +77,7 @@ ErrorType NetServer::OpenSocket(unsigned short socketPort)
         E_ERROR_RETURN(ErrorType::HostCreateFailed, "Failed to create host. Check if port(s) %hu already in use.", socketPort);
     }
 
-    printf("Listening on port %hu...\n", address.port);
+    E_DEBUG("Listening on port %hu...\n", address.port);
     return ErrorType::Success;
 }
 
@@ -191,10 +191,10 @@ ErrorType NetServer::SendWelcomeBasket(SV_Client &client)
         welcome.playerId = client.playerId;
         welcome.playerCount = 0;
         for (size_t i = 0; i < SV_MAX_PLAYERS; i++) {
-            if (!serverWorld->players[i].id)
+            if (!serverWorld->playerInfos[i].entityId)
                 continue;
 
-            welcome.players[i].id = serverWorld->players[i].id;
+            welcome.players[i].entityId = serverWorld->playerInfos[i].entityId;
             welcome.players[i].nameLength = serverWorld->playerInfos[i].nameLength;
             memcpy(welcome.players[i].name, serverWorld->playerInfos[i].name, welcome.players[i].nameLength);
             welcome.playerCount++;
@@ -244,7 +244,7 @@ ErrorType NetServer::BroadcastPlayerJoin(const PlayerInfo &playerInfo)
     globalEvent.type = NetMessage_GlobalEvent::Type::PlayerJoin;
 
     NetMessage_GlobalEvent::PlayerJoin &playerJoin = netMsg.data.globalEvent.data.playerJoin;
-    playerJoin.playerId = playerInfo.id;
+    playerJoin.playerId = playerInfo.entityId;
     playerJoin.nameLength = playerInfo.nameLength;
     memcpy(playerJoin.name, playerInfo.name, playerInfo.nameLength);
     return BroadcastMsg(netMsg);
@@ -296,20 +296,25 @@ ErrorType NetServer::SendWorldChunk(const SV_Client &client, const Chunk &chunk)
 void NetServer::SendNearbyChunks(SV_Client &client)
 {
     // Send nearby chunks to player if they haven't received them yet
-    const Player *player = serverWorld->FindPlayer(client.playerId);
-    if (player) {
-        Vector2 playerBC = player->body.GroundPosition();
-        const int16_t chunkX = serverWorld->map.CalcChunk(playerBC.x);
-        const int16_t chunkY = serverWorld->map.CalcChunk(playerBC.y);
+    const Body3D *playerBody3d = (Body3D *)serverWorld->facetDepot.FacetFind(client.playerId, Facet_Body3D);
+    DLB_ASSERT(playerBody3d);
+    #if _DEBUG
+        // TODO(cleanup): Why would we put something other than a player in client.playerId??
+        const Entity *playerEntity = serverWorld->facetDepot.EntityFind(client.playerId);
+        DLB_ASSERT(playerEntity);
+        DLB_ASSERT(playerEntity->entityType == Entity_Player);
+    #endif
+    Vector2 playerBC = playerBody3d->GroundPosition();
+    const int16_t chunkX = serverWorld->map.CalcChunk(playerBC.x);
+    const int16_t chunkY = serverWorld->map.CalcChunk(playerBC.y);
 
-        for (int y = chunkY - 2; y <= chunkY + 2; y++) {
-            for (int x = chunkX - 2; x <= chunkX + 2; x++) {
-                const ChunkHash chunkHash = Chunk::Hash(x, y);
-                if (!client.chunkHistory.contains(chunkHash)) {
-                    const Chunk &chunk = serverWorld->map.FindOrGenChunk(*serverWorld, x, y);
-                    SendWorldChunk(client, chunk);
-                    client.chunkHistory.insert(chunk.Hash());
-                }
+    for (int y = chunkY - 2; y <= chunkY + 2; y++) {
+        for (int x = chunkX - 2; x <= chunkX + 2; x++) {
+            const ChunkHash chunkHash = Chunk::Hash(x, y);
+            if (!client.chunkHistory.contains(chunkHash)) {
+                const Chunk &chunk = serverWorld->map.FindOrGenChunk(*serverWorld, x, y);
+                SendWorldChunk(client, chunk);
+                client.chunkHistory.insert(chunk.Hash());
             }
         }
     }
@@ -326,13 +331,19 @@ ErrorType NetServer::BroadcastTileUpdate(float worldX, float worldY, const Tile 
 
     // Broadcast to nearby players
     E_ERROR_RETURN(BroadcastMsg(netMsg, [&](SV_Client &client) {
-        const Player *player = serverWorld->FindPlayer(client.playerId);
-        if (player) {
-            Vector3 playerPos = player->body.WorldPosition();
-            if (v3_distance_sq(playerPos, { worldX, worldY, 0 }) < SQUARED(SV_TILE_UPDATE_DIST)) {
-                E_INFO("Sending tile update to player %d", client.playerId);
-                return true;
-            }
+        // Send nearby chunks to player if they haven't received them yet
+        const Body3D *playerBody3d = (Body3D *)serverWorld->facetDepot.FacetFind(client.playerId, Facet_Body3D);
+        DLB_ASSERT(playerBody3d);
+        #if _DEBUG
+            // TODO(cleanup): Why would we put something other than a player in client.playerId??
+            const Entity *playerEntity = serverWorld->facetDepot.EntityFind(client.playerId);
+            DLB_ASSERT(playerEntity);
+            DLB_ASSERT(playerEntity->entityType == Entity_Player);
+        #endif
+        Vector3 playerPos = playerBody3d->WorldPosition();
+        if (v3_distance_sq(playerPos, { worldX, worldY, 0 }) < SQUARED(SV_TILE_UPDATE_DIST)) {
+            E_INFO("Sending tile update to player %d", client.playerId);
+            return true;
         }
         return false;
     }), "Failed to broadcast tile update", 0);
@@ -397,6 +408,10 @@ ErrorType NetServer::SendWorldSnapshot(SV_Client &client)
                     #endif
                 } else {
                     // Send delta updates for puppets that the client already knows about
+                    if (strncmp(prevState->second.name, otherPlayerEntity->name, otherPlayerEntity->nameLength)) {
+                        // TODO: Make NameChangeEvent if it ever actually needs to be updated.. or shared string table
+                        flags |= PlayerSnapshot::Flags_Name;
+                    }
                     if (!v3_equal(otherPlayer.body.WorldPosition(), prevState->second.position, POSITION_EPSILON)) {
                         flags |= PlayerSnapshot::Flags_Position;
                     }
@@ -799,7 +814,7 @@ bool NetServer::IsValidInput(const SV_Client &client, const InputSample &sample)
     // If sample is too far in the future, ignore
     //if (sample.seq > client.lastInputAck + (1000 / SV_TICK_RATE)) {
     //    // TODO: Disconnect someone trying to send futuristic inputs?
-    //    printf("Input too far in future.. ignoring (%u > %u)\n", sample.clientTick, client.lastInputAck);
+    //    E_DEBUG("Input too far in future.. ignoring (%u > %u)\n", sample.clientTick, client.lastInputAck);
     //    return false;
     //}
 
@@ -836,9 +851,9 @@ bool NetServer::ParseCommand(SV_Client &client, NetMessage_ChatMessage &chatMsg)
     };
 
 #if _DEBUG
-    printf("Command: %s\n", command);
+    E_DEBUG("Command: %s\n", command);
     for (int i = 0; i < argc; i++) {
-        printf("  args[%d]: %s\n", i, argv[i]);
+        E_DEBUG("  args[%d]: %s\n", i, argv[i]);
     }
 #endif
 
@@ -932,15 +947,13 @@ bool NetServer::ParseCommand(SV_Client &client, NetMessage_ChatMessage &chatMsg)
 #endif
         } else if (argc == 2) {
             uint32_t nameLength = (uint32_t)strnlen(argv[0], USERNAME_LENGTH_MAX);
-            Player *player = serverWorld->PlayerFindByName(argv[0], nameLength);
-            if (player) {
-#if 0
-                // TODO: Broadcast name change to other players
-                player->nameLength = nameLength;
-                strncpy(player->name, argv[0], player->nameLength);
-#else
-                SendChatMessage(client, CSTR("[nick] Not yet implemented."));
-#endif
+
+            EntityID playerId = serverWorld->PlayerFindByName(argv[0], nameLength);
+            if (playerId) {
+                Entity *entity = (Entity *)serverWorld->facetDepot.EntityFind(playerId);
+                DLB_ASSERT(entity);
+                // TODO: Broadcast playerInfo change to other players
+                entity->SetName(argv[0], nameLength);
             } else {
                 SendChatMessage(client, CSTR("[nick] Player not found."));
             }
@@ -955,49 +968,65 @@ bool NetServer::ParseCommand(SV_Client &client, NetMessage_ChatMessage &chatMsg)
             SendChatMessage(client, CSTR("Usage: " USAGE_PEACE));
         }
     } else if (!strcmp(command, COMMAND_RTP)) {
+        // /rtp [max_distance]
         if (argc > 1) {
             SendChatMessage(client, CSTR("Usage: " USAGE_RTP));
         } else {
             // /rtp
             float variance = 10000.0f;
 
-            // /rtp [max_distance]
             if (argc == 1) {
+                // /rtp 5000
                 variance = strtof(argv[0], 0);
             }
 
-            Player *player = serverWorld->FindPlayer(client.playerId);
+            Entity *player = serverWorld->facetDepot.EntityFind(client.playerId);
             if (player) {
-                const PlayerInfo *playerInfo = serverWorld->FindPlayerInfo(player->id);
+                Body3D *body3d = (Body3D *)serverWorld->facetDepot.FacetFind(player->entityId, Facet_Body3D);
+                DLB_ASSERT(body3d);
+                const PlayerInfo *playerInfo = serverWorld->FindPlayerInfo(player->entityId);
                 DLB_ASSERT(playerInfo);
 
                 Vector3 worldPos{};
                 worldPos.x += dlb_rand32f_variance(variance);
                 worldPos.y += dlb_rand32f_variance(variance);
-                player->body.Teleport(worldPos);
-                printf("[teleport] Teleported %.*s to %f %f %f\n", playerInfo->nameLength, playerInfo->name, worldPos.x, worldPos.y, worldPos.z);
+                body3d->Teleport(worldPos);
+                E_DEBUG("[teleport] Teleported %.*s to %f %f %f\n",
+                    playerInfo->nameLength,
+                    playerInfo->name,
+                    worldPos.x, worldPos.y, worldPos.z
+                );
             }
         }
     } else if (!strcmp(command, COMMAND_SPEED)) {
-        // /speed <speed>
-        if (argc == 1) {
-            Player *player = serverWorld->FindPlayer(client.playerId);
-            if (player) {
-                const PlayerInfo *playerInfo = serverWorld->FindPlayerInfo(player->id);
-                DLB_ASSERT(playerInfo);
-                float speed = strtof(argv[0], 0);
-                player->body.speed = speed;
-                printf("[speed] Set %.*s speed to %f\n", playerInfo->nameLength, playerInfo->name, speed);
+        // /speed [player] <speed>
+        if (argc == 1 || argc == 2) {
+            EntityID playerId = 0;
+            char *argSpeed = 0;
+
+            if (argc == 1) {
+                // /speed 5
+                playerId = client.playerId;
+                argSpeed = argv[0];
+            } else if (argc == 2) {
+                // /speed dandy 5
+                playerId = serverWorld->PlayerFindByName(argv[0], strlen(argv[0]));
+                argSpeed = argv[1];
             }
-        // /speed <player> <speed>
-        } else if (argc == 2) {
-            Player *player = serverWorld->PlayerFindByName(argv[0], strlen(argv[0]));
-            if (player) {
-                const PlayerInfo *playerInfo = serverWorld->FindPlayerInfo(player->id);
+
+            Body3D *body3d = (Body3D *)serverWorld->facetDepot.FacetFind(playerId, Facet_Body3D);
+            if (body3d) {
+                DLB_ASSERT(body3d);
+                const PlayerInfo *playerInfo = serverWorld->FindPlayerInfo(playerId);
                 DLB_ASSERT(playerInfo);
-                float speed = strtof(argv[1], 0);
-                player->body.speed = speed;
-                printf("[speed] Set %.*s speed to %f\n", playerInfo->nameLength, playerInfo->name, speed);
+
+                DLB_ASSERT(argSpeed);
+                body3d->speed = strtof(argSpeed, 0);
+                E_DEBUG("[speed] Set %.*s speed to %f\n",
+                    playerInfo->nameLength,
+                    playerInfo->name,
+                    body3d->speed
+                );
             } else {
                 SendChatMessage(client, CSTR("[speed] Player not found."));
             }
@@ -1005,29 +1034,42 @@ bool NetServer::ParseCommand(SV_Client &client, NetMessage_ChatMessage &chatMsg)
             SendChatMessage(client, CSTR("Usage: " USAGE_SPEED));
         }
     } else if (!strcmp(command, COMMAND_TELEPORT)) {
-        // /teleport <x> <y> <z>
-        if (argc == 3) {
-            Player *player = serverWorld->FindPlayer(client.playerId);
-            if (player) {
-                const PlayerInfo *playerInfo = serverWorld->FindPlayerInfo(player->id);
-                DLB_ASSERT(playerInfo);
-                float x = strtof(argv[0], 0);
-                float y = strtof(argv[1], 0);
-                float z = strtof(argv[2], 0);
-                player->body.Teleport({ x, y, z });
-                printf("[teleport] Teleported %.*s to %f %f %f\n", playerInfo->nameLength, playerInfo->name, x, y, z);
+        // /teleport [player] <x> <y> <z>
+        if (argc == 3 || argc == 4) {
+            EntityID playerId = 0;
+            char *argX = 0;
+            char *argY = 0;
+            char *argZ = 0;
+
+            if (argc == 3) {
+                // /teleport 400 1200 0
+                playerId = client.playerId;
+                argX = argv[0];
+                argY = argv[1];
+                argZ = argv[2];
+            } else if (argc == 4) {
+                // /teleport dandy 400 1200 0
+                playerId = serverWorld->PlayerFindByName(argv[0], strlen(argv[0]));
+                argX = argv[1];
+                argY = argv[2];
+                argZ = argv[3];
             }
-        // /teleport <player> <x> <y> <z>
-        } else if (argc == 4) {
-            Player *player = serverWorld->PlayerFindByName(argv[0], strlen(argv[0]));
-            if (player) {
-                const PlayerInfo *playerInfo = serverWorld->FindPlayerInfo(player->id);
+
+            Body3D *body3d = (Body3D *)serverWorld->facetDepot.FacetFind(playerId, Facet_Body3D);
+            if (body3d) {
+                DLB_ASSERT(body3d);
+                const PlayerInfo *playerInfo = serverWorld->FindPlayerInfo(playerId);
                 DLB_ASSERT(playerInfo);
-                float x = strtof(argv[1], 0);
-                float y = strtof(argv[2], 0);
-                float z = strtof(argv[3], 0);
-                player->body.Teleport({ x, y, z });
-                printf("[teleport] Teleported %.*s to %f %f %f\n", playerInfo->nameLength, playerInfo->name, x, y, z);
+
+                float x = strtof(argX, 0);
+                float y = strtof(argY, 0);
+                float z = strtof(argZ, 0);
+                body3d->Teleport({ x, y, z });
+                E_DEBUG("[teleport] Teleported %.*s to %f %f %f\n",
+                    playerInfo->nameLength,
+                    playerInfo->name,
+                    x, y, z
+                );
             } else {
                 SendChatMessage(client, CSTR("[teleport] Player not found."));
             }
@@ -1062,12 +1104,13 @@ void NetServer::ProcessMsg(SV_Client &client, ENetPacket &packet)
         netMsg.connectionToken != client.connectionToken)
     {
         // Received a netMsg from a stale connection; discard it
-        printf("Ignoring %s packet from stale connection.\n", netMsg.TypeString());
+        E_DEBUG("Ignoring %s packet from stale connection.\n", netMsg.TypeString());
         return;
     }
 
     //E_INFO("[RECV][%21s][%5u b] %16s ", SafeTextFormatIP(client.peer->address), packet.rawBytes.dataLength, netMsg.TypeString());
 
+    ErrorType err;
     switch (netMsg.type) {
         case NetMessage::Type::Identify: {
             NetMessage_Identify &identMsg = netMsg.data.identify;
@@ -1077,31 +1120,35 @@ void NetServer::ProcessMsg(SV_Client &client, ENetPacket &packet)
             if (user) {
                 const char *password = user->password()->data();
                 if (!strncmp(identMsg.password, password, PASSWORD_LENGTH_MAX)) {
-                    printf("Successful auth as user: %s\n", identMsg.username);
+                    E_DEBUG("Successful auth as user: %s\n", identMsg.username);
                 } else {
-                    printf("Incorrect password for user: %s\n", identMsg.username);
+                    E_DEBUG("Incorrect password for user: %s\n", identMsg.username);
                     RemoveClient(client.peer);
                     break;
                 }
             } else {
-                printf("User does not exist: %s\n", identMsg.username);
+                E_DEBUG("User does not exist: %s\n", identMsg.username);
+                RemoveClient(client.peer);
+                break;
+            }
+
+            PlayerInfo *existingPlayer = serverWorld->FindPlayerInfoByName(
+                identMsg.username, identMsg.usernameLength
+            );
+            if (existingPlayer) {
+                // TODO: Send account already in use netMsg
+                E_DEBUG("User account already in use: %s\n", identMsg.username);
                 RemoveClient(client.peer);
                 break;
             }
 
             PlayerInfo *playerInfo = 0;
-            ErrorType err = serverWorld->AddPlayerInfo(identMsg.username, identMsg.usernameLength, &playerInfo);
+            err = serverWorld->AddPlayerInfo(&playerInfo);
             if (err != ErrorType::Success) {
                 switch (err) {
-                    case ErrorType::UserAccountInUse: {
-                        // TODO: Send account already in use netMsg
-                        printf("User account already in use: %s\n", identMsg.username);
-                        RemoveClient(client.peer);
-                        break;
-                    }
                     case ErrorType::ServerFull: {
                         // TODO: Send server full netMsg
-                        printf("Server full, kicking new user: %s\n", identMsg.username);
+                        E_DEBUG("Server full, kicking new user: %s\n", identMsg.username);
                         RemoveClient(client.peer);
                         break;
                     }
@@ -1110,35 +1157,45 @@ void NetServer::ProcessMsg(SV_Client &client, ENetPacket &packet)
             }
 
             client.connectionToken = netMsg.connectionToken;
-            client.playerId = playerInfo->id;
+            client.playerId = playerInfo->entityId;
 
             DLB_ASSERT(identMsg.usernameLength);
             playerInfo->SetName(identMsg.username, identMsg.usernameLength);
 
-            Player *player = serverWorld->AddPlayer(playerInfo->id);
+            Entity *player = 0;
+            E_ERROR(serverWorld->FindOrSpawnEntity(0, Entity_Player, &player),
+                "Failed to spawn player");
             DLB_ASSERT(player);
+            playerInfo->entityId = player->entityId;
+
+            Body3D *body3d = (Body3D *)serverWorld->facetDepot
+                .FacetFind(player->entityId, Facet_Body3D);
+            Inventory *inventory = (Inventory *)serverWorld->facetDepot
+                .FacetFind(player->entityId, Facet_Inventory);
+            DLB_ASSERT(body3d);
+            DLB_ASSERT(inventory);
 
             // TODO: Load player's spawn location from save file
-            player->body.Teleport(serverWorld->GetWorldSpawn());
+            body3d->Teleport(serverWorld->GetWorldSpawn());
 
             // TODO: Load selected slot from save file
-            player->inventory.selectedSlot = SlotId_Hotbar_0;
+            inventory->selectedSlot = SlotId_Hotbar_0;
 
             // TODO: Load inventory from save file
             ItemUID longSword = g_item_db.SV_Spawn(ItemType_Weapon_Long_Sword);
             ItemUID dagger = g_item_db.SV_Spawn(ItemType_Weapon_Dagger);
             ItemUID blackBook = g_item_db.SV_Spawn(ItemType_Book_BlackSkull);
             ItemUID silverCoin = g_item_db.SV_Spawn(ItemType_Currency_Silver);
-            player->inventory.slots[SlotId_Hotbar_0].stack = { longSword, 1 };
-            player->inventory.slots[0].stack = { dagger, 1 };
-            player->inventory.slots[1].stack = { blackBook, 3 };
-            player->inventory.slots[10].stack = { silverCoin, 10 };
-            player->inventory.slots[11].stack = { silverCoin, 20 };
-            player->inventory.slots[12].stack = { silverCoin, 30 };
-            player->inventory.slots[13].stack = { silverCoin, 40 };
-            player->inventory.slots[14].stack = { silverCoin, 50 };
-            player->inventory.slots[15].stack = { silverCoin, 60 };
-            player->inventory.slots[16].stack = { silverCoin, 70 };
+            inventory->slots[SlotId_Hotbar_0].stack = { longSword, 1 };
+            inventory->slots[0].stack = { dagger, 1 };
+            inventory->slots[1].stack = { blackBook, 3 };
+            inventory->slots[10].stack = { silverCoin, 10 };
+            inventory->slots[11].stack = { silverCoin, 20 };
+            inventory->slots[12].stack = { silverCoin, 30 };
+            inventory->slots[13].stack = { silverCoin, 40 };
+            inventory->slots[14].stack = { silverCoin, 50 };
+            inventory->slots[15].stack = { silverCoin, 60 };
+            inventory->slots[16].stack = { silverCoin, 70 };
 
             SendWelcomeBasket(client);
             break;
@@ -1170,7 +1227,7 @@ void NetServer::ProcessMsg(SV_Client &client, ENetPacket &packet)
                         histSample.skipFx = true;
                         client.lastInputRecv = MAX(client.lastInputRecv, sample.seq);
 #if SV_DEBUG_INPUT_SAMPLES
-                        printf("Received input #%u\n", histSample.seq);
+                        E_DEBUG("Received input #%u\n", histSample.seq);
 #endif
                     }
                 }
@@ -1180,32 +1237,49 @@ void NetServer::ProcessMsg(SV_Client &client, ENetPacket &packet)
             break;
         } case NetMessage::Type::SlotClick: {
             NetMessage_SlotClick &slotClick = netMsg.data.slotClick;
-            Player *player = serverWorld->FindPlayer(client.playerId);
-            if (player) {
+
+            Inventory *inventory = (Inventory *)serverWorld->facetDepot
+                .FacetFind(client.playerId, Facet_Inventory);
+            DLB_ASSERT(inventory);
+
+            if (inventory) {
                 // TODO(security): Validate params, discard if invalid
-                player->inventory.SlotClick(slotClick.slotId, slotClick.doubleClick);
+                inventory->SlotClick(slotClick.slotId, slotClick.doubleClick);
             }
             break;
         } case NetMessage::Type::SlotScroll: {
             NetMessage_SlotScroll &slotScroll = netMsg.data.slotScroll;
-            Player *player = serverWorld->FindPlayer(client.playerId);
-            if (player) {
+
+            Inventory *inventory = (Inventory *)serverWorld->facetDepot
+                .FacetFind(client.playerId, Facet_Inventory);
+            DLB_ASSERT(inventory);
+
+            if (inventory) {
                 // TODO(security): Validate params, discard if invalid
-                player->inventory.SlotScroll(slotScroll.slotId, slotScroll.scrollY);
+                inventory->SlotScroll(slotScroll.slotId, slotScroll.scrollY);
             }
             break;
         } case NetMessage::Type::SlotDrop: {
             NetMessage_SlotDrop &slotDrop = netMsg.data.slotDrop;
-            Player *player = serverWorld->FindPlayer(client.playerId);
-            if (player) {
+
+            Body3D *body3d = (Body3D *)serverWorld->facetDepot
+                .FacetFind(client.playerId, Facet_Body3D);
+            Inventory *inventory = (Inventory *)serverWorld->facetDepot
+                .FacetFind(client.playerId, Facet_Inventory);
+            DLB_ASSERT(inventory);
+
+            if (inventory) {
                 // TODO(security): Validate params, discard if invalid
                 E_DEBUG("[SRV] SlotDrop  slotId: %u, count: %u", slotDrop.slotId, slotDrop.count);
-                ItemStack dropStack = player->inventory.SlotDrop(slotDrop.slotId, slotDrop.count);
+                ItemStack dropStack = inventory->SlotDrop(slotDrop.slotId, slotDrop.count);
                 if (dropStack.uid && dropStack.count) {
                     E_DEBUG("[SRV] SpawnItem itemUid: %u, count: %u", dropStack.uid, dropStack.count);
-                    WorldItem *item = serverWorld->itemSystem.SpawnItem(player->body.WorldPosition(), dropStack.uid, dropStack.count);
+                    WorldItem *item = serverWorld->itemSystem.SpawnItem(
+                        body3d->WorldPosition(),
+                        dropStack.uid, dropStack.count
+                    );
                     if (item) {
-                        item->droppedByPlayerId = player->id;
+                        item->droppedByPlayerId = client.playerId;
                     }
                 }
             }
@@ -1213,30 +1287,40 @@ void NetServer::ProcessMsg(SV_Client &client, ENetPacket &packet)
          } case NetMessage::Type::TileInteract: {
             NetMessage_TileInteract &tileInteract = netMsg.data.tileInteract;
 
+            Body3D *body3d = (Body3D *)serverWorld->facetDepot
+                .FacetFind(client.playerId, Facet_Body3D);
+            DLB_ASSERT(body3d);
+
             // TODO(security): Validate params, discard if invalid
-            Player *player = serverWorld->FindPlayer(client.playerId);
-            if (player) {
-                Tile *tile = serverWorld->map.TileAtWorld(tileInteract.tileX, tileInteract.tileY);
-                if (tile && tile->object.IsIteractable()) {
-                    switch (tile->object.type) {
-                        case ObjectType_Rock01: {
-                            // TODO: Move this out to e.g. tile->object.Interact() or something..
-                            if (!tile->object.HasFlag(ObjectFlag_Stone_Overturned)) {
-                                E_DEBUG("[SRV] TileInteract: Rock attempting to roll loot.", 0);
-                                // TODO(v1): Make LootTableID::LT_Rock01
-                                // TODO(v2): Look up loot table id based on where the player is
-                                // TODO(v3): Account for player's magic find bonus
-                                serverWorld->lootSystem.SV_RollDrops(LootTableID::LT_Slime, [&](ItemStack dropStack) {
-                                    serverWorld->itemSystem.SpawnItem(
-                                        { tileInteract.tileX, tileInteract.tileY, 0 }, dropStack.uid, dropStack.count
-                                    );
-                                });
-                                tile->object.SetFlag(ObjectFlag_Stone_Overturned);
-                                BroadcastTileUpdate(tileInteract.tileX, tileInteract.tileY, *tile);
-                            } else {
-                                E_DEBUG("[SRV] TileInteract: Rock already overturned.", 0);
+            if (body3d) {
+                Vector2 playerToTile = v2_sub(
+                    { tileInteract.tileX, tileInteract.tileY },
+                    body3d->GroundPosition()
+                );
+                float playerToTileMag = v2_length(playerToTile);
+                if (playerToTileMag <= SV_PLAYER_INTERACT_DIST_MAX) {
+                    Tile *tile = serverWorld->map.TileAtWorld(tileInteract.tileX, tileInteract.tileY);
+                    if (tile && tile->object.IsIteractable()) {
+                        switch (tile->object.type) {
+                            case ObjectType_Rock01: {
+                                // TODO: Move this out to e.g. tile->object.Interact() or something..
+                                if (!tile->object.HasFlag(ObjectFlag_Stone_Overturned)) {
+                                    E_DEBUG("[SRV] TileInteract: Rock attempting to roll loot.", 0);
+                                    // TODO(v1): Make LootTableID::LT_Rock01
+                                    // TODO(v2): Look up loot table id based on where the player is
+                                    // TODO(v3): Account for player's magic find bonus
+                                    serverWorld->lootSystem.SV_RollDrops(LootTableID::LT_Slime, [&](ItemStack dropStack) {
+                                        serverWorld->itemSystem.SpawnItem(
+                                            { tileInteract.tileX, tileInteract.tileY, 0 }, dropStack.uid, dropStack.count
+                                        );
+                                    });
+                                    tile->object.SetFlag(ObjectFlag_Stone_Overturned);
+                                    BroadcastTileUpdate(tileInteract.tileX, tileInteract.tileY, *tile);
+                                } else {
+                                    E_DEBUG("[SRV] TileInteract: Rock already overturned.", 0);
+                                }
+                                break;
                             }
-                            break;
                         }
                     }
                 }
@@ -1282,20 +1366,25 @@ SV_Client *NetServer::FindClient(ENetPeer *peer)
 
 ErrorType NetServer::RemoveClient(ENetPeer *peer)
 {
-    printf("Remove client %s\n", SafeTextFormatIP(peer->address));
+    E_DEBUG("Remove client %s\n", SafeTextFormatIP(peer->address));
     SV_Client *client = FindClient(peer);
     if (client) {
         const PlayerInfo *playerInfo = serverWorld->FindPlayerInfo(client->playerId);
-        if (playerInfo && playerInfo->id) {
-            E_ERROR_RETURN(BroadcastPlayerLeave(playerInfo->id), "Failed to broadcast player leave notification", 0);
+        if (playerInfo && playerInfo->entityId) {
+            E_ERROR_RETURN(BroadcastPlayerLeave(playerInfo->entityId),
+                "Failed to broadcast player leave notification", 0);
 
-            const char *message = SafeTextFormat("%.*s left the game.", playerInfo->nameLength, playerInfo->name);
+            const char *message = SafeTextFormat(
+                "%.*s left the game.",
+                playerInfo->nameLength, playerInfo->name
+            );
             size_t messageLength = strlen(message);
             NetMessage_ChatMessage chatMsg{};
             chatMsg.source = NetMessage_ChatMessage::Source::Server;
             chatMsg.messageLength = (uint32_t)MIN(messageLength, CHATMSG_LENGTH_MAX);
             memcpy(chatMsg.message, message, chatMsg.messageLength);
-            E_ERROR_RETURN(BroadcastChatMessage(chatMsg), "Failed to broadcast player leave chat msg", 0);
+            E_ERROR_RETURN(BroadcastChatMessage(chatMsg),
+                "Failed to broadcast player leave chat msg", 0);
 
             serverWorld->RemovePlayerInfo(client->playerId);
         }

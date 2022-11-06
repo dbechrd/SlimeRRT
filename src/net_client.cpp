@@ -439,12 +439,14 @@ void NetClient::ProcessMsg(ENetPacket &packet)
             for (size_t i = 0; i < worldSnapshot.playerCount; i++) {
                 const PlayerSnapshot &playerSnapshot = worldSnapshot.players[i];
                 if (playerSnapshot.flags & PlayerSnapshot::Flags_Despawn) {
-                    serverWorld->RemovePlayer(playerSnapshot.id);
+                    serverWorld->facetDepot.EntityFree(playerSnapshot.id);
                     continue;
                 }
 
-                EntityID playerId = serverWorld->PlayerFindOrCreate(playerSnapshot.id);
-                DLB_ASSERT(playerId);
+                Entity *player = 0;
+                serverWorld->FindOrSpawnEntity(playerSnapshot.id, Entity_Townfolk, &player);
+                DLB_ASSERT(player);
+                EntityID playerId = player->entityType;
                 Attach *attach = (Attach *)serverWorld->facetDepot.FacetFind(playerId, Facet_Attach);
                 Body3D *body3d = (Body3D *)serverWorld->facetDepot.FacetFind(playerId, Facet_Body3D);
                 Combat *combat = (Combat *)serverWorld->facetDepot.FacetFind(playerId, Facet_Combat);
@@ -522,8 +524,12 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                             serverWorld->particleSystem.GenerateEffect(
                                 Catalog::ParticleEffectID::Blood,
                                 Entity::WorldCenter(*serverWorld, playerId),
-                                bloodParams);
-                            Catalog::g_sounds.Play(Catalog::SoundID::Eughh, 1.0f + dlb_rand32f_variance(0.1f));
+                                bloodParams
+                            );
+                            Catalog::g_sounds.Play(
+                                Catalog::SoundID::Eughh,
+                                1.0f + dlb_rand32f_variance(0.1f)
+                            );
                         } else {
                             // Took damage
                             Vector3 playerGut = attach->points[Attach_Gut];
@@ -532,7 +538,11 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                             bloodParams.particleCountMax = bloodParams.particleCountMin;
                             bloodParams.durationMin = 1.0f;
                             bloodParams.durationMax = bloodParams.durationMin;
-                            ParticleEffect *bloodParticles = serverWorld->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Blood, playerGut, bloodParams);
+                            ParticleEffect *bloodParticles = serverWorld->particleSystem.GenerateEffect(
+                                Catalog::ParticleEffectID::Blood,
+                                playerGut,
+                                bloodParams
+                            );
                             if (bloodParticles) {
                                 bloodParticles->effectCallbacks[(size_t)ParticleEffect_Event::BeforeUpdate] = {
                                     ParticlesFollowPlayerGut,
@@ -563,7 +573,8 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                             ParticleEffect *rainbowFx = serverWorld->particleSystem.GenerateEffect(
                                 Catalog::ParticleEffectID::Rainbow,
                                 body3d->WorldPosition(),
-                                rainbowParams);
+                                rainbowParams
+                            );
                             if (rainbowFx) {
                                 Catalog::g_sounds.Play(Catalog::SoundID::RainbowSparkles, 1.0f);
                             }
@@ -587,25 +598,25 @@ void NetClient::ProcessMsg(ENetPacket &packet)
             for (size_t i = 0; i < worldSnapshot.npcCount; i++) {
                 const NpcSnapshot &npcSnapshot = worldSnapshot.npcs[i];
                 if (npcSnapshot.flags & NpcSnapshot::Flags_Despawn) {
-                    serverWorld->RemoveNpc(npcSnapshot.id);
+                    serverWorld->facetDepot.EntityFree(npcSnapshot.id);
                     continue;
                 }
 
-                bool spawned = false;
-                NPC *npc = serverWorld->FindNpc(npcSnapshot.id);
-                if (!npc) {
-                    DLB_ASSERT(npcSnapshot.id);
-                    DLB_ASSERT(npcSnapshot.type);
-                    E_ERROR(serverWorld->SpawnNpc(npcSnapshot.id, npcSnapshot.type, npcSnapshot.position, &npc), "Failed to spawn replicated npc", 0);
-                    if (!npc) {
-                        continue;
-                    }
-                    spawned = true;
-                }
+                DLB_ASSERT(npcSnapshot.id);
+                DLB_ASSERT(npcSnapshot.type);
+                Entity *entity = 0;
+                serverWorld->FindOrSpawnEntity(npcSnapshot.id, npcSnapshot.type, &entity);
+                DLB_ASSERT(entity);
+                Body3D *body3d = (Body3D *)serverWorld->facetDepot.FacetFind(entity->entityId, Facet_Body3D);
+                Combat *combat = (Combat *)serverWorld->facetDepot.FacetFind(entity->entityId, Facet_Combat);
+                Sprite *sprite = (Sprite *)serverWorld->facetDepot.FacetFind(entity->entityId, Facet_Sprite);
+                DLB_ASSERT(body3d);
+                DLB_ASSERT(combat);
+                DLB_ASSERT(sprite);
 
                 if (npcSnapshot.flags & NpcSnapshot::Flags_Name && npcSnapshot.nameLength) {
-                    npc->nameLength = MIN(npcSnapshot.nameLength, ENTITY_NAME_LENGTH_MAX);
-                    strncpy(npc->name, npcSnapshot.name, npc->nameLength);
+                    entity->nameLength = MIN(npcSnapshot.nameLength, ENTITY_NAME_LENGTH_MAX);
+                    strncpy(entity->name, npcSnapshot.name, entity->nameLength);
                 }
 
                 const bool posChanged = npcSnapshot.flags & NpcSnapshot::Flags_Position;
@@ -613,11 +624,11 @@ void NetClient::ProcessMsg(ENetPacket &packet)
 
                 if (posChanged || dirChanged) {
                     const Vector3Snapshot *prevState{};
-                    if (npc->body.positionHistory.Count()) {
-                        prevState = &npc->body.positionHistory.Last();
+                    if (body3d->positionHistory.Count()) {
+                        prevState = &body3d->positionHistory.Last();
                     }
 
-                    Vector3Snapshot &state = npc->body.positionHistory.Alloc();
+                    Vector3Snapshot &state = body3d->positionHistory.Alloc();
                     state.serverTime = worldSnapshot.clock;
 
                     if (posChanged) {
@@ -631,7 +642,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                             state.v = prevState->v;
                         } else {
                             E_WARN("Received direction update but prevPosition is not known.", 0);
-                            state.v = npc->body.WorldPosition();
+                            state.v = body3d->WorldPosition();
                         }
                     }
 
@@ -644,7 +655,7 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                             //E_DEBUG("Snapshot: dir %d (fallback prev)", (char)state.direction);
                         } else {
                             E_WARN("Received position update but prevState.direction is not available.", 0);
-                            state.direction = npc->sprite.direction;
+                            state.direction = sprite->direction;
                         }
                     }
                 }
@@ -652,23 +663,31 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                 // TODO: Pos/dir are history based, but these are instantaneous.. hmm.. is that okay?
                 if (npcSnapshot.flags & NpcSnapshot::Flags_Scale) {
                     //E_DEBUG("Snapshot: scale %f", (char)enemySnapshot.direction);
-                    npc->sprite.scale = npcSnapshot.scale;
+                    sprite->scale = npcSnapshot.scale;
                 }
                 if (npcSnapshot.flags & NpcSnapshot::Flags_Health) {
                     //E_DEBUG("Snapshot: health %f", enemySnapshot.hitPoints);
-                    float hpDelta = npc->combat.hitPoints - npcSnapshot.hitPoints;
+                    float hpDelta = combat->hitPoints - npcSnapshot.hitPoints;
                     if (hpDelta > 0) {
-                        npc->combat.TakeDamage(hpDelta);
+                        combat->TakeDamage(hpDelta);
                         // TODO: This only makes sense for slimes.. not all entities.. refactor
-                        if (npc->combat.diedAt) {
+                        if (combat->diedAt) {
                             // Died
                             ParticleEffectParams gooParams{};
                             gooParams.particleCountMin = 50 * (int)ceilf(CL_NPC_CORPSE_LIFETIME);
                             gooParams.particleCountMax = gooParams.particleCountMin;
                             gooParams.durationMin = CL_NPC_CORPSE_LIFETIME;
                             gooParams.durationMax = gooParams.durationMin;
-                            serverWorld->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Goo, npc->WorldCenter(), gooParams);
-                            Catalog::g_sounds.Play(Catalog::SoundID::Squish2, 0.5f + dlb_rand32f_variance(0.1f), true);
+                            serverWorld->particleSystem.GenerateEffect(
+                                Catalog::ParticleEffectID::Goo,
+                                Entity::WorldCenter(*serverWorld, entity->entityId),
+                                gooParams);
+
+                            Catalog::g_sounds.Play(
+                                Catalog::SoundID::Squish2,
+                                0.5f + dlb_rand32f_variance(0.1f),
+                                true
+                            );
                         } else {
                             // Took damage
                             ParticleEffectParams gooParams{};
@@ -676,14 +695,22 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                             gooParams.particleCountMax = gooParams.particleCountMin;
                             gooParams.durationMin = 0.5f;
                             gooParams.durationMax = gooParams.durationMin;
-                            serverWorld->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Goo, npc->WorldCenter(), gooParams);
+                            serverWorld->particleSystem.GenerateEffect(
+                                Catalog::ParticleEffectID::Goo,
+                                Entity::WorldCenter(*serverWorld, entity->entityId),
+                                gooParams
+                            );
 
                             ParticleEffectParams dmgParams{};
                             dmgParams.particleCountMin = (int)MAX(1, floorf(log10f(hpDelta)));
                             dmgParams.particleCountMax = dmgParams.particleCountMin;
                             dmgParams.durationMin = 3.0f;
                             dmgParams.durationMax = dmgParams.durationMin;
-                            ParticleEffect *dmgFx = serverWorld->particleSystem.GenerateEffect(Catalog::ParticleEffectID::Number, npc->WorldCenter(), dmgParams);
+                            ParticleEffect *dmgFx = serverWorld->particleSystem.GenerateEffect(
+                                Catalog::ParticleEffectID::Number,
+                                Entity::WorldCenter(*serverWorld, entity->entityId),
+                                dmgParams
+                            );
                             if (dmgFx) {
                                 char *text = (char *)calloc(1, 8);
                                 snprintf(text, 16, "%.f", hpDelta);
@@ -697,21 +724,24 @@ void NetClient::ProcessMsg(ENetPacket &packet)
                                 };
                             }
 
-                            Catalog::g_sounds.Play(Catalog::SoundID::Slime_Stab1, 1.0f + dlb_rand32f_variance(0.4f));
+                            Catalog::g_sounds.Play(
+                                Catalog::SoundID::Slime_Stab1,
+                                1.0f + dlb_rand32f_variance(0.4f)
+                            );
                         }
-                    } else if (npc->combat.diedAt && npcSnapshot.hitPoints) {
+                    } else if (combat->diedAt && npcSnapshot.hitPoints) {
                         // Respawn
-                        npc->combat.hitPoints = npcSnapshot.hitPoints;
-                        npc->combat.diedAt = 0;
+                        combat->hitPoints = npcSnapshot.hitPoints;
+                        combat->diedAt = 0;
                     }
                 }
                 if (npcSnapshot.flags & NpcSnapshot::Flags_HealthMax) {
                     //E_DEBUG("Snapshot: healthMax %f", enemySnapshot.hitPointsMax);
-                    npc->combat.hitPointsMax = npcSnapshot.hitPointsMax;
+                    combat->hitPointsMax = npcSnapshot.hitPointsMax;
                 }
                 if (npcSnapshot.flags & NpcSnapshot::Flags_Level) {
                     //E_DEBUG("Snapshot: level %u", enemySnapshot.level);
-                    npc->combat.level = npcSnapshot.level;
+                    combat->level = npcSnapshot.level;
                 }
             }
 

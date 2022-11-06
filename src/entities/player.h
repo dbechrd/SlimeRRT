@@ -5,7 +5,8 @@ struct World;
 // HACK: Player::Update SHOULD NOT be doing collision detection.. WUT!?
 struct Tilemap;
 
-namespace Player {
+namespace Player
+{
     const char *LOG_SRC = "Player";
 
     ErrorType Init   (World &world, EntityID entityId);

@@ -7,34 +7,22 @@
 #include "shadow.h"
 #include "slime.h"
 #include "spritesheet.h"
+#include "townfolk.h"
 #include "dlb_rand.h"
 #include "particles.h"
 
-void Entity::Init(World &world)
+const char *Entity::LOG_SRC = "Entity";
+
+ErrorType Entity::Init(World &world, EntityID entityId, EntityType type)
 {
-    switch (entityType) {
+    E_ERROR_RETURN(world.facetDepot.EntityAlloc(entityId, type, 0), "Failed to alloc entity");
+    switch (type) {
         case Entity_Slime: {
             Slime::Init(world, entityId);
             break;
         }
         case Entity_Townfolk: {
-            // TODO: Townfolk factory, add all necessary facets and initialize them appropriately
-            npc.SetName(CSTR("Townfolk"));
-            npc.combat.hitPointsMax = 1;
-            npc.combat.hitPoints = npc.combat.hitPointsMax;
-            npc.combat.flags |= Combat::Flag_TooBigToFail;
-            // TODO: Shop inventory?
-            //npc.combat.lootTableId = LootTableID::LT_Slime;
-            npc.sprite.scale = 1.0f;
-            // TODO: FindClosestPlayer and update direction in Townfolk::Update()
-            npc.sprite.direction = Direction::South;
-
-            // TODO: Look this up by npc.type in Draw() instead
-            if (!g_clock.server) {
-                Spritesheet &spritesheet = Catalog::g_spritesheets.FindById(Catalog::SpritesheetID::Monster_Slime);
-                SpriteDef *spriteDef = spritesheet.FindSprite("blue_slime");
-                npc.sprite.spriteDef = spriteDef;
-            }
+            Townfolk::Init(world, entityId);
             break;
         }
     }
@@ -117,7 +105,14 @@ void Entity::Update(World &world, EntityID entityId, double dt)
 
     if (!combat->diedAt) {
         switch (entity->entityType) {
-            case Entity_Slime: Slime::Update(world, entityId, dt); break;
+            case Entity_Slime: {
+                Slime::Update(world, entityId, dt);
+                break;
+            }
+            case Entity_Townfolk: {
+                Townfolk::Update(world, entityId, dt);
+                break;
+            }
         }
         body3d->Update(dt);
     } else if (!body3d->Resting()) {
